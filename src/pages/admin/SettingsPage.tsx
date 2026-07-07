@@ -390,6 +390,7 @@ export default function SettingsPage() {
         meta_pixel_id: settings.meta_pixel_id,
         google_analytics_id: settings.google_analytics_id,
         benchmarks_opt_in: settings.benchmarks_opt_in,
+        require_cleaner_payout_setup: settings.require_cleaner_payout_setup,
       } as any;
 
       if (!organization?.id) {
