@@ -654,6 +654,72 @@ export default function PublicBookingPage() {
           {/* Step 1: Select Service & Square Footage */}
           {step === 1 && (
             <div className="animate-fade-in space-y-6">
+
+              {/* Service Selection */}
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
+                <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {services.map((svc) => {
+                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
+                    // per-service card shows a real amount whether the user is in sqft mode OR
+                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
+                    // never populated the service amount.
+                    const svcPricing = calculateBasePrice({
+                      sqftPrices: svc.prices,
+                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
+                      minimumPrice: svc.minimumPrice,
+                      squareFootageIndex: selectedSqFtIndex,
+                      bedrooms: selectedBedrooms,
+                      bathrooms: selectedBathrooms,
+                      pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
+                      fallbackBasePrice: svc.minimumPrice,
+                    });
+                    const price = svcPricing.base;
+                    const isMinPrice = selectedSqFtIndex === null && !selectedBedrooms && !selectedBathrooms;
+                    
+                    return (
+                      <Card
+                        key={svc.id}
+                        className={cn(
+                          'cursor-pointer transition-all hover:shadow-md',
+                          selectedService === svc.id && 'ring-2 ring-primary'
+                        )}
+                        onClick={() => setSelectedService(svc.id)}
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div
+                              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${svc.color}20`, color: svc.color }}
+                            >
+                              <CalendarIcon className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold">{svc.name}</h3>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{svc.description}</p>
+                              <div className="flex items-center gap-2 mt-3">
+                                <div className="flex items-center gap-1 text-lg font-bold text-success">
+                                  <DollarSign className="w-5 h-5" />
+                                  {price}
+                                </div>
+                                {isMinPrice && (
+                                  <span className="text-xs text-muted-foreground">(min price)</span>
+                                )}
+                              </div>
+                            </div>
+                            {selectedService === svc.id && (
+                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <Check className="w-4 h-4 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
               {/* Square Footage Selection */}
               {displaySettings.show_sqft_on_booking && (
                 <div>
@@ -805,72 +871,6 @@ export default function PublicBookingPage() {
                 </Collapsible>
               )}
 
-
-              {/* Service Selection */}
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
-                <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {services.map((svc) => {
-                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
-                    // per-service card shows a real amount whether the user is in sqft mode OR
-                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
-                    // never populated the service amount.
-                    const svcPricing = calculateBasePrice({
-                      sqftPrices: svc.prices,
-                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
-                      minimumPrice: svc.minimumPrice,
-                      squareFootageIndex: selectedSqFtIndex,
-                      bedrooms: selectedBedrooms,
-                      bathrooms: selectedBathrooms,
-                      pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
-                      fallbackBasePrice: svc.minimumPrice,
-                    });
-                    const price = svcPricing.base;
-                    const isMinPrice = selectedSqFtIndex === null && !selectedBedrooms && !selectedBathrooms;
-                    
-                    return (
-                      <Card
-                        key={svc.id}
-                        className={cn(
-                          'cursor-pointer transition-all hover:shadow-md',
-                          selectedService === svc.id && 'ring-2 ring-primary'
-                        )}
-                        onClick={() => setSelectedService(svc.id)}
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-start gap-4">
-                            <div
-                              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: `${svc.color}20`, color: svc.color }}
-                            >
-                              <CalendarIcon className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold">{svc.name}</h3>
-                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{svc.description}</p>
-                              <div className="flex items-center gap-2 mt-3">
-                                <div className="flex items-center gap-1 text-lg font-bold text-success">
-                                  <DollarSign className="w-5 h-5" />
-                                  {price}
-                                </div>
-                                {isMinPrice && (
-                                  <span className="text-xs text-muted-foreground">(min price)</span>
-                                )}
-                              </div>
-                            </div>
-                            {selectedService === svc.id && (
-                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                                <Check className="w-4 h-4 text-primary-foreground" />
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Extras */}
               {displaySettings.show_addons_on_booking && service && !service.name.toLowerCase().includes('deep') && (
