@@ -72,10 +72,13 @@ interface Body {
   user_phone?: string | null;
   reason?: string;
   feedback_text?: string | null;
+  kept_text?: string | null;
   competitor_name?: string | null;
   missing_feature?: string | null;
   period_end_date?: string | null;
   plan?: string | null;
+  organization_id?: string | null;
+  organization_name?: string | null;
   triggered_by?: "self" | "admin";
 }
 
