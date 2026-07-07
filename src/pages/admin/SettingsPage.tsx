@@ -1196,9 +1196,39 @@ export default function SettingsPage() {
 
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff payouts</CardTitle>
+              <CardDescription>
+                Control whether cleaners must connect a Stripe payout account before working jobs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="require_cleaner_payout_setup" className="text-sm font-medium">
+                    Require cleaners to set up Stripe payouts
+                  </Label>
+                  <p className="text-xs text-muted-foreground max-w-md">
+                    Turn off if you pay your team externally (cash, Zelle, Venmo, check).
+                  </p>
+                </div>
+                <Switch
+                  id="require_cleaner_payout_setup"
+                  checked={settings.require_cleaner_payout_setup}
+                  onCheckedChange={(v) => updateField('require_cleaner_payout_setup', v)}
+                />
+              </div>
+              <Button onClick={saveSettings} disabled={saving} size="sm">
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </CardContent>
+          </Card>
+
           <div data-tour-id="stripe-connect">
             <StripeConnectHealthPanel />
           </div>
+
 
           <ZapierSetupGuide />
           <ZapierWebhooksCard />
