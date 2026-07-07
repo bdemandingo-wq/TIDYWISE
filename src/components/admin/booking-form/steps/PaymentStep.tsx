@@ -463,6 +463,28 @@ export function PaymentStep() {
         </CardContent>
       </Card>
 
+      {/* Adjust Price Override */}
+      <Card className="border-border/50 shadow-sm">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">Adjust Price (Override)</Label>
+          </div>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Leave empty to use calculated price"
+            value={totalAmount > 0 ? totalAmount : ''}
+            onChange={(e) => setTotalAmount(parseFloat(e.target.value) || 0)}
+            className="h-11 bg-secondary/30 border-border/50"
+          />
+          <p className="text-xs text-muted-foreground mt-2">
+            Enter a value only if you want to override the calculated price
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Cleaner Payment Section - Only show if NOT in team mode */}
       {!(isTeamMode && selectedTeamMembers.length > 0) && (
         <Card className="border-border/50 shadow-sm">
