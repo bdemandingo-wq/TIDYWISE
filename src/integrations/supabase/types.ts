@@ -799,6 +799,176 @@ export type Database = {
           },
         ]
       }
+      automation_definitions: {
+        Row: {
+          automation_key: string
+          created_at: string
+          enabled: boolean
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          automation_key: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          automation_key?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_definitions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_steps: {
+        Row: {
+          automation_id: string
+          channel: string
+          created_at: string
+          direction: string
+          email_body: string
+          email_subject: string
+          enabled: boolean
+          id: string
+          label: string
+          offset_minutes: number | null
+          offset_unit: string
+          offset_value: number
+          organization_id: string
+          position: number
+          recipient_cleaner: boolean
+          recipient_client: boolean
+          recipient_owner: boolean
+          sms_body: string
+          updated_at: string
+        }
+        Insert: {
+          automation_id: string
+          channel?: string
+          created_at?: string
+          direction?: string
+          email_body?: string
+          email_subject?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          offset_minutes?: number | null
+          offset_unit?: string
+          offset_value?: number
+          organization_id: string
+          position?: number
+          recipient_cleaner?: boolean
+          recipient_client?: boolean
+          recipient_owner?: boolean
+          sms_body?: string
+          updated_at?: string
+        }
+        Update: {
+          automation_id?: string
+          channel?: string
+          created_at?: string
+          direction?: string
+          email_body?: string
+          email_subject?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          offset_minutes?: number | null
+          offset_unit?: string
+          offset_value?: number
+          organization_id?: string
+          position?: number
+          recipient_cleaner?: boolean
+          recipient_client?: boolean
+          recipient_owner?: boolean
+          sms_body?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_steps_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automation_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_steps_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_triggers: {
+        Row: {
+          automation_id: string
+          created_at: string
+          direction: string | null
+          id: string
+          meta: Json
+          offset_unit: string | null
+          offset_value: number | null
+          organization_id: string
+          trigger_key: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          meta?: Json
+          offset_unit?: string | null
+          offset_value?: number | null
+          organization_id: string
+          trigger_key: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          meta?: Json
+          offset_unit?: string | null
+          offset_value?: number | null
+          organization_id?: string
+          trigger_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_triggers_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automation_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_triggers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benchmark_audit_logs: {
         Row: {
           created_at: string
