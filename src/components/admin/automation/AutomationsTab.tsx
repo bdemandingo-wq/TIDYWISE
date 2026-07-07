@@ -706,10 +706,20 @@ export function AutomationsTab() {
                           <p className="text-sm text-muted-foreground">{meta?.description ?? 'Automation disabled'}</p>
                         </div>
                       </div>
-                      <Switch
-                        checked={false}
-                        onCheckedChange={() => toggleMutation.mutate({ id: auto.id, is_enabled: true })}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing({ key: auto.automation_type, name: formatName(auto.automation_type) })}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                        <Switch
+                          checked={false}
+                          onCheckedChange={() => toggleMutation.mutate({ id: auto.id, is_enabled: true })}
+                        />
+                      </div>
+
                     </div>
                   </CardContent>
                 </Card>
