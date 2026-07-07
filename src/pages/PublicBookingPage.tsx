@@ -714,9 +714,7 @@ export default function PublicBookingPage() {
                         <div>
                           <Label className="text-base mb-2 block">Bathrooms</Label>
                           <div className="flex flex-wrap gap-2">
-                            {[...new Set(bedroomPricing
-                              .filter(bp => !selectedBedrooms || bp.bedrooms === Number(selectedBedrooms))
-                              .map(bp => bp.bathrooms))]
+                            {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
                               .sort((a, b) => a - b)
                               .map(bath => (
 
