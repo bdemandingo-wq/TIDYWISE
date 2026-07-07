@@ -27,7 +27,7 @@ import {
   Check,
   Sparkles,
   AlertCircle,
-  GripVertical,
+  Menu as MenuIcon,
   Users,
   Mail
 } from 'lucide-react';
@@ -119,12 +119,13 @@ function SortableStep({ step, index, currentStep, totalSteps, onClick }: Sortabl
         <button
           {...attributes}
           {...listeners}
+          aria-label={`Reorder ${step.label}`}
           className={cn(
-            "p-1 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity",
-            isDragging && "opacity-100"
+            "p-1 cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-foreground transition-colors",
+            isDragging && "text-foreground"
           )}
         >
-          <GripVertical className="w-3 h-3 text-muted-foreground" />
+          <MenuIcon className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={onClick}
