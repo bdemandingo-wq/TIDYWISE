@@ -156,6 +156,7 @@ serve(async (req) => {
       competitor_name: competitor_name?.slice(0, 200) || null,
       missing_feature: missing_feature?.slice(0, 200) || null,
       feedback_text: feedback_text?.slice(0, 2000) || null,
+      kept_text: kept_text?.slice(0, 2000) || null,
       plan: active.items.data[0]?.price?.id || null,
       period_end_date: periodEnd,
       eligible_for_winback: true,
