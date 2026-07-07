@@ -312,7 +312,7 @@ export default function PublicBookingPage() {
         bedrooms: selectedBedrooms,
         bathrooms: selectedBathrooms,
         // Prefer bed/bath when both selected (matches previous behavior).
-        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
         fallbackBasePrice: service.minimumPrice,
       });
       total = result.base;
@@ -823,7 +823,7 @@ export default function PublicBookingPage() {
                       squareFootageIndex: selectedSqFtIndex,
                       bedrooms: selectedBedrooms,
                       bathrooms: selectedBathrooms,
-                      pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                      pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
                       fallbackBasePrice: svc.minimumPrice,
                     });
                     const price = svcPricing.base;
@@ -1215,7 +1215,7 @@ export default function PublicBookingPage() {
                         squareFootageIndex: selectedSqFtIndex,
                         bedrooms: selectedBedrooms,
                         bathrooms: selectedBathrooms,
-                        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
                         fallbackBasePrice: service.minimumPrice,
                       }).base : 0}</span>
                     </div>
