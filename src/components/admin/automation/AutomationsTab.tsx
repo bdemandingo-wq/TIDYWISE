@@ -804,6 +804,16 @@ export function AutomationsTab() {
           </Card>
         )}
       </div>
+      {editing && organization?.id && (
+        <AutomationEditorDialog
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+          organizationId={organization.id}
+          automationKey={editing.key}
+          automationName={editing.name}
+        />
+      )}
     </div>
   );
 }
+
