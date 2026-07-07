@@ -3199,6 +3199,7 @@ export type Database = {
           customer_id: string | null
           id: string
           lifetime_points: number | null
+          organization_id: string | null
           points: number | null
           tier: string | null
           updated_at: string | null
@@ -3208,6 +3209,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          organization_id?: string | null
           points?: number | null
           tier?: string | null
           updated_at?: string | null
@@ -3217,6 +3219,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          organization_id?: string | null
           points?: number | null
           tier?: string | null
           updated_at?: string | null
