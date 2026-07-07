@@ -1304,9 +1304,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col lg:flex-row gap-6 h-full">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full pb-24 lg:pb-0">
         {/* Main scrollable single-page form */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 space-y-3 lg:space-y-4 order-2 lg:order-1">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -1326,7 +1326,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </div>
 
         {/* Persistent Sidebar: Booking summary + adjustments + actions */}
-        <div className="lg:w-80 lg:sticky lg:top-0 lg:self-start space-y-4">
+        <div className="lg:w-80 lg:sticky lg:top-0 lg:self-start space-y-3 lg:space-y-4 order-1 lg:order-2">
           {/* Booking Summary */}
           <div className="bg-gradient-to-br from-card via-card to-secondary/20 rounded-2xl border border-border/50 p-5 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
@@ -1501,6 +1501,33 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             )}
           </div>
         </div>
+      </div>
+
+      {/* Mobile sticky bottom action bar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-3 py-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] flex items-center gap-2 shadow-lg">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</span>
+          <span className="text-base font-bold text-primary leading-tight">{fmt(finalPrice)}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSubmit(true)}
+          disabled={savingDraft || submitting}
+          className="ml-auto h-10"
+        >
+          {savingDraft && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          Draft
+        </Button>
+        <Button
+          onClick={() => handleSubmit(false)}
+          disabled={submitting || savingDraft}
+          size="sm"
+          className="h-10 px-4 bg-gradient-to-r from-primary to-accent"
+        >
+          {submitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          {booking ? 'Update' : 'Save'}
+        </Button>
       </div>
     </>
   );
