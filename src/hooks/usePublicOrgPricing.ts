@@ -130,7 +130,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
 
     const applyDefaults = () => {
       const defaults = getDefaultPayload();
-      setServices(defaults.services);
+      setServices(sortServices(defaults.services));
       setExtras(defaults.extras);
     };
 
