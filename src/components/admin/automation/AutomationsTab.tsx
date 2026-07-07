@@ -385,6 +385,8 @@ export function AutomationsTab() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ key: string; name: string } | null>(null);
+
 
   const { data: automations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['organization-automations', organization?.id],
