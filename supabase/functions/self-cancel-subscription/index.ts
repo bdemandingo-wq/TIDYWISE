@@ -50,11 +50,13 @@ serve(async (req) => {
       competitor_name,
       missing_feature,
       feedback_text,
+      kept_text,
     } = body as {
       reason?: string;
       competitor_name?: string;
       missing_feature?: string;
       feedback_text?: string;
+      kept_text?: string;
     };
 
     if (!reason || !ALLOWED_REASONS.has(reason)) {
