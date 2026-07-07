@@ -73,6 +73,7 @@ export function PaymentStep() {
     customerName,
     selectedService,
     totalAmount,
+    setTotalAmount,
     customerTab,
     selectedCustomer,
     newCustomer,
