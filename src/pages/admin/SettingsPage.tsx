@@ -343,6 +343,7 @@ export default function SettingsPage() {
           meta_pixel_id: typedData.meta_pixel_id || '',
           google_analytics_id: typedData.google_analytics_id || '',
           benchmarks_opt_in: typedData.benchmarks_opt_in ?? true,
+          require_cleaner_payout_setup: typedData.require_cleaner_payout_setup ?? true,
         });
       }
     } catch (error) {
