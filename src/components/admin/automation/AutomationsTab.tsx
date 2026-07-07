@@ -15,8 +15,10 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
-  AlertTriangle, MessageSquare, Plus, Trash2,
+  AlertTriangle, MessageSquare, Plus, Trash2, Pencil,
 } from 'lucide-react';
+import { AutomationEditorDialog } from './AutomationEditorDialog';
+
 import { format } from 'date-fns';
 
 interface ReminderInterval {
