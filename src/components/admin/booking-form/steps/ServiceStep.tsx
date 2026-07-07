@@ -577,8 +577,6 @@ export function ServiceStep() {
 
             {showCondition && (
               <div>
-                <Label className="text-sm font-medium">Home Condition (1-5 scale)</Label>
-                <p className="text-xs text-muted-foreground mb-2">5 being the dirtiest - additional charges may apply</p>
                 <Select value={homeCondition.toString()} onValueChange={(v) => setHomeCondition(parseInt(v))}>
                   <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
                     <SelectValue />
