@@ -107,6 +107,8 @@ interface BusinessSettings {
   google_analytics_id: string;
   // Peer benchmarks
   benchmarks_opt_in: boolean;
+  // Staff payouts
+  require_cleaner_payout_setup: boolean;
 }
 
 const defaultSettings: BusinessSettings = {
