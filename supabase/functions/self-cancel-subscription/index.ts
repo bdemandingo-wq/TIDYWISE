@@ -169,16 +169,28 @@ serve(async (req) => {
     // alert to platform admin). Failures are non-fatal — the cancellation
     // itself already succeeded by this point; just log and move on.
     try {
+      let orgName: string | null = null;
+      if (organizationId) {
+        const { data: orgRow } = await supabase
+          .from("organizations")
+          .select("name")
+          .eq("id", organizationId)
+          .maybeSingle();
+        orgName = orgRow?.name ?? null;
+      }
       await supabase.functions.invoke("notify-tidywise-cancellation", {
         body: {
           user_id: userId,
           user_email: userEmail,
           reason,
           feedback_text: feedback_text?.slice(0, 2000) || null,
+          kept_text: kept_text?.slice(0, 2000) || null,
           competitor_name: competitor_name?.slice(0, 200) || null,
           missing_feature: missing_feature?.slice(0, 200) || null,
           period_end_date: periodEnd,
           plan: active.items.data[0]?.price?.id || null,
+          organization_id: organizationId,
+          organization_name: orgName,
           triggered_by: "self",
         },
       });
