@@ -1326,7 +1326,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </div>
 
         {/* Persistent Sidebar: Booking summary + adjustments + actions */}
-        <div className="lg:w-80 lg:sticky lg:top-0 lg:self-start space-y-4">
+        <div className="lg:w-80 lg:sticky lg:top-0 lg:self-start space-y-3 lg:space-y-4 order-1 lg:order-2">
           {/* Booking Summary */}
           <div className="bg-gradient-to-br from-card via-card to-secondary/20 rounded-2xl border border-border/50 p-5 shadow-lg">
             <div className="flex items-center gap-3 mb-4">
