@@ -1,56 +1,104 @@
 
-## 1. Pet Toggle (replaces the "+$25" dropdown card)
+# Per-Organization AI Credit System
 
-**Backend (migration)**
-- Add `has_pets boolean not null default false` to `bookings`.
-- Add `pet_fee numeric not null default 25` and `pet_toggle_enabled boolean not null default true` to `organization_pricing_settings` (single, org-wide pet fee — no more per-option list on the form).
+Big change with real cost implications. Two decisions I need you to confirm before I write code, then the full build plan.
 
-**Frontend**
-- `PublicBookingPage.tsx`: replace the pet cards grid with a single shadcn `Switch` — "Do you have any pets? +${pet_fee}".
-- State becomes `hasPets: boolean`. `calculateTotal` adds `pet_fee` when true.
-- Submit `has_pets` + include pet fee in `total_amount` (payload already flexible; add `pets: hasPets` in `extras` metadata for the edge function).
-- Admin `ServicePricingEditor.tsx` gets a single "Pet fee" number input + toggle to show/hide the pet question (per-org, not per-service). Keeps existing `pet_options` array untouched for legacy data but no longer rendered on the public form.
+---
 
-## 2. Exclude Parameters (new admin settings section)
+## Decisions I need from you
 
-**Backend (same migration)**
-Add to `organization_pricing_settings`:
-- `excluded_room_types text[] not null default '{}'` — subset of `{"bedroom","bathroom","full_bath"}`.
-- `room_reduction_prices jsonb not null default '{"bedroom":25,"bathroom":20,"full_bath":25}'` — fixed $ reduction per excludable type.
+### 1. Which Stripe account collects the $10 top-ups?
 
-Extend the `get_public_booking_settings` RPC to return these two fields so the anon booking form can read them.
+You wrote "each org's existing Stripe setup on our platform account" — those are two different things, and it matters:
 
-**Frontend**
-- `ServicePricingEditor.tsx` — new "Exclude Parameters" card at the top of the Pricing tab: three checkboxes (Bedrooms, Bathrooms, Full Baths) + a `$` input next to each for the reduction amount. Saves via existing `useOrganizationSettings` hook (extended to include the new fields).
-- Hide the bed/bath selectors on the public form for any type marked excluded. (E.g. if "bedroom" is excluded, bedrooms picker disappears entirely.)
+- **Option A — Platform Stripe (recommended).** The $10 goes to *your* Stripe (TidyWise). Orgs are buying a TidyWise product (AI credits). This needs a `STRIPE_SECRET_KEY` secret on the platform (separate from the per-org OAuth Connect keys you already have for org→customer billing). Clean accounting, one product, one webhook.
+- **Option B — Each org's own connected Stripe.** The $10 goes to the org. That means the org is charging *itself* for a service you're providing — doesn't make business sense; you'd be giving away AI compute and letting them collect the fee. Only do this if you literally want orgs to self-fund without you seeing revenue.
 
-## 3. "Don't need the entire home cleaned?" reducer
+I'll build **Option A** unless you say otherwise. That means I'll ask for a platform `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (if you don't already have platform-level ones separate from the Connect OAuth flow).
 
-**Frontend only** — no new columns; the reduction is captured in existing `notes` + reflected in `total_amount`.
+### 2. `plan_type` source of truth
 
-- On Step 1 of `PublicBookingPage.tsx`, below the bed/bath selectors, render a collapsible (shadcn `Collapsible`) button: "Don't need the entire home cleaned?".
-- When opened, render one row per **non-excluded** room type from settings: label, minus/plus buttons, current count (starts at the selected bed/bath count), and the `$-X` reduction value shown live.
-- New state: `roomReductions: Record<'bedroom'|'bathroom'|'full_bath', number>` — number of rooms the customer is skipping.
-- `calculateTotal` subtracts `reductions[type] * price[type]` from the base, floored at the service's `minimum_price`.
-- The Price Summary card now shows a per-type breakdown:
+`organizations.plan_type` currently holds values like `lifetime`, and `has_active_subscription()` also considers Stripe subscriptions, lifetime grants, and hardcoded creator emails. The values you listed (`basic` / `pro` / `custom` / `trial`) don't exist in the codebase today.
+
+Options:
+- **A.** Add a `plan_tier` column to `organizations` (nullable, defaults to `trial`), and let you set it manually / on signup. I'll map `lifetime` + creator-bypass emails to `custom` (250/day) automatically.
+- **B.** Derive tier from existing signals (Stripe subscription price ID → basic/pro, lifetime → custom, else trial). Needs you to tell me which Stripe price IDs map to which tier.
+
+I'll go with **A** unless you say B.
+
+---
+
+## Build plan (assuming A + A above)
+
+### Database (one migration)
+
+```text
+ai_usage_daily
+  organization_id uuid, usage_date date, credits_used int
+  PK (organization_id, usage_date)
+
+ai_credit_ledger
+  organization_id uuid PK, balance int (>=0), updated_at
+  + ai_credit_ledger_entries (org, delta, reason, stripe_session_id, created_at)  -- audit trail
+
+organizations.plan_tier text  -- 'trial'|'basic'|'pro'|'custom', default 'trial'
+```
+
+RPCs (all `SECURITY DEFINER`, `service_role` only):
+- `get_ai_credit_status(org)` → `{ used_today, daily_limit, purchased_balance, resets_at }`
+- `consume_ai_credit(org)` → atomic:
+  1. `INSERT ... ON CONFLICT DO UPDATE SET credits_used = credits_used + 1 RETURNING credits_used` — same race-free pattern the rate limiter uses.
+  2. If `credits_used <= daily_limit` → allowed.
+  3. Else `UPDATE ai_credit_ledger SET balance = balance - 1 WHERE org = $1 AND balance > 0 RETURNING balance` — atomic decrement, only succeeds if balance > 0.
+  4. If neither succeeded → rollback the daily increment and return `{allowed: false, ...}` so the failed attempt doesn't burn the daily row.
+- `credit_ai_purchase(org, amount, stripe_session_id)` → idempotent by session id, `INSERT ... ON CONFLICT DO NOTHING` into a `processed_stripe_sessions` guard row so double-webhooks don't double-credit.
+
+**UTC reset:** `usage_date` = `(now() at time zone 'utc')::date`. `resets_at` = start of next UTC day. Same in the RPC and the UI. Never touch `business_settings.timezone` for this.
+
+### Edge functions
+
+- `supabase/functions/_shared/ai-credits.ts` — helper `enforceAiCredit(supabase, { orgId, corsHeaders })`. Calls `consume_ai_credit`. On denial, returns 402 with:
+  ```json
+  { "error": "daily_limit_reached", "used": N, "limit": N, "purchasedBalance": 0, "resetsAt": "2026-07-07T00:00:00Z" }
   ```
-  Base                   $220
-  Skip 1 bedroom          -$25
-  Skip 2 bathrooms        -$40
-  ─────────────────────
-  Total                   $155
-  ```
-- Reductions are added to `notes` (`"Skipping: 1 bedroom, 2 bathrooms"`) and included in the `total_amount` sent to `external-booking-webhook`, so the backend records the discounted total naturally.
+- Wire into: `ai-message-assist`, `ai-sms-reply`, `ai-analysis-center`, `admin-help-chat`, `generate-campaign-templates`, `parse-pricing-file`, and the Copilot chat + inbox summary paths.
+- **Skip:** `generate-daily-blogs` (platform-run, keeps the global rate limit only).
+- Order: run **after** the per-minute rate limiter, **before** the AI Gateway call. Both layers stay.
+- `ai-sms-reply` runs on inbound webhooks with no user. It still consumes 1 org credit per AI reply — this is the right default (an org that runs out stops auto-replying until they top up). Confirm if you'd rather have SMS auto-reply bypass the credit system.
 
-## Files touched
+- `buy-ai-credits` (new) — creates a Stripe Checkout session, `mode: payment`, price = a Stripe Price you'll create ($10 → 500 credits). Metadata: `organization_id`, `credits: 500`. Success/cancel URLs go to the AI Intelligence page with `?credits=success|cancel`.
+- `stripe-ai-credits-webhook` (new) — verifies signature, on `checkout.session.completed` calls `credit_ai_purchase`. Idempotent by session id.
 
-**Migration** (one)
-- Adds columns to `bookings` + `organization_pricing_settings`; updates `get_public_booking_settings` RPC.
+### Frontend
 
-**Frontend**
-- `src/hooks/useOrganizationSettings.ts` — add new fields to interface, fetch, save.
-- `src/hooks/usePublicOrgPricing.ts` — expose `excludedRoomTypes`, `roomReductionPrices`, `petFee`, `petToggleEnabled` from the RPC result.
-- `src/components/admin/ServicePricingEditor.tsx` — new Exclude Parameters card + Pet fee editor.
-- `src/pages/PublicBookingPage.tsx` — pet toggle, hide excluded selectors, new "Don't need entire home" collapsible + itemized summary.
+- `useAiCreditStatus(orgId)` React Query hook — polls `get_ai_credit_status` (staleTime 30s, refetch on window focus).
+- `<AiCreditsMeter />` — small "AI credits: X left today · Y purchased" chip. Drop into the Copilot panel header and AI Intelligence page header.
+- Central handler in `supabase.functions.invoke` wrappers for AI functions: detect `error.context` → parse JSON → if `code === 'daily_limit_reached'`, show a modal:
+  > "You've used today's free AI actions (N/N). Resets at midnight UTC (in Xh Ym) — or buy 500 credits for $10."
+  > [Buy 500 credits — $10]  [Wait until reset]
+- Buy button → invokes `buy-ai-credits` → opens Checkout in a new tab.
 
-No changes to `external-booking-webhook` — it already accepts arbitrary `total_amount` and `notes`.
+### On your two check-questions
+
+- **UTC consistency:** yes, all usage/reset math will use UTC. `usage_date` column is a plain `date` derived from `now() at time zone 'utc'`, the RPC returns `resetsAt` as a UTC ISO string, and the UI countdown converts from that ISO for display only — no per-org timezone anywhere in the credit path.
+- **Trial 10/day "wow":** 10 is tight. Copilot chat is ~1 credit per user turn, inbox summary is 1, insights refresh is 1 — a trial user exploring the app can easily hit 10 in five minutes and then everything AI goes dark before onboarding lands. Options I'd prefer over 10:
+  - **10/day + a one-time 50-credit onboarding grant** deposited into `ai_credit_ledger` on org creation (uses the same balance mechanism, no special code path). Gives them ~60 actions on day 1, then 10/day of steady drip.
+  - Or bump trial to 25/day (same as basic).
+  I'll do the **50-credit onboarding grant + 10/day** unless you'd rather bump the daily number.
+
+### Order of operations if you approve
+
+1. Confirm decisions 1 & 2 and the two sub-questions (SMS auto-reply billing + trial grant).
+2. If Option A: I'll request `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` for the platform account (if not already stored separately from your per-org Connect setup).
+3. You create the $10 / 500-credit Price in your platform Stripe dashboard and paste me the `price_...` id (or I can create it via the Stripe tool once the key is in).
+4. I ship the migration → helper → wire all 8 functions → buy/webhook functions → UI meter + 402 handler.
+
+---
+
+Reply with:
+- Stripe: **A** or **B**
+- Plan tier: **A** or **B** (with price-id mapping if B)
+- SMS auto-reply: **bill** or **bypass**
+- Trial: **10/day + 50 onboarding grant**, **25/day**, or **keep 10/day flat**
+
+Then I'll build.

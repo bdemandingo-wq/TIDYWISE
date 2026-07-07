@@ -153,6 +153,16 @@ serve(async (req: Request): Promise<Response> => {
   }
   const supabase = createClient(supabaseUrl, serviceKey);
 
+  // Per-org AI credit consumption (1 credit per Copilot turn)
+  const { enforceAiCredit } = await import("../_shared/ai-credits.ts");
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+  const denied = await enforceAiCredit(supabase, { orgId: organizationId, corsHeaders });
+  if (denied) return denied;
+
+
   // Generate a conversation thread id if the caller didn't provide one.
   if (!conversationId) conversationId = crypto.randomUUID();
 

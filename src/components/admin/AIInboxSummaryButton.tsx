@@ -30,8 +30,12 @@ export function AIInboxSummaryButton({ organizationId, getNeedsReplyConversation
       if (data?.error) throw new Error(data.error);
       setSummary(data?.summary || 'No summary available.');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to generate summary';
-      toast.error(msg);
+      const { handlePossibleAiCreditError } = await import('@/components/ai-credits/AiCreditLimitModal');
+      const handled = await handlePossibleAiCreditError(e);
+      if (!handled) {
+        const msg = e instanceof Error ? e.message : 'Failed to generate summary';
+        toast.error(msg);
+      }
       setOpen(false);
     } finally {
       setLoading(false);

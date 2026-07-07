@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAdminAuth, createUnauthorizedResponse } from "../_shared/verify-admin-auth.ts";
+import { enforceAiRateLimit } from "../_shared/ai-rate-limit.ts";
+import { enforceAiCredit } from "../_shared/ai-credits.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +23,22 @@ const handler = async (req: Request): Promise<Response> => {
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // AI rate limiting (per-org 200/hr, per-user 30/min)
+    const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const limited = await enforceAiRateLimit(adminClient, {
+      orgId: authResult.organizationId ?? null,
+      userId: authResult.userId ?? null,
+      corsHeaders,
+    });
+    if (limited) return limited;
+
+    // Per-org AI credit consumption
+    if (authResult.organizationId) {
+      const denied = await enforceAiCredit(adminClient, { orgId: authResult.organizationId, corsHeaders });
+      if (denied) return denied;
+    }
+
 
     const { companyName, serviceType = "cleaning", audience = "all_eligible", timestamp } = await req.json();
     

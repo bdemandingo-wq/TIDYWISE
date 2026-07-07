@@ -76,6 +76,18 @@ serve(async (req) => {
       });
     }
 
+    // AI rate limiting (per-org 200/hr, per-user 30/min)
+    const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+    const limited = await enforceAiRateLimit(supabase, {
+      orgId: body.organizationId, userId: userData.user.id, corsHeaders,
+    });
+    if (limited) return limited;
+
+    // Per-org AI credit consumption (1 credit per request)
+    const { enforceAiCredit } = await import("../_shared/ai-credits.ts");
+    const denied = await enforceAiCredit(supabase, { orgId: body.organizationId, corsHeaders });
+    if (denied) return denied;
+
     // Business settings for tone/name
     const { data: settings } = await supabase
       .from("business_settings")

@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthProviderNoSession } from "@/hooks/useAuthNoSession";
 import { OrganizationProvider } from "@/contexts/OrganizationContext";
+import { AiCreditLimitModal } from "@/components/ai-credits/AiCreditLimitModal";
 import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
@@ -192,6 +193,7 @@ const App = () => (
                 <Toaster />
                 <Sonner />
                 <AppStateHandler />
+                <AiCreditLimitModal />
                 {/*
                   Native (Capacitor) builds should use HashRouter to avoid blank screens on launch
                   due to history-based routing not being handled by the embedded webview.

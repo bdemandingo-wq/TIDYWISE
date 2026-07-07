@@ -239,6 +239,12 @@ serve(async (req) => {
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // AI rate limiting (global 200/hr — this is a platform-wide cron worker, no per-org scope).
+  const { enforceAiRateLimit } = await import("../_shared/ai-rate-limit.ts");
+  const GLOBAL_BLOG_SCOPE = "00000000-0000-0000-0000-0000000dab10"; // sentinel org id for blog gen
+  const limited = await enforceAiRateLimit(supabase, { orgId: GLOBAL_BLOG_SCOPE, corsHeaders });
+  if (limited) return limited;
+
   // Body opt-in: auto-publish? Cron passes nothing (defaults true so the
   // 2x/week schedule actually publishes). Manual admin generate sends
   // {auto_publish:false} to keep posts in draft for review.

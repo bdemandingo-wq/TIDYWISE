@@ -466,6 +466,121 @@ export type Database = {
           },
         ]
       }
+      ai_credit_ledger: {
+        Row: {
+          balance: number
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_credit_ledger_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_credit_ledger_entries: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          organization_id: string
+          reason: string
+          stripe_session_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          organization_id: string
+          reason: string
+          stripe_session_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          organization_id?: string
+          reason?: string
+          stripe_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_credit_ledger_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_credit_processed_sessions: {
+        Row: {
+          credits: number
+          organization_id: string
+          processed_at: string
+          stripe_session_id: string
+        }
+        Insert: {
+          credits: number
+          organization_id: string
+          processed_at?: string
+          stripe_session_id: string
+        }
+        Update: {
+          credits?: number
+          organization_id?: string
+          processed_at?: string
+          stripe_session_id?: string
+        }
+        Relationships: []
+      }
+      ai_rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          request_count: number
+          scope: string
+          scope_id: string
+          updated_at: string
+          window_seconds: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          request_count?: number
+          scope: string
+          scope_id: string
+          updated_at?: string
+          window_seconds: number
+          window_start: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          request_count?: number
+          scope?: string
+          scope_id?: string
+          updated_at?: string
+          window_seconds?: number
+          window_start?: string
+        }
+        Relationships: []
+      }
       ai_reply_locks: {
         Row: {
           conversation_id: string
@@ -509,6 +624,35 @@ export type Database = {
           inbound_message_id?: string
         }
         Relationships: []
+      }
+      ai_usage_daily: {
+        Row: {
+          credits_used: number
+          organization_id: string
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          credits_used?: number
+          organization_id: string
+          updated_at?: string
+          usage_date: string
+        }
+        Update: {
+          credits_used?: number
+          organization_id?: string
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_daily_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       appointment_reminder_intervals: {
         Row: {
@@ -5958,6 +6102,7 @@ export type Database = {
           owner_id: string
           plan_downgrade_date: string | null
           plan_downgrade_scheduled_to: string | null
+          plan_tier: string
           plan_type: string | null
           slug: string | null
           stripe_schedule_id: string | null
@@ -5973,6 +6118,7 @@ export type Database = {
           owner_id: string
           plan_downgrade_date?: string | null
           plan_downgrade_scheduled_to?: string | null
+          plan_tier?: string
           plan_type?: string | null
           slug?: string | null
           stripe_schedule_id?: string | null
@@ -5988,6 +6134,7 @@ export type Database = {
           owner_id?: string
           plan_downgrade_date?: string | null
           plan_downgrade_scheduled_to?: string | null
+          plan_tier?: string
           plan_type?: string | null
           slug?: string | null
           stripe_schedule_id?: string | null
@@ -9296,6 +9443,7 @@ export type Database = {
         }
         Returns: string
       }
+      ai_daily_limit_for_tier: { Args: { _tier: string }; Returns: number }
       change_client_portal_password: {
         Args: {
           p_current_password: string
@@ -9304,7 +9452,22 @@ export type Database = {
         }
         Returns: Json
       }
+      check_and_increment_ai_rate_limit: {
+        Args: {
+          p_limit: number
+          p_scope: string
+          p_scope_id: string
+          p_window_seconds: number
+        }
+        Returns: {
+          allowed: boolean
+          current_count: number
+          limit_value: number
+          retry_after_seconds: number
+        }[]
+      }
       classify_service_bucket: { Args: { p_name: string }; Returns: string }
+      cleanup_ai_rate_limits: { Args: never; Returns: number }
       client_cancel_booking: {
         Args: { p_booking_id: string; p_customer_id: string }
         Returns: Json
@@ -9321,6 +9484,17 @@ export type Database = {
           repeat_rate: number
           review_rate: number
           service_bucket: string
+        }[]
+      }
+      consume_ai_credit: {
+        Args: { _org_id: string }
+        Returns: {
+          allowed: boolean
+          daily_limit: number
+          purchased_balance: number
+          resets_at: string
+          source: string
+          used_today: number
         }[]
       }
       create_booking_from_request: {
@@ -9344,6 +9518,18 @@ export type Database = {
         }
         Returns: string
       }
+      credit_ai_purchase: {
+        Args: {
+          _amount: number
+          _org_id: string
+          _reason?: string
+          _stripe_session_id: string
+        }
+        Returns: {
+          already_processed: boolean
+          new_balance: number
+        }[]
+      }
       delete_client_booking_request: {
         Args: { p_client_user_id: string; p_request_id: string }
         Returns: boolean
@@ -9364,6 +9550,16 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      get_ai_credit_status: {
+        Args: { _org_id: string }
+        Returns: {
+          daily_limit: number
+          plan_tier: string
+          purchased_balance: number
+          resets_at: string
+          used_today: number
+        }[]
       }
       get_client_portal_bookings: {
         Args: { p_customer_id: string }

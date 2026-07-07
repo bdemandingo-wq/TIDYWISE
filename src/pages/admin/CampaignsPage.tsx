@@ -376,7 +376,11 @@ export default function CampaignsPage() {
         toast({ title: "Error", description: "No templates generated. Try again.", variant: "destructive" });
       }
     },
-    onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
+    onError: async (error: Error) => {
+      const { handlePossibleAiCreditError } = await import('@/components/ai-credits/AiCreditLimitModal');
+      const handled = await handlePossibleAiCreditError(error);
+      if (!handled) toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 
   const createCampaign = useMutation({

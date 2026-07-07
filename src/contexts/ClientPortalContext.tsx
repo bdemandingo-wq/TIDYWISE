@@ -66,26 +66,94 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
 
   // Load session from storage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const LEGACY_MIGRATED_KEY = 'client_portal_session_migrated_v1';
+    const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
+    const dlog = (...args: any[]) => { if (isDev) console.log('[ClientPortal]', ...args); };
+
+    const load = async () => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) { setLoading(false); return; }
+
+      let parsed: any;
       try {
-        const parsed = JSON.parse(stored);
-        // Enforce session expiry (30-day sessions)
-        if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        parsed = JSON.parse(stored);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+        setLoading(false);
+        return;
+      }
+
+      // Enforce session expiry (30-day sessions)
+      if (parsed.expiresAt && Date.now() > parsed.expiresAt) {
+        dlog('stored session expired, clearing');
+        localStorage.removeItem(STORAGE_KEY);
+        setLoading(false);
+        return;
+      }
+
+      const hasToken = typeof parsed.sessionToken === 'string' && parsed.sessionToken.length > 0;
+      const hasLegacyIdentity = parsed.user?.id && parsed.user?.customer_id;
+
+      // Legacy session (pre signed-token deploy): has user + customer but no
+      // sessionToken. Try to re-mint one from the portal-session-refresh
+      // endpoint before falling back to force-logout. Migration marker
+      // ensures we only attempt the re-mint once per stored legacy session.
+      if (!hasToken && hasLegacyIdentity) {
+        const alreadyTried = localStorage.getItem(LEGACY_MIGRATED_KEY) === parsed.user.id;
+        if (alreadyTried) {
+          dlog('legacy session re-mint already attempted, clearing');
           localStorage.removeItem(STORAGE_KEY);
-        } else {
+          setLoading(false);
+          return;
+        }
+        localStorage.setItem(LEGACY_MIGRATED_KEY, parsed.user.id);
+        dlog('legacy session detected, attempting one-shot re-mint');
+
+        try {
+          const { data, error } = await supabase.functions.invoke('portal-session-refresh', {
+            body: {
+              portal_user_id: parsed.user.id,
+              customer_id: parsed.user.customer_id,
+            },
+          });
+          const result = data as { ok?: boolean; session_token?: string } | null;
+          if (error || !result?.ok || !result.session_token) {
+            dlog('legacy re-mint failed, clearing session', error);
+            localStorage.removeItem(STORAGE_KEY);
+            setLoading(false);
+            return;
+          }
+          dlog('legacy re-mint succeeded, upgrading stored session');
           setUser(parsed.user);
           setCustomer(parsed.customer);
           setLoyalty(parsed.loyalty);
-          if (typeof parsed.sessionToken === 'string') {
-            setSessionToken(parsed.sessionToken);
-          }
+          setSessionToken(result.session_token);
+          // Rewrite storage with the new sessionToken-bearing shape.
+          const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            user: parsed.user,
+            customer: parsed.customer,
+            loyalty: parsed.loyalty,
+            sessionToken: result.session_token,
+            expiresAt,
+          }));
+        } catch (e) {
+          dlog('legacy re-mint threw, clearing session', e);
+          localStorage.removeItem(STORAGE_KEY);
         }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
+        setLoading(false);
+        return;
       }
-    }
-    setLoading(false);
+
+      // Modern session (has sessionToken) — restore as-is.
+      setUser(parsed.user);
+      setCustomer(parsed.customer);
+      setLoyalty(parsed.loyalty);
+      if (hasToken) setSessionToken(parsed.sessionToken);
+      setLoading(false);
+    };
+
+    void load();
   }, []);
 
   const saveSession = (

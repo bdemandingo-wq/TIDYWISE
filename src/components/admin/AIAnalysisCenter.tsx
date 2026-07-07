@@ -20,6 +20,21 @@ import ReactMarkdown from 'react-markdown';
 import { useQuery as useRQ } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { handlePossibleAiCreditError } from '@/components/ai-credits/AiCreditLimitModal';
+
+/** Wraps supabase.functions.invoke and shows the credit-limit modal when a 402 comes back. */
+async function invokeAi(fn: string, body: unknown) {
+  const result = await supabase.functions.invoke(fn, { body });
+  if (result.error) {
+    const handled = await handlePossibleAiCreditError(result.error);
+    if (handled) {
+      // Return a soft-null so callers show empty state instead of a red toast.
+      return { data: null, error: null, creditLimited: true } as const;
+    }
+  }
+  return { ...result, creditLimited: false } as const;
+}
+
 
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId, cardStyle }: { orgId: string | undefined; cardStyle: React.CSSProperties }) {
@@ -318,9 +333,9 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setProactiveLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'proactive-insights', organizationId: orgId },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'proactive-insights', organizationId: orgId },
+      );
       if (error) throw error;
       setProactiveInsights(data?.insights || []);
     } catch (e: any) {
@@ -340,9 +355,9 @@ export function AIAnalysisCenter() {
   const fetchDynamicChips = useCallback(async () => {
     if (!orgId) return;
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'dynamic-chips', organizationId: orgId },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'dynamic-chips', organizationId: orgId },
+      );
       if (error) throw error;
       setDynamicChips(data?.chips || []);
     } catch {
@@ -368,9 +383,9 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setInsightsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'insights', organizationId: orgId, businessSnapshot },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'insights', organizationId: orgId, businessSnapshot },
+      );
       if (error) throw error;
       setInsights(data?.insights || []);
     } catch (e: any) {
@@ -391,9 +406,9 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setSchedLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'scheduling', organizationId: orgId, businessSnapshot: { ...businessSnapshot, staffCount: 'unknown' } },
+      );
       if (error) throw error;
       setSchedRec(data?.recommendation || '');
     } catch { setSchedRec('Unable to generate recommendation.'); }
@@ -412,9 +427,9 @@ export function AIAnalysisCenter() {
     if (!orgId) return;
     setPlaybookLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'growth-playbook', organizationId: orgId },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'growth-playbook', organizationId: orgId },
+      );
       if (error) throw error;
       setPlaybook(data?.playbook || '');
     } catch (e: any) {
@@ -454,9 +469,9 @@ export function AIAnalysisCenter() {
     setDraftText('');
     setDraftLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-analysis-center', {
-        body: { type: 'draft-message', prompt, channel, organizationId: orgId },
-      });
+      const { data, error } = await invokeAi('ai-analysis-center', 
+        { type: 'draft-message', prompt, channel, organizationId: orgId },
+      );
       if (error) throw error;
       setDraftText((data as any)?.message || '');
     } catch (e: any) {
