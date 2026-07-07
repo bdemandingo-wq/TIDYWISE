@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Star, Clock, RotateCcw, Repeat, UserX, PhoneMissed, Bot, type LucideIcon,
+  Star, Clock, RotateCcw, Repeat, UserX, PhoneMissed, Bot, Pencil, type LucideIcon,
 } from 'lucide-react';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { AutomationEditorDialog } from './AutomationEditorDialog';
+
 
 export interface AutomationRow {
   id: string;
