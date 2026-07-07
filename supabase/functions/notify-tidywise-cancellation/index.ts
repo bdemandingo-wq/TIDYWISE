@@ -72,10 +72,13 @@ interface Body {
   user_phone?: string | null;
   reason?: string;
   feedback_text?: string | null;
+  kept_text?: string | null;
   competitor_name?: string | null;
   missing_feature?: string | null;
   period_end_date?: string | null;
   plan?: string | null;
+  organization_id?: string | null;
+  organization_name?: string | null;
   triggered_by?: "self" | "admin";
 }
 
@@ -177,12 +180,14 @@ serve(async (req: Request) => {
               <tr><td style="padding: 6px 0;"><strong>Customer:</strong></td><td>${escapeHtml(userName || "—")}</td></tr>
               <tr><td style="padding: 6px 0;"><strong>Email:</strong></td><td><a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></td></tr>
               <tr><td style="padding: 6px 0;"><strong>Phone:</strong></td><td>${escapeHtml(userPhone || "—")}</td></tr>
+              <tr><td style="padding: 6px 0;"><strong>Organization:</strong></td><td>${escapeHtml(body.organization_name || "—")}</td></tr>
               <tr><td style="padding: 6px 0;"><strong>Plan:</strong></td><td>${escapeHtml(body.plan || "—")}</td></tr>
               <tr><td style="padding: 6px 0;"><strong>Reason:</strong></td><td>${escapeHtml(reasonLabel)}</td></tr>
               <tr><td style="padding: 6px 0;"><strong>Access until:</strong></td><td>${escapeHtml(periodEndDisplay)}</td></tr>
               <tr><td style="padding: 6px 0;"><strong>Cancelled by:</strong></td><td>${escapeHtml(body.triggered_by === "admin" ? "Platform admin (you)" : "User (self-serve)")}</td></tr>
             </table>
             ${body.feedback_text ? `<h3 style="margin-top: 20px;">Feedback</h3><blockquote style="border-left: 3px solid #2563eb; padding: 8px 16px; background: #f5f5f5; white-space: pre-wrap;">${escapeHtml(body.feedback_text)}</blockquote>` : ""}
+            ${body.kept_text ? `<h3 style="margin-top: 20px;">What would have kept them</h3><blockquote style="border-left: 3px solid #16a34a; padding: 8px 16px; background: #f0fdf4; white-space: pre-wrap;">${escapeHtml(body.kept_text)}</blockquote>` : ""}
             ${body.competitor_name ? `<p><strong>Switching to:</strong> ${escapeHtml(body.competitor_name)}</p>` : ""}
             ${body.missing_feature ? `<p><strong>Missing feature:</strong> ${escapeHtml(body.missing_feature)}</p>` : ""}
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />

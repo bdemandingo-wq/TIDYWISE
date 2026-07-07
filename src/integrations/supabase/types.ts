@@ -1731,6 +1731,7 @@ export type Database = {
           recurring_discount_weekly: number
           reminder_email_body: string | null
           reminder_email_subject: string | null
+          require_cleaner_payout_setup: boolean
           require_clockout_photos: boolean
           require_deposit: boolean | null
           resend_api_key: string | null
@@ -1792,6 +1793,7 @@ export type Database = {
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
+          require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
@@ -1853,6 +1855,7 @@ export type Database = {
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
           reminder_email_subject?: string | null
+          require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
           require_deposit?: boolean | null
           resend_api_key?: string | null
@@ -2007,6 +2010,7 @@ export type Database = {
           eligible_for_winback: boolean
           feedback_text: string | null
           id: string
+          kept_text: string | null
           missing_feature: string | null
           organization_id: string | null
           period_end_date: string | null
@@ -2024,6 +2028,7 @@ export type Database = {
           eligible_for_winback?: boolean
           feedback_text?: string | null
           id?: string
+          kept_text?: string | null
           missing_feature?: string | null
           organization_id?: string | null
           period_end_date?: string | null
@@ -2041,6 +2046,7 @@ export type Database = {
           eligible_for_winback?: boolean
           feedback_text?: string | null
           id?: string
+          kept_text?: string | null
           missing_feature?: string | null
           organization_id?: string | null
           period_end_date?: string | null
@@ -3199,6 +3205,7 @@ export type Database = {
           customer_id: string | null
           id: string
           lifetime_points: number | null
+          organization_id: string | null
           points: number | null
           tier: string | null
           updated_at: string | null
@@ -3208,6 +3215,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          organization_id?: string | null
           points?: number | null
           tier?: string | null
           updated_at?: string | null
@@ -3217,6 +3225,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          organization_id?: string | null
           points?: number | null
           tier?: string | null
           updated_at?: string | null

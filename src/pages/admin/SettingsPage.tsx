@@ -107,6 +107,8 @@ interface BusinessSettings {
   google_analytics_id: string;
   // Peer benchmarks
   benchmarks_opt_in: boolean;
+  // Staff payouts
+  require_cleaner_payout_setup: boolean;
 }
 
 const defaultSettings: BusinessSettings = {
@@ -142,6 +144,7 @@ const defaultSettings: BusinessSettings = {
   meta_pixel_id: '',
   google_analytics_id: '',
   benchmarks_opt_in: true,
+  require_cleaner_payout_setup: true,
 };
 
 // Account Deletion Card Component - Required for App Store compliance (Guideline 5.1.1(v))
@@ -340,6 +343,7 @@ export default function SettingsPage() {
           meta_pixel_id: typedData.meta_pixel_id || '',
           google_analytics_id: typedData.google_analytics_id || '',
           benchmarks_opt_in: typedData.benchmarks_opt_in ?? true,
+          require_cleaner_payout_setup: typedData.require_cleaner_payout_setup ?? true,
         });
       }
     } catch (error) {
@@ -386,6 +390,7 @@ export default function SettingsPage() {
         meta_pixel_id: settings.meta_pixel_id,
         google_analytics_id: settings.google_analytics_id,
         benchmarks_opt_in: settings.benchmarks_opt_in,
+        require_cleaner_payout_setup: settings.require_cleaner_payout_setup,
       } as any;
 
       if (!organization?.id) {
@@ -1191,9 +1196,39 @@ export default function SettingsPage() {
 
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff payouts</CardTitle>
+              <CardDescription>
+                Control whether cleaners must connect a Stripe payout account before working jobs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <Label htmlFor="require_cleaner_payout_setup" className="text-sm font-medium">
+                    Require cleaners to set up Stripe payouts
+                  </Label>
+                  <p className="text-xs text-muted-foreground max-w-md">
+                    Turn off if you pay your team externally (cash, Zelle, Venmo, check).
+                  </p>
+                </div>
+                <Switch
+                  id="require_cleaner_payout_setup"
+                  checked={settings.require_cleaner_payout_setup}
+                  onCheckedChange={(v) => updateField('require_cleaner_payout_setup', v)}
+                />
+              </div>
+              <Button onClick={saveSettings} disabled={saving} size="sm">
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </CardContent>
+          </Card>
+
           <div data-tour-id="stripe-connect">
             <StripeConnectHealthPanel />
           </div>
+
 
           <ZapierSetupGuide />
           <ZapierWebhooksCard />
