@@ -4,6 +4,7 @@ import {
   cleaningServices as defaultCleaningServices,
   extras as defaultExtras,
 } from '@/data/pricingData';
+import { sortServices } from '@/lib/serviceOrder';
 
 export interface PublicService {
   id: string;
@@ -129,7 +130,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
 
     const applyDefaults = () => {
       const defaults = getDefaultPayload();
-      setServices(defaults.services);
+      setServices(sortServices(defaults.services));
       setExtras(defaults.extras);
     };
 
@@ -218,7 +219,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
             };
           });
 
-          setServices(mappedServices);
+          setServices(sortServices(mappedServices));
 
           const firstPricing = (data.servicePricing || [])[0];
           const pricingExtras = firstPricing?.extras;

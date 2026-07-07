@@ -312,7 +312,7 @@ export default function PublicBookingPage() {
         bedrooms: selectedBedrooms,
         bathrooms: selectedBathrooms,
         // Prefer bed/bath when both selected (matches previous behavior).
-        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
         fallbackBasePrice: service.minimumPrice,
       });
       total = result.base;
@@ -714,9 +714,7 @@ export default function PublicBookingPage() {
                         <div>
                           <Label className="text-base mb-2 block">Bathrooms</Label>
                           <div className="flex flex-wrap gap-2">
-                            {[...new Set(bedroomPricing
-                              .filter(bp => !selectedBedrooms || bp.bedrooms === Number(selectedBedrooms))
-                              .map(bp => bp.bathrooms))]
+                            {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
                               .sort((a, b) => a - b)
                               .map(bath => (
 
@@ -825,11 +823,11 @@ export default function PublicBookingPage() {
                       squareFootageIndex: selectedSqFtIndex,
                       bedrooms: selectedBedrooms,
                       bathrooms: selectedBathrooms,
-                      pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                      pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
                       fallbackBasePrice: svc.minimumPrice,
                     });
                     const price = svcPricing.base;
-                    const isMinPrice = selectedSqFtIndex === null && !(selectedBedrooms && selectedBathrooms);
+                    const isMinPrice = selectedSqFtIndex === null && !selectedBedrooms && !selectedBathrooms;
                     
                     return (
                       <Card
@@ -1217,7 +1215,7 @@ export default function PublicBookingPage() {
                         squareFootageIndex: selectedSqFtIndex,
                         bedrooms: selectedBedrooms,
                         bathrooms: selectedBathrooms,
-                        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
                         fallbackBasePrice: service.minimumPrice,
                       }).base : 0}</span>
                     </div>
