@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
@@ -45,14 +45,30 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<OrganizationMembership | null>(null);
   const [allOrganizations, setAllOrganizations] = useState<OrgWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  // Tracks which user we last RESOLVED orgs for. Fixes the sign-in flash:
+  // after logging out (or on the login page) state settles at
+  // { organization: null, loading: false }. The instant a user signs in,
+  // the fetch starts async — but consumers (AdminRoute) still read the
+  // stale "not loading, no org" state and redirect existing users to
+  // /onboarding for ~300ms until their org arrives. Flipping loading=true
+  // synchronously whenever we fetch for a not-yet-resolved user closes
+  // that window on web, desktop, and the iOS app alike. Token refreshes
+  // (same user id) intentionally do NOT toggle loading, so the dashboard
+  // doesn't flicker every time the session renews.
+  const resolvedUserIdRef = useRef<string | null>(null);
 
   const fetchOrganization = useCallback(async () => {
     if (!user) {
+      resolvedUserIdRef.current = null;
       setOrganization(null);
       setMembership(null);
       setAllOrganizations([]);
       setLoading(false);
       return;
+    }
+
+    if (resolvedUserIdRef.current !== user.id) {
+      setLoading(true);
     }
 
     try {
@@ -130,6 +146,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setMembership(null);
       setAllOrganizations([]);
     } finally {
+      resolvedUserIdRef.current = user.id;
       setLoading(false);
     }
   }, [user]);
