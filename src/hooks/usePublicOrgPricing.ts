@@ -4,6 +4,7 @@ import {
   cleaningServices as defaultCleaningServices,
   extras as defaultExtras,
 } from '@/data/pricingData';
+import { sortServices } from '@/lib/serviceOrder';
 
 export interface PublicService {
   id: string;
