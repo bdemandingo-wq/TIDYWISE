@@ -1304,9 +1304,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col lg:flex-row gap-6 h-full">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full pb-24 lg:pb-0">
         {/* Main scrollable single-page form */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 space-y-3 lg:space-y-4 order-2 lg:order-1">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
