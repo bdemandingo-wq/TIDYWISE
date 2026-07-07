@@ -183,20 +183,41 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
 
   // #20: expandable list of the actual eligible clients per suggestion
   const [viewingReason, setViewingReason] = useState<string | null>(null);
-  const { data: eligibleClients, isLoading: eligibleLoading } = useQuery({
+  const { data: eligibleClients, isLoading: eligibleLoading, error: eligibleError } = useQuery({
     queryKey: ['discount-eligible-clients', organization?.id, viewingReason],
     enabled: !!organization?.id && (viewingReason === 'rebook' || viewingReason === 'win_back'),
     queryFn: async () => {
       if (!organization?.id) return [];
+      // customers has NO last_booking_date column — selecting it 400'd and
+      // the error was masked as "no matching clients". Rebook uses real
+      // columns; win_back is derived from bookings activity.
+      if (viewingReason === 'rebook') {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('id, first_name, last_name, email, phone, created_at')
+          .eq('organization_id', organization.id)
+          .eq('is_recurring', false)
+          .gte('created_at', addDays(new Date(), -30).toISOString())
+          .limit(100);
+        if (error) throw error;
+        return data || [];
+      }
+      // win_back: customers with no non-cancelled booking in the last 60 days
+      const { data: recent, error: recentErr } = await supabase
+        .from('bookings')
+        .select('customer_id')
+        .eq('organization_id', organization.id)
+        .neq('status', 'cancelled')
+        .gte('scheduled_at', addDays(new Date(), -60).toISOString());
+      if (recentErr) throw recentErr;
+      const activeIds = [...new Set((recent || []).map((b: { customer_id: string | null }) => b.customer_id).filter(Boolean))];
       let q = supabase
         .from('customers')
-        .select('id, first_name, last_name, email, phone, created_at, last_booking_date')
+        .select('id, first_name, last_name, email, phone, created_at')
         .eq('organization_id', organization.id)
         .limit(100);
-      if (viewingReason === 'rebook') {
-        q = q.eq('is_recurring', false).gte('created_at', addDays(new Date(), -30).toISOString());
-      } else {
-        q = q.lt('last_booking_date', addDays(new Date(), -60).toISOString());
+      if (activeIds.length > 0) {
+        q = q.not('id', 'in', `(${activeIds.join(',')})`);
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -373,6 +394,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
                             <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
                               <Loader2 className="w-3 h-3 animate-spin" /> Loading clients…
                             </div>
+                          ) : eligibleError ? (
+                            <div className="p-3 text-xs text-destructive">Couldn't load clients: {(eligibleError as Error).message}</div>
                           ) : (eligibleClients || []).length === 0 ? (
                             <div className="p-3 text-xs text-muted-foreground">No matching clients found</div>
                           ) : (

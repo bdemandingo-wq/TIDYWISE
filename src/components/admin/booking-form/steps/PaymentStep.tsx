@@ -699,21 +699,19 @@ export function PaymentStep() {
 
               <div className="space-y-3">
                 <p className="text-sm font-medium">Add Card Now</p>
-                {Capacitor.isNativePlatform() ? (
-                  <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg">
-                    Card setup is available on the web app at jointidywise.com. Use the link below to collect payment from your customer.
-                  </p>
-                ) : (
-                  <StripeCardForm
-                    email={customerEmail}
-                    customerName={customerName}
-                    organizationId={organizationId || ''}
-                    onCardSaved={handleCardSaved}
-                    onError={(error) => setChargeError(error)}
-                    showHoldOption={true}
-                    defaultHoldAmount={pricingBreakdown.grandTotal || 50}
-                  />
-                )}
+                {/* Card entry works on native too: Stripe Elements runs fine in
+                    the Capacitor WebView, and Apple rule 3.1.1 (IAP) does NOT
+                    apply — cleaning is a physical service (3.1.3(e)), same as
+                    Uber/DoorDash collecting cards in-app. */}
+                <StripeCardForm
+                  email={customerEmail}
+                  customerName={customerName}
+                  organizationId={organizationId || ''}
+                  onCardSaved={handleCardSaved}
+                  onError={(error) => setChargeError(error)}
+                  showHoldOption={true}
+                  defaultHoldAmount={pricingBreakdown.grandTotal || 50}
+                />
               </div>
 
               <div className="relative">

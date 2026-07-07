@@ -263,6 +263,44 @@ export default function CustomersDuplicatesPage() {
   );
 
   // #9: delete a duplicate record outright (typical for 0-booking dupes)
+  // Bulk cleanup: one click deletes the empty duplicate from every pair —
+  // keeps the record with bookings/spend, or the older one when both are empty.
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!orgId) throw new Error('No org');
+      const idsToDelete: string[] = [];
+      for (const pair of pairs) {
+        const aStats = stats.get(pair.a.id);
+        const bStats = stats.get(pair.b.id);
+        const aEmpty = (aStats?.total_bookings ?? 0) === 0 && (aStats?.total_revenue ?? 0) === 0;
+        const bEmpty = (bStats?.total_bookings ?? 0) === 0 && (bStats?.total_revenue ?? 0) === 0;
+        if (aEmpty && !bEmpty) idsToDelete.push(pair.a.id);
+        else if (bEmpty && !aEmpty) idsToDelete.push(pair.b.id);
+        else if (aEmpty && bEmpty) {
+          // both empty — keep the older record, delete the newer one
+          const newer = new Date(pair.a.created_at) > new Date(pair.b.created_at) ? pair.a : pair.b;
+          idsToDelete.push(newer.id);
+        }
+        // both have history → skip; needs a manual merge decision
+      }
+      const unique = [...new Set(idsToDelete)];
+      if (unique.length === 0) return 0;
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .in('id', unique)
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return unique.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customer-duplicates', orgId] });
+      toast.success(count === 0 ? 'Nothing to clean — remaining pairs need a manual merge' : `${count} duplicate ${count === 1 ? 'record' : 'records'} deleted`);
+    },
+    onError: (err: Error) => toast.error(err.message || 'Bulk delete failed'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (customer: Customer) => {
       if (!orgId) throw new Error('No org');
@@ -442,10 +480,28 @@ export default function CustomersDuplicatesPage() {
       title="Duplicate Customers"
       subtitle={`${pairs.length} potential ${pairs.length === 1 ? 'duplicate' : 'duplicates'}`}
       actions={
-        <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/customers')}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to customers
-        </Button>
+        <div className="flex gap-2">
+          {pairs.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              disabled={bulkDeleteMutation.isPending}
+              onClick={() => {
+                if (window.confirm('Delete the empty (0 bookings, $0) record from every duplicate pair? Pairs where both records have history are skipped. This cannot be undone.')) {
+                  bulkDeleteMutation.mutate();
+                }
+              }}
+            >
+              {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+              Clean up empty duplicates
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/customers')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to customers
+          </Button>
+        </div>
       }
     >
       <SEOHead title="Duplicate Customers | TidyWise" description="Review and merge duplicate customers" noIndex />
