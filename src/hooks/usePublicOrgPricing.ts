@@ -218,7 +218,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
             };
           });
 
-          setServices(mappedServices);
+          setServices(sortServices(mappedServices));
 
           const firstPricing = (data.servicePricing || [])[0];
           const pricingExtras = firstPricing?.extras;
