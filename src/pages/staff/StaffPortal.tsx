@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera, AlertCircle } from 'lucide-react';
 import { PayoutRequirementsBanner } from '@/components/staff/PayoutRequirementsBanner';
+import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
@@ -94,6 +95,7 @@ export default function StaffPortal() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
+  const payoutSetupRequired = useCleanerPayoutSetupRequired(staffInfo?.organization_id);
   const [newJobAlert, setNewJobAlert] = useState(false);
   const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -657,8 +659,8 @@ export default function StaffPortal() {
           />
         )}
 
-        {/* Payout Requirements Banner */}
-        {staffInfo?.id && staffInfo?.organization_id && (
+        {/* Payout Requirements Banner — hidden when the org pays cleaners externally */}
+        {payoutSetupRequired && staffInfo?.id && staffInfo?.organization_id && (
           <PayoutRequirementsBanner
             staffId={staffInfo.id}
             organizationId={staffInfo.organization_id}
@@ -938,7 +940,15 @@ export default function StaffPortal() {
           {/* Payouts Tab */}
           <TabsContent value="payouts" className="space-y-4">
             <Suspense fallback={<TabFallback />}>
-              {staffInfo?.id && staffInfo?.organization_id ? (
+              {!payoutSetupRequired ? (
+                <div className="text-center py-10 space-y-2">
+                  <p className="font-medium">No payout setup needed</p>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                    Your employer pays you directly (cash, Zelle, Venmo, or check) —
+                    there's nothing to set up here.
+                  </p>
+                </div>
+              ) : staffInfo?.id && staffInfo?.organization_id ? (
                 <StaffPayoutSetup staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
               ) : (
                 <div className="text-center py-8 space-y-2">

@@ -85,6 +85,7 @@ export default function CancellationFlowDialog({
   const [competitor, setCompetitor] = useState("");
   const [missingFeature, setMissingFeature] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [keptText, setKeptText] = useState("");
   const [pauseMonths, setPauseMonths] = useState<1 | 2 | 3>(1);
   const [submitting, setSubmitting] = useState(false);
   const [winbackOffer, setWinbackOffer] = useState<{ label: string } | null>(null);
@@ -98,16 +99,21 @@ export default function CancellationFlowDialog({
       setCompetitor("");
       setMissingFeature("");
       setFeedback("");
+      setKeptText("");
       setPauseMonths(1);
       setWinbackOffer(null);
       setWinbackEligible(null);
     }
   }, [open]);
 
-  const feedbackRequired =
-    reason === "other" || reason === "switching_crm" || reason === "missing_feature";
-  const canContinueFromReason =
-    !!reason && (!feedbackRequired || feedback.trim().length > 0);
+  // Exit-survey requirements: every cancellation must tell us WHY (min 30
+  // chars) and what would have kept them (min 20 chars) — this is the data
+  // that drives the roadmap, so short "n/a" answers don't count.
+  const FEEDBACK_MIN = 30;
+  const KEPT_MIN = 20;
+  const feedbackOk = feedback.trim().length >= FEEDBACK_MIN;
+  const keptOk = keptText.trim().length >= KEPT_MIN;
+  const canContinueFromReason = !!reason && feedbackOk && keptOk;
 
   function keepPlan() {
     onOpenChange(false);
@@ -202,6 +208,7 @@ export default function CancellationFlowDialog({
           competitor_name: competitor || undefined,
           missing_feature: missingFeature || undefined,
           feedback_text: feedback || undefined,
+          kept_text: keptText || undefined,
         },
       });
       if (error) throw error;
@@ -268,15 +275,38 @@ export default function CancellationFlowDialog({
 
               <div className="space-y-2">
                 <Label>
-                  What would&apos;ve made TidyWise work better for your cleaning business?
-                  {feedbackRequired && <span className="text-destructive"> *</span>}
+                  Why are you cancelling? Tell us what happened
+                  <span className="text-destructive"> *</span>
                 </Label>
                 <Textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Share anything you'd like us to know…"
+                  placeholder="Be honest — what wasn't working, what frustrated you, what pushed you to cancel…"
                   rows={3}
                 />
+                <p className={`text-xs ${feedbackOk ? "text-muted-foreground" : "text-destructive"}`}>
+                  {feedbackOk
+                    ? `${feedback.trim().length} characters`
+                    : `${Math.max(0, FEEDBACK_MIN - feedback.trim().length)} more characters needed (min ${FEEDBACK_MIN})`}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  What would have made you stay?
+                  <span className="text-destructive"> *</span>
+                </Label>
+                <Textarea
+                  value={keptText}
+                  onChange={(e) => setKeptText(e.target.value)}
+                  placeholder="A feature, a price, better support — what would've changed your mind?"
+                  rows={2}
+                />
+                <p className={`text-xs ${keptOk ? "text-muted-foreground" : "text-destructive"}`}>
+                  {keptOk
+                    ? `${keptText.trim().length} characters`
+                    : `${Math.max(0, KEPT_MIN - keptText.trim().length)} more characters needed (min ${KEPT_MIN})`}
+                </p>
               </div>
             </div>
             <DialogFooter className="flex-col gap-2 sm:flex-row">

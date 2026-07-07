@@ -32,6 +32,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
+import { CancellationFeedbackPanel } from '@/components/admin/CancellationFeedbackPanel';
 import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
 import ChurnRetentionTab from '@/components/admin/ChurnRetentionTab';
 import { ErrorsIncidentsPanel } from '@/components/admin/ErrorsIncidentsPanel';
@@ -484,7 +485,10 @@ export default function PlatformAnalyticsPage() {
           </TabsList>
 
           <TabsContent value="churn">
-            <ChurnRetentionTab />
+            <div className="space-y-6">
+              <ChurnRetentionTab />
+              <CancellationFeedbackPanel />
+            </div>
           </TabsContent>
 
           {/* TidyWise Subscribers Tab - Only shows users with subscriptions */}
