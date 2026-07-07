@@ -644,11 +644,21 @@ export function AutomationsTab() {
                           </div>
                         </div>
                       </div>
-                      <Switch
-                        checked={auto.is_enabled}
-                        onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
-                        className="flex-shrink-0 scale-110"
-                      />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing({ key: auto.automation_type, name: formatName(auto.automation_type) })}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                        <Switch
+                          checked={auto.is_enabled}
+                          onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
+                          className="scale-110"
+                        />
+                      </div>
+
                     </div>
 
                     {isReminder && (
