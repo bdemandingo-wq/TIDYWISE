@@ -144,6 +144,7 @@ const defaultSettings: BusinessSettings = {
   meta_pixel_id: '',
   google_analytics_id: '',
   benchmarks_opt_in: true,
+  require_cleaner_payout_setup: true,
 };
 
 // Account Deletion Card Component - Required for App Store compliance (Guideline 5.1.1(v))
