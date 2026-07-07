@@ -827,7 +827,7 @@ export default function PublicBookingPage() {
                       fallbackBasePrice: svc.minimumPrice,
                     });
                     const price = svcPricing.base;
-                    const isMinPrice = selectedSqFtIndex === null && !(selectedBedrooms && selectedBathrooms);
+                    const isMinPrice = selectedSqFtIndex === null && !selectedBedrooms && !selectedBathrooms;
                     
                     return (
                       <Card
