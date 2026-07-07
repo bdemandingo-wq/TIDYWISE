@@ -1502,6 +1502,33 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           </div>
         </div>
       </div>
+
+      {/* Mobile sticky bottom action bar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-3 py-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] flex items-center gap-2 shadow-lg">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</span>
+          <span className="text-base font-bold text-primary leading-tight">{fmt(finalPrice)}</span>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSubmit(true)}
+          disabled={savingDraft || submitting}
+          className="ml-auto h-10"
+        >
+          {savingDraft && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          Draft
+        </Button>
+        <Button
+          onClick={() => handleSubmit(false)}
+          disabled={submitting || savingDraft}
+          size="sm"
+          className="h-10 px-4 bg-gradient-to-r from-primary to-accent"
+        >
+          {submitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          {booking ? 'Update' : 'Save'}
+        </Button>
+      </div>
     </>
   );
 }
