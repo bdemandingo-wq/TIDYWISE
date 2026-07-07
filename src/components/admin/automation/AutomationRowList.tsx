@@ -80,6 +80,9 @@ interface AutomationRowListProps {
 }
 
 export function AutomationRowList({ automations, isLoading, onToggle }: AutomationRowListProps) {
+  const { organization } = useOrganization();
+  const [editing, setEditing] = useState<{ key: string; name: string } | null>(null);
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -108,12 +111,10 @@ export function AutomationRowList({ automations, isLoading, onToggle }: Automati
             key={auto.id}
             className="flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
           >
-            {/* Icon */}
             <div className={`p-2.5 rounded-lg flex-shrink-0 ${meta.bgColor}`}>
               <Icon className={`w-5 h-5 ${meta.color}`} />
             </div>
 
-            {/* Text */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-sm text-foreground">
@@ -131,7 +132,15 @@ export function AutomationRowList({ automations, isLoading, onToggle }: Automati
               </p>
             </div>
 
-            {/* Toggle */}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setEditing({ key: auto.automation_type, name: formatName(auto.automation_type) })}
+              className="flex-shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+            </Button>
+
             <Switch
               checked={auto.is_enabled}
               onCheckedChange={(checked) => onToggle(auto.id, checked)}
@@ -140,6 +149,17 @@ export function AutomationRowList({ automations, isLoading, onToggle }: Automati
           </div>
         );
       })}
+
+      {editing && organization?.id && (
+        <AutomationEditorDialog
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+          organizationId={organization.id}
+          automationKey={editing.key}
+          automationName={editing.name}
+        />
+      )}
     </div>
   );
 }
+
