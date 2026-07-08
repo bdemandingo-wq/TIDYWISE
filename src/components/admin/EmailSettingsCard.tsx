@@ -476,10 +476,9 @@ export function EmailSettingsCard() {
                 onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                {method === 'gmail_smtp'
-                  ? 'Should match (or be an alias of) your Gmail address above.'
-                  : 'Use an address on a domain you\'ve verified below for best deliverability.'}
+                Should match (or be an alias of) your Gmail address above.
               </p>
+
             </div>
           </div>
 
