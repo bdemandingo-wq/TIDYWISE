@@ -15,12 +15,11 @@ import {
   Mail,
   Send,
   Sparkles,
-  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+
 
 type SendMethod = 'resend' | 'gmail_smtp';
 type AccountType = 'consumer' | 'workspace';
@@ -61,7 +60,7 @@ export function EmailSettingsCard() {
   const [testEmailTo, setTestEmailTo] = useState('');
   const [testing, setTesting] = useState(false);
   const [dailyStats, setDailyStats] = useState<{ gmail: number; resend: number }>({ gmail: 0, resend: 0 });
-  const [showAdvancedResend, setShowAdvancedResend] = useState(false);
+  
 
   useEffect(() => {
     if (organization?.id) {
@@ -127,14 +126,12 @@ export function EmailSettingsCard() {
     if (!settings.from_name.trim()) return toast.error('From Name is required');
     if (!settings.from_email.trim() || !validateEmail(settings.from_email)) return toast.error('Valid From Email is required');
     if (settings.reply_to_email && !validateEmail(settings.reply_to_email)) return toast.error('Reply-To Email must be a valid email address');
-    if (settings.email_send_method === 'gmail_smtp') {
-      if (!settings.smtp_email.trim() || !validateEmail(settings.smtp_email)) {
-        return toast.error('Enter your Gmail address (works with @gmail.com and Google Workspace).');
-      }
-      if (!hasSmtpPassword && !settings.smtp_app_password.trim()) {
-        return toast.error('Enter your 16-character Gmail app password.');
-      }
+    // Gmail creds are optional at save time (partial setup is OK — chip warns until complete).
+    // But if user typed a Gmail address, it must be valid.
+    if (settings.smtp_email.trim() && !validateEmail(settings.smtp_email.trim())) {
+      return toast.error('Enter a valid Gmail address (works with @gmail.com and Google Workspace).');
     }
+
 
     setSaving(true);
     try {
@@ -146,7 +143,7 @@ export function EmailSettingsCard() {
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
-        email_send_method: settings.email_send_method,
+        email_send_method: 'gmail_smtp',
         gmail_account_type: settings.gmail_account_type,
         smtp_email: settings.smtp_email.trim() || null,
       };
@@ -212,8 +209,8 @@ export function EmailSettingsCard() {
   const nearLimit = dailyStats.gmail >= gmailLimit * 0.8;
   const overLimit = dailyStats.gmail >= gmailLimit;
 
-  const method = settings.email_send_method;
-  const gmailConfigured = method === 'gmail_smtp' && !!settings.smtp_email && hasSmtpPassword;
+  const gmailConfigured = !!settings.smtp_email && hasSmtpPassword;
+
 
   if (loading) {
     return (
@@ -235,125 +232,44 @@ export function EmailSettingsCard() {
     );
   }
 
-  const MethodCard = ({
-    value,
-    icon: Icon,
-    title,
-    tagline,
-    bullets,
-  }: {
-    value: SendMethod;
-    icon: typeof Mail;
-    title: string;
-    tagline: string;
-    bullets: string[];
-  }) => {
-    const selected = method === value;
-    return (
-      <button
-        type="button"
-        onClick={() => setSettings({ ...settings, email_send_method: value })}
-        className={`text-left rounded-xl border-2 p-4 transition-all ${
-          selected
-            ? 'border-primary bg-primary/5 shadow-sm'
-            : 'border-border hover:border-primary/40 hover:bg-muted/30'
-        }`}
-        aria-pressed={selected}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className={`shrink-0 rounded-lg p-2 ${
-              selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold">{title}</span>
-              {selected && (
-                <Badge variant="secondary" className="gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Selected
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">{tagline}</p>
-            <ul className="mt-2 space-y-1">
-              {bullets.map((b) => (
-                <li key={b} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <span className="text-primary">•</span>
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </button>
-    );
-  };
+
+
 
   return (
     <div className="space-y-6">
       {/* Summary chip */}
-      {gmailConfigured && method === 'gmail_smtp' && (
+      {gmailConfigured ? (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <div className="text-sm text-emerald-900 dark:text-emerald-100">
             Sending from: <span className="font-semibold">{settings.smtp_email}</span>
           </div>
         </div>
-      )}
-      {method === 'resend' && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div className="text-sm text-emerald-900 dark:text-emerald-100">
-            Sending via <span className="font-semibold">TidyWise default</span>
-            {settings.from_email ? <> as <span className="font-semibold">{settings.from_email}</span></> : null}
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="text-sm text-amber-900 dark:text-amber-100">
+            Gmail not connected yet — customer emails will fall back to our shared sender until you finish setup below.
           </div>
         </div>
       )}
 
-      {/* Card 1 — How your emails are sent */}
+      {/* Card 1 — Connect your Gmail */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
-            How your emails are sent
+            Send customer emails from your Gmail
           </CardTitle>
           <CardDescription>
-            Pick how customer emails leave your organization. System emails (signup, password reset, admin alerts) always
-            send from TidyWise regardless of your choice.
+            Emails come from your real Gmail address; replies land in your inbox. Works with @gmail.com and Google
+            Workspace. System emails (signup, password reset, admin alerts) always send from TidyWise.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            <MethodCard
-              value="resend"
-              icon={Mail}
-              title="TidyWise default"
-              tagline="Zero setup. Emails send from our shared sending service."
-              bullets={[
-                'Nothing to configure — works right away',
-                'Reliable, high-volume delivery',
-                'Optionally verify your own domain below for stronger branding',
-              ]}
-            />
-            <MethodCard
-              value="gmail_smtp"
-              icon={Send}
-              title="Your own Gmail"
-              tagline="Emails come from your real Gmail address; replies land in your Gmail inbox."
-              bullets={[
-                'Works with @gmail.com and Google Workspace',
-                'No domain verification needed',
-                'Automatic fallback to TidyWise if Gmail hiccups',
-              ]}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">Not sure? Keep the default — it just works.</p>
+          {/* Gmail fields */}
 
-          {/* Gmail-only fields */}
-          {method === 'gmail_smtp' && (
+
             <div className="space-y-4 border rounded-xl p-4 bg-muted/20">
               <div className="flex items-start gap-2">
                 <Send className="w-4 h-4 mt-0.5 text-primary" />
@@ -523,62 +439,12 @@ export function EmailSettingsCard() {
 
               </div>
             </div>
-          )}
 
-          {/* Resend-only advanced field */}
-          {method === 'resend' && (
-            <div className="border rounded-xl p-4 bg-muted/20 space-y-3">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedResend((v) => !v)}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                {showAdvancedResend ? '− Hide' : '+ Show'} advanced (bring your own Resend key)
-              </button>
-              {showAdvancedResend && (
-                <div className="space-y-2">
-                  <Label htmlFor="resendApiKey">
-                    Resend API Key {hasResendKey ? <span className="text-xs text-emerald-600">— saved</span> : null}
-                  </Label>
-                  <Input
-                    id="resendApiKey"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder={
-                      hasResendKey ? '••••••••  (leave blank to keep current key)' : 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-                    }
-                    value={settings.resend_api_key}
-                    onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional. Most orgs don't need this. Get one at{' '}
-                    <a
-                      href="https://resend.com/api-keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-primary"
-                    >
-                      resend.com/api-keys
-                    </a>
-                    . Also used as the fallback when Gmail SMTP fails.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+
         </CardContent>
       </Card>
 
-      {/* Domain Verification — only shown for Resend */}
-      {method === 'resend' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ShieldCheck className="w-4 h-4" />
-            Verify your own domain so emails come from <em>you@yourdomain.com</em> instead of a shared sender.
-          </div>
-          <DomainVerificationCard />
-        </div>
-      )}
+
 
       {/* Card 2 — Sender identity */}
       <Card>
@@ -611,10 +477,9 @@ export function EmailSettingsCard() {
                 onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                {method === 'gmail_smtp'
-                  ? 'Should match (or be an alias of) your Gmail address above.'
-                  : 'Use an address on a domain you\'ve verified below for best deliverability.'}
+                Should match (or be an alias of) your Gmail address above.
               </p>
+
             </div>
           </div>
 
