@@ -295,65 +295,38 @@ export function EmailSettingsCard() {
   return (
     <div className="space-y-6">
       {/* Summary chip */}
-      {gmailConfigured && method === 'gmail_smtp' && (
+      {gmailConfigured ? (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <div className="text-sm text-emerald-900 dark:text-emerald-100">
             Sending from: <span className="font-semibold">{settings.smtp_email}</span>
           </div>
         </div>
-      )}
-      {method === 'resend' && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div className="text-sm text-emerald-900 dark:text-emerald-100">
-            Sending via <span className="font-semibold">TidyWise default</span>
-            {settings.from_email ? <> as <span className="font-semibold">{settings.from_email}</span></> : null}
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="text-sm text-amber-900 dark:text-amber-100">
+            Gmail not connected yet — customer emails will fall back to our shared sender until you finish setup below.
           </div>
         </div>
       )}
 
-      {/* Card 1 — How your emails are sent */}
+      {/* Card 1 — Connect your Gmail */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5" />
-            How your emails are sent
+            Send customer emails from your Gmail
           </CardTitle>
           <CardDescription>
-            Pick how customer emails leave your organization. System emails (signup, password reset, admin alerts) always
-            send from TidyWise regardless of your choice.
+            Emails come from your real Gmail address; replies land in your inbox. Works with @gmail.com and Google
+            Workspace. System emails (signup, password reset, admin alerts) always send from TidyWise.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="grid gap-3 md:grid-cols-2">
-            <MethodCard
-              value="resend"
-              icon={Mail}
-              title="TidyWise default"
-              tagline="Zero setup. Emails send from our shared sending service."
-              bullets={[
-                'Nothing to configure — works right away',
-                'Reliable, high-volume delivery',
-                'Optionally verify your own domain below for stronger branding',
-              ]}
-            />
-            <MethodCard
-              value="gmail_smtp"
-              icon={Send}
-              title="Your own Gmail"
-              tagline="Emails come from your real Gmail address; replies land in your Gmail inbox."
-              bullets={[
-                'Works with @gmail.com and Google Workspace',
-                'No domain verification needed',
-                'Automatic fallback to TidyWise if Gmail hiccups',
-              ]}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">Not sure? Keep the default — it just works.</p>
+          {/* Gmail fields (always shown) */}
+          {true && (
 
-          {/* Gmail-only fields */}
-          {method === 'gmail_smtp' && (
             <div className="space-y-4 border rounded-xl p-4 bg-muted/20">
               <div className="flex items-start gap-2">
                 <Send className="w-4 h-4 mt-0.5 text-primary" />
