@@ -1,10 +1,11 @@
 // Unified customer-facing org email sender.
-// - Routes to Gmail SMTP when the org has email_send_method='gmail_smtp' AND credentials configured AND
-//   today's send count is under Gmail's daily limit.
-// - Falls back to Resend on any SMTP failure and logs it so admins see Gmail needs attention.
-// - Also falls back to Resend once the daily Gmail limit is reached.
+// - Routes to Gmail SMTP when the org has email_send_method='gmail_smtp' AND credentials configured.
+// - No silent fallback: if Gmail SMTP fails or the daily limit is reached, the send hard-fails and
+//   is logged so the org sees exactly what happened. This keeps deliverability predictable and
+//   avoids surprise sends from the platform Resend identity.
+// - When Gmail is NOT configured, falls through to Resend (used only until the org sets up Gmail).
 //
-// Platform / system emails (auth, admin notifications, digests) should NOT use this helper —
+// Platform / system emails (auth, admin notifications, digests) do NOT use this helper —
 // they call Resend directly with the platform key.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
