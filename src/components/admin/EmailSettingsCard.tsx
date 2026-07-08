@@ -439,7 +439,8 @@ export function EmailSettingsCard() {
 
               </div>
             </div>
-          )}
+
+
         </CardContent>
       </Card>
 
