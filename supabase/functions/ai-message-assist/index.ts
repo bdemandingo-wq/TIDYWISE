@@ -10,6 +10,7 @@
 // organizationId without verifying via JWT.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { anthropicChat, MODEL_HAIKU } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,26 +161,20 @@ No markdown, no commentary, just JSON.`;
 
       const userMsg = `Conversation so far:\n${conversation}\n\n${body.customInstruction ? `Additional instruction: ${body.customInstruction}` : "Generate 3 reply suggestions."}`;
 
-      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+      const aiRes = await anthropicChat(
+        {
+          model: MODEL_HAIKU,
           messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMsg }],
           response_format: { type: "json_object" },
-        }),
-      });
+          max_tokens: 1000,
+        },
+        { corsHeaders },
+      );
 
       if (!aiRes.ok) {
         const txt = await aiRes.text();
         console.error("[ai-message-assist] AI error:", aiRes.status, txt);
-        if (aiRes.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit. Try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        if (aiRes.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
-        throw new Error("AI request failed");
+        return new Response(txt, { status: aiRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const aiData = await aiRes.json();

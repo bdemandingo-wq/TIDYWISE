@@ -33,15 +33,15 @@ serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(JSON.stringify({ success: false, error: "Server configuration error" }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    if (!lovableApiKey) {
-      console.error("[ai-sms-reply] Missing LOVABLE_API_KEY");
+    if (!anthropicKey) {
+      console.error("[ai-sms-reply] Missing ANTHROPIC_API_KEY");
       return new Response(JSON.stringify({ success: false, error: "AI not configured" }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -226,37 +226,25 @@ ${historyText}`;
     // 10. Call Lovable AI
     console.log(`[ai-sms-reply] Calling AI for response generation`);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+    const aiResponse = await anthropicChat(
+      {
+        model: MODEL_HAIKU,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: incomingMessage },
         ],
         max_tokens: 200,
-      }),
-    });
+      },
+      { corsHeaders },
+    );
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error(`[ai-sms-reply] AI gateway error: ${aiResponse.status} - ${errText}`);
-
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ success: false, error: "AI rate limited, try again later" }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ success: false, error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-
-      return new Response(JSON.stringify({ success: false, error: "AI generation failed" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      console.error(`[ai-sms-reply] Anthropic error: ${aiResponse.status} - ${errText}`);
+      return new Response(errText, {
+        status: aiResponse.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const aiResult = await aiResponse.json();
