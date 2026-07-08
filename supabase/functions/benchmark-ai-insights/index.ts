@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { anthropicChat, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
       return json({ error: "benchmarks_opt_out" }, 403);
     }
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) {
       await audit(body.org_id, "error", { cohort: body.cohort }, "ai_not_configured");
       return json({ error: "ai_not_configured" }, 500);
@@ -137,39 +138,30 @@ Deno.serve(async (req) => {
       peer_metrics: body.peer_metrics,
     };
 
-    const aiRes = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+    const aiRes = await anthropicChat(
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: JSON.stringify(userPayload) },
-          ],
-          response_format: { type: "json_object" },
-        }),
+        model: MODEL_SONNET,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: JSON.stringify(userPayload) },
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 2000,
       },
+      { corsHeaders },
     );
 
     if (aiRes.status === 429) {
       await audit(body.org_id, "error", { cohort: body.cohort }, "rate_limited");
       return json({ error: "rate_limited" }, 429);
     }
-    if (aiRes.status === 402) {
-      await audit(body.org_id, "error", { cohort: body.cohort }, "credits_exhausted");
-      return json({ error: "credits_exhausted" }, 402);
-    }
     if (!aiRes.ok) {
       const t = await aiRes.text();
-      console.error("ai gateway error", aiRes.status, t);
+      console.error("anthropic error", aiRes.status, t);
       await audit(body.org_id, "error", { cohort: body.cohort, http: aiRes.status }, "ai_error");
       return json({ error: "ai_error" }, 502);
     }
+
 
     const aiJson = await aiRes.json();
     const content = aiJson?.choices?.[0]?.message?.content ?? "{}";
