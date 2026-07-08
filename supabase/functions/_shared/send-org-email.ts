@@ -102,6 +102,10 @@ async function logFailure(
   }
 }
 
+function b64(s: string): string {
+  return btoa(unescape(encodeURIComponent(s)));
+}
+
 async function sendViaGmailSmtp(
   settings: OrgEmailSettings,
   opts: SendOrgEmailOptions,
@@ -121,6 +125,8 @@ async function sendViaGmailSmtp(
   });
   try {
     const html = opts.html + (settings.email_footer ? `<br/><br/><p style="color:#666;font-size:12px;">${settings.email_footer}</p>` : "");
+    const text = opts.text ?? "This email requires an HTML-capable client.";
+    // Bypass denomailer's buggy quoted-printable encoder — build MIME parts with base64 instead.
     await client.send({
       from,
       to: toArr(opts.to),
@@ -128,8 +134,10 @@ async function sendViaGmailSmtp(
       bcc: toArr(opts.bcc),
       replyTo,
       subject: opts.subject,
-      content: opts.text ?? "This email requires an HTML-capable client.",
-      html,
+      mimeContent: [
+        { mimeType: 'text/plain; charset="utf-8"', content: b64(text), transferEncoding: "base64" },
+        { mimeType: 'text/html; charset="utf-8"', content: b64(html), transferEncoding: "base64" },
+      ],
       attachments: (opts.attachments ?? []).map((a) => ({
         filename: a.filename,
         content: a.content,
