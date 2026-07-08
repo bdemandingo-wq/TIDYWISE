@@ -42,9 +42,8 @@ import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSetti
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
-import { GmailConnectionCard } from '@/components/admin/GmailConnectionCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
-import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+
 import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
 import { StripeConnectHealthPanel } from '@/components/admin/StripeConnectHealthPanel';
@@ -835,11 +834,8 @@ export default function SettingsPage() {
 
         {/* Email & Domain Settings */}
         <TabsContent value="emails" className="space-y-6">
-          <div data-tour-id="gmail-connect">
-            <GmailConnectionCard />
-          </div>
           <EmailSettingsCard />
-          <DomainVerificationCard />
+
           <EmailTemplatesSettings
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
