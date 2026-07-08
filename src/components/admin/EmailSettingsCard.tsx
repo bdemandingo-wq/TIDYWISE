@@ -65,7 +65,9 @@ export function EmailSettingsCard() {
         _organization_id: organization!.id,
       } as never);
       if (error) throw error;
-      const data = Array.isArray(rows) ? (rows[0] as any) : ((rows as any) ?? null);
+      const rowsAny = rows as any;
+      const data = Array.isArray(rowsAny) ? rowsAny[0] : rowsAny;
+
       if (data) {
         setSettings({
           id: data.id,
