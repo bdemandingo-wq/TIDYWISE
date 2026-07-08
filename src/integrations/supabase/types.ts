@@ -9922,6 +9922,23 @@ export type Database = {
           stripe_secret_key: string
         }[]
       }
+      get_org_stripe_settings_safe: {
+        Args: { p_organization_id: string }
+        Returns: {
+          connected_at: string
+          created_at: string
+          id: string
+          is_connected: boolean
+          organization_id: string
+          stripe_account_id: string
+          stripe_default_currency: string
+          stripe_display_name: string
+          stripe_payouts_enabled: boolean
+          stripe_publishable_key: string
+          stripe_user_email: string
+          updated_at: string
+        }[]
+      }
       get_public_booking_settings: { Args: { p_org_id: string }; Returns: Json }
       get_review_request_by_token: {
         Args: { p_token: string }
