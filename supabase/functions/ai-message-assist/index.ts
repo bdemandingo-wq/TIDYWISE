@@ -227,20 +227,18 @@ No markdown, no commentary, just JSON.`;
       }
       const systemPrompt = `You are an inbox assistant for ${companyName}. Summarize unread/needs-reply customer SMS threads in plain English for the business owner. Prioritize threads that look urgent or have been waiting longest. Be concise (under 200 words total). Use a short bulleted list. End with one sentence recommending which to reply to first.`;
       const userMsg = items.map((c, i) => `${i + 1}. ${c.name} — "${c.lastMessage}" (waiting ${c.hoursSinceLastInbound.toFixed(1)}h)`).join("\n");
-      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+      const aiRes = await anthropicChat(
+        {
+          model: MODEL_HAIKU,
           messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMsg }],
-        }),
-      });
+          max_tokens: 800,
+        },
+        { corsHeaders },
+      );
       if (!aiRes.ok) {
         const txt = await aiRes.text();
         console.error("[ai-message-assist] summary err:", aiRes.status, txt);
-        if (aiRes.status === 429) return new Response(JSON.stringify({ error: "Rate limit." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        if (aiRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        throw new Error("AI summary failed");
+        return new Response(txt, { status: aiRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const aiData = await aiRes.json();
       const summary = aiData.choices?.[0]?.message?.content || "Could not generate summary.";
