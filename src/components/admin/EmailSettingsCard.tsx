@@ -60,7 +60,7 @@ export function EmailSettingsCard() {
   const [testEmailTo, setTestEmailTo] = useState('');
   const [testing, setTesting] = useState(false);
   const [dailyStats, setDailyStats] = useState<{ gmail: number; resend: number }>({ gmail: 0, resend: 0 });
-  const [showAdvancedResend, setShowAdvancedResend] = useState(false);
+  
 
   useEffect(() => {
     if (organization?.id) {
