@@ -188,9 +188,10 @@ export function EmailSettingsCard() {
 
   const sendTestEmail = async () => {
     if (!testEmailTo.trim() || !validateEmail(testEmailTo)) return toast.error('Enter a valid test recipient email');
-    if (!hasSmtpPassword && !settings.smtp_app_password.trim()) {
-      return toast.error('Save your Gmail credentials first, then send a test.');
+    if (!hasSmtpPassword || settings.smtp_app_password.trim() || !settings.id) {
+      return toast.error('Save your Gmail address and app password first, then send a test.');
     }
+
     setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-gmail-test-email', {
@@ -488,7 +489,12 @@ export function EmailSettingsCard() {
                   />
                   <Button
                     onClick={sendTestEmail}
-                    disabled={testing || !testEmailTo.trim()}
+                    disabled={
+                      testing ||
+                      !testEmailTo.trim() ||
+                      !hasSmtpPassword ||
+                      !!settings.smtp_app_password.trim()
+                    }
                     variant="outline"
                     className="gap-2"
                   >
@@ -497,8 +503,13 @@ export function EmailSettingsCard() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Test sends go through Gmail directly (no fallback), so errors reflect Gmail's real response.
+                  {!hasSmtpPassword
+                    ? 'Save your Gmail address and app password first, then send a test.'
+                    : settings.smtp_app_password.trim()
+                      ? 'You have unsaved changes — save first, then send a test.'
+                      : 'Test sends go through Gmail directly (no fallback), so errors reflect Gmail\'s real response.'}
                 </p>
+
               </div>
             </div>
           )}
