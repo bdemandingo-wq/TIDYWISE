@@ -9900,6 +9900,20 @@ export type Database = {
           webhook_url: string
         }[]
       }
+      get_org_ghl_settings_safe: {
+        Args: { _organization_id: string }
+        Returns: {
+          auth_header_name: string
+          auth_token_configured: boolean
+          created_at: string
+          enabled: boolean
+          event_config: Json
+          id: string
+          organization_id: string
+          updated_at: string
+          webhook_url: string
+        }[]
+      }
       get_org_stripe_public_settings: {
         Args: { p_org_id: string }
         Returns: {
