@@ -188,9 +188,10 @@ export function EmailSettingsCard() {
 
   const sendTestEmail = async () => {
     if (!testEmailTo.trim() || !validateEmail(testEmailTo)) return toast.error('Enter a valid test recipient email');
-    if (!hasSmtpPassword && !settings.smtp_app_password.trim()) {
-      return toast.error('Save your Gmail credentials first, then send a test.');
+    if (!hasSmtpPassword || settings.smtp_app_password.trim() || !settings.id) {
+      return toast.error('Save your Gmail address and app password first, then send a test.');
     }
+
     setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-gmail-test-email', {
