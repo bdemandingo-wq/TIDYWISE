@@ -497,61 +497,10 @@ export function EmailSettingsCard() {
               </div>
             </div>
           )}
-
-          {/* Resend-only advanced field */}
-          {method === 'resend' && (
-            <div className="border rounded-xl p-4 bg-muted/20 space-y-3">
-              <button
-                type="button"
-                onClick={() => setShowAdvancedResend((v) => !v)}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                {showAdvancedResend ? '− Hide' : '+ Show'} advanced (bring your own Resend key)
-              </button>
-              {showAdvancedResend && (
-                <div className="space-y-2">
-                  <Label htmlFor="resendApiKey">
-                    Resend API Key {hasResendKey ? <span className="text-xs text-emerald-600">— saved</span> : null}
-                  </Label>
-                  <Input
-                    id="resendApiKey"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder={
-                      hasResendKey ? '••••••••  (leave blank to keep current key)' : 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-                    }
-                    value={settings.resend_api_key}
-                    onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Optional. Most orgs don't need this. Get one at{' '}
-                    <a
-                      href="https://resend.com/api-keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-primary"
-                    >
-                      resend.com/api-keys
-                    </a>
-                    . Also used as the fallback when Gmail SMTP fails.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Domain Verification — only shown for Resend */}
-      {method === 'resend' && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <ShieldCheck className="w-4 h-4" />
-            Verify your own domain so emails come from <em>you@yourdomain.com</em> instead of a shared sender.
-          </div>
-          <DomainVerificationCard />
-        </div>
-      )}
+
 
       {/* Card 2 — Sender identity */}
       <Card>
