@@ -479,14 +479,24 @@ export function EmailSettingsCard() {
               {/* Test */}
               <div className="space-y-2">
                 <Label htmlFor="testTo">Send a test email</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     id="testTo"
                     type="email"
                     placeholder="test@example.com"
                     value={testEmailTo}
                     onChange={(e) => setTestEmailTo(e.target.value)}
+                    className="flex-1"
                   />
+                  <Button
+                    onClick={saveAll}
+                    disabled={saving}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save
+                  </Button>
                   <Button
                     onClick={sendTestEmail}
                     disabled={
@@ -502,6 +512,7 @@ export function EmailSettingsCard() {
                     Send Test
                   </Button>
                 </div>
+
                 <p className="text-xs text-muted-foreground">
                   {!hasSmtpPassword
                     ? 'Save your Gmail address and app password first, then send a test.'
