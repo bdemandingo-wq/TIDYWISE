@@ -5561,6 +5561,79 @@ export type Database = {
           },
         ]
       }
+      org_email_daily_sends: {
+        Row: {
+          method: string
+          organization_id: string
+          sent_count: number
+          sent_on: string
+          updated_at: string
+        }
+        Insert: {
+          method?: string
+          organization_id: string
+          sent_count?: number
+          sent_on?: string
+          updated_at?: string
+        }
+        Update: {
+          method?: string
+          organization_id?: string
+          sent_count?: number
+          sent_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_email_daily_sends_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_email_send_failures: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          fell_back_to: string | null
+          id: string
+          method: string
+          organization_id: string
+          recipient: string | null
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          fell_back_to?: string | null
+          id?: string
+          method: string
+          organization_id: string
+          recipient?: string | null
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          fell_back_to?: string | null
+          id?: string
+          method?: string
+          organization_id?: string
+          recipient?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_email_send_failures_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_feature_flags: {
         Row: {
           ai_assistant_enabled: boolean | null
@@ -5979,34 +6052,46 @@ export type Database = {
         Row: {
           created_at: string
           email_footer: string | null
+          email_send_method: string
           from_email: string
           from_name: string
+          gmail_account_type: string
           id: string
           organization_id: string
           reply_to_email: string | null
           resend_api_key: string | null
+          smtp_app_password: string | null
+          smtp_email: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email_footer?: string | null
+          email_send_method?: string
           from_email: string
           from_name: string
+          gmail_account_type?: string
           id?: string
           organization_id: string
           reply_to_email?: string | null
           resend_api_key?: string | null
+          smtp_app_password?: string | null
+          smtp_email?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email_footer?: string | null
+          email_send_method?: string
           from_email?: string
           from_name?: string
+          gmail_account_type?: string
           id?: string
           organization_id?: string
           reply_to_email?: string | null
           resend_api_key?: string | null
+          smtp_app_password?: string | null
+          smtp_email?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -9890,6 +9975,24 @@ export type Database = {
         Args: { p_cohort?: string; p_org_id: string }
         Returns: Json
       }
+      get_org_email_settings_safe: {
+        Args: { _organization_id: string }
+        Returns: {
+          created_at: string
+          email_footer: string
+          email_send_method: string
+          from_email: string
+          from_name: string
+          gmail_account_type: string
+          id: string
+          organization_id: string
+          reply_to_email: string
+          resend_api_key_configured: boolean
+          smtp_email: string
+          smtp_password_configured: boolean
+          updated_at: string
+        }[]
+      }
       get_org_ghl_dispatch_config: {
         Args: { _org_id: string }
         Returns: {
@@ -10001,6 +10104,10 @@ export type Database = {
         Args: { p_password: string }
         Returns: string
       }
+      increment_org_email_daily_send: {
+        Args: { _delta?: number; _method?: string; _organization_id: string }
+        Returns: number
+      }
       is_client_portal_user: {
         Args: { _client_user_id: string; _user_id: string }
         Returns: boolean
@@ -10024,6 +10131,17 @@ export type Database = {
           p_status: string
         }
         Returns: string
+      }
+      log_org_email_send_failure: {
+        Args: {
+          _error_message: string
+          _fell_back_to: string
+          _method: string
+          _organization_id: string
+          _recipient: string
+          _subject: string
+        }
+        Returns: undefined
       }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
