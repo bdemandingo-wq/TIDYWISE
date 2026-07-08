@@ -62,14 +62,19 @@ serve(async (req) => {
 
     const from = formatEmailFrom(settings);
     const replyTo = getReplyTo(settings);
+    const html = `<p>Hi,</p><p>This is a test email sent from <strong>${settings.from_name}</strong> using your connected Gmail account (<code>${settings.smtp_email}</code>).</p><p>If you received it, Gmail SMTP is configured correctly and customer emails will now send from your own Gmail address.</p>`;
+    const text = "If you're reading this in HTML, Gmail SMTP is working.";
+    const b64 = (s: string) => btoa(unescape(encodeURIComponent(s)));
     try {
       await client.send({
         from,
         to: [to],
         replyTo,
         subject: "TidyWise: Gmail SMTP test",
-        content: "If you're reading this in HTML, Gmail SMTP is working.",
-        html: `<p>Hi,</p><p>This is a test email sent from <strong>${settings.from_name}</strong> using your connected Gmail account (<code>${settings.smtp_email}</code>).</p><p>If you received it, Gmail SMTP is configured correctly and customer emails will now send from your own Gmail address.</p>`,
+        mimeContent: [
+          { mimeType: 'text/plain; charset="utf-8"', content: b64(text), transferEncoding: "base64" },
+          { mimeType: 'text/html; charset="utf-8"', content: b64(html), transferEncoding: "base64" },
+        ],
       });
       await client.close();
     } catch (e: any) {
