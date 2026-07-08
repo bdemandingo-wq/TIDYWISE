@@ -145,7 +145,7 @@ export function EmailSettingsCard() {
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
-        email_send_method: settings.email_send_method,
+        email_send_method: 'gmail_smtp',
         gmail_account_type: settings.gmail_account_type,
         smtp_email: settings.smtp_email.trim() || null,
       };
