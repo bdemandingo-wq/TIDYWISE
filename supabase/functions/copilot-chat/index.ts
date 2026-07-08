@@ -12,7 +12,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk@0.40.0";
 import { requireOrgAdmin, sharedCorsHeaders } from "../_shared/requireOrgAdmin.ts";
 
-const MODEL = "claude-opus-4-7";
+const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 4096;
 const HISTORY_TURN_LIMIT = 12; // cap how much prior chat we replay per turn
 
@@ -191,7 +191,6 @@ serve(async (req: Request): Promise<Response> => {
     response = await anthropic.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      output_config: { effort: "low" },
       system: [
         { type: "text", text: PERSONA_PROMPT },
         { type: "text", text: orgBlock },
