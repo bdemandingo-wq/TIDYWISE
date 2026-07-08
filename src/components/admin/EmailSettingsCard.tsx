@@ -489,7 +489,12 @@ export function EmailSettingsCard() {
                   />
                   <Button
                     onClick={sendTestEmail}
-                    disabled={testing || !testEmailTo.trim()}
+                    disabled={
+                      testing ||
+                      !testEmailTo.trim() ||
+                      !hasSmtpPassword ||
+                      !!settings.smtp_app_password.trim()
+                    }
                     variant="outline"
                     className="gap-2"
                   >
@@ -498,8 +503,13 @@ export function EmailSettingsCard() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Test sends go through Gmail directly (no fallback), so errors reflect Gmail's real response.
+                  {!hasSmtpPassword
+                    ? 'Save your Gmail address and app password first, then send a test.'
+                    : settings.smtp_app_password.trim()
+                      ? 'You have unsaved changes — save first, then send a test.'
+                      : 'Test sends go through Gmail directly (no fallback), so errors reflect Gmail\'s real response.'}
                 </p>
+
               </div>
             </div>
           )}
