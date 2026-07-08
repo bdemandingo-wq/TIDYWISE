@@ -15,12 +15,11 @@ import {
   Mail,
   Send,
   Sparkles,
-  ShieldCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { DomainVerificationCard } from '@/components/admin/DomainVerificationCard';
+
 
 type SendMethod = 'resend' | 'gmail_smtp';
 type AccountType = 'consumer' | 'workspace';
