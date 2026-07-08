@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
+import { anthropicChat, MODEL_HAIKU, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,20 +9,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function aiRequest(apiKey: string, body: Record<string, unknown>) {
-  return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+// Backwards-compatible shim: existing call sites use aiRequest(apiKey, body).
+// The apiKey arg is ignored — anthropicChat reads ANTHROPIC_API_KEY directly.
+// The `model` field in `body` is mapped to Haiku/Sonnet automatically.
+function aiRequest(_apiKey: string, body: Record<string, unknown>) {
+  return anthropicChat(body as any, { corsHeaders });
 }
 
 function handleRateLimit(status: number) {
-  if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (status === 429) return new Response(JSON.stringify({ error: "AI is temporarily rate limited. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   return null;
 }
 

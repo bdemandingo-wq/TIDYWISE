@@ -856,17 +856,12 @@ RULES:
 
 Format: Return exactly 3 bullet points, no numbering, no asterisks.`;
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-3-flash-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.8, // Higher temperature for more variety
-    }),
+  const { anthropicChat, MODEL_SONNET } = await import("../_shared/anthropic.ts");
+  const response = await anthropicChat({
+    model: MODEL_SONNET,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.8,
+    max_tokens: 800,
   });
 
   if (!response.ok) {
