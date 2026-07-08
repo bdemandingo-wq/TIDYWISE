@@ -212,41 +212,24 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${emailSettings.resend_api_key || RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: formatEmailFrom(emailSettings),
-        to: [customerEmail],
-        reply_to: getReplyTo(emailSettings),
-        subject: `How was your ${serviceName}? We'd love your feedback!`,
-        html: emailHtml,
-      }),
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const sendResult = await sendOrgEmail({
+      organizationId,
+      to: customerEmail,
+      subject: `How was your ${serviceName}? We'd love your feedback!`,
+      html: emailHtml,
     });
 
-    let emailData: any = null;
-    try {
-      emailData = await emailResponse.json();
-    } catch (_e) {
-      emailData = null;
+    if (!sendResult.success) {
+      if (/not verified/i.test(sendResult.error || "")) {
+        const domain = emailSettings.from_email.split('@')[1];
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
+      }
+      throw new Error(sendResult.error || "Failed to send email");
     }
+    const emailData: any = { id: sendResult.id };
+    console.log("Review request email sent via", sendResult.method, "id:", sendResult.id);
 
-    // If domain not verified, return helpful error
-    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
-      const domain = emailSettings.from_email.split('@')[1];
-      console.error(`Domain ${domain} is not verified on Resend`);
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
-    }
-
-    if (!emailResponse.ok) {
-      console.error("Resend API error:", { status: emailResponse.status, data: emailData });
-      throw new Error(emailData?.message || `Failed to send email (status ${emailResponse.status})`);
-    }
-
-    console.log("Review request email sent successfully:", emailData);
 
     return new Response(JSON.stringify({ success: true, emailId: emailData?.id }), {
       status: 200,
