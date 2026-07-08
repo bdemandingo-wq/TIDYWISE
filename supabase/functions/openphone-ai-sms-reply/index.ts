@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { anthropicChat, MODEL_HAIKU } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,10 +144,10 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
 
-    if (!lovableApiKey) {
-      console.error('[ai-sms-reply] LOVABLE_API_KEY not configured');
+    if (!anthropicKey) {
+      console.error('[ai-sms-reply] ANTHROPIC_API_KEY not configured');
       return new Response(JSON.stringify({ success: false, error: 'AI not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -322,23 +323,19 @@ RULES:
 
     console.log(`[ai-sms-reply] Calling AI (isStaff=${isStaff}, hasCalls=${callSummaries.length}, styleExamples=${allStyleExamples.length})`);
 
-    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
+    const aiResp = await anthropicChat(
+      {
+        model: MODEL_HAIKU,
         messages,
         max_tokens: 300,
         temperature: 0.7,
-      }),
-    });
+      },
+      { corsHeaders },
+    );
 
     if (!aiResp.ok) {
       const errText = await aiResp.text();
-      console.error(`[ai-sms-reply] AI API error ${aiResp.status}: ${errText}`);
+      console.error(`[ai-sms-reply] Anthropic error ${aiResp.status}: ${errText}`);
       return new Response(JSON.stringify({ success: false, error: 'AI generation failed' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

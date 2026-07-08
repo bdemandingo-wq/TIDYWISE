@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
+import { anthropicChat, MODEL_HAIKU, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,20 +9,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function aiRequest(apiKey: string, body: Record<string, unknown>) {
-  return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+// Backwards-compatible shim: existing call sites use aiRequest(apiKey, body).
+// The apiKey arg is ignored — anthropicChat reads ANTHROPIC_API_KEY directly.
+// The `model` field in `body` is mapped to Haiku/Sonnet automatically.
+function aiRequest(_apiKey: string, body: Record<string, unknown>) {
+  return anthropicChat(body as any, { corsHeaders });
 }
 
 function handleRateLimit(status: number) {
-  if (status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  if (status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  if (status === 429) return new Response(JSON.stringify({ error: "AI is temporarily rate limited. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   return null;
 }
 
@@ -210,8 +206,8 @@ serve(async (req) => {
 
   try {
     const { type, messages, organizationId, businessSnapshot, prompt, channel } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
     // Require authenticated org membership before fetching org PII
     if (!organizationId) {
@@ -362,7 +358,7 @@ serve(async (req) => {
       }
       const snap = ctx || businessSnapshot || {};
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           {
@@ -433,7 +429,7 @@ serve(async (req) => {
         ? buildSystemPrompt(ctx)
         : `You are TidyWise AI for a cleaning company. Snapshot: Revenue: $${(businessSnapshot?.revenue || 0)}, Leads: ${businessSnapshot?.hotLeads || 0}, Churn: ${businessSnapshot?.churnCount || 0}, Conversion: ${businessSnapshot?.conversionRate || 0}%. Give specific, actionable advice.`;
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: systemPrompt }, ...(messages || [])],
         stream: true,
@@ -458,7 +454,7 @@ serve(async (req) => {
       }
       const snap = ctx || businessSnapshot || {};
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: "You are TidyWise AI. Give one specific scheduling recommendation (2-3 sentences) referencing actual numbers." },
@@ -486,7 +482,7 @@ serve(async (req) => {
         try { ctx = await fetchBusinessContext(supabaseAdmin, orgId); } catch (e) { console.error("Context fetch error:", e); }
       }
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           {
@@ -539,7 +535,7 @@ For each tip, reference my actual data where relevant. Format each with a bold t
             .map((m: any) => ({ role: m.role, content: m.content }))
         : [];
 
-      const upstream = await aiRequest(LOVABLE_API_KEY, {
+      const upstream = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         stream: true,
         messages: [
@@ -579,7 +575,7 @@ For each tip, reference my actual data where relevant. Format each with a bold t
         : "You write short, warm, professional re-engagement TEXT MESSAGES (SMS) for a cleaning business. Output ONLY the message body. Max 320 characters. Use the customer's first name. Include one specific incentive or scheduling CTA. No emojis unless natural.";
       const userPrompt = String(prompt || "");
 
-      const upstream = await aiRequest(LOVABLE_API_KEY, {
+      const upstream = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: sys },
