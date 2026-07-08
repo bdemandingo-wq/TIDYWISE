@@ -1,6 +1,6 @@
-// Shared helper to fetch organization email settings
-// This is the SINGLE SOURCE OF TRUTH for email sender identity
-// NO FALLBACKS - if settings are missing, we block sending
+// Shared helper to fetch organization email settings (server-side only).
+// This is the SINGLE SOURCE OF TRUTH for email sender identity.
+// NO FALLBACKS - if settings are missing, we block sending.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -10,6 +10,11 @@ export interface OrgEmailSettings {
   reply_to_email: string | null;
   email_footer: string | null;
   resend_api_key: string | null;
+  // Gmail SMTP fields
+  smtp_email: string | null;
+  smtp_app_password: string | null;
+  email_send_method: "resend" | "gmail_smtp";
+  gmail_account_type: "consumer" | "workspace";
 }
 
 export interface OrgEmailSettingsResult {
@@ -18,94 +23,65 @@ export interface OrgEmailSettingsResult {
   error?: string;
 }
 
-/**
- * Fetches email settings for a specific organization from organization_email_settings table.
- * This is the ONLY source for email sender identity - no fallbacks allowed.
- * 
- * @param organizationId - The organization ID (REQUIRED)
- * @returns OrgEmailSettingsResult with settings or error
- */
 export async function getOrgEmailSettings(organizationId: string): Promise<OrgEmailSettingsResult> {
-  // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
   if (!organizationId) {
-    console.error("[getOrgEmailSettings] Missing organizationId - cannot fetch email settings without organization context");
-    return {
-      success: false,
-      error: "Missing organizationId - organization context is required for email sending"
-    };
+    console.error("[getOrgEmailSettings] Missing organizationId");
+    return { success: false, error: "Missing organizationId - organization context is required for email sending" };
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
   if (!supabaseUrl || !supabaseServiceKey) {
-    console.error("[getOrgEmailSettings] Missing database configuration");
-    return {
-      success: false,
-      error: "Database connection not configured"
-    };
+    return { success: false, error: "Database connection not configured" };
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Query the organization_email_settings table ONLY - this is the single source of truth
-  const { data: emailSettings, error: settingsError } = await supabase
-    .from('organization_email_settings')
-    .select('from_name, from_email, reply_to_email, email_footer, resend_api_key')
-    .eq('organization_id', organizationId)
+  const { data, error } = await supabase
+    .from("organization_email_settings")
+    .select(
+      "from_name, from_email, reply_to_email, email_footer, resend_api_key, smtp_email, smtp_app_password, email_send_method, gmail_account_type",
+    )
+    .eq("organization_id", organizationId)
     .maybeSingle();
 
-  if (settingsError) {
-    console.error("[getOrgEmailSettings] Error fetching email settings:", settingsError);
+  if (error) {
+    console.error("[getOrgEmailSettings] Error:", error);
+    return { success: false, error: "Failed to fetch organization email settings" };
+  }
+  if (!data) {
     return {
       success: false,
-      error: "Failed to fetch organization email settings"
+      error: "Email settings not configured for this organization. Please set up your email identity in Settings → Emails.",
     };
   }
-
-  // NO FALLBACKS - if settings don't exist, block sending
-  if (!emailSettings) {
-    console.error("[getOrgEmailSettings] No email settings found for organization:", organizationId);
+  if (!data.from_name || !data.from_email) {
     return {
       success: false,
-      error: "Email settings not configured for this organization. Please set up your email identity in Settings → Emails."
+      error: "Email settings incomplete. Both 'From Name' and 'From Email' are required.",
     };
   }
-
-  // Validate required fields
-  if (!emailSettings.from_name || !emailSettings.from_email) {
-    console.error("[getOrgEmailSettings] Incomplete email settings for org:", organizationId);
-    return {
-      success: false,
-      error: "Email settings incomplete. Both 'From Name' and 'From Email' are required. Please configure them in Settings → Emails."
-    };
-  }
-
-  console.log("[getOrgEmailSettings] Loaded email settings for org:", organizationId, "- from:", emailSettings.from_email);
 
   return {
     success: true,
     settings: {
-      from_name: emailSettings.from_name,
-      from_email: emailSettings.from_email,
-      reply_to_email: emailSettings.reply_to_email,
-      email_footer: emailSettings.email_footer,
-      resend_api_key: emailSettings.resend_api_key,
-    }
+      from_name: data.from_name,
+      from_email: data.from_email,
+      reply_to_email: data.reply_to_email ?? null,
+      email_footer: data.email_footer ?? null,
+      resend_api_key: data.resend_api_key ?? null,
+      smtp_email: data.smtp_email ?? null,
+      smtp_app_password: data.smtp_app_password ?? null,
+      email_send_method: (data.email_send_method ?? "resend") as "resend" | "gmail_smtp",
+      gmail_account_type: (data.gmail_account_type ?? "consumer") as "consumer" | "workspace",
+    },
   };
 }
 
-/**
- * Formats the "From" header for emails using org settings
- * Format: "Company Name <email@domain.com>"
- */
 export function formatEmailFrom(settings: OrgEmailSettings): string {
   return `${settings.from_name} <${settings.from_email}>`;
 }
 
-/**
- * Gets the reply-to address, falling back to from_email if not set
- */
 export function getReplyTo(settings: OrgEmailSettings): string {
   return settings.reply_to_email || settings.from_email;
 }
