@@ -23,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing Supabase configuration");
@@ -174,9 +174,9 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!adminEmail) continue;
 
-      // Generate AI insights if LOVABLE_API_KEY is available
+      // Generate AI insights if ANTHROPIC_API_KEY is available
       let aiInsights = '';
-      if (LOVABLE_API_KEY) {
+      if (ANTHROPIC_API_KEY) {
         try {
           const prompt = `You are a business analyst for a cleaning company. Based on this week's metrics, provide 2-3 brief, actionable insights (max 50 words each):
 

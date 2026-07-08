@@ -206,8 +206,8 @@ serve(async (req) => {
 
   try {
     const { type, messages, organizationId, businessSnapshot, prompt, channel } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
     // Require authenticated org membership before fetching org PII
     if (!organizationId) {
@@ -358,7 +358,7 @@ serve(async (req) => {
       }
       const snap = ctx || businessSnapshot || {};
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           {
@@ -429,7 +429,7 @@ serve(async (req) => {
         ? buildSystemPrompt(ctx)
         : `You are TidyWise AI for a cleaning company. Snapshot: Revenue: $${(businessSnapshot?.revenue || 0)}, Leads: ${businessSnapshot?.hotLeads || 0}, Churn: ${businessSnapshot?.churnCount || 0}, Conversion: ${businessSnapshot?.conversionRate || 0}%. Give specific, actionable advice.`;
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: systemPrompt }, ...(messages || [])],
         stream: true,
@@ -454,7 +454,7 @@ serve(async (req) => {
       }
       const snap = ctx || businessSnapshot || {};
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: "You are TidyWise AI. Give one specific scheduling recommendation (2-3 sentences) referencing actual numbers." },
@@ -482,7 +482,7 @@ serve(async (req) => {
         try { ctx = await fetchBusinessContext(supabaseAdmin, orgId); } catch (e) { console.error("Context fetch error:", e); }
       }
 
-      const response = await aiRequest(LOVABLE_API_KEY, {
+      const response = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           {
@@ -535,7 +535,7 @@ For each tip, reference my actual data where relevant. Format each with a bold t
             .map((m: any) => ({ role: m.role, content: m.content }))
         : [];
 
-      const upstream = await aiRequest(LOVABLE_API_KEY, {
+      const upstream = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         stream: true,
         messages: [
@@ -575,7 +575,7 @@ For each tip, reference my actual data where relevant. Format each with a bold t
         : "You write short, warm, professional re-engagement TEXT MESSAGES (SMS) for a cleaning business. Output ONLY the message body. Max 320 characters. Use the customer's first name. Include one specific incentive or scheduling CTA. No emojis unless natural.";
       const userPrompt = String(prompt || "");
 
-      const upstream = await aiRequest(LOVABLE_API_KEY, {
+      const upstream = await aiRequest(ANTHROPIC_API_KEY, {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: sys },

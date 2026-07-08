@@ -46,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -202,9 +202,9 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Generate AI insights if available
       let aiGeneratedInsights: string[] = [];
-      if (LOVABLE_API_KEY) {
+      if (ANTHROPIC_API_KEY) {
         try {
-          aiGeneratedInsights = await generateAIInsights(LOVABLE_API_KEY, businessInsights);
+          aiGeneratedInsights = await generateAIInsights(ANTHROPIC_API_KEY, businessInsights);
         } catch (e) {
           console.error('[calculate-ai-intelligence] AI insights error:', e);
         }
