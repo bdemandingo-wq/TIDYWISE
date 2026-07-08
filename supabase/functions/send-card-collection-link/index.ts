@@ -215,34 +215,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!deliveredVia && (channel === "email" || (channel === "sms" && email))) {
-      // Email path (primary or fallback)
-      if (!RESEND_API_KEY) {
-        return new Response(
-          JSON.stringify({
-            error: smsError
-              ? `SMS failed (${smsError.error}) and email fallback is not configured.`
-              : "Email service not configured",
-            smsError,
-          }),
-          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-      if (!senderEmail) {
-        return new Response(
-          JSON.stringify({
-            error: smsError
-              ? `SMS failed (${smsError.error}) and organization email settings are not configured.`
-              : "Organization email settings not configured. Please set your company email in Settings.",
-            smsError,
-          }),
-          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
-      }
-
-      const resend = new Resend(RESEND_API_KEY);
-      const emailResponse = await resend.emails.send({
-        from: `${companyName} <${senderEmail}>`,
-        to: [email!],
+      // Email path (primary or fallback) — routed through per-org sender (Gmail SMTP or Resend)
+      const emailResult = await sendOrgEmail({
+        organizationId,
+        to: email!,
         subject: `Add Your Payment Card - ${companyName}`,
         html: `
           <!DOCTYPE html><html><body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;">
@@ -270,19 +246,19 @@ const handler = async (req: Request): Promise<Response> => {
           </body></html>
         `,
       });
-      if ((emailResponse as any).error) {
+      if (!emailResult.success) {
         return new Response(
           JSON.stringify({
             error: smsError
-              ? `SMS failed (${smsError.error}) and email fallback also failed: ${(emailResponse as any).error?.message || "unknown error"}`
-              : `Email send failed: ${(emailResponse as any).error?.message || "unknown error"}`,
+              ? `SMS failed (${smsError.error}) and email fallback also failed: ${emailResult.error}`
+              : `Email send failed: ${emailResult.error}`,
             smsError,
           }),
           { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
         );
       }
       deliveredVia = "email";
-      emailId = emailResponse.data?.id ?? null;
+      emailId = emailResult.id ?? null;
     }
 
     if (!deliveredVia) {
