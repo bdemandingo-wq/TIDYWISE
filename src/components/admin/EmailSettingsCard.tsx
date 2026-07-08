@@ -267,8 +267,8 @@ export function EmailSettingsCard() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
-          {/* Gmail fields (always shown) */}
-          {true && (
+          {/* Gmail fields */}
+
 
             <div className="space-y-4 border rounded-xl p-4 bg-muted/20">
               <div className="flex items-start gap-2">
