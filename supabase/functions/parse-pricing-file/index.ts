@@ -24,9 +24,8 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+      throw new Error("AI is not configured");
     }
 
     // AI rate limiting (per-user 30/min if authenticated; otherwise global 200/hr).
