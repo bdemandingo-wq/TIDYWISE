@@ -232,62 +232,8 @@ export function EmailSettingsCard() {
     );
   }
 
-  const MethodCard = ({
-    value,
-    icon: Icon,
-    title,
-    tagline,
-    bullets,
-  }: {
-    value: SendMethod;
-    icon: typeof Mail;
-    title: string;
-    tagline: string;
-    bullets: string[];
-  }) => {
-    const selected = method === value;
-    return (
-      <button
-        type="button"
-        onClick={() => setSettings({ ...settings, email_send_method: value })}
-        className={`text-left rounded-xl border-2 p-4 transition-all ${
-          selected
-            ? 'border-primary bg-primary/5 shadow-sm'
-            : 'border-border hover:border-primary/40 hover:bg-muted/30'
-        }`}
-        aria-pressed={selected}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className={`shrink-0 rounded-lg p-2 ${
-              selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold">{title}</span>
-              {selected && (
-                <Badge variant="secondary" className="gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Selected
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">{tagline}</p>
-            <ul className="mt-2 space-y-1">
-              {bullets.map((b) => (
-                <li key={b} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <span className="text-primary">•</span>
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </button>
-    );
-  };
+
+
 
   return (
     <div className="space-y-6">
