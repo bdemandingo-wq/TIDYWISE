@@ -835,11 +835,8 @@ export default function SettingsPage() {
 
         {/* Email & Domain Settings */}
         <TabsContent value="emails" className="space-y-6">
-          <div data-tour-id="gmail-connect">
-            <GmailConnectionCard />
-          </div>
           <EmailSettingsCard />
-          <DomainVerificationCard />
+
           <EmailTemplatesSettings
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
