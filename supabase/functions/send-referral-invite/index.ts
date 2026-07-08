@@ -90,18 +90,7 @@ serve(async (req) => {
       ? `${appUrl}/book/${orgSlug}?ref=${referral.referral_code}`
       : `${appUrl}/book?ref=${referral.referral_code}`;
 
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${emailSettings.resend_api_key || RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: senderFrom,
-        to: [referral.referred_email],
-        reply_to: getReplyTo(emailSettings),
-        subject: `${referrerName} thinks you'd love ${companyName}! Get $${creditAmount} off`,
-        html: `
+    const html = `
           <!DOCTYPE html>
           <html>
           <head>
@@ -114,62 +103,49 @@ serve(async (req) => {
             </div>
             <div style="background: #f8fafc; padding: 30px; border-radius: 0 0 12px 12px;">
               <p style="font-size: 16px;">Hi${referral.referred_name ? ` ${referral.referred_name}` : ''}!</p>
-              
               <p style="font-size: 16px;">
-                Your friend <strong>${referrerName}</strong> thinks you'd love our cleaning services, 
+                Your friend <strong>${referrerName}</strong> thinks you'd love our cleaning services,
                 and we're thrilled to offer you a special welcome gift:
               </p>
-              
               <div style="background: #10b981; color: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
                 <p style="margin: 0; font-size: 14px; opacity: 0.9;">Your Welcome Credit</p>
                 <p style="margin: 10px 0 0 0; font-size: 32px; font-weight: bold;">$${creditAmount} OFF</p>
               </div>
-              
               <p style="font-size: 16px;">
-                This credit will be automatically applied to your first booking. 
+                This credit will be automatically applied to your first booking.
                 Plus, ${referrerName} will also receive a $${creditAmount} credit as a thank you!
               </p>
-              
               <div style="text-align: center; margin-top: 30px;">
-                <a href="${bookingUrl}" 
+                <a href="${bookingUrl}"
                    style="display: inline-block; background: #10b981; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">
                   Book Your First Clean
                 </a>
               </div>
-              
               <p style="font-size: 12px; color: #666; margin-top: 30px; text-align: center;">
                 Your referral code: <strong>${referral.referral_code}</strong>
               </p>
-              ${emailSettings.email_footer ? `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;"><p style="font-size: 12px; color: #9ca3af;">${emailSettings.email_footer}</p>` : ''}
             </div>
           </body>
           </html>
-        `,
-      }),
+        `;
+
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const sendResult = await sendOrgEmail({
+      organizationId: referral.organization_id,
+      to: referral.referred_email,
+      subject: `${referrerName} thinks you'd love ${companyName}! Get $${creditAmount} off`,
+      html,
     });
 
-    console.log("[send-referral-invite] Resend API response status:", emailResponse.status);
-
-    let emailData: any = null;
-    try {
-      emailData = await emailResponse.json();
-    } catch (_e) {
-      emailData = null;
+    if (!sendResult.success) {
+      if (/not verified/i.test(sendResult.error || "")) {
+        const domain = emailSettings.from_email.split('@')[1];
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
+      }
+      throw new Error(sendResult.error || "Failed to send email");
     }
+    console.log("[send-referral-invite] Sent via", sendResult.method, "id:", sendResult.id);
 
-    // If domain not verified, return helpful error
-    if (!emailResponse.ok && emailData?.name === 'validation_error' && emailData?.message?.includes('not verified')) {
-      const domain = emailSettings.from_email.split('@')[1];
-      console.error(`[send-referral-invite] Domain ${domain} is not verified on Resend`);
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
-    }
-
-    if (!emailResponse.ok) {
-      console.error("[send-referral-invite] Resend API error:", emailData);
-      throw new Error(`Failed to send email: ${emailData?.message || 'Unknown error'}`);
-    }
-
-    console.log("[send-referral-invite] Email sent successfully:", emailData);
 
     return new Response(
       JSON.stringify({ success: true }),

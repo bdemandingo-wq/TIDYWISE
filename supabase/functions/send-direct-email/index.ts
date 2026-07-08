@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { sendOrgEmail } from "../_shared/send-org-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,94 +8,51 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const globalResendApiKey = Deno.env.get("RESEND_API_KEY");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Verify auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization");
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, serviceKey);
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) throw new Error("Unauthorized");
 
     const { organizationId, to, subject, body, attachments } = await req.json();
-
     if (!organizationId || !to || !subject || !body) {
       throw new Error("Missing required fields: organizationId, to, subject, body");
     }
 
-    // Verify user belongs to organization
     const { data: membership } = await supabase
       .from("org_memberships")
       .select("role")
       .eq("user_id", user.id)
       .eq("organization_id", organizationId)
       .maybeSingle();
-
     if (!membership) throw new Error("Unauthorized: not a member of this organization");
 
-    // Get org email settings (single source of truth)
-    const emailResult = await getOrgEmailSettings(organizationId);
-    if (!emailResult.success || !emailResult.settings) {
-      throw new Error(emailResult.error || "Email settings not configured");
-    }
-
-    const settings = emailResult.settings;
-    const from = formatEmailFrom(settings);
-    const replyTo = getReplyTo(settings);
-
-    // Use org-specific Resend API key if available, otherwise fall back to global
-    const resendApiKey = settings.resend_api_key || globalResendApiKey;
-    if (!resendApiKey) {
-      throw new Error("No Resend API key configured. Please add one in Email Settings or contact support.");
-    }
-
-    // Build email payload
-    const emailPayload: Record<string, unknown> = {
-      from,
-      to: [to],
-      reply_to: replyTo,
+    const result = await sendOrgEmail({
+      organizationId,
+      to,
       subject,
-      html: body + (settings.email_footer ? `<br/><br/><p style="color:#666;font-size:12px;">${settings.email_footer}</p>` : ""),
-    };
-
-    // Add attachments if provided
-    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      emailPayload.attachments = attachments.map((att: { name: string; content: string; type: string }) => ({
-        filename: att.name,
-        content: att.content,
-        content_type: att.type,
-      }));
-    }
-
-    // Send via Resend
-    const resendRes = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(emailPayload),
+      html: body,
+      attachments: Array.isArray(attachments)
+        ? attachments.map((a: { name: string; content: string; type: string }) => ({
+            filename: a.name,
+            content: a.content,
+            content_type: a.type,
+          }))
+        : undefined,
     });
 
-    const resendData = await resendRes.json();
+    if (!result.success) throw new Error(result.error || "Failed to send email");
 
-    if (!resendRes.ok) {
-      console.error("[send-direct-email] Resend error:", resendData);
-      throw new Error(resendData?.message || "Failed to send email");
-    }
-
-    console.log("[send-direct-email] Email sent:", { to, subject, resendId: resendData.id });
-
-    return new Response(JSON.stringify({ success: true, id: resendData.id }), {
+    console.log("[send-direct-email] Sent via", result.method, "id:", result.id, "fellBack:", result.fellBack ?? false);
+    return new Response(JSON.stringify({ success: true, id: result.id, method: result.method, fellBack: result.fellBack ?? false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
@@ -106,3 +63,4 @@ serve(async (req) => {
     });
   }
 });
+

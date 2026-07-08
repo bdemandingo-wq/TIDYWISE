@@ -390,42 +390,25 @@ const handler = async (req: Request): Promise<Response> => {
 </html>
     `;
 
-    // Send email with organization's verified domain
-    let customerEmailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: formatEmailFrom(emailSettings),
-        to: [customerEmail],
-        reply_to: getReplyTo(emailSettings),
-        subject: emailSubject,
-        html: emailHtml,
-      }),
+    // Send via unified org sender (Gmail SMTP → Resend fallback)
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const customerSend = await sendOrgEmail({
+      organizationId: booking.organizationId,
+      to: customerEmail,
+      subject: emailSubject,
+      html: emailHtml,
     });
 
-    let customerData: any = null;
-    try {
-      customerData = await customerEmailResponse.json();
-    } catch (_e) {
-      customerData = null;
+    if (!customerSend.success) {
+      if (/not verified/i.test(customerSend.error || "")) {
+        const domain = senderEmail.split('@')[1];
+        console.error(`Domain ${domain} is not verified`);
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
+      }
+      throw new Error(customerSend.error || "Failed to send customer email");
     }
-
-    // If domain not verified, return helpful error
-    if (!customerEmailResponse.ok && customerData?.name === 'validation_error' && customerData?.message?.includes('not verified')) {
-      const domain = senderEmail.split('@')[1];
-      console.error(`Domain ${domain} is not verified on Resend`);
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
-    }
-
-    if (!customerEmailResponse.ok) {
-      console.error("Resend API error (customer):", { status: customerEmailResponse.status, data: customerData });
-      throw new Error(customerData?.message || `Failed to send customer email (status ${customerEmailResponse.status})`);
-    }
-
-    console.log("Customer email sent successfully:", customerData);
+    const customerData: any = { id: customerSend.id };
+    console.log("Customer email sent via", customerSend.method, "id:", customerSend.id);
 
     // Send notification to admin
     const adminNotificationHtml = `
@@ -442,25 +425,17 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     try {
-      // Send admin notification using the org's sender email
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${resendApiKey}`,
-        },
-        body: JSON.stringify({
-          from: `${companyName} Booking System <${senderEmail}>`,
-          to: [senderEmail],
-          subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
-          html: adminNotificationHtml,
-        }),
+      await sendOrgEmail({
+        organizationId: booking.organizationId,
+        to: senderEmail,
+        subject: `New Booking - ${booking.serviceName || "Cleaning"} - ${booking.appointmentDate || ""}`,
+        html: adminNotificationHtml,
       });
       console.log("Admin notification sent successfully");
     } catch (adminError) {
       console.error("Failed to send admin notification:", adminError);
-      // Don't throw - admin notification is secondary
     }
+
 
     // NOTE: Confirmation SMS is intentionally NOT sent here to avoid duplicate texts.
     // The booking form (BookingStepper) and public booking flow send their own
