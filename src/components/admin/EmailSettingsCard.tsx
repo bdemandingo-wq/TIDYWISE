@@ -126,14 +126,12 @@ export function EmailSettingsCard() {
     if (!settings.from_name.trim()) return toast.error('From Name is required');
     if (!settings.from_email.trim() || !validateEmail(settings.from_email)) return toast.error('Valid From Email is required');
     if (settings.reply_to_email && !validateEmail(settings.reply_to_email)) return toast.error('Reply-To Email must be a valid email address');
-    if (settings.email_send_method === 'gmail_smtp') {
-      if (!settings.smtp_email.trim() || !validateEmail(settings.smtp_email)) {
-        return toast.error('Enter your Gmail address (works with @gmail.com and Google Workspace).');
-      }
-      if (!hasSmtpPassword && !settings.smtp_app_password.trim()) {
-        return toast.error('Enter your 16-character Gmail app password.');
-      }
+    // Gmail creds are optional at save time (partial setup is OK — chip warns until complete).
+    // But if user typed a Gmail address, it must be valid.
+    if (settings.smtp_email.trim() && !validateEmail(settings.smtp_email.trim())) {
+      return toast.error('Enter a valid Gmail address (works with @gmail.com and Google Workspace).');
     }
+
 
     setSaving(true);
     try {
