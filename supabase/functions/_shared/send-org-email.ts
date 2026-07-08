@@ -204,40 +204,19 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
   if (wantsGmail) {
     const dailyCount = await currentGmailDailyCount(opts.organizationId);
     const limit = gmailDailyLimit(settings);
-    if (dailyCount < limit) {
-      const gmailRes = await sendViaGmailSmtp(settings, opts, from, replyTo);
-      if (gmailRes.ok) {
-        await incrementDailyCount(opts.organizationId, "gmail_smtp");
-        return { success: true, id: gmailRes.id, method: "gmail_smtp" };
-      }
-      // Failure — log and fall back
-      console.error(`[send-org-email] Gmail SMTP failed for org ${opts.organizationId}:`, gmailRes.error);
-      const resendRes = await sendViaResend(settings, opts, from, replyTo);
-      await logFailure(
-        opts.organizationId,
-        "gmail_smtp",
-        resendRes.ok ? "resend" : null,
-        primaryRecipient,
-        opts.subject,
-        gmailRes.error,
-      );
-      if (resendRes.ok) {
-        await incrementDailyCount(opts.organizationId, "resend");
-        return { success: true, id: resendRes.id, method: "resend", fellBack: true };
-      }
-      return { success: false, method: "none", error: `Gmail SMTP failed: ${gmailRes.error}. Resend fallback also failed: ${resendRes.error}` };
-    } else {
-      // Daily limit reached — silent fallback
-      console.warn(`[send-org-email] Org ${opts.organizationId} at Gmail daily limit (${dailyCount}/${limit}) — falling back to Resend`);
-      await logFailure(
-        opts.organizationId,
-        "gmail_smtp",
-        "resend",
-        primaryRecipient,
-        opts.subject,
-        `Daily Gmail limit reached (${dailyCount}/${limit}). Fell back to Resend.`,
-      );
+    if (dailyCount >= limit) {
+      const msg = `Daily Gmail send limit reached (${dailyCount}/${limit}). Try again tomorrow or upgrade your Google Workspace plan.`;
+      await logFailure(opts.organizationId, "gmail_smtp", null, primaryRecipient, opts.subject, msg);
+      return { success: false, method: "none", error: msg };
     }
+    const gmailRes = await sendViaGmailSmtp(settings, opts, from, replyTo);
+    if (gmailRes.ok) {
+      await incrementDailyCount(opts.organizationId, "gmail_smtp");
+      return { success: true, id: gmailRes.id, method: "gmail_smtp" };
+    }
+    console.error(`[send-org-email] Gmail SMTP failed for org ${opts.organizationId}:`, gmailRes.error);
+    await logFailure(opts.organizationId, "gmail_smtp", null, primaryRecipient, opts.subject, gmailRes.error);
+    return { success: false, method: "gmail_smtp", error: `Gmail SMTP failed: ${gmailRes.error}` };
   }
 
   // Default path: Resend
