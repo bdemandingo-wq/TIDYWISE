@@ -209,8 +209,8 @@ export function EmailSettingsCard() {
   const nearLimit = dailyStats.gmail >= gmailLimit * 0.8;
   const overLimit = dailyStats.gmail >= gmailLimit;
 
-  const method = settings.email_send_method;
-  const gmailConfigured = method === 'gmail_smtp' && !!settings.smtp_email && hasSmtpPassword;
+  const gmailConfigured = !!settings.smtp_email && hasSmtpPassword;
+
 
   if (loading) {
     return (
