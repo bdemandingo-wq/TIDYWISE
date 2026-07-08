@@ -37,8 +37,7 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) throw new Error("AI is not configured");
 
     // Verify auth
     const authHeader = req.headers.get("Authorization");
