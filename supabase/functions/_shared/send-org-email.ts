@@ -1,9 +1,10 @@
 // Unified customer-facing org email sender.
 // - Routes to Gmail SMTP when the org has email_send_method='gmail_smtp' AND credentials configured.
-// - No silent fallback: if Gmail SMTP fails or the daily limit is reached, the send hard-fails and
-//   is logged so the org sees exactly what happened. This keeps deliverability predictable and
-//   avoids surprise sends from the platform Resend identity.
-// - When Gmail is NOT configured, falls through to Resend (used only until the org sets up Gmail).
+// - Auto-fallback: if Gmail SMTP fails or the daily limit is reached, the send falls back
+//   to Resend (TidyWise platform sender) so customer-facing emails keep flowing. The fallback
+//   is logged in org_email_send_failures so the org can see it happened.
+// - When Gmail is NOT configured, sends directly via Resend.
+
 //
 // Platform / system emails (auth, admin notifications, digests) do NOT use this helper —
 // they call Resend directly with the platform key.
