@@ -7,7 +7,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check, Users, FileText, Bell, MapPin } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check, Users, FileText, Bell, MapPin, CalendarOff } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { TimeOffRequestsPanel } from '@/components/admin/TimeOffRequestsPanel';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +87,20 @@ export default function StaffPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organizationId } = useOrgId();
+  const { data: pendingTimeOff = 0 } = useQuery({
+    queryKey: ['time-off-pending-count', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return 0;
+      const { count } = await (supabase as any)
+        .from('time_off_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organizationId,
+  });
+
 
   const filteredStaff = staff.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
