@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 // Validation schema
 const loginSchema = z.object({
@@ -29,6 +30,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const claimSlug = searchParams.get('claim');
   const isNative = Capacitor.isNativePlatform();
+  // Flip to false if App Review ever objects to the external signup link
+  const SHOW_NATIVE_SIGNUP_LINK = true;
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
@@ -347,8 +350,11 @@ export default function LoginPage() {
 
             </form>
 
-            {/* Sign up link - HIDDEN on native (App Store Guideline 3.1.1) */}
-            {!isNative && (
+            {/* Sign up: web shows the normal route; native opens the website
+                in the system browser. Apple's US external-link rules (post
+                Epic injunction, guideline 3.1.1(a)) permit this — if review
+                ever objects, set SHOW_NATIVE_SIGNUP_LINK = false. */}
+            {!isNative ? (
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
                 <Link
@@ -357,6 +363,17 @@ export default function LoginPage() {
                 >
                   Create account
                 </Link>
+              </div>
+            ) : SHOW_NATIVE_SIGNUP_LINK && (
+              <div className="mt-6 text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => Browser.open({ url: 'https://www.jointidywise.com/signup' })}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Sign up on our website
+                </button>
               </div>
             )}
 

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { FileText, Upload, Trash2, Loader2, Download, CheckCircle2, AlertCircle, Clock, Eye, RefreshCw, Shield } from 'lucide-react';
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -55,8 +56,22 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Live status: when the admin approves/rejects on their device, reflect
+  // it here within seconds instead of waiting for a reload.
+  useEffect(() => {
+    if (!staffId) return;
+    const channel = supabase
+      .channel(`staff-docs-${staffId}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'staff_documents', filter: `staff_id=eq.${staffId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [staffId, organizationId, queryClient]);
+
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ['staff-documents', staffId, organizationId],
+    refetchInterval: 30_000, // fallback if realtime isn't enabled on the table
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff_documents')

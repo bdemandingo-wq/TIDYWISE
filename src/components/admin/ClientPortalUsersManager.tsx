@@ -92,6 +92,7 @@ export function ClientPortalUsersManager() {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [generatedPassword, setGeneratedPassword] = useState('');
@@ -148,6 +149,15 @@ export function ClientPortalUsersManager() {
     },
     enabled: !!organization?.id,
   });
+
+  const filteredCustomers = customersWithoutAccess.filter((c) => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
+      (c.email || '').toLowerCase().includes(q)
+    );
+  }).slice(0, 50);
 
   // Create portal user mutation - uses secure RPC to avoid exposing password_hash
   const createUser = useMutation({
@@ -445,18 +455,30 @@ export function ClientPortalUsersManager() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Customer</Label>
-              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customersWithoutAccess.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.first_name} {c.last_name} ({c.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Type-to-search picker — the old dropdown was unusable with a
+                  long customer list on mobile. */}
+              <Input
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Type a name, email, or phone to search…"
+              />
+              <div className="max-h-44 overflow-y-auto rounded-md border divide-y">
+                {filteredCustomers.length === 0 ? (
+                  <p className="p-3 text-sm text-muted-foreground">No customers match "{customerSearch}"</p>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedCustomerId(c.id)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/60 ${selectedCustomerId === c.id ? 'bg-primary/10 font-medium' : ''}`}
+                    >
+                      {c.first_name} {c.last_name}
+                      <span className="block text-xs text-muted-foreground truncate">{c.email}</span>
+                    </button>
+                  ))
+                )}
+              </div>
               {customersWithoutAccess.length === 0 && (
                 <p className="text-sm text-muted-foreground">
                   All customers already have portal access

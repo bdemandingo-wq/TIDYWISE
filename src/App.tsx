@@ -3,6 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -166,11 +168,22 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+      gcTime: 1000 * 60 * 60 * 24, // 24h — must cover offline persistence window
       refetchOnWindowFocus: false,
       retry: 1,
     },
   },
+});
+
+// Offline mode: persist the query cache to device storage so the app opens
+// with yesterday's calendar, bookings, and customers even with no signal.
+// Reads work offline; writes (confirmations, emails) still need a connection
+// and the GlobalOfflineBanner explains that. Cache restores instantly on
+// launch, then refetches silently once online.
+const offlinePersister = createSyncStoragePersister({
+  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  key: 'tw-offline-cache',
+  throttleTime: 2000,
 });
 
 const AppStateHandler = () => {
@@ -180,7 +193,20 @@ const AppStateHandler = () => {
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} storageKey="tidywise-theme">
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: offlinePersister,
+        maxAge: 1000 * 60 * 60 * 24,
+        dehydrateOptions: {
+          // Persist only successful reads; never persist mutations or
+          // huge/ephemeral queries.
+          shouldDehydrateQuery: (q) =>
+            q.state.status === 'success' &&
+            !JSON.stringify(q.queryKey).includes('signed'),
+        },
+      }}
+    >
       {/* AuthProviderNoSession MUST wrap AuthProvider since AuthProvider uses useAuthNoSession */}
       <AuthProviderNoSession>
         <AuthProvider>
@@ -463,7 +489,7 @@ const App = () => (
           </SessionTrackerProvider>
         </AuthProvider>
       </AuthProviderNoSession>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </ThemeProvider>
 );
 
