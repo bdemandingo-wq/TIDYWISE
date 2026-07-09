@@ -333,6 +333,7 @@ const App = () => (
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
                     {/* Public Routes - Lazy Loaded */}
                     <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
