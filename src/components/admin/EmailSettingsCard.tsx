@@ -5,11 +5,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MessageSquare, Save, Loader2, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  Save,
+  Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  Mail,
+  Send,
+  Sparkles,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
+
+type SendMethod = 'resend' | 'gmail_smtp';
+type AccountType = 'consumer' | 'workspace';
 
 interface EmailSettings {
   id?: string;
@@ -17,9 +30,12 @@ interface EmailSettings {
   from_email: string;
   reply_to_email: string;
   email_footer: string;
-  // Write-only: never returned by the API for security reasons.
-  // We only know whether one is configured via the org_has_resend_api_key RPC.
+  // Write-only fields — never returned by the API.
   resend_api_key: string;
+  email_send_method: SendMethod;
+  gmail_account_type: AccountType;
+  smtp_email: string;
+  smtp_app_password: string;
 }
 
 const defaultEmailSettings: EmailSettings = {
@@ -28,6 +44,10 @@ const defaultEmailSettings: EmailSettings = {
   reply_to_email: '',
   email_footer: '',
   resend_api_key: '',
+  email_send_method: 'resend',
+  gmail_account_type: 'consumer',
+  smtp_email: '',
+  smtp_app_password: '',
 };
 
 export function EmailSettingsCard() {
@@ -36,22 +56,28 @@ export function EmailSettingsCard() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasResendKey, setHasResendKey] = useState(false);
+  const [hasSmtpPassword, setHasSmtpPassword] = useState(false);
+  const [testEmailTo, setTestEmailTo] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [dailyStats, setDailyStats] = useState<{ gmail: number; resend: number }>({ gmail: 0, resend: 0 });
+  
 
   useEffect(() => {
     if (organization?.id) {
       fetchEmailSettings();
+      fetchDailyStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organization?.id]);
 
   const fetchEmailSettings = async () => {
     try {
-      const { data, error } = await supabase
-        .from('organization_email_settings')
-        .select('id, organization_id, from_name, from_email, reply_to_email, email_footer')
-        .eq('organization_id', organization!.id)
-        .maybeSingle();
-
+      const { data: rows, error } = await supabase.rpc('get_org_email_settings_safe' as never, {
+        _organization_id: organization!.id,
+      } as never);
       if (error) throw error;
+      const rowsAny = rows as any;
+      const data = Array.isArray(rowsAny) ? rowsAny[0] : rowsAny;
 
       if (data) {
         setSettings({
@@ -61,15 +87,14 @@ export function EmailSettingsCard() {
           reply_to_email: data.reply_to_email || '',
           email_footer: data.email_footer || '',
           resend_api_key: '',
+          email_send_method: (data.email_send_method || 'resend') as SendMethod,
+          gmail_account_type: (data.gmail_account_type || 'consumer') as AccountType,
+          smtp_email: data.smtp_email || '',
+          smtp_app_password: '',
         });
+        setHasResendKey(Boolean(data.resend_api_key_configured));
+        setHasSmtpPassword(Boolean(data.smtp_password_configured));
       }
-
-      // Whether a Resend API key is already saved — the value itself is
-      // never returned to the client; we only get a boolean.
-      const { data: hasKey } = await supabase.rpc('org_has_resend_api_key' as never, {
-        p_org_id: organization!.id,
-      } as never);
-      setHasResendKey(Boolean(hasKey));
     } catch (error) {
       console.error('Error fetching email settings:', error);
     } finally {
@@ -77,66 +102,79 @@ export function EmailSettingsCard() {
     }
   };
 
-
-  const validateEmail = (email: string): boolean => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const fetchDailyStats = async () => {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('org_email_daily_sends' as never)
+        .select('method, sent_count')
+        .eq('organization_id', organization!.id)
+        .eq('sent_on', today);
+      const rows = (data as any[]) || [];
+      setDailyStats({
+        gmail: rows.find((r) => r.method === 'gmail_smtp')?.sent_count ?? 0,
+        resend: rows.find((r) => r.method === 'resend')?.sent_count ?? 0,
+      });
+    } catch (e) {
+      console.warn('Could not load daily send stats', e);
+    }
   };
 
-  const saveEmailSettings = async () => {
-    if (!settings.from_name.trim()) {
-      toast.error('From Name is required');
-      return;
+  const validateEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const saveAll = async () => {
+    if (!settings.from_name.trim()) return toast.error('From Name is required');
+    if (!settings.from_email.trim() || !validateEmail(settings.from_email)) return toast.error('Valid From Email is required');
+    if (settings.reply_to_email && !validateEmail(settings.reply_to_email)) return toast.error('Reply-To Email must be a valid email address');
+    // Gmail creds are optional at save time (partial setup is OK — chip warns until complete).
+    // But if user typed a Gmail address, it must be valid.
+    if (settings.smtp_email.trim() && !validateEmail(settings.smtp_email.trim())) {
+      return toast.error('Enter a valid Gmail address (works with @gmail.com and Google Workspace).');
     }
-    if (!settings.from_email.trim() || !validateEmail(settings.from_email)) {
-      toast.error('Valid From Email is required');
-      return;
-    }
-    if (settings.reply_to_email && !validateEmail(settings.reply_to_email)) {
-      toast.error('Reply-To Email must be a valid email address');
-      return;
-    }
+
 
     setSaving(true);
     try {
       const trimmedKey = settings.resend_api_key.trim();
+      const trimmedSmtpPassword = settings.smtp_app_password.trim();
       const baseData: Record<string, unknown> = {
         organization_id: organization!.id,
         from_name: settings.from_name.trim(),
         from_email: settings.from_email.trim(),
         reply_to_email: settings.reply_to_email.trim() || null,
         email_footer: settings.email_footer.trim() || null,
+        email_send_method: 'gmail_smtp',
+        gmail_account_type: settings.gmail_account_type,
+        smtp_email: settings.smtp_email.trim() || null,
       };
-      // Only write the Resend API key when the admin actually typed one.
-      // The stored value is never read back, so an empty input means
-      // "leave the existing key alone."
-      if (trimmedKey.length > 0) {
-        baseData.resend_api_key = trimmedKey;
-      }
-      const emailData = baseData;
+      if (trimmedKey.length > 0) baseData.resend_api_key = trimmedKey;
+      if (trimmedSmtpPassword.length > 0) baseData.smtp_app_password = trimmedSmtpPassword;
 
       if (settings.id) {
         const { error } = await supabase
           .from('organization_email_settings')
-          .update(emailData as never)
+          .update(baseData as never)
           .eq('id', settings.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from('organization_email_settings')
-          .insert(emailData as never)
+          .insert(baseData as never)
           .select('id')
           .single();
         if (error) throw error;
-        setSettings(prev => ({ ...prev, id: data.id }));
+        setSettings((prev) => ({ ...prev, id: data.id }));
       }
 
-      toast.success('Email settings saved successfully');
+      toast.success('Email settings saved');
       if (trimmedKey.length > 0) {
         setHasResendKey(true);
-        // Clear the input so it doesn't render the value the user just typed.
-        setSettings(prev => ({ ...prev, resend_api_key: '' }));
+        setSettings((prev) => ({ ...prev, resend_api_key: '' }));
       }
-
+      if (trimmedSmtpPassword.length > 0) {
+        setHasSmtpPassword(true);
+        setSettings((prev) => ({ ...prev, smtp_app_password: '' }));
+      }
     } catch (error: any) {
       console.error('Error saving email settings:', error);
       toast.error(error.message || 'Failed to save email settings');
@@ -144,6 +182,35 @@ export function EmailSettingsCard() {
       setSaving(false);
     }
   };
+
+  const sendTestEmail = async () => {
+    if (!testEmailTo.trim() || !validateEmail(testEmailTo)) return toast.error('Enter a valid test recipient email');
+    if (!hasSmtpPassword || settings.smtp_app_password.trim() || !settings.id) {
+      return toast.error('Save your Gmail address and app password first, then send a test.');
+    }
+
+    setTesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-gmail-test-email', {
+        body: { organizationId: organization!.id, to: testEmailTo.trim() },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Test email sent from ${(data as any)?.from ?? settings.smtp_email}. Check the inbox.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to send test email');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const gmailLimit = settings.gmail_account_type === 'workspace' ? 2000 : 500;
+  const gmailPct = Math.min(100, Math.round((dailyStats.gmail / gmailLimit) * 100));
+  const nearLimit = dailyStats.gmail >= gmailLimit * 0.8;
+  const overLimit = dailyStats.gmail >= gmailLimit;
+
+  const gmailConfigured = !!settings.smtp_email && hasSmtpPassword;
+
 
   if (loading) {
     return (
@@ -165,109 +232,300 @@ export function EmailSettingsCard() {
     );
   }
 
+
+
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5" />
-          Email Sender Settings
-        </CardTitle>
-        <CardDescription>
-          Configure how your organization appears when sending emails to customers
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800 dark:text-amber-200">
-            These settings affect ALL outgoing emails from your organization including booking confirmations, reminders, invoices, and review requests.
-          </AlertDescription>
-        </Alert>
+    <div className="space-y-6">
+      {/* Summary chip */}
+      {gmailConfigured ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="text-sm text-emerald-900 dark:text-emerald-100">
+            Sending from: <span className="font-semibold">{settings.smtp_email}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <div className="text-sm text-amber-900 dark:text-amber-100">
+            Gmail not connected yet — customer emails will fall back to our shared sender until you finish setup below.
+          </div>
+        </div>
+      )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="fromName">From Name *</Label>
-            <Input
-              id="fromName"
-              placeholder="Your Business Name"
-              value={settings.from_name}
-              onChange={(e) => setSettings({ ...settings, from_name: e.target.value })}
-            />
-            <p className="text-xs text-muted-foreground">
-              The name customers see when receiving emails
-            </p>
+      {/* Card 1 — Connect your Gmail */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5" />
+            Send customer emails from your Gmail
+          </CardTitle>
+          <CardDescription>
+            Emails come from your real Gmail address; replies land in your inbox. Works with @gmail.com and Google
+            Workspace. System emails (signup, password reset, admin alerts) always send from TidyWise.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Gmail fields */}
+
+
+            <div className="space-y-4 border rounded-xl p-4 bg-muted/20">
+              <div className="flex items-start gap-2">
+                <Send className="w-4 h-4 mt-0.5 text-primary" />
+                <div>
+                  <div className="font-semibold text-sm">Connect your Gmail</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Turn on 2-Step Verification, then create an app password at{' '}
+                    <a
+                      href="https://myaccount.google.com/apppasswords"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-primary"
+                    >
+                      myaccount.google.com/apppasswords
+                    </a>
+                    , choose <strong>Mail</strong>, and paste the 16-character password here.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="smtpEmail">Gmail address</Label>
+                  <Input
+                    id="smtpEmail"
+                    type="email"
+                    placeholder="you@yourdomain.com or you@gmail.com"
+                    value={settings.smtp_email}
+                    onChange={(e) => setSettings({ ...settings, smtp_email: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="smtpPassword">
+                    App password{' '}
+                    {hasSmtpPassword && (
+                      <span className="text-xs text-emerald-600 inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> saved
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    id="smtpPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder={hasSmtpPassword ? '••••••••  (leave blank to keep current)' : 'abcd efgh ijkl mnop'}
+                    value={settings.smtp_app_password}
+                    onChange={(e) => setSettings({ ...settings, smtp_app_password: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">Stored encrypted — never displayed again.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Account type</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(
+                    [
+                      { v: 'consumer', label: 'Personal Gmail', hint: '~500 emails per day' },
+                      { v: 'workspace', label: 'Google Workspace', hint: '~2,000 emails per day' },
+                    ] as { v: AccountType; label: string; hint: string }[]
+                  ).map((opt) => {
+                    const selected = settings.gmail_account_type === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setSettings({ ...settings, gmail_account_type: opt.v })}
+                        className={`text-left rounded-lg border p-3 transition ${
+                          selected ? 'border-primary bg-primary/5' : 'hover:bg-muted/40'
+                        }`}
+                      >
+                        <div className="text-sm font-medium">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground">{opt.hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Daily usage bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Today's Gmail sends</span>
+                  <span
+                    className={
+                      overLimit
+                        ? 'text-destructive font-semibold'
+                        : nearLimit
+                          ? 'text-amber-600 font-semibold'
+                          : 'text-muted-foreground'
+                    }
+                  >
+                    {dailyStats.gmail} / {gmailLimit.toLocaleString()}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full transition-all ${
+                      overLimit ? 'bg-destructive' : nearLimit ? 'bg-amber-500' : 'bg-primary'
+                    }`}
+                    style={{ width: `${gmailPct}%` }}
+                  />
+                </div>
+                {overLimit && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Daily Gmail limit reached. Sends automatically fall back to TidyWise for the rest of the day.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!overLimit && nearLimit && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                      You're near your daily Gmail limit. Sends over {gmailLimit.toLocaleString()} today auto-fallback
+                      to TidyWise.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Test */}
+              <div className="space-y-2">
+                <Label htmlFor="testTo">Send a test email</Label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    id="testTo"
+                    type="email"
+                    placeholder="test@example.com"
+                    value={testEmailTo}
+                    onChange={(e) => setTestEmailTo(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={saveAll}
+                    disabled={saving}
+                    variant="secondary"
+                    className="gap-2"
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save
+                  </Button>
+                  <Button
+                    onClick={sendTestEmail}
+                    disabled={
+                      testing ||
+                      !testEmailTo.trim() ||
+                      !hasSmtpPassword ||
+                      !!settings.smtp_app_password.trim()
+                    }
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    Send Test
+                  </Button>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {!hasSmtpPassword
+                    ? 'Save your Gmail address and app password first, then send a test.'
+                    : settings.smtp_app_password.trim()
+                      ? 'You have unsaved changes — save first, then send a test.'
+                      : 'Test sends go through Gmail directly (no fallback), so errors reflect Gmail\'s real response.'}
+                </p>
+
+              </div>
+            </div>
+
+
+        </CardContent>
+      </Card>
+
+
+
+      {/* Card 2 — Sender identity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="w-5 h-5" />
+            Sender identity
+          </CardTitle>
+          <CardDescription>How your name, reply address, and footer appear to customers.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="fromName">From Name *</Label>
+              <Input
+                id="fromName"
+                placeholder="Your Business Name"
+                value={settings.from_name}
+                onChange={(e) => setSettings({ ...settings, from_name: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">The name customers see in their inbox.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fromEmail">From Email *</Label>
+              <Input
+                id="fromEmail"
+                type="email"
+                placeholder="bookings@yourdomain.com"
+                value={settings.from_email}
+                onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Should match (or be an alias of) your Gmail address above.
+              </p>
+
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="fromEmail">From Email *</Label>
+            <Label htmlFor="replyTo">Reply-To Email (optional)</Label>
             <Input
-              id="fromEmail"
+              id="replyTo"
               type="email"
-              placeholder="bookings@yourdomain.com"
-              value={settings.from_email}
-              onChange={(e) => setSettings({ ...settings, from_email: e.target.value })}
+              placeholder="support@yourdomain.com"
+              value={settings.reply_to_email}
+              onChange={(e) => setSettings({ ...settings, reply_to_email: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              Must be from a verified domain in Resend
+              Where customer replies go. Leave blank to use the From Email.
             </p>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="replyTo">Reply-To Email (optional)</Label>
-          <Input
-            id="replyTo"
-            type="email"
-            placeholder="support@yourdomain.com"
-            value={settings.reply_to_email}
-            onChange={(e) => setSettings({ ...settings, reply_to_email: e.target.value })}
-          />
-          <p className="text-xs text-muted-foreground">
-            Where customer replies will go. Defaults to From Email if empty.
-          </p>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="emailFooter">Email Footer (optional)</Label>
+            <Textarea
+              id="emailFooter"
+              placeholder="Your Company Inc. | 123 Main St, City, State 12345"
+              value={settings.email_footer}
+              onChange={(e) => setSettings({ ...settings, email_footer: e.target.value })}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">Appended to every customer email.</p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="emailFooter">Email Footer (optional)</Label>
-          <Textarea
-            id="emailFooter"
-            placeholder="Your Company Inc. | 123 Main St, City, State 12345"
-            value={settings.email_footer}
-            onChange={(e) => setSettings({ ...settings, email_footer: e.target.value })}
-            rows={3}
-          />
-          <p className="text-xs text-muted-foreground">
-            Added to the bottom of all emails. Great for address, disclaimers, etc.
-          </p>
-        </div>
+          <Separator />
 
-        <div className="space-y-2">
-          <Label htmlFor="resendApiKey">
-            Resend API Key (optional){hasResendKey ? ' — saved' : ''}
-          </Label>
-          <Input
-            id="resendApiKey"
-            type="password"
-            placeholder={hasResendKey ? '••••••••  (leave blank to keep current key)' : 're_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
-            value={settings.resend_api_key}
-            onChange={(e) => setSettings({ ...settings, resend_api_key: e.target.value })}
-            autoComplete="new-password"
-          />
-          <p className="text-xs text-muted-foreground">
-            Your organization's own Resend API key. Get one at{' '}
-            <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-primary">
-              resend.com/api-keys
-            </a>
-            . The domain in your "From Email" must be verified in this Resend account. For security, the saved key is never displayed — type a new one to replace it.
-          </p>
-        </div>
-
-
-        <Button onClick={saveEmailSettings} disabled={saving} className="gap-2">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          Save Email Settings
-        </Button>
-      </CardContent>
-    </Card>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 flex-1">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                Changes apply to all customer emails: booking confirmations, reminders, invoices, review requests, and
+                campaigns.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={saveAll} disabled={saving} className="gap-2 shrink-0">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save all email settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -312,7 +312,7 @@ export default function PublicBookingPage() {
         bedrooms: selectedBedrooms,
         bathrooms: selectedBathrooms,
         // Prefer bed/bath when both selected (matches previous behavior).
-        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
         fallbackBasePrice: service.minimumPrice,
       });
       total = result.base;
@@ -654,6 +654,72 @@ export default function PublicBookingPage() {
           {/* Step 1: Select Service & Square Footage */}
           {step === 1 && (
             <div className="animate-fade-in space-y-6">
+
+              {/* Service Selection */}
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
+                <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {services.map((svc) => {
+                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
+                    // per-service card shows a real amount whether the user is in sqft mode OR
+                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
+                    // never populated the service amount.
+                    const svcPricing = calculateBasePrice({
+                      sqftPrices: svc.prices,
+                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
+                      minimumPrice: svc.minimumPrice,
+                      squareFootageIndex: selectedSqFtIndex,
+                      bedrooms: selectedBedrooms,
+                      bathrooms: selectedBathrooms,
+                      pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
+                      fallbackBasePrice: svc.minimumPrice,
+                    });
+                    const price = svcPricing.base;
+                    const isMinPrice = selectedSqFtIndex === null && !selectedBedrooms && !selectedBathrooms;
+                    
+                    return (
+                      <Card
+                        key={svc.id}
+                        className={cn(
+                          'cursor-pointer transition-all hover:shadow-md',
+                          selectedService === svc.id && 'ring-2 ring-primary'
+                        )}
+                        onClick={() => setSelectedService(svc.id)}
+                      >
+                        <CardContent className="p-5">
+                          <div className="flex items-start gap-4">
+                            <div
+                              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${svc.color}20`, color: svc.color }}
+                            >
+                              <CalendarIcon className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold">{svc.name}</h3>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{svc.description}</p>
+                              <div className="flex items-center gap-2 mt-3">
+                                <div className="flex items-center gap-1 text-lg font-bold text-success">
+                                  <DollarSign className="w-5 h-5" />
+                                  {price}
+                                </div>
+                                {isMinPrice && (
+                                  <span className="text-xs text-muted-foreground">(min price)</span>
+                                )}
+                              </div>
+                            </div>
+                            {selectedService === svc.id && (
+                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                                <Check className="w-4 h-4 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
               {/* Square Footage Selection */}
               {displaySettings.show_sqft_on_booking && (
                 <div>
@@ -714,9 +780,7 @@ export default function PublicBookingPage() {
                         <div>
                           <Label className="text-base mb-2 block">Bathrooms</Label>
                           <div className="flex flex-wrap gap-2">
-                            {[...new Set(bedroomPricing
-                              .filter(bp => !selectedBedrooms || bp.bedrooms === Number(selectedBedrooms))
-                              .map(bp => bp.bathrooms))]
+                            {[...new Set(bedroomPricing.map(bp => bp.bathrooms))]
                               .sort((a, b) => a - b)
                               .map(bath => (
 
@@ -738,141 +802,7 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
-              {/* Don't need the entire home cleaned? */}
-              {(Number(selectedBedrooms) > 0 || Number(selectedBathrooms) > 0) && (
-                <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      <span>Don't need the entire home cleaned?</span>
-                      <ChevronDown className={cn('h-4 w-4 transition-transform', reducerOpen && 'rotate-180')} />
-                    </Button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3">
-                    <Card>
-                      <CardContent className="p-4 space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          Skip rooms you don't need cleaned. Each skipped room reduces the total by the amount below.
-                        </p>
-                        {([
-                          { key: 'bedroom' as const, label: 'Bedrooms', max: Number(selectedBedrooms) || 0 },
-                          { key: 'bathroom' as const, label: 'Bathrooms', max: Math.floor(Number(selectedBathrooms) || 0) },
-                          { key: 'full_bath' as const, label: 'Full Baths', max: Math.floor(Number(selectedBathrooms) || 0) },
-                        ])
-                          .filter((r) => !excludedRoomTypes.includes(r.key) && r.max > 0)
-                          .map((r) => {
-                            const count = roomReductions[r.key];
-                            const price = roomReductionPrices[r.key] || 0;
-                            return (
-                              <div key={r.key} className="flex items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-medium text-sm">Skip {r.label}</p>
-                                  <p className="text-xs text-muted-foreground">-${price} each</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() =>
-                                      setRoomReductions((prev) => ({ ...prev, [r.key]: Math.max(0, prev[r.key] - 1) }))
-                                    }
-                                    disabled={count <= 0}
-                                  >
-                                    <Minus className="h-3 w-3" />
-                                  </Button>
-                                  <span className="w-6 text-center text-sm font-semibold">{count}</span>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() =>
-                                      setRoomReductions((prev) => ({
-                                        ...prev,
-                                        [r.key]: Math.min(r.max, prev[r.key] + 1),
-                                      }))
-                                    }
-                                    disabled={count >= r.max}
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </CardContent>
-                    </Card>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
 
-
-              {/* Service Selection */}
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Select a Service</h2>
-                <p className="text-muted-foreground mb-4">Choose the cleaning type you need</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {services.map((svc) => {
-                    // Bug fix: use the same pricing engine as the summary/add-ons flow so the
-                    // per-service card shows a real amount whether the user is in sqft mode OR
-                    // bed/bath mode. Previously this only read sqft prices, so bed/bath selections
-                    // never populated the service amount.
-                    const svcPricing = calculateBasePrice({
-                      sqftPrices: svc.prices,
-                      bedroomPricing: (svc.bedroomPricing ?? bedroomPricing) as any,
-                      minimumPrice: svc.minimumPrice,
-                      squareFootageIndex: selectedSqFtIndex,
-                      bedrooms: selectedBedrooms,
-                      bathrooms: selectedBathrooms,
-                      pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
-                      fallbackBasePrice: svc.minimumPrice,
-                    });
-                    const price = svcPricing.base;
-                    const isMinPrice = selectedSqFtIndex === null && !(selectedBedrooms && selectedBathrooms);
-                    
-                    return (
-                      <Card
-                        key={svc.id}
-                        className={cn(
-                          'cursor-pointer transition-all hover:shadow-md',
-                          selectedService === svc.id && 'ring-2 ring-primary'
-                        )}
-                        onClick={() => setSelectedService(svc.id)}
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-start gap-4">
-                            <div
-                              className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: `${svc.color}20`, color: svc.color }}
-                            >
-                              <CalendarIcon className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold">{svc.name}</h3>
-                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{svc.description}</p>
-                              <div className="flex items-center gap-2 mt-3">
-                                <div className="flex items-center gap-1 text-lg font-bold text-success">
-                                  <DollarSign className="w-5 h-5" />
-                                  {price}
-                                </div>
-                                {isMinPrice && (
-                                  <span className="text-xs text-muted-foreground">(min price)</span>
-                                )}
-                              </div>
-                            </div>
-                            {selectedService === svc.id && (
-                              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
-                                <Check className="w-4 h-4 text-primary-foreground" />
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </div>
 
               {/* Extras */}
               {displaySettings.show_addons_on_booking && service && !service.name.toLowerCase().includes('deep') && (
@@ -1217,7 +1147,7 @@ export default function PublicBookingPage() {
                         squareFootageIndex: selectedSqFtIndex,
                         bedrooms: selectedBedrooms,
                         bathrooms: selectedBathrooms,
-                        pricingMode: selectedBedrooms && selectedBathrooms ? 'bedroom' : 'sqft',
+                        pricingMode: (selectedBedrooms || selectedBathrooms) ? 'bedroom' : 'sqft',
                         fallbackBasePrice: service.minimumPrice,
                       }).base : 0}</span>
                     </div>

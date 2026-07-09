@@ -194,17 +194,8 @@ serve(async (req) => {
         .replace(/\n/g, "<br>");
 
       try {
-        const emailResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${emailSettings.resend_api_key || RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: senderFrom,
-            to: [customer.email],
-            subject: subject,
-            html: `
+        const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+        const html = `
               <!DOCTYPE html>
               <html>
               <head>
@@ -223,16 +214,17 @@ serve(async (req) => {
                       Book Now
                     </a>
                   </div>
-                  ${emailSettings.email_footer ? `<hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;"><p style="font-size: 12px; color: #9ca3af;">${emailSettings.email_footer}</p>` : ''}
                 </div>
               </body>
               </html>
-            `,
-          }),
+            `;
+        const sendResult = await sendOrgEmail({
+          organizationId: campaign.organization_id,
+          to: customer.email,
+          subject,
+          html,
         });
-
-        if (emailResponse.ok) {
-          // Record the sent email
+        if (sendResult.success) {
           await supabase.from("campaign_emails").insert({
             campaign_id: campaignId,
             customer_id: customer.id,
@@ -241,6 +233,7 @@ serve(async (req) => {
           });
           emailsSent.push(customer.email);
         } else {
+          console.error(`[send-followup-campaign] send failed for ${customer.email}:`, sendResult.error);
           emailsFailed.push(customer.email);
         }
       } catch (error) {
@@ -248,6 +241,7 @@ serve(async (req) => {
         emailsFailed.push(customer.email);
       }
     }
+
 
     // Update campaign last_run_at
     await supabase

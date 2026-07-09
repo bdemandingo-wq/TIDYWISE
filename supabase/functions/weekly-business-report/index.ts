@@ -3,6 +3,7 @@ import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import { anthropicChat, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ const handler = async (req: Request): Promise<Response> => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Missing Supabase configuration");
@@ -173,9 +174,9 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!adminEmail) continue;
 
-      // Generate AI insights if LOVABLE_API_KEY is available
+      // Generate AI insights if ANTHROPIC_API_KEY is available
       let aiInsights = '';
-      if (LOVABLE_API_KEY) {
+      if (ANTHROPIC_API_KEY) {
         try {
           const prompt = `You are a business analyst for a cleaning company. Based on this week's metrics, provide 2-3 brief, actionable insights (max 50 words each):
 
@@ -190,17 +191,14 @@ Top Performer: ${topPerformer ? `${topPerformer.name} (${topPerformer.jobs} jobs
 
 Give practical advice for a cleaning business owner.`;
 
-          const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'google/gemini-3-flash-preview',
+          const aiResponse = await anthropicChat(
+            {
+              model: MODEL_SONNET,
               messages: [{ role: 'user', content: prompt }],
-            }),
-          });
+              max_tokens: 800,
+            },
+            { corsHeaders },
+          );
 
           if (aiResponse.ok) {
             const aiData = await aiResponse.json();

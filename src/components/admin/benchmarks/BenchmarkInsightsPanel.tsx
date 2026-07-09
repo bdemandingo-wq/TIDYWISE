@@ -41,7 +41,7 @@ export function BenchmarkInsightsPanel({ organizationId, cohort, myMetrics, peer
       if (error) throw error;
       if ((data as any)?.error) {
         if ((data as any).error === 'rate_limited') toast.error('AI rate limit hit. Try again in a minute.');
-        else if ((data as any).error === 'credits_exhausted') toast.error('AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately.');
+        else if ((data as any).error === 'credits_exhausted') toast.error('AI is temporarily unavailable. Please try again shortly.');
         else toast.error('Could not generate insights.');
         return;
       }

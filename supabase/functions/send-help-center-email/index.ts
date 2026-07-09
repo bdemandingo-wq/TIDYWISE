@@ -86,46 +86,36 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("[send-help-center-email] Sending to:", recipientTo, "from:", senderFrom);
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${emailSettings.resend_api_key || RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: senderFrom,
-        to: [recipientTo],
-        reply_to: email, // Reply goes to the person who submitted
-        subject,
-        html: `
+    const html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #333; border-bottom: 2px solid #4f46e5; padding-bottom: 10px;">${heading}</h1>
-            
             <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 10px 0;"><strong>From:</strong> ${name}</p>
               <p style="margin: 0 0 10px 0;"><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
               <p style="margin: 0;"><strong>Type:</strong> ${isIdea ? "Feature Idea" : "Support Request"}</p>
             </div>
-            
             <h2 style="color: #333; margin-top: 30px;">Message:</h2>
             <div style="background: #fff; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
               <p style="white-space: pre-wrap; margin: 0;">${message}</p>
             </div>
-            
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
             <p style="color: #6b7280; font-size: 12px;">This email was sent from your Help Center.</p>
-            ${emailSettings.email_footer ? `<p style="color: #9ca3af; font-size: 12px;">${emailSettings.email_footer}</p>` : ''}
           </div>
-        `,
-      }),
+        `;
+
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const sendResult = await sendOrgEmail({
+      organizationId: organization_id,
+      to: recipientTo,
+      replyTo: email,
+      subject,
+      html,
     });
 
-    const json = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      console.error("[send-help-center-email] Resend API error:", json);
-      throw new Error((json as any)?.message || "Failed to send email");
+    if (!sendResult.success) {
+      throw new Error(sendResult.error || "Failed to send email");
     }
+
 
     console.log("[send-help-center-email] Email sent successfully to:", recipientTo);
     return new Response(JSON.stringify(json), {

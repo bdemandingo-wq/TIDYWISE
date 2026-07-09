@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { anthropicChat, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,18 +124,17 @@ Return JSON with this exact shape:
 }
 
 async function callLovableAI(systemPrompt: string, userPrompt: string): Promise<GeneratedBlog> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: MODEL, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
+  if (!Deno.env.get("ANTHROPIC_API_KEY")) throw new Error("ANTHROPIC_API_KEY not configured");
+  const res = await anthropicChat({
+    model: MODEL_SONNET,
+    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+    response_format: { type: "json_object" },
+    max_tokens: 8000,
   });
   if (!res.ok) {
     const text = await res.text();
-    if (res.status === 429) throw new Error("Rate limit on AI gateway");
-    if (res.status === 402) throw new Error("AI credits exhausted. Ask the Lovable workspace owner to add credits at Settings → Plans & credits in Lovable (or upgrade the plan). New credits activate immediately.");
-    throw new Error(`AI gateway ${res.status}: ${text.substring(0, 300)}`);
+    if (res.status === 429) throw new Error("AI is temporarily rate limited");
+    throw new Error(`Anthropic ${res.status}: ${text.substring(0, 300)}`);
   }
   const data = await res.json();
   const content = data?.choices?.[0]?.message?.content;
@@ -169,23 +169,19 @@ What to keep:
 Return JSON only: {"content":"the rewritten HTML"}. No markdown fences.`;
 
 async function humanizePass(html: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return html;
+  if (!Deno.env.get("ANTHROPIC_API_KEY")) return html;
   try {
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: "system", content: HUMANIZER_SYSTEM },
-          { role: "user", content: `Rewrite this HTML body:\n\n${html}` },
-        ],
-        response_format: { type: "json_object" },
-      }),
+    const res = await anthropicChat({
+      model: MODEL_SONNET,
+      messages: [
+        { role: "system", content: HUMANIZER_SYSTEM },
+        { role: "user", content: `Rewrite this HTML body:\n\n${html}` },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 8000,
     });
     if (!res.ok) {
-      console.warn(`[humanizer] gateway returned ${res.status} — keeping original draft`);
+      console.warn(`[humanizer] returned ${res.status} — keeping original draft`);
       return html;
     }
     const data = await res.json();

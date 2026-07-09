@@ -297,36 +297,24 @@ const handler = async (req: Request): Promise<Response> => {
 </body>
 </html>`;
 
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: formatEmailFrom(emailSettings),
-        to: [customerEmail],
-        reply_to: getReplyTo(emailSettings),
-        subject: `${invoiceNumber} from ${companyName} — Pay Online`,
-        html: emailHtml,
-      }),
+    // Route through org email helper (Gmail SMTP → Resend fallback)
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const sendResult = await sendOrgEmail({
+      organizationId: data.organizationId,
+      to: customerEmail,
+      subject: `${invoiceNumber} from ${companyName} — Pay Online`,
+      html: emailHtml,
     });
 
-    let responseData: any = null;
-    try {
-      responseData = await response.json();
-    } catch (_e) {
-      responseData = null;
+    if (!sendResult.success) {
+      if (/not verified/i.test(sendResult.error || "")) {
+        const domain = emailSettings.from_email.split("@")[1];
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
+      }
+      throw new Error(sendResult.error || "Failed to send email");
     }
+    const responseData: any = { id: sendResult.id };
 
-    if (!response.ok && responseData?.name === "validation_error" && responseData?.message?.includes("not verified")) {
-      const domain = emailSettings.from_email.split("@")[1];
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
-    }
-
-    if (!response.ok) {
-      throw new Error(responseData?.message || `Failed to send email (status ${response.status})`);
-    }
 
     logAudit({
       action: AuditActions.EMAIL_INVOICE,
