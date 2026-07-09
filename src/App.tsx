@@ -33,6 +33,7 @@ const ScoreGeneratePage = lazy(() => import("./pages/score/ScoreGeneratePage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 // Native redirect for signup (App Store compliance - no in-app signup on native)
 const NativeSignupRedirect = lazy(() => import("./pages/NativeSignupRedirect"));
@@ -218,6 +219,7 @@ const App = () => (
                          <Route path="/auth/callback" element={<AuthCallbackPage />} />
                          <Route path="/auth/confirm" element={<AuthCallbackPage />} />
                          <Route path="/set-password" element={<SetPasswordPage />} />
+                         <Route path="/accept-invite" element={<AcceptInvitePage />} />
                          <Route path="/contact" element={<ContactPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
