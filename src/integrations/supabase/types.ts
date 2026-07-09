@@ -6104,6 +6104,53 @@ export type Database = {
           },
         ]
       }
+      organization_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          organization_id: string
+          role: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          organization_id: string
+          role: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          organization_id?: string
+          role?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_invoice_settings: {
         Row: {
           accept_ach: boolean | null
@@ -10153,6 +10200,7 @@ export type Database = {
       get_user_organization_id: { Args: never; Returns: string }
       has_active_subscription: { Args: { _org_id: string }; Returns: boolean }
       has_openphone_api_key: { Args: { _org_id: string }; Returns: boolean }
+      has_org_financial_access: { Args: { _org_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -10178,9 +10226,21 @@ export type Database = {
       is_org_member:
         | { Args: { _org_id: string }; Returns: boolean }
         | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
+      is_org_operator: { Args: { _org_id: string }; Returns: boolean }
+      is_org_owner: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_platform_blog_admin: { Args: never; Returns: boolean }
+      list_org_members: {
+        Args: { _organization_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
+      }
       log_benchmark_event: {
         Args: {
           p_duration_ms: number
@@ -10238,6 +10298,10 @@ export type Database = {
         }[]
       }
       refresh_peer_benchmark_snapshots: { Args: never; Returns: number }
+      remove_org_member: {
+        Args: { _organization_id: string; _target_user_id: string }
+        Returns: undefined
+      }
       reset_client_portal_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
@@ -10296,6 +10360,14 @@ export type Database = {
           p_phone?: string
         }
         Returns: boolean
+      }
+      update_org_member_role: {
+        Args: {
+          _new_role: string
+          _organization_id: string
+          _target_user_id: string
+        }
+        Returns: undefined
       }
       validate_client_portal_login: {
         Args: { p_email: string; p_password: string }
