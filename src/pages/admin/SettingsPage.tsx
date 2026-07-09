@@ -38,6 +38,7 @@ import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDisco
 import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
+import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
