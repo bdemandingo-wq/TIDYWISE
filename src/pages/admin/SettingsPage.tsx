@@ -571,6 +571,7 @@ export default function SettingsPage() {
         <div className="w-full max-w-5xl overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: 'pan-x' }}>
            <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="team">Team</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
             <TabsTrigger className="shrink-0" value="pricing">Pricing</TabsTrigger>
             <TabsTrigger className="shrink-0" value="loyalty">Loyalty</TabsTrigger>
@@ -580,12 +581,9 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
-            
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
-            
-            <TabsTrigger className="shrink-0" value="team">Team</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
             <TabsTrigger
               className="shrink-0"
