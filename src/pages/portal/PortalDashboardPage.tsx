@@ -587,7 +587,9 @@ export default function PortalDashboardPage() {
         </div>
 
         <div className="px-4 pb-28 space-y-3">
+          <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
           {/* Loyalty card */}
+
           <Card className="rounded-2xl overflow-hidden shadow-none border-border/40">
             <div className={`h-1 ${getTierColor(displayLoyalty.tier)}`} />
             <CardContent className="p-4">

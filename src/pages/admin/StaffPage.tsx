@@ -483,7 +483,12 @@ export default function StaffPage() {
             <StaffComplianceDashboard organizationId={organizationId} />
           )}
         </TabsContent>
+
+        <TabsContent value="time-off" className="space-y-4">
+          <TimeOffRequestsPanel />
+        </TabsContent>
       </Tabs>
+
 
       <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
       <EditStaffDialog 
