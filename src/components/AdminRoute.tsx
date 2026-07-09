@@ -51,7 +51,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
   // org, transparently switch to that org instead of bouncing to /staff. This
   // protects users who accidentally have a member-role membership somewhere.
   const adminOrgElsewhere = allOrganizations.find(
-    (o) => (o.role === 'owner' || o.role === 'admin') && o.organization.id !== organization?.id
+    (o) => (o.role === 'owner' || o.role === 'admin' || o.role === 'manager') && o.organization.id !== organization?.id
   );
 
   useEffect(() => {

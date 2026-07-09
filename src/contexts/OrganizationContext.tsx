@@ -108,7 +108,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       for (const m of memberships) {
         const org = orgs.find(o => o.id === m.organization_id);
         if (!org) continue;
-        allOrgs.push({ organization: org, role: m.role as 'owner' | 'admin' | 'member' });
+        allOrgs.push({ organization: org, role: m.role as OrgRole });
       }
 
       setAllOrganizations(allOrgs);
@@ -126,7 +126,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       );
       const savedOrgId = localStorage.getItem(ACTIVE_ORG_KEY);
       const savedOrg = allOrgs.find(o => o.organization.id === savedOrgId);
-      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin');
+      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin' || o.role === 'manager');
       let activeOrg: OrgWithRole | undefined;
       if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
         activeOrg = savedOrg;
@@ -175,7 +175,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   }, [allOrganizations, queryClient]);
 
   const isOwner = membership?.role === 'owner';
-  const isAdmin = membership?.role === 'owner' || membership?.role === 'admin';
+  // Admin dashboard access: owners, admins, AND managers (invited virtual
+  // assistants). Cleaners (role='member') are blocked and sent to /staff.
+  const isAdmin =
+    membership?.role === 'owner' ||
+    membership?.role === 'admin' ||
+    membership?.role === 'manager';
 
   return (
     <OrganizationContext.Provider
