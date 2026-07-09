@@ -36,7 +36,9 @@ export function TeamMembersCard() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_org_members', { _organization_id: orgId! });
       if (error) throw error;
-      return data as { user_id: string; email: string; full_name: string; role: string; joined_at: string }[];
+      const rows = (data as { user_id: string; email: string; full_name: string; role: string; joined_at: string }[]) ?? [];
+      // Team members = owner/admin/manager only. Cleaners (role='member') are staff, not teammates.
+      return rows.filter(r => r.role === 'owner' || r.role === 'admin' || r.role === 'manager');
     },
   });
 
