@@ -11,14 +11,16 @@ interface Organization {
   owner_id: string;
 }
 
+export type OrgRole = 'owner' | 'admin' | 'manager' | 'member';
+
 interface OrganizationMembership {
   organization_id: string;
-  role: 'owner' | 'admin' | 'member';
+  role: OrgRole;
 }
 
 interface OrgWithRole {
   organization: Organization;
-  role: 'owner' | 'admin' | 'member';
+  role: OrgRole;
 }
 
 interface OrganizationContextType {
