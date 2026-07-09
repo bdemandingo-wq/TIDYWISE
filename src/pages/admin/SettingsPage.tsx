@@ -584,6 +584,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             
+            <TabsTrigger className="shrink-0" value="team">Team</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
             <TabsTrigger
               className="shrink-0"
@@ -1188,6 +1189,11 @@ export default function SettingsPage() {
 
           {/* Account Deletion - Required for App Store compliance */}
           <AccountDeletionCard />
+        </TabsContent>
+
+        {/* Team Tab */}
+        <TabsContent value="team" className="space-y-6">
+          <TeamMembersCard />
         </TabsContent>
 
         {/* Integrations Tab */}
