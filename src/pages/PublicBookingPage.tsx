@@ -802,6 +802,67 @@ export default function PublicBookingPage() {
                 </div>
               )}
 
+              {/* Room reducer — customer can skip rooms for a discount */}
+              {(selectedBedrooms || selectedBathrooms) && (
+                <Collapsible open={reducerOpen} onOpenChange={setReducerOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground">
+                      {reducerOpen ? '−' : '+'} Don't need the entire home cleaned?
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <Card className="mt-2">
+                      <CardContent className="p-5 space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Skip rooms you don't need cleaned and lower your total.
+                        </p>
+                        {(['bedroom','bathroom','full_bath'] as const)
+                          .filter((k) => !excludedRoomTypes.includes(k))
+                          .map((k) => {
+                            const labels = { bedroom: 'Bedrooms to skip', bathroom: 'Bathrooms to skip', full_bath: 'Full baths to skip' };
+                            const price = roomReductionPrices[k] || 0;
+                            const value = roomReductions[k] || 0;
+                            return (
+                              <div key={k} className="flex items-center justify-between gap-3">
+                                <div>
+                                  <div className="font-medium text-sm">{labels[k]}</div>
+                                  <div className="text-xs text-muted-foreground">-${price} each</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setRoomReductions((prev) => ({ ...prev, [k]: Math.max(0, (prev[k] || 0) - 1) }))}
+                                    disabled={value === 0}
+                                    aria-label={`Decrease ${labels[k]}`}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <span className="w-6 text-center font-medium">{value}</span>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => setRoomReductions((prev) => ({ ...prev, [k]: (prev[k] || 0) + 1 }))}
+                                    aria-label={`Increase ${labels[k]}`}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </CardContent>
+                    </Card>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+
+
 
 
               {/* Extras */}
