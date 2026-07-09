@@ -175,7 +175,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   }, [allOrganizations, queryClient]);
 
   const isOwner = membership?.role === 'owner';
-  const isAdmin = membership?.role === 'owner' || membership?.role === 'admin';
+  // Admin dashboard access: owners, admins, AND managers (invited virtual
+  // assistants). Cleaners (role='member') are blocked and sent to /staff.
+  const isAdmin =
+    membership?.role === 'owner' ||
+    membership?.role === 'admin' ||
+    membership?.role === 'manager';
 
   return (
     <OrganizationContext.Provider
