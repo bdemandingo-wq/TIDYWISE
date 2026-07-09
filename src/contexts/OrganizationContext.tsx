@@ -119,8 +119,8 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       // dashboard instead of being bounced to the staff portal. If a saved org
       // is a member-only role but the user has admin access elsewhere, the
       // admin org wins. Explicit switches via switchOrganization still persist.
-      const rolePriority = (r: 'owner' | 'admin' | 'member') =>
-        r === 'owner' ? 0 : r === 'admin' ? 1 : 2;
+      const rolePriority = (r: OrgRole) =>
+        r === 'owner' ? 0 : r === 'admin' ? 1 : r === 'manager' ? 2 : 3;
       const sortedByRole = [...allOrgs].sort(
         (a, b) => rolePriority(a.role) - rolePriority(b.role)
       );
