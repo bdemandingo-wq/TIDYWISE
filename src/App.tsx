@@ -13,6 +13,7 @@ import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
 import { AdminRoute } from "@/components/AdminRoute";
+import { FinancialRoute } from "@/components/FinancialRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
