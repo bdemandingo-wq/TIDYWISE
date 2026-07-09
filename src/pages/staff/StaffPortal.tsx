@@ -736,6 +736,11 @@ export default function StaffPortal() {
                 <Banknote className="w-4 h-4" />
                 Payouts
               </TabsTrigger>
+              <TabsTrigger value="time-off" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Calendar className="w-4 h-4" />
+                Time Off
+              </TabsTrigger>
+
             </TabsList>
             {/* Scroll fade indicator */}
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
