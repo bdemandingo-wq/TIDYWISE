@@ -13,6 +13,7 @@ import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
 import { AdminRoute } from "@/components/AdminRoute";
+import { FinancialRoute } from "@/components/FinancialRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
@@ -33,6 +34,7 @@ const ScoreGeneratePage = lazy(() => import("./pages/score/ScoreGeneratePage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 // Native redirect for signup (App Store compliance - no in-app signup on native)
 const NativeSignupRedirect = lazy(() => import("./pages/NativeSignupRedirect"));
@@ -218,6 +220,7 @@ const App = () => (
                          <Route path="/auth/callback" element={<AuthCallbackPage />} />
                          <Route path="/auth/confirm" element={<AuthCallbackPage />} />
                          <Route path="/set-password" element={<SetPasswordPage />} />
+                         <Route path="/accept-invite" element={<AcceptInvitePage />} />
                          <Route path="/contact" element={<ContactPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
@@ -280,7 +283,7 @@ const App = () => (
                       <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                       <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
@@ -419,7 +422,7 @@ const App = () => (
                     <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                     <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                     
                     <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
