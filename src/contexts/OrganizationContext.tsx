@@ -108,7 +108,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       for (const m of memberships) {
         const org = orgs.find(o => o.id === m.organization_id);
         if (!org) continue;
-        allOrgs.push({ organization: org, role: m.role as 'owner' | 'admin' | 'member' });
+        allOrgs.push({ organization: org, role: m.role as OrgRole });
       }
 
       setAllOrganizations(allOrgs);
