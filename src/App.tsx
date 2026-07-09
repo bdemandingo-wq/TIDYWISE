@@ -283,7 +283,7 @@ const App = () => (
                       <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                       <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
@@ -422,7 +422,7 @@ const App = () => (
                     <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                     <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                     
                     <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
