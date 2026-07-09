@@ -17,6 +17,8 @@ import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
+import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
+
 
 // Lazy-load heavy tab components to speed up initial render
 const CleanerAvailabilityManager = lazy(() => import('@/components/staff/CleanerAvailabilityManager').then(m => ({ default: m.CleanerAvailabilityManager })));
@@ -736,6 +738,11 @@ export default function StaffPortal() {
                 <Banknote className="w-4 h-4" />
                 Payouts
               </TabsTrigger>
+              <TabsTrigger value="time-off" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Calendar className="w-4 h-4" />
+                Time Off
+              </TabsTrigger>
+
             </TabsList>
             {/* Scroll fade indicator */}
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
@@ -959,7 +966,16 @@ export default function StaffPortal() {
               )}
             </Suspense>
           </TabsContent>
+
+          <TabsContent value="time-off" className="space-y-4">
+            {staffInfo?.id && staffInfo?.organization_id ? (
+              <TimeOffRequests staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
+          </TabsContent>
         </Tabs>
+
       </main>
     </div>
     </>
