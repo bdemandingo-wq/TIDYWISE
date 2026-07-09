@@ -17,6 +17,8 @@ import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
+import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
+
 
 // Lazy-load heavy tab components to speed up initial render
 const CleanerAvailabilityManager = lazy(() => import('@/components/staff/CleanerAvailabilityManager').then(m => ({ default: m.CleanerAvailabilityManager })));
@@ -964,7 +966,16 @@ export default function StaffPortal() {
               )}
             </Suspense>
           </TabsContent>
+
+          <TabsContent value="time-off" className="space-y-4">
+            {staffInfo?.id && staffInfo?.organization_id ? (
+              <TimeOffRequests staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
+          </TabsContent>
         </Tabs>
+
       </main>
     </div>
     </>
