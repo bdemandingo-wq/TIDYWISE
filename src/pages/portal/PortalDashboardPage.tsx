@@ -53,6 +53,8 @@ import { supabase } from "@/lib/supabase";
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
+import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
+
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { fmt } from '@/lib/activeCurrency';
