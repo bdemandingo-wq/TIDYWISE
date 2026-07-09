@@ -126,7 +126,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       );
       const savedOrgId = localStorage.getItem(ACTIVE_ORG_KEY);
       const savedOrg = allOrgs.find(o => o.organization.id === savedOrgId);
-      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin');
+      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin' || o.role === 'manager');
       let activeOrg: OrgWithRole | undefined;
       if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
         activeOrg = savedOrg;
