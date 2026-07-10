@@ -150,6 +150,27 @@ export default function TasksPage() {
     onError: () => toast.error('Failed to update task'),
   });
 
+  // Bulk mark all incomplete tasks (any type) as complete
+  const markAllCompleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!organizationId) return 0;
+      const ids = tasks.filter(t => !t.is_completed && t.type !== 'note').map(t => t.id);
+      if (ids.length === 0) return 0;
+      const { error } = await supabase
+        .from('tasks_and_notes')
+        .update({ is_completed: true, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks-and-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-tasks'] });
+      if (n) toast.success(`Marked ${n} task${n === 1 ? '' : 's'} complete`);
+    },
+    onError: () => toast.error('Failed to mark tasks complete'),
+  });
+
   // Reorder
   const reorderMutation = useMutation({
     mutationFn: async ({ activeId, overId }: { activeId: string; overId: string }) => {
