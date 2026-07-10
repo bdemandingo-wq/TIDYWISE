@@ -26,6 +26,7 @@ type InviteResponse = {
 };
 
 const ACTIVE_ORG_KEY = 'tidywise_active_org';
+const INVITE_JOIN_KEY = 'tidywise_invite_joined_workspace';
 
 function dashboardDestination(role?: string) {
   return role === 'manager' || role === 'admin' ? '/dashboard/scheduler' : '/dashboard';
@@ -41,21 +42,44 @@ function rememberJoinedOrganization(organizationId?: string) {
 }
 
 async function getExactFunctionError(data: unknown, error: unknown, fallback = 'Invite request failed') {
-  const bodyError = (data as InviteResponse | null)?.error;
-  if (bodyError) return bodyError;
+  const format = (message: unknown, attemptId?: unknown) => {
+    const text = String(message || fallback);
+    return attemptId ? `${text} (attempt_id: ${String(attemptId)})` : text;
+  };
+
+  const response = data as InviteResponse | null;
+  if (response?.error) return format(response.error, response.attempt_id);
 
   const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
   if (context && typeof context.json === 'function') {
     try {
-      const body = await context.json() as { error?: unknown; message?: unknown } | null;
-      if (body?.error) return String(body.error);
-      if (body?.message) return String(body.message);
+      const body = await context.json() as { error?: unknown; message?: unknown; attempt_id?: unknown } | null;
+      if (body?.error) return format(body.error, body.attempt_id);
+      if (body?.message) return format(body.message, body.attempt_id);
     } catch {
       // Fall through to the platform error message below.
     }
   }
 
   return (error as Error | null)?.message || fallback;
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function waitForInviteSession(expectedEmail?: string) {
+  const expected = expectedEmail?.toLowerCase();
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const sessionUser = sessionData.session?.user;
+    if (sessionUser && (!expected || sessionUser.email?.toLowerCase() === expected)) return sessionUser;
+
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user && (!expected || userData.user.email?.toLowerCase() === expected)) return userData.user;
+
+    await sleep(350);
+  }
+
+  throw new Error('session_not_ready_after_invite_accept');
 }
 
 export default function AcceptInvitePage() {
@@ -73,6 +97,46 @@ export default function AcceptInvitePage() {
   const [signInErr, setSignInErr] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
 
+  const completeInviteJoin = async (response: InviteResponse, expectedEmail?: string) => {
+    if (!response.organization_id) {
+      throw new Error(response.attempt_id ? `missing_organization_id (attempt_id: ${response.attempt_id})` : 'missing_organization_id');
+    }
+
+    rememberJoinedOrganization(response.organization_id);
+    const joinedUser = await waitForInviteSession(expectedEmail || response.email);
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('org_memberships')
+      .select('organization_id, role')
+      .eq('organization_id', response.organization_id)
+      .eq('user_id', joinedUser.id)
+      .maybeSingle();
+
+    if (membershipError) {
+      throw new Error(`membership_verify_failed: ${membershipError.message}${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
+    if (!membership) {
+      throw new Error(`membership_missing_after_accept${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
+    if (membership.role !== 'owner' && membership.role !== 'manager') {
+      throw new Error(`invalid_invite_membership_role: ${membership.role}${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
+
+    try {
+      sessionStorage.setItem(INVITE_JOIN_KEY, JSON.stringify({
+        organization_id: response.organization_id,
+        attempt_id: response.attempt_id,
+        at: Date.now(),
+      }));
+    } catch {
+      // Session storage is only a safety net for route guards.
+    }
+
+    await refetch();
+    switchOrganization(response.organization_id);
+    window.location.replace(dashboardDestination(response.role));
+  };
+
   useEffect(() => {
     if (!token) { setLoadErr('Missing invite token'); return; }
     (async () => {
@@ -89,18 +153,18 @@ export default function AcceptInvitePage() {
 
   const acceptExisting = async () => {
     setBusy(true);
+    setSignInErr(null);
     try {
       const { data, error } = await supabase.functions.invoke('accept-team-invite', {
         body: { token, mode: 'accept' },
       });
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
       toast.success('You joined the workspace');
-      rememberJoinedOrganization((data as InviteResponse)?.organization_id);
-      await refetch();
-      if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
-      navigate(dashboardDestination((data as InviteResponse)?.role), { replace: true });
+      await completeInviteJoin(data as InviteResponse, preview?.email || user?.email || undefined);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to accept');
+      const message = e instanceof Error ? e.message : 'Failed to accept';
+      setSignInErr(message);
+      toast.error(message);
     } finally { setBusy(false); }
   };
 
@@ -129,10 +193,7 @@ export default function AcceptInvitePage() {
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
 
       toast.success('You joined the workspace');
-      rememberJoinedOrganization((data as InviteResponse)?.organization_id);
-      await refetch();
-      if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
-      navigate(dashboardDestination((data as InviteResponse)?.role), { replace: true });
+      await completeInviteJoin(data as InviteResponse, preview.email);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const friendly = /invalid login credentials/i.test(message)
@@ -178,10 +239,7 @@ export default function AcceptInvitePage() {
       await signInWithInvitePassword(preview.email, password, (sData as InviteResponse)?.created ? 2 : 0);
 
       toast.success('You joined the workspace');
-      rememberJoinedOrganization((sData as InviteResponse)?.organization_id);
-      await refetch();
-      if ((sData as InviteResponse)?.organization_id) switchOrganization((sData as InviteResponse).organization_id!);
-      navigate(dashboardDestination((sData as InviteResponse)?.role), { replace: true });
+      await completeInviteJoin(sData as InviteResponse, preview.email);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const friendly = /invalid login credentials/i.test(message)
@@ -219,6 +277,16 @@ export default function AcceptInvitePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {signInErr && (
+            <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+              <p className="text-xs text-destructive">{signInErr}</p>
+              {!user && preview.existing_user && (
+                <Button type="button" variant="outline" size="sm" className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
+                  {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reset password for this account'}
+                </Button>
+              )}
+            </div>
+          )}
           {user && emailMatches && (
             <Button className="w-full" onClick={acceptExisting} disabled={busy}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept invitation'}
@@ -246,16 +314,6 @@ export default function AcceptInvitePage() {
                 <p className="text-xs text-muted-foreground">
                   This email already has an account. Use that account password to join this workspace.
                 </p>
-              )}
-              {signInErr && (
-                <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
-                  <p className="text-xs text-destructive">{signInErr}</p>
-                  {preview.existing_user && (
-                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
-                      {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reset password for this account'}
-                    </Button>
-                  )}
-                </div>
               )}
               <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : preview.existing_user ? 'Sign in & join' : 'Create account & join'}

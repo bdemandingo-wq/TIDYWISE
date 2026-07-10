@@ -17,6 +17,14 @@ type InviteRow = {
   organizations?: { name?: string } | null;
 };
 
+type NormalizedInviteRole = 'owner' | 'manager';
+
+const normalizeInviteRole = (role?: string): NormalizedInviteRole => {
+  // Legacy/invalid invite roles must never create broader or staff-only access.
+  // Only an explicit owner invite stays owner; everything else becomes manager.
+  return role === 'owner' ? 'owner' : 'manager';
+};
+
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -47,8 +55,7 @@ async function attachMembershipAndAccept(
   userId: string,
   attemptId: string,
 ) {
-  // 'admin' is no longer a valid org role — normalize to 'manager'.
-  const normalizedRole = invite.role === 'admin' ? 'manager' : invite.role;
+  const normalizedRole = normalizeInviteRole(invite.role);
   const { error: memErr } = await admin
     .from("org_memberships")
     .upsert(
@@ -116,7 +123,7 @@ serve(async (req) => {
       const existingUser = await findAuthUserByEmail(admin, normalizedEmail);
       return json({
         email: invite.email,
-        role: invite.role,
+        role: normalizeInviteRole(invite.role),
         organization_name: orgName,
         already_accepted: Boolean(invite.accepted_at),
         existing_user: Boolean(existingUser),
