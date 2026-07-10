@@ -5,6 +5,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
 import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
+import { NOTIFICATION_TYPES, isChannelEnabled } from '@/lib/notificationCatalog';
 
 /**
  * Centralized sidebar badge counts + breakdowns.
