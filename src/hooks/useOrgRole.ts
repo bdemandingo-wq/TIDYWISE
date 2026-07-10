@@ -12,20 +12,23 @@ export function useOrgRole() {
   const role: OrgRole | null = membership?.role ?? null;
 
   const isOwner = role === 'owner';
-  const isAdmin = role === 'owner' || role === 'admin';
-  const isManager = role === 'manager';
-  const isOperator = role === 'owner' || role === 'admin' || role === 'manager';
-  // Owner + admin see financial data. Managers do not.
-  const hasFinancialAccess = role === 'owner' || role === 'admin';
+  // 'admin' is a legacy value; treat any leftover admin the same as manager.
+  const isManager = role === 'manager' || role === 'admin';
+  const isOperator = isOwner || isManager;
+  // Financial data (payroll, expenses, finance, reports, subscription,
+  // pay rates) is owner-only. Managers are blocked.
+  const hasFinancialAccess = isOwner;
   // Owner-only capabilities: billing/subscription mgmt, team invites, role changes.
-  const canManageBilling = role === 'owner';
-  const canManageTeam = role === 'owner';
+  const canManageBilling = isOwner;
+  const canManageTeam = isOwner;
 
   return {
     role,
     loading,
     isOwner,
-    isAdmin,
+    // Kept for backwards-compatibility with any consumer that checked
+    // isAdmin — it now means "owner or manager" (admin surface access).
+    isAdmin: isOwner || isManager,
     isManager,
     isOperator,
     hasFinancialAccess,
@@ -33,3 +36,4 @@ export function useOrgRole() {
     canManageTeam,
   };
 }
+

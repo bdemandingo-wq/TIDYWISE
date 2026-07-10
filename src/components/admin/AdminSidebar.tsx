@@ -42,6 +42,8 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgRole } from '@/hooks/useOrgRole';
+
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { getSignedUrl } from '@/hooks/useSignedUrl';
@@ -394,9 +396,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     return ['/dashboard/payment-integration', '/dashboard/subscription'];
   }, [canShowPaymentFlows]);
 
+  // Managers (invited teammates without financial access) must not see the
+  // admin Dashboard, Payroll, Expenses, Finance, or Reports. Filter those
+  // out of the sidebar entirely — the routes are also gated server-side.
+  const { hasFinancialAccess } = useOrgRole();
+  const financialOnlyHrefs = useMemo(
+    () => new Set(['/dashboard', '/dashboard/payroll', '/dashboard/expenses', '/dashboard/finance', '/dashboard/reports']),
+    []
+  );
+
   // Filter out hidden items and add badges
   const visibleNavigation = navigation
     .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
+    .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
     .map(item => {
       if (item.href === '/dashboard/client-portal' && pendingRequestsCount > 0) {
         return { ...item, badge: pendingRequestsCount };
@@ -409,6 +421,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       }
       return item;
     });
+
 
   useEffect(() => {
     const fetchLogoAndName = async () => {

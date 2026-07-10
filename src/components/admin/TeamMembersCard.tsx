@@ -12,20 +12,21 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Loader2, Trash2, Mail } from 'lucide-react';
 
-type Role = 'owner' | 'admin' | 'manager';
+type Role = 'owner' | 'manager';
 
 const roleDesc: Record<Role, string> = {
-  owner: 'Full access, including billing',
-  admin: 'Everything except billing / subscription',
-  manager: 'Operations only — no financial data',
+  owner: 'Full access, including billing and financial data',
+  manager: 'Operations only — no financial data (payroll, expenses, finance, reports)',
 };
+
 
 export function TeamMembersCard() {
   const { organization } = useOrganization();
   const { canManageTeam } = useOrgRole();
   const qc = useQueryClient();
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<Role>('admin');
+  const [role, setRole] = useState<Role>('manager');
+
   const [busy, setBusy] = useState(false);
 
   const orgId = organization?.id;
@@ -37,8 +38,12 @@ export function TeamMembersCard() {
       const { data, error } = await supabase.rpc('list_org_members', { _organization_id: orgId! });
       if (error) throw error;
       const rows = (data as { user_id: string; email: string; full_name: string; role: string; joined_at: string }[]) ?? [];
-      // Team members = owner/admin/manager only. Cleaners (role='member') are staff, not teammates.
-      return rows.filter(r => r.role === 'owner' || r.role === 'admin' || r.role === 'manager');
+      // Team members = owner/manager only. Cleaners (role='member') are staff,
+      // not teammates. Any legacy 'admin' rows are shown as 'manager'.
+      return rows
+        .filter(r => r.role === 'owner' || r.role === 'admin' || r.role === 'manager')
+        .map(r => ({ ...r, role: r.role === 'admin' ? 'manager' : r.role }));
+
     },
   });
 
@@ -133,10 +138,10 @@ export function TeamMembersCard() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="owner">Owner</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
                   </SelectContent>
                 </Select>
+
               </div>
               <div className="flex items-end">
                 <Button
@@ -175,10 +180,10 @@ export function TeamMembersCard() {
                       <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="owner">Owner</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
                       </SelectContent>
                     </Select>
+
                   ) : (
                     <Badge variant="secondary">{m.role}</Badge>
                   )}

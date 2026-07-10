@@ -47,13 +47,16 @@ async function attachMembershipAndAccept(
   userId: string,
   attemptId: string,
 ) {
+  // 'admin' is no longer a valid org role — normalize to 'manager'.
+  const normalizedRole = invite.role === 'admin' ? 'manager' : invite.role;
   const { error: memErr } = await admin
     .from("org_memberships")
     .upsert(
-      { organization_id: invite.organization_id, user_id: userId, role: invite.role },
+      { organization_id: invite.organization_id, user_id: userId, role: normalizedRole },
       { onConflict: "organization_id,user_id" },
     );
   if (memErr) throw new Error(`membership_upsert_failed: ${memErr.message}`);
+
 
   const acceptPatch = invite.accepted_at
     ? { accepted_by: invite.accepted_by || userId }
