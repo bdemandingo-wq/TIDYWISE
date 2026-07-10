@@ -842,13 +842,11 @@ export default function SettingsPage() {
             confirmationEmailBody={settings.confirmation_email_body}
             reminderEmailSubject={settings.reminder_email_subject}
             reminderEmailBody={settings.reminder_email_body}
-            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value }))}
+            confirmationEmailSections={(settings as any).confirmation_email_sections}
+            reminderEmailSections={(settings as any).reminder_email_sections}
+            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value as any }))}
             onSave={saveSettings}
             saving={saving}
-            companyName={settings.company_name}
-            logoUrl={settings.logo_url}
-            primaryColor={settings.primary_color}
-            accentColor={settings.accent_color}
           />
 
         </TabsContent>
