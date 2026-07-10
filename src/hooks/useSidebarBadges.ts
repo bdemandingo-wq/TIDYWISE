@@ -41,6 +41,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const queryClient = useQueryClient();
   const prefs = useNotificationPreferences();
   const payoutRequired = useCleanerPayoutSetupRequired(orgId);
+  const dismissed = useDismissedBadges();
   const showBadges = prefs.channels['channel.sidebar_badge'] !== false;
   const sb = prefs.sidebar_badges;
   // Aggregate the matrix into a "sidebar allowed" lookup by legacy sidebarKey.
