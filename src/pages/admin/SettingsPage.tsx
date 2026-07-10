@@ -341,6 +341,8 @@ export default function SettingsPage() {
           confirmation_email_body: typedData.confirmation_email_body || defaultSettings.confirmation_email_body,
           reminder_email_subject: typedData.reminder_email_subject || defaultSettings.reminder_email_subject,
           reminder_email_body: typedData.reminder_email_body || defaultSettings.reminder_email_body,
+          confirmation_email_sections: Array.isArray(typedData.confirmation_email_sections) ? typedData.confirmation_email_sections : null,
+          reminder_email_sections: Array.isArray(typedData.reminder_email_sections) ? typedData.reminder_email_sections : null,
           google_review_url: typedData.google_review_url || '',
           review_sms_template: typedData.review_sms_template || defaultSettings.review_sms_template,
           resend_api_key: typedData.resend_api_key || '',
