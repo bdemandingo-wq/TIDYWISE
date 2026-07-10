@@ -350,16 +350,24 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     []
   );
 
-  // Filter out hidden items and add badges
-  const visibleNavigation = navigation
-    .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
-    .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
-    .map(item => {
-      const count = badgeCounts[item.href] || 0;
-      return count > 0
-        ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
-        : item;
-    });
+  // Filter out hidden items and add badges. While the DB-backed visibility
+  // preference is still loading we render an EMPTY list rather than the full
+  // default set, so tabs the user hid never flash before the preference
+  // resolves. The scoped localStorage cache means repeat visits hydrate
+  // instantly (isLoading is already false), and first-time renders show a
+  // brief blank list instead of the wrong content.
+  const visibleNavigation = hiddenItemsLoading
+    ? []
+    : navigation
+        .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
+        .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
+        .map(item => {
+          const count = badgeCounts[item.href] || 0;
+          return count > 0
+            ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
+            : item;
+        });
+
 
 
   useEffect(() => {
