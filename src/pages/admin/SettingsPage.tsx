@@ -277,6 +277,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
   
   // Get active tab from URL query param, default to "general"
@@ -473,24 +474,39 @@ export default function SettingsPage() {
 
     setUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = (file.name.split('.').pop() || 'png').toLowerCase();
       const fileName = `logo-${Date.now()}.${fileExt}`;
       const filePath = `${organization?.id}/logos/${fileName}`;
 
+      // Upload to the PUBLIC `business-assets` bucket so email clients can fetch it.
+      // (The old `booking-photos` bucket is private and results in broken images in emails.)
       const { error: uploadError } = await supabase.storage
-        .from('booking-photos')
-        .upload(filePath, file);
+        .from('business-assets')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
-      // Store the path (not public URL) for signed URL generation
-      // For logos, we'll store the full path including 'booking-photos:' prefix
-      // to indicate it's a storage path that needs signed URL
-      updateField('logo_url', `storage:booking-photos:${filePath}`);
-      toast.success('Logo uploaded successfully');
-    } catch (error) {
+      const { data: urlData } = supabase.storage
+        .from('business-assets')
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+
+      // Verify the uploaded logo is actually reachable and is an image before saving.
+      try {
+        const head = await fetch(publicUrl, { method: 'HEAD' });
+        const ct = head.headers.get('content-type') || '';
+        if (!head.ok || !ct.startsWith('image/')) {
+          throw new Error(`Uploaded logo could not be verified (status ${head.status}, type "${ct}")`);
+        }
+      } catch (verifyErr: any) {
+        throw new Error(verifyErr?.message || 'Uploaded logo failed verification');
+      }
+
+      updateField('logo_url', publicUrl);
+      toast.success('Logo uploaded and verified');
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
+      toast.error(error?.message || 'Failed to upload logo');
     } finally {
       setUploadingLogo(false);
     }
@@ -996,10 +1012,19 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   {settings.logo_url ? (
                     <div className="w-20 h-20 rounded-lg border bg-background overflow-hidden flex items-center justify-center">
-                      <SignedImage 
-                        src={settings.logo_url} 
-                        alt="Company logo" 
+                      <SignedImage
+                        src={settings.logo_url}
+                        alt={settings.company_name || 'Company logo'}
                         className="w-full h-full object-contain"
+                        onError={(e: any) => {
+                          // Remove the broken image and show the org name cleanly.
+                          const parent = e.currentTarget?.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<span style="font-size:12px;font-weight:600;text-align:center;padding:4px;color:#374151;">${(settings.company_name || 'Logo').replace(/[<>&]/g, '')}</span>`;
+                          }
+                          setLogoLoadFailed(true);
+                        }}
+                        onLoad={() => setLogoLoadFailed(false)}
                       />
                     </div>
                   ) : (
@@ -1026,17 +1051,23 @@ export default function SettingsPage() {
                           ) : (
                             <>
                               <Upload className="w-4 h-4" />
-                              Upload Logo
+                              {settings.logo_url && logoLoadFailed ? 'Re-upload Logo' : 'Upload Logo'}
                             </>
                           )}
                         </span>
                       </Button>
                     </Label>
                     <p className="text-sm text-muted-foreground mt-2">
-                      PNG, JPG up to 2MB. This logo will appear in your sidebar.
+                      PNG, JPG up to 2MB. Appears in your sidebar and in customer emails.
                     </p>
                   </div>
                 </div>
+                {settings.logo_url && logoLoadFailed && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    Your saved logo could not be loaded. Emails will show your company
+                    name as text until you re-upload a working logo above.
+                  </div>
+                )}
               </div>
               
               <Separator />

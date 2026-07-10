@@ -59,16 +59,50 @@ export function replaceBookingVariables(text: string, data: BookingEmailData): s
   return out;
 }
 
-/** Resolve a `storage:<bucket>:<path>` URL or return the raw URL. */
-function resolveLogoUrl(logoUrl: string | null, supabaseUrl: string): string | null {
+/**
+ * Resolve a `storage:<bucket>:<path>` reference or a raw URL into a browser-accessible
+ * image URL, then HEAD-verify it returns an image content-type. Returns null on failure
+ * so callers can fall back to rendering the company name as text (no broken image).
+ */
+async function resolveLogoUrl(
+  logoUrl: string | null,
+  supabaseUrl: string,
+  admin: ReturnType<typeof createClient>,
+): Promise<string | null> {
   if (!logoUrl) return null;
+  let candidate: string | null = null;
+
   if (logoUrl.startsWith("storage:")) {
     const [, bucket, ...pathParts] = logoUrl.split(":");
     const path = pathParts.join(":");
     if (!bucket || !path) return null;
-    return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+
+    // Check if the bucket is public; if so a public URL works, otherwise sign it.
+    const { data: bucketInfo } = await admin.storage.getBucket(bucket);
+    if (bucketInfo?.public) {
+      candidate = `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+    } else {
+      const { data: signed } = await admin.storage
+        .from(bucket)
+        .createSignedUrl(path, 60 * 60 * 24 * 7); // 7 days
+      candidate = signed?.signedUrl ?? null;
+    }
+  } else if (/^https?:\/\//i.test(logoUrl)) {
+    candidate = logoUrl;
   }
-  return logoUrl;
+
+  if (!candidate) return null;
+
+  // Verify content-type; if unreachable or non-image, skip the logo entirely.
+  try {
+    const head = await fetch(candidate, { method: "HEAD" });
+    if (!head.ok) return null;
+    const ct = head.headers.get("content-type") || "";
+    if (!ct.startsWith("image/")) return null;
+    return candidate;
+  } catch {
+    return null;
+  }
 }
 
 /** Load full branding for an org (business_settings + organization_email_settings). */
@@ -107,7 +141,7 @@ export async function loadOrgBrand(organizationId: string): Promise<
 
   const brand: OrgBrand = {
     companyName: bs?.company_name || es.from_name,
-    logoUrl: resolveLogoUrl(bs?.logo_url ?? null, supabaseUrl),
+    logoUrl: await resolveLogoUrl(bs?.logo_url ?? null, supabaseUrl, supabase),
     primaryColor: bs?.primary_color || "#1e5bb0",
     accentColor: bs?.accent_color || "#14b8a6",
     fromName: es.from_name,
@@ -165,8 +199,11 @@ export function renderBrandedEmail(opts: RenderOptions): { subject: string; html
     ? `<p style="color:#9ca3af;font-size:12px;margin:0 0 6px;line-height:1.5;">${escapeHtml(brand.emailFooter)}</p>`
     : "";
 
+  // If the logo URL is present it has already been HEAD-verified upstream. The
+  // inline onerror handler is a belt-and-braces safeguard for the preview iframe
+  // (email clients strip event handlers, which is fine — the URL is verified).
   const headerBlock = logo
-    ? `<img src="${escapeHtml(logo)}" alt="${companyName}" height="56" style="max-height:56px;display:block;margin:0 auto;background:#fff;padding:6px 10px;border-radius:8px;" />`
+    ? `<img src="${escapeHtml(logo)}" alt="${companyName}" height="56" style="max-height:56px;display:block;margin:0 auto;background:#fff;padding:6px 10px;border-radius:8px;" onerror="this.outerHTML='&lt;div style=&quot;font-size:28px;font-weight:700;color:#ffffff;letter-spacing:0.3px;&quot;&gt;${companyName}&lt;/div&gt;';" />`
     : `<div style="font-size:28px;font-weight:700;color:#ffffff;letter-spacing:0.3px;">${companyName}</div>`;
 
   const bannerBlock = banner
