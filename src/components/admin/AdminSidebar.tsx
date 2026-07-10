@@ -451,6 +451,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
       if (item.href === '/dashboard/tasks' && openTasksCount > 0) {
         return { ...item, badge: openTasksCount };
       }
+      if (item.href === '/dashboard/staff' && pendingTimeOffCount > 0) {
+        return { ...item, badge: pendingTimeOffCount };
+      }
       return item;
     });
 
