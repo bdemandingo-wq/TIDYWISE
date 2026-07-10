@@ -1011,10 +1011,19 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   {settings.logo_url ? (
                     <div className="w-20 h-20 rounded-lg border bg-background overflow-hidden flex items-center justify-center">
-                      <SignedImage 
-                        src={settings.logo_url} 
-                        alt="Company logo" 
+                      <SignedImage
+                        src={settings.logo_url}
+                        alt={settings.company_name || 'Company logo'}
                         className="w-full h-full object-contain"
+                        onError={(e: any) => {
+                          // Remove the broken image and show the org name cleanly.
+                          const parent = e.currentTarget?.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<span style="font-size:12px;font-weight:600;text-align:center;padding:4px;color:#374151;">${(settings.company_name || 'Logo').replace(/[<>&]/g, '')}</span>`;
+                          }
+                          setLogoLoadFailed(true);
+                        }}
+                        onLoad={() => setLogoLoadFailed(false)}
                       />
                     </div>
                   ) : (
@@ -1041,17 +1050,23 @@ export default function SettingsPage() {
                           ) : (
                             <>
                               <Upload className="w-4 h-4" />
-                              Upload Logo
+                              {settings.logo_url && logoLoadFailed ? 'Re-upload Logo' : 'Upload Logo'}
                             </>
                           )}
                         </span>
                       </Button>
                     </Label>
                     <p className="text-sm text-muted-foreground mt-2">
-                      PNG, JPG up to 2MB. This logo will appear in your sidebar.
+                      PNG, JPG up to 2MB. Appears in your sidebar and in customer emails.
                     </p>
                   </div>
                 </div>
+                {settings.logo_url && logoLoadFailed && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    Your saved logo could not be loaded. Emails will show your company
+                    name as text until you re-upload a working logo above.
+                  </div>
+                )}
               </div>
               
               <Separator />
