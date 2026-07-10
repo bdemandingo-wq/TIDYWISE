@@ -624,6 +624,23 @@ export default function PaymentIntegrationPage() {
               </Card>
             )}
           </>
+        ) : !isOwner ? (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">Stripe isn't connected yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Only the workspace owner can connect this organization's Stripe
+                    account. Ask an owner to open Payment Integration and finish setup.
+                    Once connected, you'll be able to charge saved cards using the
+                    workspace's Stripe account — you don't need your own.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <>
             {/* Pre-connect warning */}
