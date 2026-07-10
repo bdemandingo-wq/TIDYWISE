@@ -9,13 +9,8 @@
 // exempt from the opt-out requirement, but Gmail / Outlook deliverability
 // scoring still rewards having one. Including it on every email also
 // keeps the policy simple: one footer, always.
-//
-// PLACEHOLDER: replace TIDYWISE_MAILING_ADDRESS with the real PO Box
-// before going wide on email sends. A virtual mailbox service
-// (iPostal1, Earth Class Mail) costs ~$10/mo and gives a real street
-// address without exposing the founder's home.
 
-export const TIDYWISE_MAILING_ADDRESS = "TidyWise, P.O. Box [TODO], FL";
+export const TIDYWISE_MAILING_ADDRESS = "TidyWise, 65 SW 12th Ave, Apt 110, Deerfield Beach, FL 33442";
 export const TIDYWISE_SUPPORT_EMAIL = "support@tidywisecleaning.com";
 
 const UNSUBSCRIBE_HREF = `mailto:${TIDYWISE_SUPPORT_EMAIL}?subject=Unsubscribe`;
