@@ -305,15 +305,21 @@ export default function StaffPage() {
       }
     >
       <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
+      <AttentionStrip href="/dashboard/staff" onReasonClick={(r) => handleStaffReason(r.key)} />
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-4">
           <TabsTrigger value="team" className="gap-2">
             <Users className="h-4 w-4" />
             Team
           </TabsTrigger>
-          <TabsTrigger value="documents" className="gap-2">
+          <TabsTrigger value="documents" className="gap-2 relative">
             <FileText className="h-4 w-4" />
             Documents
+            {pendingDocs > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                {pendingDocs}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="activity" className="gap-2">
             <Bell className="h-4 w-4" />
