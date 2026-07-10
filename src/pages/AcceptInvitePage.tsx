@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Preview = { email: string; role: string; organization_name: string; existing_user?: boolean };
+type PreviewResponse = Preview & InviteResponse & { already_accepted?: boolean };
 type InviteResponse = {
   success?: boolean;
   created?: boolean;
@@ -28,10 +29,10 @@ async function getExactFunctionError(data: unknown, error: unknown, fallback = '
   const bodyError = (data as InviteResponse | null)?.error;
   if (bodyError) return bodyError;
 
-  const context = (error as any)?.context;
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
   if (context && typeof context.json === 'function') {
     try {
-      const body = await context.json();
+      const body = await context.json() as { error?: unknown; message?: unknown } | null;
       if (body?.error) return String(body.error);
       if (body?.message) return String(body.message);
     } catch {
@@ -54,6 +55,8 @@ export default function AcceptInvitePage() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [signInErr, setSignInErr] = useState<string | null>(null);
+  const [resetBusy, setResetBusy] = useState(false);
 
   useEffect(() => {
     if (!token) { setLoadErr('Missing invite token'); return; }
@@ -61,7 +64,7 @@ export default function AcceptInvitePage() {
       const { data, error } = await supabase.functions.invoke('accept-team-invite', {
         body: { token, mode: 'preview' },
       });
-      if (error || (data as any)?.error) {
+      if (error || (data as PreviewResponse | null)?.error) {
         setLoadErr(await getExactFunctionError(data, error, 'Invalid invite'));
         return;
       }
@@ -78,17 +81,71 @@ export default function AcceptInvitePage() {
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
       toast.success('You joined the workspace');
       await refetch();
-      if ((data as any)?.organization_id) switchOrganization((data as any).organization_id);
+      if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
       navigate('/dashboard');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to accept');
     } finally { setBusy(false); }
   };
 
+  const signInWithInvitePassword = async (email: string, passwordValue: string, retries = 0) => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password: passwordValue });
+      if (!error) return;
+      lastError = error;
+      if (attempt < retries) await new Promise(resolve => setTimeout(resolve, 700 * (attempt + 1)));
+    }
+    throw lastError || new Error('Sign in failed');
+  };
+
+  const signInExistingThenAccept = async () => {
+    if (!preview) return;
+    if (!password) { toast.error('Enter the existing account password'); return; }
+    setBusy(true);
+    setSignInErr(null);
+    try {
+      await signInWithInvitePassword(preview.email, password);
+
+      const { data, error } = await supabase.functions.invoke('accept-team-invite', {
+        body: { token, mode: 'accept' },
+      });
+      if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
+
+      toast.success('You joined the workspace');
+      await refetch();
+      if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
+      navigate('/dashboard');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      const friendly = /invalid login credentials/i.test(message)
+        ? 'That password does not match the existing account for this invite.'
+        : message;
+      setSignInErr(friendly);
+      toast.error(friendly);
+    } finally { setBusy(false); }
+  };
+
+  const sendPasswordReset = async () => {
+    if (!preview) return;
+    setResetBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(preview.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('Password reset link sent');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to send reset link');
+    } finally { setResetBusy(false); }
+  };
+
   const signUpAndAccept = async () => {
     if (!preview) return;
+    if (preview.existing_user) { await signInExistingThenAccept(); return; }
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setBusy(true);
+    setSignInErr(null);
     try {
       // 1) Server verifies the invite. Existing users are attached immediately;
       // new users are created pre-confirmed and attached immediately.
@@ -101,15 +158,19 @@ export default function AcceptInvitePage() {
 
       // 2) Sign in with the password typed on this screen. For existing users,
       // this must be their existing password; no confirmation email is involved.
-      const { error: siErr } = await supabase.auth.signInWithPassword({ email: preview.email, password });
-      if (siErr) throw siErr;
+      await signInWithInvitePassword(preview.email, password, (sData as InviteResponse)?.created ? 2 : 0);
 
       toast.success('You joined the workspace');
       await refetch();
       if ((sData as InviteResponse)?.organization_id) switchOrganization((sData as InviteResponse).organization_id!);
       navigate('/dashboard');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      const friendly = /invalid login credentials/i.test(message)
+        ? 'That password does not match the existing account for this invite.'
+        : message;
+      setSignInErr(friendly);
+      toast.error(friendly);
     } finally { setBusy(false); }
   };
 
@@ -163,6 +224,21 @@ export default function AcceptInvitePage() {
                 <Label>{preview.existing_user ? 'Password' : 'Create a password'}</Label>
                 <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
               </div>
+              {preview.existing_user && (
+                <p className="text-xs text-muted-foreground">
+                  This email already has an account. Use that account password to join this workspace.
+                </p>
+              )}
+              {signInErr && (
+                <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-xs text-destructive">{signInErr}</p>
+                  {preview.existing_user && (
+                    <Button type="button" variant="outline" size="sm" className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
+                      {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reset password for this account'}
+                    </Button>
+                  )}
+                </div>
+              )}
               <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : preview.existing_user ? 'Sign in & join' : 'Create account & join'}
               </Button>
