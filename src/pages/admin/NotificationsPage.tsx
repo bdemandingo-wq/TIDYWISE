@@ -24,19 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SEOHead } from '@/components/SEOHead';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
-import {
-  useNotificationPreferences,
-  useUpdateNotificationPreferences,
-} from '@/hooks/useNotificationPreferences';
-
-// One-shot legacy migration: the old page exposed three toggles on
-// business_settings. We fold their current values into the new matrix so a
-// user's existing preferences survive the switch to the notification center.
-const LEGACY_MAP: Array<{ col: string; typeKey: string }> = [
-  { col: 'notify_new_booking', typeKey: 'booking.new' },
-  { col: 'notify_cancellations', typeKey: 'booking.cancelled' },
-  { col: 'notify_reminders', typeKey: 'booking.confirmed' },
-];
+import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
 
 const PUSH_CATEGORIES = [
   { key: 'new_booking', label: 'New Booking', description: 'When a customer submits a booking request', icon: Bell },
