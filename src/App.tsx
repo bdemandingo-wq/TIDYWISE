@@ -259,8 +259,9 @@ const App = () => (
                       <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                       <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
-                      {/* Dashboard Routes - All Lazy Loaded (AdminRoute enforces owner/admin role) */}
-                      <Route path="/dashboard" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
+                      {/* Dashboard Routes - All Lazy Loaded (AdminRoute enforces owner/manager role) */}
+                      <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                       <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -268,10 +269,11 @@ const App = () => (
                       <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/payroll" element={<AdminRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/finance" element={<AdminRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/expenses" element={<AdminRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/reports" element={<AdminRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/payroll" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/finance" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/expenses" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/reports" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                       <Route path="/dashboard/settings" element={<AdminRoute><ErrorBoundary featureName="Settings"><SettingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
@@ -400,7 +402,7 @@ const App = () => (
                     <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                     <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
-                    <Route path="/dashboard" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -408,10 +410,11 @@ const App = () => (
                     <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/payroll" element={<AdminRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/finance" element={<AdminRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/expenses" element={<AdminRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/reports" element={<AdminRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/payroll" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/finance" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/expenses" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/reports" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                     <Route path="/dashboard/settings" element={<AdminRoute><ErrorBoundary featureName="Settings"><SettingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />

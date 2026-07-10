@@ -11,8 +11,9 @@ const corsHeaders = {
 interface Body {
   organization_id: string;
   email: string;
-  role: 'owner' | 'admin' | 'manager';
+  role: 'owner' | 'manager';
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -42,12 +43,14 @@ serve(async (req) => {
     const body = (await req.json()) as Body;
     const email = String(body.email || "").toLowerCase().trim();
     const orgId = String(body.organization_id || "");
-    const role = body.role;
-    if (!email || !orgId || !['owner','admin','manager'].includes(role)) {
+    // Legacy 'admin' invites are silently normalized to 'manager'.
+    const role = (body.role as string) === 'admin' ? 'manager' : body.role;
+    if (!email || !orgId || !['owner','manager'].includes(role)) {
       return new Response(JSON.stringify({ error: "invalid_input" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!emailOk) {
       return new Response(JSON.stringify({ error: "invalid_email" }), {
