@@ -34,7 +34,7 @@ function jsonError(status: number, message: string, code?: string): Response {
 export async function requireOrgAdmin(
   req: Request,
   organizationId: string | null | undefined,
-  opts: { allowMember?: boolean } = {}
+  opts: { allowMember?: boolean; ownerOnly?: boolean } = {}
 ): Promise<OrgAdminContext | Response> {
   if (!organizationId) {
     return jsonError(400, "organizationId is required", "missing_organization");
@@ -73,18 +73,32 @@ export async function requireOrgAdmin(
   }
 
   const role = membership.role as string;
-  const allowed = opts.allowMember
-    ? ["owner", "admin", "member"].includes(role)
-    : ["owner", "admin"].includes(role);
+  // Owners and Managers can operate the workspace (charge cards, save cards,
+  // manage bookings). "admin" is a legacy role kept for backwards compatibility.
+  // Owner-only actions must pass { ownerOnly: true }.
+  let allowed: boolean;
+  if (opts.ownerOnly) {
+    allowed = role === "owner";
+  } else if (opts.allowMember) {
+    allowed = ["owner", "admin", "manager", "member"].includes(role);
+  } else {
+    allowed = ["owner", "admin", "manager"].includes(role);
+  }
 
   if (!allowed) {
-    return jsonError(403, "Admin permissions required for this action.", "insufficient_role");
+    return jsonError(
+      403,
+      opts.ownerOnly
+        ? "Only the workspace owner can perform this action."
+        : "Admin permissions required for this action.",
+      opts.ownerOnly ? "owner_required" : "insufficient_role",
+    );
   }
 
   return {
     user: { id: user.id, email: user.email ?? null },
     supabaseAdmin,
-    role: role as "owner" | "admin",
+    role: role as "owner" | "admin" | "manager",
   };
 }
 
