@@ -108,11 +108,13 @@ serve(async (req) => {
     console.log(`[accept-team-invite] ${attemptId} mode=${mode || "accept"} invite=${invite.id} email=${maskEmail(normalizedEmail)}`);
 
     if (mode === 'preview') {
+      const existingUser = await findAuthUserByEmail(admin, normalizedEmail);
       return json({
         email: invite.email,
         role: invite.role,
         organization_name: orgName,
         already_accepted: Boolean(invite.accepted_at),
+        existing_user: Boolean(existingUser),
         attempt_id: attemptId,
       });
     }
