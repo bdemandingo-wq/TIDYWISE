@@ -25,14 +25,12 @@ export const DEFAULT_SLOTS: MobileNavItem[] = [
   { id: 'reports', label: 'Reports', to: '/dashboard/reports', iconKey: 'BarChart3' },
 ];
 
+// Shared Lucide registry (single source of truth). See src/lib/navIcons.ts.
 export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
-  ClipboardList, Bell, Brain, CalendarDays, Repeat, UserCircle,
-  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
-  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
-  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
+  ...NAV_ICON_LIBRARY,
   Plus,
 };
+
 
 export const ALL_NAV_PAGES: Array<{ id: string; label: string; to: string; iconKey: string }> = [
   { id: 'dashboard', label: 'Dashboard', to: '/dashboard', iconKey: 'Home' },
