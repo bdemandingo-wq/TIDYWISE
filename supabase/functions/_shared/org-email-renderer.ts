@@ -199,8 +199,11 @@ export function renderBrandedEmail(opts: RenderOptions): { subject: string; html
     ? `<p style="color:#9ca3af;font-size:12px;margin:0 0 6px;line-height:1.5;">${escapeHtml(brand.emailFooter)}</p>`
     : "";
 
+  // If the logo URL is present it has already been HEAD-verified upstream. The
+  // inline onerror handler is a belt-and-braces safeguard for the preview iframe
+  // (email clients strip event handlers, which is fine — the URL is verified).
   const headerBlock = logo
-    ? `<img src="${escapeHtml(logo)}" alt="${companyName}" height="56" style="max-height:56px;display:block;margin:0 auto;background:#fff;padding:6px 10px;border-radius:8px;" />`
+    ? `<img src="${escapeHtml(logo)}" alt="${companyName}" height="56" style="max-height:56px;display:block;margin:0 auto;background:#fff;padding:6px 10px;border-radius:8px;" onerror="this.outerHTML='&lt;div style=&quot;font-size:28px;font-weight:700;color:#ffffff;letter-spacing:0.3px;&quot;&gt;${companyName}&lt;/div&gt;';" />`
     : `<div style="font-size:28px;font-weight:700;color:#ffffff;letter-spacing:0.3px;">${companyName}</div>`;
 
   const bannerBlock = banner
