@@ -142,254 +142,80 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending booking confirmation email to:", customerEmail, "for organization:", booking.organizationId);
 
-    // Fetch email settings from organization_email_settings table (SINGLE SOURCE OF TRUTH)
+    // Fetch email identity (single source of truth) + full branding via shared loader
     const emailSettingsResult = await getOrgEmailSettings(booking.organizationId);
-    
     if (!emailSettingsResult.success || !emailSettingsResult.settings) {
       console.error("Failed to get email settings:", emailSettingsResult.error);
-      return new Response(JSON.stringify({ 
-        error: emailSettingsResult.error || "Email settings not configured" 
+      return new Response(JSON.stringify({
+        error: emailSettingsResult.error || "Email settings not configured"
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+    const senderEmail = emailSettingsResult.settings.from_email;
 
-    const emailSettings = emailSettingsResult.settings;
-    const senderEmail = emailSettings.from_email;
-    const companyName = emailSettings.from_name;
-    // Use org-specific Resend API key if configured, otherwise fall back to global
-    const resendApiKey = emailSettings.resend_api_key || RESEND_API_KEY;
+    const brandResult = await loadOrgBrand(booking.organizationId);
+    if (!brandResult.success) {
+      return new Response(JSON.stringify({ error: brandResult.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const brand = brandResult.brand;
+    const companyName = brand.companyName;
 
-    // Fetch branding + custom confirmation copy from business_settings
-    let logoUrl = "";
-    let primaryColor = "#1e5bb0";
-    let accentColor = "#14b8a6";
+    // Load admin's custom template copy from business_settings
     let customConfirmationBody = "";
     let customConfirmationSubject = "";
-
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
       const { data: settings } = await supabase
         .from('business_settings')
-        .select('logo_url, primary_color, accent_color, confirmation_email_subject, confirmation_email_body')
+        .select('confirmation_email_subject, confirmation_email_body')
         .eq('organization_id', booking.organizationId)
         .maybeSingle();
-
       if (settings) {
-        logoUrl = settings.logo_url || "";
-        primaryColor = settings.primary_color || "#1e5bb0";
-        accentColor = settings.accent_color || "#14b8a6";
         customConfirmationBody = settings.confirmation_email_body || "";
         customConfirmationSubject = settings.confirmation_email_subject || "";
       }
     }
 
-    console.log("Using org email settings - sender:", senderEmail, "name:", companyName);
+    console.log("[send-booking-email] using org", booking.organizationId, "sender:", senderEmail);
 
-    const fullAddress = [
-      booking.address,
-      booking.city,
-      booking.state,
-      booking.zipCode,
-    ]
-      .filter(Boolean)
-      .join(", ");
-
+    const fullAddress = [booking.address, booking.city, booking.state, booking.zipCode]
+      .filter(Boolean).join(", ");
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
 
-    // Render template variables for custom subject/body set by the admin
-    const renderVars = (input: string): string => {
-      const map: Record<string, string> = {
-        customer_name: customerName || "there",
-        customer_email: customerEmail,
-        customer_phone: booking.customerPhone || "",
-        company_name: companyName,
-        service_name: booking.serviceName || "",
-        scheduled_date: booking.appointmentDate || "",
-        scheduled_time: booking.appointmentTime || "",
-        appointment_date: booking.appointmentDate || "",
-        appointment_time: booking.appointmentTime || "",
-        address: fullAddress || booking.address || "",
-        home_size: booking.homeSize || "",
-        extras: extrasText,
-        total_amount: String(booking.totalPrice ?? ""),
-        booking_number: booking.confirmationNumber || "",
-      };
-      return input.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (_m, key) => map[key] ?? "");
+    const defaultBody =
+      `Hi {{customer_name}},\n\n` +
+      `Thank you for booking with ${companyName}! You're all set.\n\n` +
+      `Please review the appointment details below. Reply to this email if anything looks off.\n\n` +
+      `We look forward to serving you!`;
+
+    const bookingData = {
+      customer_name: customerName || "there",
+      booking_number: booking.confirmationNumber || "",
+      service_name: booking.serviceName || "",
+      scheduled_date: booking.appointmentDate || "",
+      scheduled_time: booking.appointmentTime || "",
+      address: fullAddress || booking.address || "",
+      total_amount: String(booking.totalPrice ?? ""),
+      company_name: companyName,
     };
 
-    const escapeHtml = (s: string) => s
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const { subject: emailSubject, html: emailHtml } = renderBrandedEmail({
+      brand,
+      subject: customConfirmationSubject || "Booking Confirmed - {{scheduled_date}}",
+      bodyText: customConfirmationBody || defaultBody,
+      data: bookingData,
+      showAppointmentCard: true,
+      bannerLabel: "Booking Confirmed",
+    });
 
-    // Build the custom intro block (admin-edited copy) styled in the brand color.
-    // Falls back to the original default intro if no custom body is set.
-    const customIntroHtml = customConfirmationBody
-      ? `<div style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};line-height:1.6;white-space:pre-wrap;">${escapeHtml(renderVars(customConfirmationBody))}</div>`
-      : `
-              <p style="font-size:18px;margin:0 0 20px 0;color:${primaryColor};font-weight:600;">Hi ${customerName || "there"},</p>
-              <p style="margin:0 0 15px 0;font-size:15px;color:${primaryColor};">Thank you for booking with <strong>${companyName}</strong>! <strong>You're all set!</strong></p>
-              <p style="margin:0 0 25px 0;font-size:15px;color:${primaryColor};">Please review the details below to ensure everything is correct.</p>
-            `;
+    void extrasText; // extras rendered in admin notification below
 
-    const emailSubject = customConfirmationSubject
-      ? renderVars(customConfirmationSubject)
-      : `Booking Confirmed - ${booking.appointmentDate || ""}`;
-
-    // Build logo HTML if available
-    const logoHtml = logoUrl 
-      ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:200px;margin-bottom:10px;" />`
-      : `<div style="font-size:32px;font-weight:bold;color:#ffffff;">${companyName}</div>`;
-
-    const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Booking Confirmation</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f5f5f5;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#333333;line-height:1.6;">
-  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f5f5f5;">
-    <tr>
-      <td style="padding:20px;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin:0 auto;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
-          
-          <!-- Header with Logo -->
-          <tr>
-            <td style="background:linear-gradient(135deg, ${primaryColor} 0%, ${accentColor} 100%);padding:40px 30px;text-align:center;">
-              ${logoHtml}
-              <p style="color:rgba(255,255,255,0.9);font-size:14px;margin:10px 0 0 0;letter-spacing:0.5px;">Professional Cleaning Services</p>
-            </td>
-          </tr>
-          
-          <!-- Success Banner -->
-          <tr>
-            <td style="background-color:#22c55e;padding:16px;text-align:center;">
-              <span style="color:#ffffff;font-size:18px;font-weight:600;">✓ Booking Confirmed!</span>
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="padding:40px 30px;">
-              ${customIntroHtml}
-              
-              
-              <!-- Appointment Details Card -->
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;margin-bottom:25px;border:1px solid #e5e7eb;">
-                <tr>
-                  <td style="padding:25px;">
-                    <h3 style="margin:0 0 20px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Appointment Details</h3>
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;width:40%;">Service</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.serviceName || "Cleaning Service"}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Date</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.appointmentDate || ""}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Time</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.appointmentTime || ""}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Address</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${fullAddress || booking.address || ""}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Home Size</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${booking.homeSize || "Not specified"}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;color:#6b7280;font-size:14px;">Extras</td>
-                        <td style="padding:12px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#1f2937;font-size:14px;">${extrasText}</td>
-                      </tr>
-                      <tr>
-                        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Total</td>
-                        <td style="padding:12px 0;text-align:right;font-weight:bold;font-size:20px;color:#22c55e;">$${booking.totalPrice ?? ""}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-              
-              <!-- Note Box -->
-              <div style="background-color:#fef3c7;padding:16px 20px;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:30px;">
-                <p style="margin:0;font-size:14px;color:#92400e;"><strong>Note:</strong> Please allow us a 1-hour window to deal with traffic, parking, and other surprises.</p>
-              </div>
-              
-              <!-- Important Reminders -->
-              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Important Reminders</h3>
-              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
-                <li style="margin-bottom:10px;">If you would like to add extras not included in your cleaning, please notify us as quickly as possible.</li>
-                <li style="margin-bottom:10px;">Communicate your expectations with your cleaner when they arrive. Please do a review with the cleaner(s) prior to letting them go.</li>
-                <li style="margin-bottom:10px;">Make sure the cleaner(s) has space to clean. Children, pets, and other adults in the way can be hazardous.</li>
-                <li style="margin-bottom:10px;">We recommend minimizing clutter as much as possible. The cleaners will need access to surfaces to clean.</li>
-                <li style="margin-bottom:10px;"><strong>Please be home when the cleaners finish cleaning.</strong> If the client is not home for the final walkthrough, they surrender the right to a reclean.</li>
-              </ul>
-              
-              <!-- Pricing & Adjustments -->
-              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Pricing &amp; Adjustments</h3>
-              <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">The price quoted is based on the home being accurately represented at the time of booking.</p>
-              <p style="margin:0 0 25px 0;font-size:14px;color:#4b5563;">If the cleaner determines a more in-depth cleaning is needed, the cost may be subject to increase. <strong>This will never be done without a conversation and your consent.</strong></p>
-              
-              <!-- Cancellation Policy -->
-              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Cancellation &amp; Rescheduling Policy</h3>
-              <p style="margin:0 0 10px 0;font-size:14px;color:#4b5563;">We enforce a <strong>1 full business day</strong> cancellation or modification rule.</p>
-              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
-                <li style="margin-bottom:8px;">More than 1 full business day notice → <strong>No fee</strong></li>
-                <li style="margin-bottom:8px;">Less than 1 full business day notice → <strong>$50 rebooking/cancellation fee</strong></li>
-                <li style="margin-bottom:8px;">Less than 24 hours before appointment OR unable to gain access → <strong>100% of appointment cost</strong></li>
-              </ul>
-              
-              <!-- Payment Info -->
-              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Payment Information</h3>
-              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
-                <li style="margin-bottom:8px;">We collect your credit card information the day you book with us.</li>
-                <li style="margin-bottom:8px;">Funds will not be withdrawn until <strong>after</strong> your appointment has been completed.</li>
-                <li style="margin-bottom:8px;">A hold will be put on the cost of your appointment 24 hours before your booking to ensure funds are available.</li>
-              </ul>
-              
-              <!-- Satisfaction Policy -->
-              <h3 style="margin:30px 0 15px 0;color:${primaryColor};font-size:14px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:2px solid ${primaryColor};padding-bottom:10px;">Satisfaction Policy</h3>
-              <ul style="margin:0 0 25px 0;padding-left:20px;color:#4b5563;font-size:14px;">
-                <li style="margin-bottom:8px;">If you are not happy with the service, you have a <strong>24-hour period</strong> to notify us.</li>
-                <li style="margin-bottom:8px;">The cleaner(s) will return to handle any issues at no additional charge.</li>
-                <li style="margin-bottom:8px;">There are no refunds for any services provided.</li>
-              </ul>
-              
-              <hr style="border:none;border-top:1px solid #e5e7eb;margin:30px 0;">
-              
-              <p style="margin:0 0 10px 0;text-align:center;font-size:14px;color:#6b7280;">
-                Questions? Reply to this email or contact us anytime.
-              </p>
-              <p style="margin:0;text-align:center;font-size:16px;font-weight:bold;color:${primaryColor};">
-                Thank you for choosing ${companyName}!
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color:#1f2937;padding:25px;text-align:center;">
-              <p style="color:#ffffff;font-size:16px;font-weight:600;margin:0 0 5px 0;">${companyName}</p>
-              <p style="color:#9ca3af;font-size:12px;margin:0;">
-                © ${new Date().getFullYear()} ${companyName}. All rights reserved.
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-    `;
 
     // Send via unified org sender (Gmail SMTP → Resend fallback)
     const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
