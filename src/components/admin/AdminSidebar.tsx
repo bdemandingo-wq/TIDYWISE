@@ -265,88 +265,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     }
   };
 
-  // Get pending booking requests count for badge
-  const { data: pendingRequestsCount = 0 } = useQuery({
-    queryKey: ['pending-booking-requests-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { count, error } = await supabase
-        .from('client_booking_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .eq('status', 'pending');
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+  // Unified badge counts (see useSidebarBadges for details).
+  const badgeCounts = useSidebarBadges();
 
-  // Unread SMS messages count (sum of unread_count across conversations)
-  const { data: unreadMessagesCount = 0 } = useQuery({
-    queryKey: ['unread-messages-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { data, error } = await supabase
-        .from('sms_conversations')
-        .select('unread_count')
-        .eq('organization_id', organization.id);
-      if (error || !data) return 0;
-      return data.reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000,
-  });
-
-  // Incomplete tasks count (badge disappears once task is checked off)
-  const { data: openTasksCount = 0 } = useQuery({
-    queryKey: ['open-tasks-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { count, error } = await supabase
-        .from('tasks_and_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .in('type', ['daily', 'weekly', 'monthly'])
-        .eq('is_completed', false);
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000,
-  });
-
-  // Pending time-off requests count for Staff nav badge
-  const { data: pendingTimeOffCount = 0 } = useQuery({
-    queryKey: ['time-off-pending-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { count } = await (supabase as any)
-        .from('time_off_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .eq('status', 'pending');
-      return count || 0;
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000,
-  });
-
-  // Realtime — invalidate the pending count when a request is created/updated
-  useEffect(() => {
-    if (!organization?.id) return;
-    const ch = supabase
-      .channel(`sidebar-time-off-${organization.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'time_off_requests', filter: `organization_id=eq.${organization.id}` },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['time-off-pending-count', organization.id] });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [organization?.id, queryClient]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
