@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
         type: "time_off_request",
         title: "New time-off request",
         message: `${staffName} requested time off (${range})`,
+        link: "/dashboard/staff?tab=time-off",
         metadata: { request_id: r.id, staff_id: r.staff_id },
         dedupe_key: `time_off_req:${r.id}`,
       });
