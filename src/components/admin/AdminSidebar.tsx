@@ -44,6 +44,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
 import { useSidebarBadgesFull, type BadgeReason } from '@/hooks/useSidebarBadges';
+import { useSidebarHiddenItems } from '@/hooks/useSidebarHiddenItems';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { Button } from '@/components/ui/button';
