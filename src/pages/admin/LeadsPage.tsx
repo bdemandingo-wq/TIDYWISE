@@ -50,6 +50,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { fmt } from '@/lib/activeCurrency';
 import { dispatchZapier } from '@/lib/zapier';
 import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/components/admin/LeadTagsEditor';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 
 
