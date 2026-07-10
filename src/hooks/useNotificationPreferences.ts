@@ -91,17 +91,21 @@ export function useNotificationPreferences() {
           sidebar_badges: { ...SIDEBAR_DEFAULTS },
           bell_notifications: { ...BELL_DEFAULTS },
           channels: { ...CHANNEL_DEFAULTS },
+          notification_matrix: {},
+          snoozed_until: {},
         };
       }
       const { data } = await (supabase as any)
         .from('organization_notification_preferences')
-        .select('sidebar_badges, bell_notifications, channels')
+        .select('sidebar_badges, bell_notifications, channels, notification_matrix, snoozed_until')
         .eq('organization_id', orgId)
         .maybeSingle();
       return {
         sidebar_badges: mergedFlags(data?.sidebar_badges, SIDEBAR_DEFAULTS),
         bell_notifications: mergedFlags(data?.bell_notifications, BELL_DEFAULTS),
         channels: mergedFlags(data?.channels, CHANNEL_DEFAULTS),
+        notification_matrix: (data?.notification_matrix || {}) as ChannelMatrix,
+        snoozed_until: (data?.snoozed_until || {}) as SnoozeMap,
       };
     },
     staleTime: 60_000,
@@ -111,6 +115,8 @@ export function useNotificationPreferences() {
     sidebar_badges: { ...SIDEBAR_DEFAULTS },
     bell_notifications: { ...BELL_DEFAULTS },
     channels: { ...CHANNEL_DEFAULTS },
+    notification_matrix: {},
+    snoozed_until: {},
   };
 }
 
