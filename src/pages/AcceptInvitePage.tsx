@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Preview = { email: string; role: string; organization_name: string; existing_user?: boolean };
+type PreviewResponse = Preview & InviteResponse & { already_accepted?: boolean };
 type InviteResponse = {
   success?: boolean;
   created?: boolean;
@@ -28,10 +29,10 @@ async function getExactFunctionError(data: unknown, error: unknown, fallback = '
   const bodyError = (data as InviteResponse | null)?.error;
   if (bodyError) return bodyError;
 
-  const context = (error as any)?.context;
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
   if (context && typeof context.json === 'function') {
     try {
-      const body = await context.json();
+      const body = await context.json() as { error?: unknown; message?: unknown } | null;
       if (body?.error) return String(body.error);
       if (body?.message) return String(body.message);
     } catch {
@@ -63,7 +64,7 @@ export default function AcceptInvitePage() {
       const { data, error } = await supabase.functions.invoke('accept-team-invite', {
         body: { token, mode: 'preview' },
       });
-      if (error || (data as any)?.error) {
+      if (error || (data as PreviewResponse | null)?.error) {
         setLoadErr(await getExactFunctionError(data, error, 'Invalid invite'));
         return;
       }
@@ -80,7 +81,7 @@ export default function AcceptInvitePage() {
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
       toast.success('You joined the workspace');
       await refetch();
-      if ((data as any)?.organization_id) switchOrganization((data as any).organization_id);
+      if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
       navigate('/dashboard');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to accept');
