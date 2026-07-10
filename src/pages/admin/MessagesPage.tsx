@@ -115,6 +115,7 @@ const formatUnreadCount = (count: number) => {
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
