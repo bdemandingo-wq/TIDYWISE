@@ -74,6 +74,7 @@ serve(async (req) => {
         ? "Reminder: {{service_name}} on {{scheduled_date}}"
         : "Booking Confirmation - {{booking_number}}"),
       bodyText: body.body || "",
+      sections: Array.isArray(body.sections) ? body.sections as any : undefined,
       data: sample,
       showAppointmentCard: true,
       bannerLabel: isReminder ? "Appointment Reminder" : "Booking Confirmed",
