@@ -50,6 +50,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { fmt } from '@/lib/activeCurrency';
 import { dispatchZapier } from '@/lib/zapier';
 import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/components/admin/LeadTagsEditor';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 
 
@@ -204,6 +205,26 @@ export default function LeadsPage() {
       toast.success('Lead deleted');
     },
     onError: (error: any) => toast.error(error.message),
+  });
+
+  const markFollowUpsHandledMutation = useMutation({
+    mutationFn: async () => {
+      if (!organization?.id) return 0;
+      const { data, error } = await supabase
+        .from('leads')
+        .update({ status: 'contacted', updated_at: new Date().toISOString() })
+        .eq('organization_id', organization.id)
+        .eq('status', 'follow_up')
+        .select('id');
+      if (error) throw error;
+      return data?.length || 0;
+    },
+    onSuccess: (n) => {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-leads'] });
+      toast.success(n ? `Marked ${n} follow-up${n === 1 ? '' : 's'} handled` : 'No follow-ups to clear');
+    },
+    onError: (e: any) => toast.error(e.message || 'Failed to mark follow-ups'),
   });
 
   const convertToCustomer = async (lead: Lead) => {
@@ -454,6 +475,18 @@ export default function LeadsPage() {
       }
     >
       <PlanFeatureGate feature="leads">
+      <AttentionStrip
+        href="/dashboard/leads"
+        onReasonClick={(r) => {
+          if (r.key === 'new') setStatusFilter('new');
+          else if (r.key === 'follow_up') setStatusFilter('follow_up');
+        }}
+        clearAction={{
+          label: 'Mark all follow-ups handled',
+          disabled: markFollowUpsHandledMutation.isPending,
+          onClick: () => markFollowUpsHandledMutation.mutate(),
+        }}
+      />
       {/* Lead Funnel Report */}
       {showFunnel && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

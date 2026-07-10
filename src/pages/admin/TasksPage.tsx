@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { SortableTaskList } from '@/components/admin/tasks/SortableTaskList';
 import { SEOHead } from '@/components/SEOHead';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 type TaskType = 'daily' | 'weekly' | 'monthly' | 'note';
 
@@ -148,6 +149,27 @@ export default function TasksPage() {
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tasks-and-notes'] }); toast.success('Task updated'); },
     onError: () => toast.error('Failed to update task'),
+  });
+
+  // Bulk mark all incomplete tasks (any type) as complete
+  const markAllCompleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!organizationId) return 0;
+      const ids = tasks.filter(t => !t.is_completed && t.type !== 'note').map(t => t.id);
+      if (ids.length === 0) return 0;
+      const { error } = await supabase
+        .from('tasks_and_notes')
+        .update({ is_completed: true, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (n) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks-and-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-tasks'] });
+      if (n) toast.success(`Marked ${n} task${n === 1 ? '' : 's'} complete`);
+    },
+    onError: () => toast.error('Failed to mark tasks complete'),
   });
 
   // Reorder
@@ -266,6 +288,14 @@ export default function TasksPage() {
       }
     >
       <div className="space-y-6">
+        <AttentionStrip
+          href="/dashboard/tasks"
+          clearAction={{
+            label: 'Mark all complete',
+            disabled: markAllCompleteMutation.isPending || tasks.filter(t => !t.is_completed && t.type !== 'note').length === 0,
+            onClick: () => markAllCompleteMutation.mutate(),
+          }}
+        />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TaskType)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="daily" className="gap-2">

@@ -43,7 +43,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
-import { useSidebarBadges } from '@/hooks/useSidebarBadges';
+import { useSidebarBadgesFull, type BadgeReason } from '@/hooks/useSidebarBadges';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -128,6 +129,32 @@ interface NavItem {
   href: string;
   icon: typeof Home;
   badge?: number;
+  breakdown?: BadgeReason[];
+}
+
+function BadgeWithReasons({ count, reasons }: { count: number; reasons?: BadgeReason[] }) {
+  const items = (reasons || []).filter(r => r.count > 0);
+  const badge = (
+    <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
+      {count > 9 ? '9+' : count}
+    </Badge>
+  );
+  if (items.length === 0) return badge;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild><span className="ml-auto">{badge}</span></TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs">
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold mb-1">Needs your attention</p>
+          {items.map(r => (
+            <p key={r.key} className="text-xs">
+              {r.count} {r.count === 1 ? r.label : `${r.label}s`}
+            </p>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 interface AdminSidebarProps {
@@ -189,9 +216,7 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
         <item.icon className="w-5 h-5 flex-shrink-0" />
         {(isOpen || isMobile) && <span>{item.name}</span>}
         {item.badge !== undefined && item.badge > 0 && (
-          <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
-            {item.badge > 9 ? '9+' : item.badge}
-          </Badge>
+          <BadgeWithReasons count={item.badge} reasons={item.breakdown} />
         )}
       </Link>
     </div>
@@ -214,9 +239,7 @@ function StaticNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sortabl
       <item.icon className="w-5 h-5 flex-shrink-0" />
       {(isOpen || isMobile) && <span>{item.name}</span>}
       {item.badge !== undefined && item.badge > 0 && (
-        <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
-          {item.badge > 9 ? '9+' : item.badge}
-        </Badge>
+        <BadgeWithReasons count={item.badge} reasons={item.breakdown} />
       )}
     </Link>
   );
@@ -265,8 +288,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     }
   };
 
-  // Unified badge counts (see useSidebarBadges for details).
-  const badgeCounts = useSidebarBadges();
+  // Unified badge counts + breakdowns (see useSidebarBadges for details).
+  const { counts: badgeCounts, breakdowns: badgeBreakdowns } = useSidebarBadgesFull();
 
 
   const sensors = useSensors(
@@ -365,7 +388,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
     .map(item => {
       const count = badgeCounts[item.href] || 0;
-      return count > 0 ? { ...item, badge: count } : item;
+      return count > 0
+        ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
+        : item;
     });
 
 
