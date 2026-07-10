@@ -17,7 +17,7 @@ const corsHeaders = {
 export interface OrgAdminContext {
   user: { id: string; email?: string | null };
   supabaseAdmin: SupabaseClient;
-  role: "owner" | "admin";
+  role: "owner" | "admin" | "manager";
 }
 
 function jsonError(status: number, message: string, code?: string): Response {
