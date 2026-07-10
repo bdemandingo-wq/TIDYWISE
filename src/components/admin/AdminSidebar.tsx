@@ -254,6 +254,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const isMobileDevice = useIsMobile();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Listen for the edge-swipe gesture dispatched by AdminLayout so the mobile
+  // Sheet actually opens (its state is local to this component).
+  useEffect(() => {
+    const openHandler = () => setMobileOpen(true);
+    const closeHandler = () => setMobileOpen(false);
+    window.addEventListener('tw:open-mobile-sidebar', openHandler);
+    window.addEventListener('tw:close-mobile-sidebar', closeHandler);
+    return () => {
+      window.removeEventListener('tw:open-mobile-sidebar', openHandler);
+      window.removeEventListener('tw:close-mobile-sidebar', closeHandler);
+    };
+  }, []);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);

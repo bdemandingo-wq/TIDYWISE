@@ -1,4 +1,4 @@
-import { ReactNode, useRef, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
@@ -21,29 +21,56 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
-
-  // Edge-swipe to open/close the sidebar on touch devices — swiping right
-  // from the left ~24px edge opens it; swiping left anywhere closes it.
-  // Kills the hamburger-hunt on every page.
-  const touchRef = useRef<{ x: number; y: number; fromEdge: boolean } | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    touchRef.current = { x: t.clientX, y: t.clientY, fromEdge: t.clientX <= 24 };
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchRef.current;
-    touchRef.current = null;
-    if (!start) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - start.x;
-    const dy = Math.abs(t.clientY - start.y);
-    if (dy > 60) return; // vertical scroll, not a swipe
-    if (start.fromEdge && dx > 60 && !sidebarOpen) setSidebarOpen(true);
-    else if (dx < -60 && sidebarOpen && start.x <= 288) setSidebarOpen(false);
-  };
-
-  // Hide the top header bar on mobile for immersive tabs (Messages, Scheduler)
   const isMobileView = useIsMobile();
+
+  // Edge-swipe to open the sidebar on touch devices. React synthetic touch
+  // handlers on the wrapper miss touches that land on fixed-positioned
+  // children (header, bottom nav, sheet overlays), so we attach native
+  // document-level listeners. On mobile we dispatch a global event so the
+  // AdminSidebar Sheet (which owns its own open state) actually opens.
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let fromEdge = false;
+    let tracking = false;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startX = t.clientX;
+      startY = t.clientY;
+      fromEdge = t.clientX <= 28;
+      tracking = true;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = Math.abs(t.clientY - startY);
+      if (dy > 60) return;
+      if (isMobileView) {
+        if (fromEdge && dx > 50) {
+          window.dispatchEvent(new CustomEvent('tw:open-mobile-sidebar'));
+        } else if (dx < -60 && startX <= 288) {
+          window.dispatchEvent(new CustomEvent('tw:close-mobile-sidebar'));
+        }
+        return;
+      }
+      // Desktop swipe (rare, but preserved)
+      if (fromEdge && dx > 60 && !sidebarOpen) setSidebarOpen(true);
+      else if (dx < -60 && sidebarOpen && startX <= 288) setSidebarOpen(false);
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    document.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [isMobileView, sidebarOpen]);
   const isInsideConversation = Boolean(
     matchPath('/dashboard/messages/:conversationId', location.pathname)
   );
@@ -57,7 +84,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   // App.tsx so the CopilotProvider survives route changes — otherwise every
   // navigation would remount the provider and clear the conversation.
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background">
       <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className={cn(
