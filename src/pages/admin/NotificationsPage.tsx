@@ -11,6 +11,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SEOHead } from '@/components/SEOHead';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
 
 interface NotificationSettings {
   notify_new_booking: boolean;
