@@ -122,6 +122,7 @@ export function AdminNotificationBell() {
         return {
           id: `request-${n.id}`,
           type: 'customer' as const,
+          typeKey: 'client.portal_request',
           title: `New Booking Request`,
           message: `${customerName} requested ${serviceName} on ${requestDate}`,
           is_read: n.is_read,
