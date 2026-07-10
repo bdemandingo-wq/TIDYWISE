@@ -7,61 +7,13 @@ import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgId } from '@/hooks/useOrgId';
-import {
-  Home,
-  Calendar,
-  ClipboardList,
-  Repeat,
-  Users,
-  Target,
-  MapPin,
-  MessageSquare,
-  Briefcase,
-  UserCircle,
-  CheckSquare,
-  Package,
-  DollarSign,
-  Receipt,
-  BarChart3,
-  Sparkles,
-  CreditCard,
-  HelpCircle,
-  Tag,
-  PanelLeft,
-  RotateCcw,
-  Loader2,
-  Zap,
-  Bell,
-  Navigation as NavigationIcon,
-} from 'lucide-react';
+import { PanelLeft, RotateCcw, Loader2 } from 'lucide-react';
+import { NAV_ITEMS, resolveNavIcon } from '@/lib/navIcons';
+import { useNavIconOverrides } from '@/hooks/useNavIconOverrides';
+import { NavIconPicker } from '@/components/admin/NavIconPicker';
 
-const sidebarItems = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home, required: true },
-  { name: 'Scheduler', href: '/dashboard/scheduler', icon: Calendar },
-  { name: 'Tracking', href: '/dashboard/tracking', icon: NavigationIcon },
-  { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
-  { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
-  { name: 'Customers', href: '/dashboard/customers', icon: Users },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'Leads', href: '/dashboard/leads', icon: Target },
-  { name: 'Operations', href: '/dashboard/operations', icon: MapPin },
-  { name: 'Campaigns', href: '/dashboard/campaigns', icon: Zap },
-  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquare },
-  { name: 'Services', href: '/dashboard/services', icon: Briefcase },
-  { name: 'Staff', href: '/dashboard/staff', icon: UserCircle },
-  { name: 'Checklists', href: '/dashboard/checklists', icon: CheckSquare },
-  { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
-  { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
-  { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
-  { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
-  { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Sparkles },
-  { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
-  { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
-  { name: 'Help Videos', href: '/dashboard/help', icon: HelpCircle },
-];
+// Dashboard is always required/visible. Everything else can be toggled off.
+const REQUIRED_HREFS = new Set(['/dashboard']);
 
 export function SidebarVisibilitySettings() {
   const [hiddenItems, setHiddenItems] = useState<string[]>([]);
@@ -70,12 +22,11 @@ export function SidebarVisibilitySettings() {
   const [hasChanges, setHasChanges] = useState(false);
   const { user } = useAuth();
   const { organizationId } = useOrgId();
+  const { overrides, setIcon, resetAll: resetIcons } = useNavIconOverrides();
 
-  // Load from database on mount
   useEffect(() => {
     const loadPreferences = async () => {
       if (!user?.id || !organizationId) return;
-      
       const { data } = await supabase
         .from('user_preferences')
         .select('preference_value')
@@ -83,12 +34,10 @@ export function SidebarVisibilitySettings() {
         .eq('organization_id', organizationId)
         .eq('preference_key', 'sidebar_hidden')
         .maybeSingle();
-      
       if (data?.preference_value) {
         const hidden = data.preference_value as string[];
         setHiddenItems(hidden);
         setInitialHiddenItems(hidden);
-        // Sync to localStorage for sidebar component
         localStorage.setItem('tidywise_nav_hidden', JSON.stringify(hidden));
         window.dispatchEvent(new Event('navHiddenChanged'));
       } else {
@@ -98,52 +47,21 @@ export function SidebarVisibilitySettings() {
         window.dispatchEvent(new Event('navHiddenChanged'));
       }
     };
-    
     loadPreferences();
   }, [user?.id, organizationId]);
 
-  // Track changes
   useEffect(() => {
     const changed = JSON.stringify(hiddenItems.sort()) !== JSON.stringify(initialHiddenItems.sort());
     setHasChanges(changed);
   }, [hiddenItems, initialHiddenItems]);
-
-  const saveToDatabase = async (newHidden: string[]) => {
-    if (!user?.id || !organizationId) return;
-    
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          organization_id: organizationId,
-          preference_key: 'sidebar_hidden',
-          preference_value: newHidden,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,organization_id,preference_key'
-        });
-      
-      if (error) throw error;
-    } catch (e) {
-      console.error('Error saving preferences:', e);
-      toast.error('Failed to save preference');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const toggleItem = (href: string) => {
     setHiddenItems(prev => {
       const newHidden = prev.includes(href)
         ? prev.filter(h => h !== href)
         : [...prev, href];
-      
-      // Update localStorage for instant preview
       localStorage.setItem('tidywise_nav_hidden', JSON.stringify(newHidden));
       window.dispatchEvent(new Event('navHiddenChanged'));
-      
       return newHidden;
     });
   };
@@ -159,12 +77,8 @@ export function SidebarVisibilitySettings() {
           preference_key: 'sidebar_hidden',
           preference_value: hiddenItems,
           updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,organization_id,preference_key'
-        });
-      
+        }, { onConflict: 'user_id,organization_id,preference_key' });
       if (error) throw error;
-      
       setInitialHiddenItems([...hiddenItems]);
       toast.success('Sidebar settings saved');
     } catch (e) {
@@ -181,8 +95,7 @@ export function SidebarVisibilitySettings() {
     localStorage.removeItem('tidywise_nav_hidden');
     localStorage.removeItem('tidywise_nav_order');
     window.dispatchEvent(new Event('navHiddenChanged'));
-    
-    // Delete from database
+
     if (user?.id && organizationId) {
       await supabase
         .from('user_preferences')
@@ -191,11 +104,23 @@ export function SidebarVisibilitySettings() {
         .eq('organization_id', organizationId)
         .eq('preference_key', 'sidebar_hidden');
     }
-    
+    try {
+      await resetIcons();
+    } catch (e) {
+      console.error('Error resetting icons:', e);
+    }
     toast.success('Sidebar reset to default');
   };
 
-  const visibleCount = sidebarItems.length - hiddenItems.length;
+  const handlePickIcon = async (navId: string, key: string) => {
+    try {
+      await setIcon(navId, key);
+    } catch {
+      toast.error('Could not save icon');
+    }
+  };
+
+  const visibleCount = NAV_ITEMS.length - hiddenItems.length;
 
   return (
     <Card>
@@ -207,7 +132,7 @@ export function SidebarVisibilitySettings() {
               Sidebar Navigation
             </CardTitle>
             <CardDescription className="mt-1">
-              Choose which menu items to show in your sidebar. Drag items in the sidebar to reorder them.
+              Toggle items on or off and pick a Lucide icon for each. Changes sync across desktop, mobile, and the app.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -215,10 +140,10 @@ export function SidebarVisibilitySettings() {
               <RotateCcw className="w-4 h-4" />
               Reset
             </Button>
-            <Button 
-              size="sm" 
-              onClick={handleSave} 
-              className="gap-2" 
+            <Button
+              size="sm"
+              onClick={handleSave}
+              className="gap-2"
               disabled={saving || !hasChanges}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -237,22 +162,23 @@ export function SidebarVisibilitySettings() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-3">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
+        <div className="grid gap-2">
+          {NAV_ITEMS.map((item) => {
+            const Icon = resolveNavIcon(item, overrides);
             const isHidden = hiddenItems.includes(item.href);
-            const isRequired = item.required;
-            
+            const isRequired = REQUIRED_HREFS.has(item.href);
+            const currentKey = overrides[item.id] ?? item.defaultIconKey;
+
             return (
               <div
-                key={item.href}
-                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                key={item.id}
+                className={`flex items-center justify-between gap-3 p-3 rounded-lg border transition-colors ${
                   isHidden ? 'bg-muted/50 opacity-60' : 'bg-card'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className={`w-5 h-5 ${isHidden ? 'text-muted-foreground' : 'text-primary'}`} />
-                  <div>
+                <div className="flex items-center gap-3 min-w-0">
+                  <Icon className={`w-5 h-5 shrink-0 ${isHidden ? 'text-muted-foreground' : 'text-primary'}`} />
+                  <div className="min-w-0">
                     <span className={`font-medium ${isHidden ? 'text-muted-foreground' : ''}`}>
                       {item.name}
                     </span>
@@ -261,14 +187,18 @@ export function SidebarVisibilitySettings() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {!isRequired && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <NavIconPicker
+                    label={item.name}
+                    currentKey={currentKey}
+                    onPick={(k) => handlePickIcon(item.id, k)}
+                  />
+                  {!isRequired ? (
                     <Switch
                       checked={!isHidden}
                       onCheckedChange={() => toggleItem(item.href)}
                     />
-                  )}
-                  {isRequired && (
+                  ) : (
                     <span className="text-xs text-muted-foreground">Always visible</span>
                   )}
                 </div>
@@ -276,9 +206,9 @@ export function SidebarVisibilitySettings() {
             );
           })}
         </div>
-        
+
         <p className="text-sm text-muted-foreground mt-4">
-          💡 Tip: You can also drag and drop items in the sidebar to reorder them. The P&L Overview is located under <strong>Reports</strong>.
+          💡 Tip: Drag items in the sidebar to reorder them. Icon changes appear immediately.
         </p>
       </CardContent>
     </Card>
