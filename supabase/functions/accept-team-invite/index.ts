@@ -120,11 +120,6 @@ serve(async (req) => {
     // Signup mode: for existing users, accept the invite and ask the client to sign in.
     // For new users, create a confirmed auth user, attach membership, then client signs in.
     if (mode === 'signup') {
-      if (!password || password.length < 8) {
-        console.warn(`[accept-team-invite] ${attemptId} weak_password invite=${invite.id}`);
-        return json({ error: "weak_password", attempt_id: attemptId }, 400);
-      }
-
       const found = await findAuthUserByEmail(admin, normalizedEmail);
       if (found) {
         await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
@@ -138,6 +133,11 @@ serve(async (req) => {
           message: "Existing account found. Sign in with the existing password to continue.",
           attempt_id: attemptId,
         });
+      }
+
+      if (!password || password.length < 8) {
+        console.warn(`[accept-team-invite] ${attemptId} weak_password invite=${invite.id}`);
+        return json({ error: "weak_password", attempt_id: attemptId }, 400);
       }
 
       if (invite.accepted_at) {
