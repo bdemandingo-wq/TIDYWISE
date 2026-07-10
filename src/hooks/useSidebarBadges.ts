@@ -5,6 +5,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
 import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
+import { NOTIFICATION_TYPES, isChannelEnabled } from '@/lib/notificationCatalog';
 
 /**
  * Centralized sidebar badge counts + breakdowns.
@@ -41,7 +42,20 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const payoutRequired = useCleanerPayoutSetupRequired(orgId);
   const showBadges = prefs.channels['channel.sidebar_badge'] !== false;
   const sb = prefs.sidebar_badges;
-  const on = (k: string) => showBadges && sb[k] !== false;
+  // Aggregate the matrix into a "sidebar allowed" lookup by legacy sidebarKey.
+  // If ANY type mapped to a given sidebarKey has sidebar channel enabled, we allow the badge.
+  const sidebarAllowedByLegacyKey = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const t of NOTIFICATION_TYPES) {
+      if (!t.sidebarKey) continue;
+      if (t.managerLocked && !hasFinancialAccess) continue;
+      const enabled = isChannelEnabled(t.key, 'sidebar', prefs.notification_matrix, prefs.snoozed_until);
+      map[t.sidebarKey] = map[t.sidebarKey] || enabled;
+    }
+    return map;
+  }, [prefs.notification_matrix, prefs.snoozed_until, hasFinancialAccess]);
+  const on = (k: string) =>
+    showBadges && sb[k] !== false && sidebarAllowedByLegacyKey[k] !== false;
 
   const enabled = !!orgId;
   const refetchInterval = 60_000;
