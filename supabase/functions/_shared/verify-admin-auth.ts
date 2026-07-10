@@ -20,7 +20,7 @@ export interface AuthResult {
  */
 export async function verifyAdminAuth(
   authHeader: string | null,
-  options: { requireAdmin?: boolean; requireOrganizationId?: string } = {}
+  options: { requireAdmin?: boolean; requireOwner?: boolean; requireOrganizationId?: string } = {}
 ): Promise<AuthResult> {
   if (!authHeader) {
     return { success: false, error: "Missing authorization header" };
