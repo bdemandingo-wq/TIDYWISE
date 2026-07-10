@@ -271,7 +271,7 @@ export default function StaffPage() {
     >
       <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-4">
           <TabsTrigger value="team" className="gap-2">
             <Users className="h-4 w-4" />
             Team
@@ -283,6 +283,15 @@ export default function StaffPage() {
           <TabsTrigger value="activity" className="gap-2">
             <Bell className="h-4 w-4" />
             Activity
+          </TabsTrigger>
+          <TabsTrigger value="time-off" className="gap-2 relative">
+            <CalendarOff className="h-4 w-4" />
+            Time Off
+            {pendingTimeOff > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                {pendingTimeOff}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
