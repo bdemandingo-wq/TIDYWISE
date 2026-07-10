@@ -16,7 +16,7 @@ import {
   XCircle,
   Users,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -24,19 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SEOHead } from '@/components/SEOHead';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
-import {
-  useNotificationPreferences,
-  useUpdateNotificationPreferences,
-} from '@/hooks/useNotificationPreferences';
-
-// One-shot legacy migration: the old page exposed three toggles on
-// business_settings. We fold their current values into the new matrix so a
-// user's existing preferences survive the switch to the notification center.
-const LEGACY_MAP: Array<{ col: string; typeKey: string }> = [
-  { col: 'notify_new_booking', typeKey: 'booking.new' },
-  { col: 'notify_cancellations', typeKey: 'booking.cancelled' },
-  { col: 'notify_reminders', typeKey: 'booking.confirmed' },
-];
+import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
 
 const PUSH_CATEGORIES = [
   { key: 'new_booking', label: 'New Booking', description: 'When a customer submits a booking request', icon: Bell },
@@ -51,8 +39,6 @@ const PUSH_CATEGORIES = [
 export default function NotificationsPage() {
   const { organization } = useOrganization();
   const orgId = organization?.id ?? null;
-  const prefs = useNotificationPreferences();
-  const { save } = useUpdateNotificationPreferences();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +48,9 @@ export default function NotificationsPage() {
   const [sendingEvening, setSendingEvening] = useState(false);
   const { isSupported, isRegistered, isRegistering, requestPermission } = usePushNotifications();
 
-  // Track which orgs we've already run legacy migration for in this session so
-  // switching orgs re-runs the merge with the new org's values.
-  const migratedRef = useRef<Set<string>>(new Set());
+  // Shared, non-destructive migration of the three legacy notify_* flags into
+  // the new organization_notification_preferences matrix.
+  useLegacyNotificationMigration();
 
   useEffect(() => {
     if (!orgId) return;
@@ -74,9 +60,7 @@ export default function NotificationsPage() {
       setError(null);
       const { data, error: err } = await supabase
         .from('business_settings')
-        .select(
-          'notify_new_booking, notify_cancellations, notify_reminders, notify_evening_brief, notify_morning_brief'
-        )
+        .select('notify_evening_brief, notify_morning_brief')
         .eq('organization_id', orgId)
         .maybeSingle();
       if (cancelled) return;
@@ -89,32 +73,12 @@ export default function NotificationsPage() {
         morning: (data as any)?.notify_morning_brief ?? true,
         evening: (data as any)?.notify_evening_brief ?? true,
       });
-
-      // Legacy migration — only for events the user hasn't already customized
-      // in the new matrix, and only once per org per session.
-      if (!migratedRef.current.has(orgId)) {
-        migratedRef.current.add(orgId);
-        const matrixPatch: Record<string, Record<string, boolean>> = {};
-        for (const { col, typeKey } of LEGACY_MAP) {
-          const legacy = (data as any)?.[col];
-          if (typeof legacy !== 'boolean') continue;
-          const already = prefs.notification_matrix?.[typeKey]?.email;
-          if (typeof already === 'boolean') continue;
-          matrixPatch[typeKey] = { email: legacy };
-        }
-        if (Object.keys(matrixPatch).length > 0) {
-          await save({ notification_matrix: matrixPatch });
-        }
-      }
       setLoading(false);
     };
     load();
     return () => {
       cancelled = true;
     };
-    // Only re-run on org change; prefs/save are stable enough that we don't
-    // want to reload every keystroke inside the matrix card.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
 
   const toggleBrief = async (which: 'morning' | 'evening', value: boolean) => {

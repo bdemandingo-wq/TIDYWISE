@@ -44,6 +44,8 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
+import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
+import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
 
 import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
@@ -85,10 +87,7 @@ interface BusinessSettings {
   require_deposit: boolean;
   minimum_notice_hours: number;
   cancellation_window_hours: number;
-  // Notification settings
-  notify_new_booking: boolean;
-  notify_reminders: boolean;
-  notify_cancellations: boolean;
+  // (Legacy notify_* toggles removed; use organization_notification_preferences)
   // Branding settings
   primary_color: string;
   accent_color: string;
@@ -131,9 +130,6 @@ const defaultSettings: BusinessSettings = {
   require_deposit: true,
   minimum_notice_hours: 24,
   cancellation_window_hours: 48,
-  notify_new_booking: true,
-  notify_reminders: true,
-  notify_cancellations: true,
   primary_color: '#3b82f6',
   accent_color: '#14b8a6',
   confirmation_email_subject: 'Your Booking Confirmation - {{booking_number}}',
@@ -279,6 +275,9 @@ export default function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
+  // One-time non-destructive migration of legacy notify_* flags into the
+  // shared organization_notification_preferences matrix.
+  useLegacyNotificationMigration();
   
   // Get active tab from URL query param, default to "general"
   const activeTab = searchParams.get('tab') || 'general';
@@ -333,9 +332,6 @@ export default function SettingsPage() {
           require_deposit: data.require_deposit ?? true,
           minimum_notice_hours: data.minimum_notice_hours || 24,
           cancellation_window_hours: data.cancellation_window_hours || 48,
-          notify_new_booking: data.notify_new_booking ?? true,
-          notify_reminders: data.notify_reminders ?? true,
-          notify_cancellations: data.notify_cancellations ?? true,
           primary_color: data.primary_color || '#3b82f6',
           accent_color: data.accent_color || '#14b8a6',
           confirmation_email_subject: typedData.confirmation_email_subject || defaultSettings.confirmation_email_subject,
@@ -382,9 +378,6 @@ export default function SettingsPage() {
         require_deposit: settings.require_deposit,
         minimum_notice_hours: settings.minimum_notice_hours,
         cancellation_window_hours: settings.cancellation_window_hours,
-        notify_new_booking: settings.notify_new_booking,
-        notify_reminders: settings.notify_reminders,
-        notify_cancellations: settings.notify_cancellations,
         primary_color: settings.primary_color,
         accent_color: settings.accent_color,
         confirmation_email_subject: settings.confirmation_email_subject,
@@ -796,57 +789,9 @@ export default function SettingsPage() {
           {(orgSettings?.loyalty_program_enabled ?? true) && <LoyaltyTierEditor />}
         </TabsContent>
 
-        {/* Notifications */}
+        {/* Notifications — shared with /dashboard/notifications */}
         <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Notification Settings
-              </CardTitle>
-              <CardDescription>
-                Choose how you want to receive updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">New Booking Alerts</p>
-                  <p className="text-sm text-muted-foreground">Get notified when a new booking is made</p>
-                </div>
-                <Switch
-                  checked={settings.notify_new_booking}
-                  onCheckedChange={(checked) => updateField('notify_new_booking', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Booking Reminders</p>
-                  <p className="text-sm text-muted-foreground">Send reminders to customers before their appointment</p>
-                </div>
-                <Switch
-                  checked={settings.notify_reminders}
-                  onCheckedChange={(checked) => updateField('notify_reminders', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Cancellation Alerts</p>
-                  <p className="text-sm text-muted-foreground">Get notified when a booking is cancelled</p>
-                </div>
-                <Switch
-                  checked={settings.notify_cancellations}
-                  onCheckedChange={(checked) => updateField('notify_cancellations', checked)}
-                />
-              </div>
-              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
+          <NotificationPreferencesCard />
         </TabsContent>
 
 
