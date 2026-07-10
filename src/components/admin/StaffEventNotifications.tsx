@@ -79,6 +79,7 @@ export function StaffEventNotifications() {
       case 'document_signed': return <PenLine className="w-4 h-4 text-green-400" />;
       case 'payout_setup': return <Banknote className="w-4 h-4 text-amber-400" />;
       case 'booking_claimed': return <Check className="w-4 h-4 text-emerald-400" />;
+      case 'time_off': return <CalendarOff className="w-4 h-4 text-amber-500" />;
       default: return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
   };
@@ -106,26 +107,30 @@ export function StaffEventNotifications() {
       </CardHeader>
       <CardContent>
         <div className="space-y-2 max-h-[300px] overflow-y-auto">
-          {notifications.slice(0, 20).map((n: any) => (
-            <div
-              key={n.id}
-              className={`flex items-start gap-3 p-2 rounded-md text-sm ${
-                !n.is_read ? 'bg-primary/5 border border-primary/10' : ''
-              }`}
-            >
-              <div className="mt-0.5">{getIcon(n.event_type)}</div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">{n.title}</p>
-                <p className="text-muted-foreground text-xs truncate">{n.message}</p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  {format(new Date(n.created_at), 'MMM d, h:mm a')}
-                </p>
+          {notifications.slice(0, 20).map((n: any) => {
+            const isTimeOff = n.__kind === 'time_off';
+            return (
+              <div
+                key={n.id}
+                onClick={isTimeOff ? () => navigate('/dashboard/staff?tab=time-off') : undefined}
+                className={`flex items-start gap-3 p-2 rounded-md text-sm ${
+                  !n.is_read ? 'bg-primary/5 border border-primary/10' : ''
+                } ${isTimeOff ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+              >
+                <div className="mt-0.5">{getIcon(n.event_type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium">{n.title}</p>
+                  <p className="text-muted-foreground text-xs truncate">{n.message}</p>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    {format(new Date(n.created_at), 'MMM d, h:mm a')}
+                  </p>
+                </div>
+                {!n.is_read && (
+                  <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
+                )}
               </div>
-              {!n.is_read && (
-                <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
