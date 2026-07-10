@@ -48,7 +48,7 @@ const CHANNEL_ICON: Record<NotificationChannel, any> = {
 
 export function NotificationPreferencesCard() {
   const prefs = useNotificationPreferences();
-  const { setChannel, snoozeType, clearSnooze, resetToDefaults, saving } =
+  const { save, setChannel, snoozeType, clearSnooze, resetToDefaults, saving } =
     useUpdateNotificationPreferences();
   const { hasFinancialAccess } = useOrgRole();
   const [resetting, setResetting] = useState(false);
