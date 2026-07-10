@@ -339,7 +339,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     const sum = (arr: BadgeReason[]) => arr.reduce((s, r) => s + r.count, 0);
 
-    const breakdowns: Record<string, BadgeReason[]> = {
+    const rawBreakdowns: Record<string, BadgeReason[]> = {
       '/dashboard/staff': staffReasons,
       '/dashboard/bookings': bookingReasons,
       '/dashboard/scheduler': schedulerReasons,
@@ -354,10 +354,16 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
       '/dashboard/payment-integration': payReasons,
       '/dashboard/feedback': fbReasons,
     };
+    // Apply per-user "mark as read" dismissals. A reason stays hidden as long
+    // as its count hasn't grown past the snapshot the user dismissed at.
+    const breakdowns: Record<string, BadgeReason[]> = {};
+    for (const [href, arr] of Object.entries(rawBreakdowns)) {
+      breakdowns[href] = arr.filter(r => !dismissed.isDismissed(href, r.key, r.count));
+    }
     const counts: Record<string, number> = {};
     for (const k of Object.keys(breakdowns)) counts[k] = sum(breakdowns[k]);
     return { counts, breakdowns };
-  }, [staff, bookings, clientPortal, invoices, messages, tasks, leads, inventory, automation, campaigns, payment, feedback, showBadges, sb, payoutRequired]);
+  }, [staff, bookings, clientPortal, invoices, messages, tasks, leads, inventory, automation, campaigns, payment, feedback, showBadges, sb, payoutRequired, dismissed]);
 }
 
 /** Back-compat: returns just counts as before. */
