@@ -283,6 +283,10 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   // Unified badge counts + breakdowns (see useSidebarBadges for details).
   const { counts: badgeCounts, breakdowns: badgeBreakdowns } = useSidebarBadgesFull();
 
+  // Per-org icon overrides (Settings → Navigation → Icon style).
+  const { overrides: iconOverrides } = useNavIconOverrides();
+
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
