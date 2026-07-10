@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Bell, Clock, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,10 +15,15 @@ import { formatInTimezone } from '@/lib/timezoneUtils';
 import { useNavigate } from 'react-router-dom';
 import { useOrgId } from '@/hooks/useOrgId';
 import { showBrowserNotification } from '@/hooks/usePushNotifications';
+import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/useNotificationPreferences';
+import { isChannelEnabled, typeByKey } from '@/lib/notificationCatalog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AdminNotification {
   id: string;
   type: 'booking' | 'payment' | 'customer' | 'staff' | 'system';
+  /** Catalog key from src/lib/notificationCatalog.ts driving channels + route. */
+  typeKey?: string;
   title: string;
   message: string;
   is_read: boolean;
