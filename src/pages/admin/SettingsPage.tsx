@@ -441,6 +441,8 @@ export default function SettingsPage() {
       window.dispatchEvent(new Event('branding-updated'));
 
       toast.success('Settings saved successfully');
+      // Refetch so children (e.g. EmailTemplatesSettings preview) reflect DB truth.
+      await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Failed to save settings');
