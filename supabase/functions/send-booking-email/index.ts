@@ -214,7 +214,7 @@ const handler = async (req: Request): Promise<Response> => {
       bannerLabel: "Booking Confirmed",
     });
 
-    void extrasText; // extras rendered in admin notification below
+    
 
 
     // Send via unified org sender (Gmail SMTP → Resend fallback)
