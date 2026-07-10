@@ -134,14 +134,23 @@ export function useUpdateNotificationPreferences() {
         // Merge with existing to preserve keys the caller did not include.
         const { data: existing } = await (supabase as any)
           .from('organization_notification_preferences')
-          .select('sidebar_badges, bell_notifications, channels')
+          .select('sidebar_badges, bell_notifications, channels, notification_matrix, snoozed_until')
           .eq('organization_id', orgId)
           .maybeSingle();
+        const mergeMatrix = (base: any, incoming: any) => {
+          const out: ChannelMatrix = { ...(base || {}) };
+          for (const k of Object.keys(incoming || {})) {
+            out[k] = { ...(base?.[k] || {}), ...(incoming[k] || {}) };
+          }
+          return out;
+        };
         const payload = {
           organization_id: orgId,
           sidebar_badges: { ...(existing?.sidebar_badges || {}), ...(patch.sidebar_badges || {}) },
           bell_notifications: { ...(existing?.bell_notifications || {}), ...(patch.bell_notifications || {}) },
           channels: { ...(existing?.channels || {}), ...(patch.channels || {}) },
+          notification_matrix: mergeMatrix(existing?.notification_matrix, patch.notification_matrix),
+          snoozed_until: { ...(existing?.snoozed_until || {}), ...(patch.snoozed_until || {}) },
           updated_at: new Date().toISOString(),
         };
         const { error } = await (supabase as any)
@@ -157,13 +166,37 @@ export function useUpdateNotificationPreferences() {
     [orgId, qc]
   );
 
+  const setChannel = useCallback(
+    async (typeKey: string, channel: string, value: boolean) => {
+      return save({ notification_matrix: { [typeKey]: { [channel]: value } } });
+    },
+    [save]
+  );
+
+  const snoozeType = useCallback(
+    async (typeKey: string, hours: number) => {
+      const iso = new Date(Date.now() + hours * 3600_000).toISOString();
+      return save({ snoozed_until: { [typeKey]: iso } });
+    },
+    [save]
+  );
+
+  const clearSnooze = useCallback(
+    async (typeKey: string) => {
+      return save({ snoozed_until: { [typeKey]: new Date(0).toISOString() } });
+    },
+    [save]
+  );
+
   const resetToDefaults = useCallback(async () => {
     return save({
       sidebar_badges: { ...SIDEBAR_DEFAULTS },
       bell_notifications: { ...BELL_DEFAULTS },
       channels: { ...CHANNEL_DEFAULTS },
+      notification_matrix: {},
+      snoozed_until: {},
     });
   }, [save]);
 
-  return { save, resetToDefaults, saving };
+  return { save, setChannel, snoozeType, clearSnooze, resetToDefaults, saving };
 }
