@@ -6,6 +6,7 @@
 // The identical function is used for all three paths so previews match reality.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderSectionsToHtml, type EmailSection } from "./email-sections.ts";
 
 export interface OrgBrand {
   companyName: string;
