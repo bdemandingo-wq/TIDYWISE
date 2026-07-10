@@ -68,7 +68,9 @@ async function attachMembershipAndAccept(
     .eq("id", invite.id);
   if (acceptErr) throw new Error(`invite_accept_update_failed: ${acceptErr.message}`);
 
-  console.log(`[accept-team-invite] ${attemptId} accepted invite=${invite.id} org=${invite.organization_id} role=${invite.role}`);
+  console.log(`[accept-team-invite] ${attemptId} accepted invite=${invite.id} org=${invite.organization_id} role=${normalizedRole}`);
+
+  return normalizedRole;
 }
 
 serve(async (req) => {
@@ -127,14 +129,14 @@ serve(async (req) => {
     if (mode === 'signup') {
       const found = await findAuthUserByEmail(admin, normalizedEmail);
       if (found) {
-        await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
+        const acceptedRole = await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
         return json({
           success: true,
           existing_user: true,
           requires_sign_in: true,
           email: invite.email,
           organization_id: invite.organization_id,
-          role: invite.role,
+          role: acceptedRole,
           message: "Existing account found. Sign in with the existing password to continue.",
           attempt_id: attemptId,
         });
@@ -159,7 +161,7 @@ serve(async (req) => {
       if (createErr) throw new Error(`auth_create_user_failed: ${createErr.message}`);
       if (!created.user?.id) throw new Error("auth_create_user_failed: missing user id");
 
-      await attachMembershipAndAccept(admin, invite as InviteRow, created.user.id, attemptId);
+      const acceptedRole = await attachMembershipAndAccept(admin, invite as InviteRow, created.user.id, attemptId);
 
       return json({
         success: true,
@@ -167,7 +169,7 @@ serve(async (req) => {
         requires_sign_in: true,
         email: invite.email,
         organization_id: invite.organization_id,
-        role: invite.role,
+        role: acceptedRole,
         attempt_id: attemptId,
       });
     }
@@ -193,10 +195,10 @@ serve(async (req) => {
       return json({ error: "email_mismatch", expected: invite.email, attempt_id: attemptId }, 403);
     }
 
-    await attachMembershipAndAccept(admin, invite as InviteRow, user.id, attemptId);
+    const acceptedRole = await attachMembershipAndAccept(admin, invite as InviteRow, user.id, attemptId);
 
     return json({
-      success: true, organization_id: invite.organization_id, role: invite.role, attempt_id: attemptId,
+      success: true, organization_id: invite.organization_id, role: acceptedRole, attempt_id: attemptId,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
