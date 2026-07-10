@@ -25,6 +25,21 @@ type InviteResponse = {
   attempt_id?: string;
 };
 
+const ACTIVE_ORG_KEY = 'tidywise_active_org';
+
+function dashboardDestination(role?: string) {
+  return role === 'manager' || role === 'admin' ? '/dashboard/scheduler' : '/dashboard';
+}
+
+function rememberJoinedOrganization(organizationId?: string) {
+  if (!organizationId) return;
+  try {
+    localStorage.setItem(ACTIVE_ORG_KEY, organizationId);
+  } catch {
+    // Ignore storage failures; the organization context will still refetch.
+  }
+}
+
 async function getExactFunctionError(data: unknown, error: unknown, fallback = 'Invite request failed') {
   const bodyError = (data as InviteResponse | null)?.error;
   if (bodyError) return bodyError;
@@ -80,9 +95,10 @@ export default function AcceptInvitePage() {
       });
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
       toast.success('You joined the workspace');
+      rememberJoinedOrganization((data as InviteResponse)?.organization_id);
       await refetch();
       if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
-      navigate('/dashboard');
+      navigate(dashboardDestination((data as InviteResponse)?.role), { replace: true });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to accept');
     } finally { setBusy(false); }
@@ -113,9 +129,10 @@ export default function AcceptInvitePage() {
       if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
 
       toast.success('You joined the workspace');
+      rememberJoinedOrganization((data as InviteResponse)?.organization_id);
       await refetch();
       if ((data as InviteResponse)?.organization_id) switchOrganization((data as InviteResponse).organization_id!);
-      navigate('/dashboard');
+      navigate(dashboardDestination((data as InviteResponse)?.role), { replace: true });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const friendly = /invalid login credentials/i.test(message)
@@ -161,9 +178,10 @@ export default function AcceptInvitePage() {
       await signInWithInvitePassword(preview.email, password, (sData as InviteResponse)?.created ? 2 : 0);
 
       toast.success('You joined the workspace');
+      rememberJoinedOrganization((sData as InviteResponse)?.organization_id);
       await refetch();
       if ((sData as InviteResponse)?.organization_id) switchOrganization((sData as InviteResponse).organization_id!);
-      navigate('/dashboard');
+      navigate(dashboardDestination((sData as InviteResponse)?.role), { replace: true });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const friendly = /invalid login credentials/i.test(message)
