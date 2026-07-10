@@ -72,7 +72,7 @@ export function useSidebarBadges(): Record<string, number> {
           .is('staff_id', null)
           .neq('status', 'cancelled')
           .gte('scheduled_at', now),
-        supabase
+        (supabase as any)
           .from('bookings')
           .select('*', { count: 'exact', head: true })
           .eq('organization_id', orgId)
