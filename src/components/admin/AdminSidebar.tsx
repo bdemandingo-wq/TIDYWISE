@@ -378,16 +378,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     []
   );
 
-  // Filter out hidden items and add badges
+  // Filter out hidden items, apply icon overrides, and add badges
   const visibleNavigation = navigation
     .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
     .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
     .map(item => {
+      const navDef = getNavItemByHref(item.href);
+      const icon = navDef ? resolveNavIcon(navDef, iconOverrides) : item.icon;
       const count = badgeCounts[item.href] || 0;
       return count > 0
-        ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
-        : item;
+        ? { ...item, icon, badge: count, breakdown: badgeBreakdowns[item.href] }
+        : { ...item, icon };
     });
+
 
 
   useEffect(() => {
