@@ -181,8 +181,13 @@ export function MobileBottomNav() {
   );
 }
 
-function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () => void; currentPath: string }) {
-  const Icon = ICON_MAP[item.iconKey] ?? Home;
+function NavItem({ item, overrides, onTap, currentPath }: { item: MobileNavItem; overrides: Record<string, string>; onTap: () => void; currentPath: string }) {
+  // Prefer the org's override for the matching nav id (keyed by href),
+  // then fall back to the slot's saved iconKey, then Home.
+  const navDef = getNavItemByHref(item.to);
+  const Icon = navDef
+    ? resolveNavIcon(navDef, overrides)
+    : (ICON_MAP[item.iconKey] ?? Home);
   const isActive = currentPath === item.to || (item.to !== '/dashboard' && currentPath.startsWith(item.to + '/'));
   const isExactDashboard = item.to === '/dashboard' && currentPath === '/dashboard';
   const active = isActive || isExactDashboard;
@@ -203,4 +208,5 @@ function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () 
       <span className="leading-none">{item.label}</span>
     </NavLink>
   );
+
 }
