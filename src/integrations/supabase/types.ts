@@ -6245,6 +6245,44 @@ export type Database = {
           },
         ]
       }
+      organization_notification_preferences: {
+        Row: {
+          bell_notifications: Json
+          channels: Json
+          created_at: string
+          organization_id: string
+          sidebar_badges: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          organization_id: string
+          sidebar_badges?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          organization_id?: string
+          sidebar_badges?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_notification_preferences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_pricing_settings: {
         Row: {
           booking_form_theme: string
