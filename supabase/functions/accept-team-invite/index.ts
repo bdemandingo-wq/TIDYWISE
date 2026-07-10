@@ -16,7 +16,9 @@ serve(async (req) => {
   );
 
   try {
-    const { token, mode } = await req.json() as { token: string; mode?: 'preview' | 'accept' };
+    const { token, mode, password, full_name } = await req.json() as {
+      token: string; mode?: 'preview' | 'accept' | 'signup'; password?: string; full_name?: string;
+    };
     if (!token) {
       return new Response(JSON.stringify({ error: "missing_token" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
