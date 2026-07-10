@@ -1,17 +1,14 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
-  ClipboardList, Bell, Plus, Brain, CalendarDays, Repeat, UserCircle,
-  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
-  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
-  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
-} from 'lucide-react';
+import { Home, Plus } from 'lucide-react';
+import { NAV_ICON_LIBRARY, getNavItemByHref, resolveNavIcon } from '@/lib/navIcons';
+import { useNavIconOverrides } from '@/hooks/useNavIconOverrides';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { useCopilot } from '@/hooks/useCopilot';
+
 
 export type MobileNavItem = {
   id: string;
