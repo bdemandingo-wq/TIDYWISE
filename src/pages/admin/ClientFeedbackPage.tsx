@@ -203,6 +203,30 @@ export default function ClientFeedbackPage() {
         </div>
       }
     >
+      <AttentionStrip
+        href="/dashboard/feedback"
+        onReasonClick={(r) => setFilterResolved(r.key === 'followup' ? 'followup' : 'unresolved')}
+      />
+      {(stats.unresolved > 0 || stats.needsFollowup > 0) && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={bulkResolveMutation.isPending || filteredEntries.filter(e => !e.is_resolved).length === 0}
+            onClick={() => bulkResolveMutation.mutate(filteredEntries.filter(e => !e.is_resolved).map(e => e.id))}
+          >
+            Mark all visible resolved
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={bulkFollowupDoneMutation.isPending || entries.filter(e => e.followup_needed && !e.is_resolved).length === 0}
+            onClick={() => bulkFollowupDoneMutation.mutate(entries.filter(e => e.followup_needed && !e.is_resolved).map(e => e.id))}
+          >
+            Mark all follow-ups complete
+          </Button>
+        </div>
+      )}
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card className="cursor-pointer hover:bg-secondary/50" onClick={() => setFilterResolved('all')}>
