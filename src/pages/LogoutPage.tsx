@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
+import { clearSidebarHiddenItemsCache } from '@/hooks/useSidebarHiddenItems';
 import { Loader2 } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 
