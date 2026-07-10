@@ -31,6 +31,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { dispatchZapier } from '@/lib/zapier';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 interface FeedbackEntry {
   id: string;
@@ -112,6 +113,42 @@ export default function ClientFeedbackPage() {
       toast.success('Feedback deleted');
     },
     onError: (error: any) => toast.error(error.message),
+  });
+
+  const bulkResolveMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!organization?.id || ids.length === 0) return;
+      const { error } = await supabase
+        .from('client_feedback')
+        .update({ is_resolved: true, followup_needed: false })
+        .in('id', ids)
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-feedback'] });
+      toast.success(`Marked ${ids.length} item${ids.length === 1 ? '' : 's'} resolved`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkFollowupDoneMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!organization?.id || ids.length === 0) return;
+      const { error } = await supabase
+        .from('client_feedback')
+        .update({ followup_needed: false })
+        .in('id', ids)
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-feedback'] });
+      toast.success(`Cleared follow-up on ${ids.length} item${ids.length === 1 ? '' : 's'}`);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filteredEntries = entries.filter(e => {
