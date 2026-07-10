@@ -6213,7 +6213,6 @@ export type Database = {
       organization_mobile_nav_settings: {
         Row: {
           created_at: string
-          icon_overrides: Json
           id: string
           items: Json
           organization_id: string
@@ -6222,7 +6221,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id: string
@@ -6231,7 +6229,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id?: string

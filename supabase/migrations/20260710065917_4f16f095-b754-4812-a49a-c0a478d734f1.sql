@@ -1,1 +1,0 @@
-ALTER TABLE public.organization_mobile_nav_settings ADD COLUMN IF NOT EXISTS icon_overrides jsonb NOT NULL DEFAULT '{}'::jsonb;
