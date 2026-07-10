@@ -27,6 +27,11 @@ export function MobileBottomNavSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [slots, setSlots] = useState<MobileNavItem[]>([...DEFAULT_SLOTS]);
+  const { overrides: iconOverrides } = useNavIconOverrides();
+  const iconFor = (slot: MobileNavItem) => {
+    const def = getNavItemByHref(slot.to);
+    return def ? resolveNavIcon(def, iconOverrides) : ICON_MAP[slot.iconKey];
+  };
 
   useEffect(() => {
     if (!organizationId) return;
