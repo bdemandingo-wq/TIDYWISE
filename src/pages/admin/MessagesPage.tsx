@@ -1329,6 +1329,8 @@ export default function MessagesPage() {
               const ids = [...selectedForBulk];
               await Promise.all(ids.map(id => supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', id)));
               setConversations(prev => prev.map(c => selectedForBulk.has(c.id) ? { ...c, unread_count: 0 } : c));
+              queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+              queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
               toast.success(`Marked ${ids.length} as read`);
               setSelectedForBulk(new Set());
               setBulkEditMode(false);
