@@ -1,9 +1,10 @@
 // Unified customer-facing org email sender.
 // - Routes to Gmail SMTP when the org has email_send_method='gmail_smtp' AND credentials configured.
-// - No silent fallback: if Gmail SMTP fails or the daily limit is reached, the send hard-fails and
-//   is logged so the org sees exactly what happened. This keeps deliverability predictable and
-//   avoids surprise sends from the platform Resend identity.
-// - When Gmail is NOT configured, falls through to Resend (used only until the org sets up Gmail).
+// - Auto-fallback: if Gmail SMTP fails or the daily limit is reached, the send falls back
+//   to Resend (TidyWise platform sender) so customer-facing emails keep flowing. The fallback
+//   is logged in org_email_send_failures so the org can see it happened.
+// - When Gmail is NOT configured, sends directly via Resend.
+
 //
 // Platform / system emails (auth, admin notifications, digests) do NOT use this helper —
 // they call Resend directly with the platform key.
@@ -213,20 +214,33 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
   if (wantsGmail) {
     const dailyCount = await currentGmailDailyCount(opts.organizationId);
     const limit = gmailDailyLimit(settings);
+    let gmailError: string | null = null;
     if (dailyCount >= limit) {
-      const msg = `Daily Gmail send limit reached (${dailyCount}/${limit}). Try again tomorrow or upgrade your Google Workspace plan.`;
-      await logFailure(opts.organizationId, "gmail_smtp", null, primaryRecipient, opts.subject, msg);
-      return { success: false, method: "none", error: msg };
+      gmailError = `Daily Gmail send limit reached (${dailyCount}/${limit})`;
+      console.warn(`[send-org-email] ${gmailError} for org ${opts.organizationId}; falling back to Resend.`);
+    } else {
+      const gmailRes = await sendViaGmailSmtp(settings, opts, from, replyTo);
+      if (gmailRes.ok) {
+        await incrementDailyCount(opts.organizationId, "gmail_smtp");
+        return { success: true, id: gmailRes.id, method: "gmail_smtp" };
+      }
+      gmailError = gmailRes.error;
+      console.error(`[send-org-email] Gmail SMTP failed for org ${opts.organizationId}:`, gmailError);
     }
-    const gmailRes = await sendViaGmailSmtp(settings, opts, from, replyTo);
-    if (gmailRes.ok) {
-      await incrementDailyCount(opts.organizationId, "gmail_smtp");
-      return { success: true, id: gmailRes.id, method: "gmail_smtp" };
+
+    // Auto-fallback to Resend (TidyWise platform sender) so customer emails
+    // don't silently stop for the rest of the day. The UI promises this.
+    const fallbackRes = await sendViaResend(settings, opts, from, replyTo);
+    if (fallbackRes.ok) {
+      await incrementDailyCount(opts.organizationId, "resend");
+      await logFailure(opts.organizationId, "gmail_smtp", "resend", primaryRecipient, opts.subject, gmailError ?? "gmail unavailable");
+      return { success: true, id: fallbackRes.id, method: "resend", fellBack: true };
     }
-    console.error(`[send-org-email] Gmail SMTP failed for org ${opts.organizationId}:`, gmailRes.error);
-    await logFailure(opts.organizationId, "gmail_smtp", null, primaryRecipient, opts.subject, gmailRes.error);
-    return { success: false, method: "gmail_smtp", error: `Gmail SMTP failed: ${gmailRes.error}` };
+    const combined = `Gmail failed (${gmailError}); Resend fallback also failed: ${fallbackRes.error}`;
+    await logFailure(opts.organizationId, "gmail_smtp", "resend", primaryRecipient, opts.subject, combined);
+    return { success: false, method: "none", error: combined, fellBack: true };
   }
+
 
   // Default path: Resend
   const resendRes = await sendViaResend(settings, opts, from, replyTo);

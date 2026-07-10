@@ -42,6 +42,11 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgRole } from '@/hooks/useOrgRole';
+import { useSidebarBadgesFull, type BadgeReason } from '@/hooks/useSidebarBadges';
+import { useSidebarHiddenItems } from '@/hooks/useSidebarHiddenItems';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { getSignedUrl } from '@/hooks/useSignedUrl';
@@ -125,6 +130,32 @@ interface NavItem {
   href: string;
   icon: typeof Home;
   badge?: number;
+  breakdown?: BadgeReason[];
+}
+
+function BadgeWithReasons({ count, reasons }: { count: number; reasons?: BadgeReason[] }) {
+  const items = (reasons || []).filter(r => r.count > 0);
+  const badge = (
+    <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
+      {count > 9 ? '9+' : count}
+    </Badge>
+  );
+  if (items.length === 0) return badge;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild><span className="ml-auto">{badge}</span></TooltipTrigger>
+      <TooltipContent side="right" className="max-w-xs">
+        <div className="space-y-0.5">
+          <p className="text-xs font-semibold mb-1">Needs your attention</p>
+          {items.map(r => (
+            <p key={r.key} className="text-xs">
+              {r.count} {r.count === 1 ? r.label : `${r.label}s`}
+            </p>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 interface AdminSidebarProps {
@@ -186,9 +217,7 @@ function SortableNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sorta
         <item.icon className="w-5 h-5 flex-shrink-0" />
         {(isOpen || isMobile) && <span>{item.name}</span>}
         {item.badge !== undefined && item.badge > 0 && (
-          <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
-            {item.badge > 9 ? '9+' : item.badge}
-          </Badge>
+          <BadgeWithReasons count={item.badge} reasons={item.breakdown} />
         )}
       </Link>
     </div>
@@ -211,9 +240,7 @@ function StaticNavItem({ item, isActive, isOpen, isMobile, onNavClick }: Sortabl
       <item.icon className="w-5 h-5 flex-shrink-0" />
       {(isOpen || isMobile) && <span>{item.name}</span>}
       {item.badge !== undefined && item.badge > 0 && (
-        <Badge variant="destructive" className="ml-auto h-5 w-5 flex items-center justify-center p-0 text-xs rounded-full">
-          {item.badge > 9 ? '9+' : item.badge}
-        </Badge>
+        <BadgeWithReasons count={item.badge} reasons={item.breakdown} />
       )}
     </Link>
   );
@@ -230,7 +257,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
-  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const { hiddenItems, isLoading: hiddenItemsLoading } = useSidebarHiddenItems();
   const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
   const { toast } = useToast();
@@ -262,56 +289,9 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     }
   };
 
-  // Get pending booking requests count for badge
-  const { data: pendingRequestsCount = 0 } = useQuery({
-    queryKey: ['pending-booking-requests-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { count, error } = await supabase
-        .from('client_booking_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .eq('status', 'pending');
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
+  // Unified badge counts + breakdowns (see useSidebarBadges for details).
+  const { counts: badgeCounts, breakdowns: badgeBreakdowns } = useSidebarBadgesFull();
 
-  // Unread SMS messages count (sum of unread_count across conversations)
-  const { data: unreadMessagesCount = 0 } = useQuery({
-    queryKey: ['unread-messages-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { data, error } = await supabase
-        .from('sms_conversations')
-        .select('unread_count')
-        .eq('organization_id', organization.id);
-      if (error || !data) return 0;
-      return data.reduce((sum: number, c: any) => sum + (c.unread_count || 0), 0);
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000,
-  });
-
-  // Incomplete tasks count (badge disappears once task is checked off)
-  const { data: openTasksCount = 0 } = useQuery({
-    queryKey: ['open-tasks-count', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return 0;
-      const { count, error } = await supabase
-        .from('tasks_and_notes')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .in('type', ['daily', 'weekly', 'monthly'])
-        .eq('is_completed', false);
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!organization?.id,
-    refetchInterval: 30000,
-  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -324,41 +304,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     })
   );
 
-  // Load hidden items from localStorage
-  useEffect(() => {
-    const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-    if (savedHidden) {
-      try {
-        setHiddenItems(JSON.parse(savedHidden));
-      } catch (e) {
-        console.error('Error parsing hidden nav items:', e);
-      }
-    }
-  }, []);
+  // Hidden items now come from useSidebarHiddenItems (DB-backed, per-org).
 
-  // Listen for changes to hidden items (from settings page)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-      if (savedHidden) {
-        try {
-          setHiddenItems(JSON.parse(savedHidden));
-        } catch (e) {
-          console.error('Error parsing hidden nav items:', e);
-        }
-      } else {
-        setHiddenItems([]);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    // Also listen for custom event for same-tab updates
-    window.addEventListener('navHiddenChanged', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('navHiddenChanged', handleStorageChange);
-    };
-  }, []);
 
   // Load navigation order from localStorage
   useEffect(() => {
@@ -394,21 +341,34 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     return ['/dashboard/payment-integration', '/dashboard/subscription'];
   }, [canShowPaymentFlows]);
 
-  // Filter out hidden items and add badges
-  const visibleNavigation = navigation
-    .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
-    .map(item => {
-      if (item.href === '/dashboard/client-portal' && pendingRequestsCount > 0) {
-        return { ...item, badge: pendingRequestsCount };
-      }
-      if (item.href === '/dashboard/messages' && unreadMessagesCount > 0) {
-        return { ...item, badge: unreadMessagesCount };
-      }
-      if (item.href === '/dashboard/tasks' && openTasksCount > 0) {
-        return { ...item, badge: openTasksCount };
-      }
-      return item;
-    });
+  // Managers (invited teammates without financial access) must not see the
+  // admin Dashboard, Payroll, Expenses, Finance, or Reports. Filter those
+  // out of the sidebar entirely — the routes are also gated server-side.
+  const { hasFinancialAccess } = useOrgRole();
+  const financialOnlyHrefs = useMemo(
+    () => new Set(['/dashboard', '/dashboard/payroll', '/dashboard/expenses', '/dashboard/finance', '/dashboard/reports']),
+    []
+  );
+
+  // Filter out hidden items and add badges. While the DB-backed visibility
+  // preference is still loading we render an EMPTY list rather than the full
+  // default set, so tabs the user hid never flash before the preference
+  // resolves. The scoped localStorage cache means repeat visits hydrate
+  // instantly (isLoading is already false), and first-time renders show a
+  // brief blank list instead of the wrong content.
+  const visibleNavigation = hiddenItemsLoading
+    ? []
+    : navigation
+        .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
+        .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
+        .map(item => {
+          const count = badgeCounts[item.href] || 0;
+          return count > 0
+            ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
+            : item;
+        });
+
+
 
   useEffect(() => {
     const fetchLogoAndName = async () => {

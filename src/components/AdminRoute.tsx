@@ -18,6 +18,23 @@ const PAYWALL_ALLOWED_PATHS = [
   '/logout',
 ];
 
+const INVITE_JOIN_KEY = 'tidywise_invite_joined_workspace';
+
+function getRecentInviteJoinAttempt(): { attempt_id?: string } | null {
+  try {
+    const raw = sessionStorage.getItem(INVITE_JOIN_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { attempt_id?: string; at?: number };
+    if (!parsed.at || Date.now() - parsed.at > 10 * 60 * 1000) {
+      sessionStorage.removeItem(INVITE_JOIN_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 
 
 /**
@@ -51,7 +68,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
   // org, transparently switch to that org instead of bouncing to /staff. This
   // protects users who accidentally have a member-role membership somewhere.
   const adminOrgElsewhere = allOrganizations.find(
-    (o) => (o.role === 'owner' || o.role === 'admin') && o.organization.id !== organization?.id
+    (o) => (o.role === 'owner' || o.role === 'admin' || o.role === 'manager') && o.organization.id !== organization?.id
   );
 
   useEffect(() => {
@@ -61,6 +78,11 @@ export function AdminRoute({ children }: AdminRouteProps) {
       switchOrganization(adminOrgElsewhere.organization.id);
     }
   }, [orgLoading, authLoading, membership, isAdmin, adminOrgElsewhere, switchOrganization]);
+
+  useEffect(() => {
+    if (!organization) return;
+    try { sessionStorage.removeItem(INVITE_JOIN_KEY); } catch { /* noop */ }
+  }, [organization]);
 
   // ── PAYWALL GATE ────────────────────────────────────────────────────────
   // Compute BEFORE any early returns so hook order stays stable across
@@ -127,6 +149,29 @@ export function AdminRoute({ children }: AdminRouteProps) {
 
   // Logged in but no organization - redirect to onboarding
   if (!organization) {
+    const inviteAttempt = getRecentInviteJoinAttempt();
+    if (inviteAttempt) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-background p-6">
+          <div className="max-w-md space-y-3 rounded-lg border bg-card p-6 shadow-sm">
+            <h1 className="text-lg font-semibold text-card-foreground">Workspace access is still syncing</h1>
+            <p className="text-sm text-muted-foreground">
+              Your invite was accepted, but the workspace could not be loaded yet. Refresh once; if it continues, share this attempt ID with support.
+            </p>
+            {inviteAttempt.attempt_id && (
+              <p className="break-all rounded-md bg-muted p-2 text-xs text-muted-foreground">attempt_id: {inviteAttempt.attempt_id}</p>
+            )}
+            <button
+              type="button"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+              onClick={() => window.location.reload()}
+            >
+              Refresh workspace
+            </button>
+          </div>
+        </div>
+      );
+    }
     return <Navigate to="/onboarding" replace />;
   }
 

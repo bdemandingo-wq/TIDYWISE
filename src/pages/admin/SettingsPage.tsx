@@ -38,11 +38,14 @@ import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDisco
 import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
+import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
+import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
+import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
 
 import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
@@ -84,10 +87,7 @@ interface BusinessSettings {
   require_deposit: boolean;
   minimum_notice_hours: number;
   cancellation_window_hours: number;
-  // Notification settings
-  notify_new_booking: boolean;
-  notify_reminders: boolean;
-  notify_cancellations: boolean;
+  // (Legacy notify_* toggles removed; use organization_notification_preferences)
   // Branding settings
   primary_color: string;
   accent_color: string;
@@ -96,6 +96,8 @@ interface BusinessSettings {
   confirmation_email_body: string;
   reminder_email_subject: string;
   reminder_email_body: string;
+  confirmation_email_sections: unknown[] | null;
+  reminder_email_sections: unknown[] | null;
   // Reviews
   google_review_url: string;
   review_sms_template: string;
@@ -128,15 +130,14 @@ const defaultSettings: BusinessSettings = {
   require_deposit: true,
   minimum_notice_hours: 24,
   cancellation_window_hours: 48,
-  notify_new_booking: true,
-  notify_reminders: true,
-  notify_cancellations: true,
   primary_color: '#3b82f6',
   accent_color: '#14b8a6',
   confirmation_email_subject: 'Your Booking Confirmation - {{booking_number}}',
   confirmation_email_body: 'Hi {{customer_name}},\n\nThank you for booking with us!\n\nYour booking details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n- Total: ${{total_amount}}\n\nWe look forward to serving you!\n\nBest regards,\n{{company_name}}',
   reminder_email_subject: 'Reminder: Your Cleaning is Tomorrow - {{booking_number}}',
   reminder_email_body: 'Hi {{customer_name}},\n\nThis is a friendly reminder that your cleaning is scheduled for tomorrow.\n\nBooking Details:\n- Booking #: {{booking_number}}\n- Service: {{service_name}}\n- Date: {{scheduled_date}}\n- Time: {{scheduled_time}}\n- Address: {{address}}\n\nIf you need to reschedule or have any questions, please contact us.\n\nSee you soon!\n{{company_name}}',
+  confirmation_email_sections: null,
+  reminder_email_sections: null,
   google_review_url: '',
   review_sms_template: 'Hi {customer_name}, thank you for choosing {company_name}! We\'d love to hear about your experience. Please take a moment to leave us a review: {review_link}',
   resend_api_key: '',
@@ -272,7 +273,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
+  // One-time non-destructive migration of legacy notify_* flags into the
+  // shared organization_notification_preferences matrix.
+  useLegacyNotificationMigration();
   
   // Get active tab from URL query param, default to "general"
   const activeTab = searchParams.get('tab') || 'general';
@@ -327,15 +332,14 @@ export default function SettingsPage() {
           require_deposit: data.require_deposit ?? true,
           minimum_notice_hours: data.minimum_notice_hours || 24,
           cancellation_window_hours: data.cancellation_window_hours || 48,
-          notify_new_booking: data.notify_new_booking ?? true,
-          notify_reminders: data.notify_reminders ?? true,
-          notify_cancellations: data.notify_cancellations ?? true,
           primary_color: data.primary_color || '#3b82f6',
           accent_color: data.accent_color || '#14b8a6',
           confirmation_email_subject: typedData.confirmation_email_subject || defaultSettings.confirmation_email_subject,
           confirmation_email_body: typedData.confirmation_email_body || defaultSettings.confirmation_email_body,
           reminder_email_subject: typedData.reminder_email_subject || defaultSettings.reminder_email_subject,
           reminder_email_body: typedData.reminder_email_body || defaultSettings.reminder_email_body,
+          confirmation_email_sections: Array.isArray(typedData.confirmation_email_sections) ? typedData.confirmation_email_sections : null,
+          reminder_email_sections: Array.isArray(typedData.reminder_email_sections) ? typedData.reminder_email_sections : null,
           google_review_url: typedData.google_review_url || '',
           review_sms_template: typedData.review_sms_template || defaultSettings.review_sms_template,
           resend_api_key: typedData.resend_api_key || '',
@@ -374,15 +378,14 @@ export default function SettingsPage() {
         require_deposit: settings.require_deposit,
         minimum_notice_hours: settings.minimum_notice_hours,
         cancellation_window_hours: settings.cancellation_window_hours,
-        notify_new_booking: settings.notify_new_booking,
-        notify_reminders: settings.notify_reminders,
-        notify_cancellations: settings.notify_cancellations,
         primary_color: settings.primary_color,
         accent_color: settings.accent_color,
         confirmation_email_subject: settings.confirmation_email_subject,
         confirmation_email_body: settings.confirmation_email_body,
         reminder_email_subject: settings.reminder_email_subject,
         reminder_email_body: settings.reminder_email_body,
+        confirmation_email_sections: (settings as any).confirmation_email_sections ?? null,
+        reminder_email_sections: (settings as any).reminder_email_sections ?? null,
         google_review_url: settings.google_review_url,
         review_sms_template: settings.review_sms_template,
         resend_api_key: settings.resend_api_key,
@@ -432,6 +435,8 @@ export default function SettingsPage() {
       window.dispatchEvent(new Event('branding-updated'));
 
       toast.success('Settings saved successfully');
+      // Refetch so children (e.g. EmailTemplatesSettings preview) reflect DB truth.
+      await fetchSettings();
     } catch (error) {
       console.error('Error saving settings:', error);
       toast.error('Failed to save settings');
@@ -462,24 +467,39 @@ export default function SettingsPage() {
 
     setUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = (file.name.split('.').pop() || 'png').toLowerCase();
       const fileName = `logo-${Date.now()}.${fileExt}`;
       const filePath = `${organization?.id}/logos/${fileName}`;
 
+      // Upload to the PUBLIC `business-assets` bucket so email clients can fetch it.
+      // (The old `booking-photos` bucket is private and results in broken images in emails.)
       const { error: uploadError } = await supabase.storage
-        .from('booking-photos')
-        .upload(filePath, file);
+        .from('business-assets')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
-      // Store the path (not public URL) for signed URL generation
-      // For logos, we'll store the full path including 'booking-photos:' prefix
-      // to indicate it's a storage path that needs signed URL
-      updateField('logo_url', `storage:booking-photos:${filePath}`);
-      toast.success('Logo uploaded successfully');
-    } catch (error) {
+      const { data: urlData } = supabase.storage
+        .from('business-assets')
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+
+      // Verify the uploaded logo is actually reachable and is an image before saving.
+      try {
+        const head = await fetch(publicUrl, { method: 'HEAD' });
+        const ct = head.headers.get('content-type') || '';
+        if (!head.ok || !ct.startsWith('image/')) {
+          throw new Error(`Uploaded logo could not be verified (status ${head.status}, type "${ct}")`);
+        }
+      } catch (verifyErr: any) {
+        throw new Error(verifyErr?.message || 'Uploaded logo failed verification');
+      }
+
+      updateField('logo_url', publicUrl);
+      toast.success('Logo uploaded and verified');
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
+      toast.error(error?.message || 'Failed to upload logo');
     } finally {
       setUploadingLogo(false);
     }
@@ -570,6 +590,7 @@ export default function SettingsPage() {
         <div className="w-full max-w-5xl overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: 'pan-x' }}>
            <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="team">Team</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
             <TabsTrigger className="shrink-0" value="pricing">Pricing</TabsTrigger>
             <TabsTrigger className="shrink-0" value="loyalty">Loyalty</TabsTrigger>
@@ -579,11 +600,9 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="integrations">Integrations</TabsTrigger>
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
-            
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
-            
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
             <TabsTrigger
               className="shrink-0"
@@ -770,57 +789,9 @@ export default function SettingsPage() {
           {(orgSettings?.loyalty_program_enabled ?? true) && <LoyaltyTierEditor />}
         </TabsContent>
 
-        {/* Notifications */}
+        {/* Notifications — shared with /dashboard/notifications */}
         <TabsContent value="notifications" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="w-5 h-5" />
-                Notification Settings
-              </CardTitle>
-              <CardDescription>
-                Choose how you want to receive updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">New Booking Alerts</p>
-                  <p className="text-sm text-muted-foreground">Get notified when a new booking is made</p>
-                </div>
-                <Switch
-                  checked={settings.notify_new_booking}
-                  onCheckedChange={(checked) => updateField('notify_new_booking', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Booking Reminders</p>
-                  <p className="text-sm text-muted-foreground">Send reminders to customers before their appointment</p>
-                </div>
-                <Switch
-                  checked={settings.notify_reminders}
-                  onCheckedChange={(checked) => updateField('notify_reminders', checked)}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Cancellation Alerts</p>
-                  <p className="text-sm text-muted-foreground">Get notified when a booking is cancelled</p>
-                </div>
-                <Switch
-                  checked={settings.notify_cancellations}
-                  onCheckedChange={(checked) => updateField('notify_cancellations', checked)}
-                />
-              </div>
-              <Button className="gap-2" onClick={saveSettings} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
+          <NotificationPreferencesCard />
         </TabsContent>
 
 
@@ -837,18 +808,18 @@ export default function SettingsPage() {
           <EmailSettingsCard />
 
           <EmailTemplatesSettings
+            organizationId={organization?.id}
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
             reminderEmailSubject={settings.reminder_email_subject}
             reminderEmailBody={settings.reminder_email_body}
-            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value }))}
+            confirmationEmailSections={settings.confirmation_email_sections as any}
+            reminderEmailSections={settings.reminder_email_sections as any}
+            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value as any }))}
             onSave={saveSettings}
             saving={saving}
-            companyName={settings.company_name}
-            logoUrl={settings.logo_url}
-            primaryColor={settings.primary_color}
-            accentColor={settings.accent_color}
           />
+
         </TabsContent>
 
         {/* Reviews Settings */}
@@ -986,10 +957,19 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-4">
                   {settings.logo_url ? (
                     <div className="w-20 h-20 rounded-lg border bg-background overflow-hidden flex items-center justify-center">
-                      <SignedImage 
-                        src={settings.logo_url} 
-                        alt="Company logo" 
+                      <SignedImage
+                        src={settings.logo_url}
+                        alt={settings.company_name || 'Company logo'}
                         className="w-full h-full object-contain"
+                        onError={(e: any) => {
+                          // Remove the broken image and show the org name cleanly.
+                          const parent = e.currentTarget?.parentElement;
+                          if (parent) {
+                            parent.innerHTML = `<span style="font-size:12px;font-weight:600;text-align:center;padding:4px;color:#374151;">${(settings.company_name || 'Logo').replace(/[<>&]/g, '')}</span>`;
+                          }
+                          setLogoLoadFailed(true);
+                        }}
+                        onLoad={() => setLogoLoadFailed(false)}
                       />
                     </div>
                   ) : (
@@ -1016,17 +996,23 @@ export default function SettingsPage() {
                           ) : (
                             <>
                               <Upload className="w-4 h-4" />
-                              Upload Logo
+                              {settings.logo_url && logoLoadFailed ? 'Re-upload Logo' : 'Upload Logo'}
                             </>
                           )}
                         </span>
                       </Button>
                     </Label>
                     <p className="text-sm text-muted-foreground mt-2">
-                      PNG, JPG up to 2MB. This logo will appear in your sidebar.
+                      PNG, JPG up to 2MB. Appears in your sidebar and in customer emails.
                     </p>
                   </div>
                 </div>
+                {settings.logo_url && logoLoadFailed && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    Your saved logo could not be loaded. Emails will show your company
+                    name as text until you re-upload a working logo above.
+                  </div>
+                )}
               </div>
               
               <Separator />
@@ -1188,6 +1174,11 @@ export default function SettingsPage() {
 
           {/* Account Deletion - Required for App Store compliance */}
           <AccountDeletionCard />
+        </TabsContent>
+
+        {/* Team Tab */}
+        <TabsContent value="team" className="space-y-6">
+          <TeamMembersCard />
         </TabsContent>
 
         {/* Integrations Tab */}

@@ -31,6 +31,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { dispatchZapier } from '@/lib/zapier';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 interface FeedbackEntry {
   id: string;
@@ -114,6 +115,42 @@ export default function ClientFeedbackPage() {
     onError: (error: any) => toast.error(error.message),
   });
 
+  const bulkResolveMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!organization?.id || ids.length === 0) return;
+      const { error } = await supabase
+        .from('client_feedback')
+        .update({ is_resolved: true, followup_needed: false })
+        .in('id', ids)
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-feedback'] });
+      toast.success(`Marked ${ids.length} item${ids.length === 1 ? '' : 's'} resolved`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const bulkFollowupDoneMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!organization?.id || ids.length === 0) return;
+      const { error } = await supabase
+        .from('client_feedback')
+        .update({ followup_needed: false })
+        .in('id', ids)
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['client-feedback'] });
+      queryClient.invalidateQueries({ queryKey: ['sb-feedback'] });
+      toast.success(`Cleared follow-up on ${ids.length} item${ids.length === 1 ? '' : 's'}`);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const filteredEntries = entries.filter(e => {
     if (filterResolved === 'resolved') return e.is_resolved;
     if (filterResolved === 'unresolved') return !e.is_resolved;
@@ -166,6 +203,49 @@ export default function ClientFeedbackPage() {
         </div>
       }
     >
+      <AttentionStrip
+        href="/dashboard/feedback"
+        onReasonClick={(r) => setFilterResolved(r.key === 'followup' ? 'followup' : 'unresolved')}
+      />
+      {(stats.unresolved > 0 || stats.needsFollowup > 0) && (
+        <Card className="mb-4 border-muted">
+          <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground mr-2">
+              This badge clears when feedback is resolved, follow-ups are complete, or you disable it in Notification Settings.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFilterResolved('unresolved')}
+            >
+              Show attention items
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkFollowupDoneMutation.isPending || entries.filter(e => e.followup_needed && !e.is_resolved).length === 0}
+              onClick={() => bulkFollowupDoneMutation.mutate(entries.filter(e => e.followup_needed && !e.is_resolved).map(e => e.id))}
+            >
+              Mark all follow-ups complete
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={bulkResolveMutation.isPending || filteredEntries.filter(e => !e.is_resolved).length === 0}
+              onClick={() => {
+                const ids = filteredEntries.filter(e => !e.is_resolved).map(e => e.id);
+                if (ids.length === 0) return;
+                if (confirm(`Mark ${ids.length} unresolved item${ids.length === 1 ? '' : 's'} as resolved? Only do this if you have actually addressed them — this is not a "dismiss reminder" action.`)) {
+                  bulkResolveMutation.mutate(ids);
+                }
+              }}
+            >
+              Mark all visible resolved
+            </Button>
+          </CardContent>
+        </Card>
+      )}
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card className="cursor-pointer hover:bg-secondary/50" onClick={() => setFilterResolved('all')}>

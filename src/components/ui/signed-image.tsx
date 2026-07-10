@@ -20,6 +20,9 @@ interface SignedImageProps {
   loading?: 'lazy' | 'eager';
   /** Request a server-resized thumbnail of this width (gallery grids). Omit for full-res. */
   thumbWidth?: number;
+  /** Notified when the underlying <img> fires load/error (after URL resolution). */
+  onLoad?: () => void;
+  onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
 }
 
 /**
@@ -35,6 +38,8 @@ export function SignedImage({
   expiresIn = 3600,
   loading: loadingAttr = 'lazy',
   thumbWidth,
+  onLoad,
+  onError,
 }: SignedImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,7 +115,11 @@ export function SignedImage({
       alt={alt}
       className={className}
       loading={loadingAttr}
-      onError={() => setError(true)}
+      onLoad={() => { onLoad?.(); }}
+      onError={(e) => {
+        setError(true);
+        onError?.(e);
+      }}
     />
   );
 }

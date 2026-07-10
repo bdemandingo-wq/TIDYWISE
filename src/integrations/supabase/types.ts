@@ -1870,6 +1870,7 @@ export type Database = {
           company_state: string | null
           company_zip: string | null
           confirmation_email_body: string | null
+          confirmation_email_sections: Json | null
           confirmation_email_subject: string | null
           created_at: string
           currency: string | null
@@ -1900,6 +1901,7 @@ export type Database = {
           recurring_discount_one_time: number
           recurring_discount_weekly: number
           reminder_email_body: string | null
+          reminder_email_sections: Json | null
           reminder_email_subject: string | null
           require_cleaner_payout_setup: boolean
           require_clockout_photos: boolean
@@ -1932,6 +1934,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -1962,6 +1965,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
@@ -1994,6 +1998,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -2024,6 +2029,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
@@ -6213,6 +6219,7 @@ export type Database = {
       organization_mobile_nav_settings: {
         Row: {
           created_at: string
+          icon_overrides: Json
           id: string
           items: Json
           organization_id: string
@@ -6221,6 +6228,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id: string
@@ -6229,6 +6237,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id?: string
@@ -6240,6 +6249,50 @@ export type Database = {
             foreignKeyName: "organization_mobile_nav_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_notification_preferences: {
+        Row: {
+          bell_notifications: Json
+          channels: Json
+          created_at: string
+          notification_matrix: Json
+          organization_id: string
+          sidebar_badges: Json
+          snoozed_until: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          notification_matrix?: Json
+          organization_id: string
+          sidebar_badges?: Json
+          snoozed_until?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          notification_matrix?: Json
+          organization_id?: string
+          sidebar_badges?: Json
+          snoozed_until?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_notification_preferences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },

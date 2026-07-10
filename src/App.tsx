@@ -15,6 +15,7 @@ import { CurrencySync } from "@/components/CurrencySync";
 import { TestModeProvider } from "@/contexts/TestModeContext";
 import { ClientPortalProvider } from "@/contexts/ClientPortalContext";
 import { AdminRoute } from "@/components/AdminRoute";
+import { FinancialRoute } from "@/components/FinancialRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
@@ -35,6 +36,7 @@ const ScoreGeneratePage = lazy(() => import("./pages/score/ScoreGeneratePage"));
 
 // New auth pages with no session persistence
 const LoginPage = lazy(() => import("./pages/LoginPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
 // Native redirect for signup (App Store compliance - no in-app signup on native)
 const NativeSignupRedirect = lazy(() => import("./pages/NativeSignupRedirect"));
@@ -244,6 +246,7 @@ const App = () => (
                          <Route path="/auth/callback" element={<AuthCallbackPage />} />
                          <Route path="/auth/confirm" element={<AuthCallbackPage />} />
                          <Route path="/set-password" element={<SetPasswordPage />} />
+                         <Route path="/accept-invite" element={<AcceptInvitePage />} />
                          <Route path="/contact" element={<ContactPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
@@ -282,8 +285,9 @@ const App = () => (
                       <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                       <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
-                      {/* Dashboard Routes - All Lazy Loaded (AdminRoute enforces owner/admin role) */}
-                      <Route path="/dashboard" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
+                      {/* Dashboard Routes - All Lazy Loaded (AdminRoute enforces owner/manager role) */}
+                      <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                       <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -291,10 +295,11 @@ const App = () => (
                       <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/payroll" element={<AdminRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/finance" element={<AdminRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/expenses" element={<AdminRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/reports" element={<AdminRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/payroll" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/finance" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/expenses" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                      <Route path="/dashboard/reports" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                       <Route path="/dashboard/settings" element={<AdminRoute><ErrorBoundary featureName="Settings"><SettingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
@@ -306,7 +311,7 @@ const App = () => (
                       <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                       <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
@@ -356,6 +361,7 @@ const App = () => (
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
                     {/* Public Routes - Lazy Loaded */}
                     <Route path="/book/:orgSlug" element={<PublicBookingPage />} />
@@ -422,7 +428,7 @@ const App = () => (
                     <Route path="/portal/dashboard" element={<ProtectedPortalRoute><PortalDashboardPage /></ProtectedPortalRoute>} />
                     <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
-                    <Route path="/dashboard" element={<AdminRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -430,10 +436,11 @@ const App = () => (
                     <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/payroll" element={<AdminRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/finance" element={<AdminRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/expenses" element={<AdminRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/reports" element={<AdminRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/payroll" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Payroll"><PayrollPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/finance" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Finance"><FinancePage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/expenses" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Expenses"><ExpensesPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+                    <Route path="/dashboard/reports" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Reports"><ReportsPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
+
                     <Route path="/dashboard/settings" element={<AdminRoute><ErrorBoundary featureName="Settings"><SettingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
@@ -445,7 +452,7 @@ const App = () => (
                     <Route path="/dashboard/campaigns" element={<AdminRoute><ErrorBoundary featureName="Campaigns"><CampaignsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/checklists" element={<AdminRoute><ErrorBoundary featureName="Checklists"><ChecklistsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/payment-integration" element={<AdminRoute><ErrorBoundary featureName="Payment Integration"><PaymentIntegrationPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/subscription" element={<AdminRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/subscription" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Subscription"><SubscriptionPage /></ErrorBoundary></FinancialRoute></AdminRoute>} />
                     <Route path="/dashboard/help" element={<AdminRoute><ErrorBoundary featureName="Help Center"><HelpPage /></ErrorBoundary></AdminRoute>} />
                     
                     <Route path="/dashboard/discounts" element={<AdminRoute><ErrorBoundary featureName="Discounts"><DiscountsPage /></ErrorBoundary></AdminRoute>} />
