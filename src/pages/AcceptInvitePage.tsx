@@ -103,7 +103,24 @@ export default function AcceptInvitePage() {
     }
 
     rememberJoinedOrganization(response.organization_id);
-    await waitForInviteSession(expectedEmail || response.email);
+    const joinedUser = await waitForInviteSession(expectedEmail || response.email);
+
+    const { data: membership, error: membershipError } = await supabase
+      .from('org_memberships')
+      .select('organization_id, role')
+      .eq('organization_id', response.organization_id)
+      .eq('user_id', joinedUser.id)
+      .maybeSingle();
+
+    if (membershipError) {
+      throw new Error(`membership_verify_failed: ${membershipError.message}${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
+    if (!membership) {
+      throw new Error(`membership_missing_after_accept${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
+    if (membership.role !== 'owner' && membership.role !== 'manager') {
+      throw new Error(`invalid_invite_membership_role: ${membership.role}${response.attempt_id ? ` (attempt_id: ${response.attempt_id})` : ''}`);
+    }
 
     try {
       sessionStorage.setItem(INVITE_JOIN_KEY, JSON.stringify({
