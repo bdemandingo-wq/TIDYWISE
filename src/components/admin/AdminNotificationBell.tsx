@@ -280,6 +280,7 @@ export function AdminNotificationBell() {
             const newNotification: AdminNotification = {
               id: `booking-${newBooking.id}`,
               type: 'booking',
+              typeKey: 'booking.new',
               title: 'New Booking Created',
               message: `Scheduled for ${newBooking.scheduled_at ? format(new Date(newBooking.scheduled_at), 'MMM d') : 'TBD'}`,
               is_read: false,
