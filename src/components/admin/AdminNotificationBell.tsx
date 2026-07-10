@@ -40,6 +40,20 @@ export function AdminNotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      return new Set(JSON.parse(localStorage.getItem('admin-notif-dismissed') || '[]'));
+    } catch { return new Set(); }
+  });
+  const prefs = useNotificationPreferences();
+  const { snoozeType } = useUpdateNotificationPreferences();
+
+  const persistDismissed = (set: Set<string>) => {
+    setDismissedIds(new Set(set));
+    try { localStorage.setItem('admin-notif-dismissed', JSON.stringify([...set])); } catch {}
+  };
 
   // One-time prompt for browser notification permission so desktop notifications
   // actually fire when realtime events arrive (booking requests, new leads, etc.).
