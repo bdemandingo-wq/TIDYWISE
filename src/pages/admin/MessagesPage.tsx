@@ -1199,6 +1199,8 @@ export default function MessagesPage() {
                     .gt('unread_count', 0);
                   if (error) { toast.error('Failed to mark all read'); return; }
                   setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                  queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+                  queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
                   toast.success('All conversations marked as read');
                 }}
                 title="Mark all as read"
