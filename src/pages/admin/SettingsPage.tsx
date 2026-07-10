@@ -87,10 +87,7 @@ interface BusinessSettings {
   require_deposit: boolean;
   minimum_notice_hours: number;
   cancellation_window_hours: number;
-  // Notification settings
-  notify_new_booking: boolean;
-  notify_reminders: boolean;
-  notify_cancellations: boolean;
+  // (Legacy notify_* toggles removed; use organization_notification_preferences)
   // Branding settings
   primary_color: string;
   accent_color: string;
