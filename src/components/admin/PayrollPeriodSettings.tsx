@@ -69,7 +69,7 @@ export function PayrollPeriodSettings() {
         .from('business_settings')
         .select(
           'payroll_frequency, payroll_start_day, payroll_custom_days, ' +
-            'payroll_report_email_enabled, payroll_report_recipients, payroll_report_send_hour'
+            'payroll_report_email_enabled, payroll_report_recipients, payroll_report_send_hour, payroll_report_send_day'
         )
         .eq('organization_id', organizationId)
         .maybeSingle();
@@ -85,6 +85,8 @@ export function PayrollPeriodSettings() {
           (row.payroll_report_recipients as string[] | null) ?? [],
         payroll_report_send_hour:
           (row.payroll_report_send_hour as number | null) ?? 20,
+        payroll_report_send_day:
+          (row.payroll_report_send_day as number | null) ?? null,
       } as PayrollPeriodConfig & ReportSettings;
     },
     enabled: !!organizationId,
