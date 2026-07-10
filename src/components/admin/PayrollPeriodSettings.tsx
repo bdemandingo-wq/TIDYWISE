@@ -126,6 +126,7 @@ export function PayrollPeriodSettings() {
   const [customDays, setCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [reportEnabled, setReportEnabled] = useState(true);
   const [sendHour, setSendHour] = useState(20);
+  const [sendDay, setSendDay] = useState<number | null>(null);
   const [recipientsText, setRecipientsText] = useState('');
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export function PayrollPeriodSettings() {
       }
       setReportEnabled(savedConfig.payroll_report_email_enabled);
       setSendHour(savedConfig.payroll_report_send_hour);
+      setSendDay(savedConfig.payroll_report_send_day ?? null);
       setRecipientsText((savedConfig.payroll_report_recipients ?? []).join(', '));
     }
   }, [savedConfig]);
