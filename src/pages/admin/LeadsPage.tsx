@@ -477,10 +477,9 @@ export default function LeadsPage() {
       <PlanFeatureGate feature="leads">
       <AttentionStrip
         href="/dashboard/leads"
-        onFilterChange={(key) => {
-          if (key === 'new') setStatusFilter('new');
-          else if (key === 'follow_up') setStatusFilter('follow_up');
-          else setStatusFilter('all');
+        onReasonClick={(r) => {
+          if (r.key === 'new') setStatusFilter('new');
+          else if (r.key === 'follow_up') setStatusFilter('follow_up');
         }}
         clearAction={{
           label: 'Mark all follow-ups handled',
