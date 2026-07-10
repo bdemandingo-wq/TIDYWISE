@@ -36,12 +36,14 @@ interface ReportSettings {
   payroll_report_email_enabled: boolean;
   payroll_report_recipients: string[];
   payroll_report_send_hour: number;
+  payroll_report_send_day: number | null;
 }
 
 const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   payroll_report_email_enabled: true,
   payroll_report_recipients: [],
   payroll_report_send_hour: 20,
+  payroll_report_send_day: null,
 };
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
