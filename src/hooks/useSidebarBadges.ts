@@ -37,27 +37,34 @@ export function useSidebarBadges(): Record<string, number> {
     queryFn: async () => {
       if (!orgId) return 0;
       const [timeOff, docs, payouts] = await Promise.all([
-        (supabase as any)
-          .from('time_off_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'pending'),
-        supabase
-          .from('staff_documents')
-          .select('*', { count: 'exact', head: true })
-          .eq('organization_id', orgId)
-          .eq('status', 'pending'),
-        supabase
-          .from('staff_payout_accounts')
-          .select('id, payouts_enabled, disabled_reason, requirements_currently_due')
-          .eq('organization_id', orgId),
+        on('staff.time_off')
+          ? (supabase as any)
+              .from('time_off_requests')
+              .select('*', { count: 'exact', head: true })
+              .eq('organization_id', orgId)
+              .eq('status', 'pending')
+          : Promise.resolve({ count: 0 }),
+        on('staff.documents')
+          ? supabase
+              .from('staff_documents')
+              .select('*', { count: 'exact', head: true })
+              .eq('organization_id', orgId)
+              .eq('status', 'pending')
+          : Promise.resolve({ count: 0 }),
+        on('staff.payout')
+          ? supabase
+              .from('staff_payout_accounts')
+              .select('id, payouts_enabled, disabled_reason, requirements_currently_due')
+              .eq('organization_id', orgId)
+          : Promise.resolve({ data: [] as any[] }),
       ]);
-      const payoutProblems = (payouts.data || []).filter((a: any) =>
+      const payoutProblems = ((payouts as any).data || []).filter((a: any) =>
         a?.disabled_reason ||
         (Array.isArray(a?.requirements_currently_due) && a.requirements_currently_due.length > 0)
       ).length;
-      return (timeOff.count || 0) + (docs.count || 0) + payoutProblems;
+      return ((timeOff as any).count || 0) + ((docs as any).count || 0) + payoutProblems;
     },
+
   });
 
   // ── Bookings: upcoming pending + unassigned + payment failed
