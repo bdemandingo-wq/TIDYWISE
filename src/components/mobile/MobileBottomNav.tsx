@@ -172,8 +172,9 @@ export function MobileBottomNav() {
 
         {/* Right 2 slots */}
         {rightSlots.map((item) => (
-          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+          <NavItem key={item.id} item={item} overrides={iconOverrides} onTap={triggerHaptic} currentPath={location.pathname} />
         ))}
+
       </div>
       <AddBookingDialog open={showAddBooking} onOpenChange={setShowAddBooking} />
     </nav>
