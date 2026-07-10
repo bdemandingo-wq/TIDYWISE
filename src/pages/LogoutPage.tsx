@@ -31,6 +31,10 @@ export default function LogoutPage() {
           key.startsWith('sb-') || key.includes('supabase')
         );
         sessionKeys.forEach(key => sessionStorage.removeItem(key));
+
+        // Purge per-user/per-org sidebar visibility cache so the next
+        // user on this device does not inherit stale hidden tabs.
+        clearSidebarHiddenItemsCache();
         
       } catch (err) {
         console.error('Logout error:', err);
