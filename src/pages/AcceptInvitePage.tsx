@@ -60,23 +60,24 @@ export default function AcceptInvitePage() {
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setBusy(true);
     try {
-      const { error: suErr } = await supabase.auth.signUp({
-        email: preview.email,
-        password,
-        options: { data: { full_name: fullName }, emailRedirectTo: `${window.location.origin}/accept-invite?token=${token}` },
+      // 1) Create pre-confirmed user server-side (bypasses email confirm)
+      const { data: sData, error: sErr } = await supabase.functions.invoke('accept-team-invite', {
+        body: { token, mode: 'signup', password, full_name: fullName },
       });
-      if (suErr && !/registered/i.test(suErr.message)) throw suErr;
-      // Attempt sign-in (works if email confirm is off)
-      const { error: siErr } = await supabase.auth.signInWithPassword({ email: preview.email, password });
-      if (siErr) {
-        toast.success('Check your email to confirm, then come back to this link.');
-        return;
+      const sErrCode = (sData as any)?.error;
+      if (sErr || (sErrCode && sErrCode !== 'user_exists')) {
+        throw new Error(sErrCode || sErr?.message || 'Signup failed');
       }
+      // 2) Sign in with the password (works whether we just created it or it existed)
+      const { error: siErr } = await supabase.auth.signInWithPassword({ email: preview.email, password });
+      if (siErr) throw siErr;
+      // 3) Accept invite (attaches membership) — needs the just-set auth session
       await acceptExisting();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Signup failed');
     } finally { setBusy(false); }
   };
+
 
   if (loadErr) {
     return (
