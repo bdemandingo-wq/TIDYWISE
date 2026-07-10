@@ -141,7 +141,7 @@ export async function loadOrgBrand(organizationId: string): Promise<
 
   const brand: OrgBrand = {
     companyName: bs?.company_name || es.from_name,
-    logoUrl: resolveLogoUrl(bs?.logo_url ?? null, supabaseUrl),
+    logoUrl: await resolveLogoUrl(bs?.logo_url ?? null, supabaseUrl, supabase),
     primaryColor: bs?.primary_color || "#1e5bb0",
     accentColor: bs?.accent_color || "#14b8a6",
     fromName: es.from_name,
