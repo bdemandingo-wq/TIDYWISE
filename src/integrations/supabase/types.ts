@@ -6253,8 +6253,10 @@ export type Database = {
           bell_notifications: Json
           channels: Json
           created_at: string
+          notification_matrix: Json
           organization_id: string
           sidebar_badges: Json
+          snoozed_until: Json
           updated_at: string
           updated_by: string | null
         }
@@ -6262,8 +6264,10 @@ export type Database = {
           bell_notifications?: Json
           channels?: Json
           created_at?: string
+          notification_matrix?: Json
           organization_id: string
           sidebar_badges?: Json
+          snoozed_until?: Json
           updated_at?: string
           updated_by?: string | null
         }
@@ -6271,8 +6275,10 @@ export type Database = {
           bell_notifications?: Json
           channels?: Json
           created_at?: string
+          notification_matrix?: Json
           organization_id?: string
           sidebar_badges?: Json
+          snoozed_until?: Json
           updated_at?: string
           updated_by?: string | null
         }
