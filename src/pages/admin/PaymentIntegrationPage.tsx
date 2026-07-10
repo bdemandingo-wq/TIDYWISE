@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { showChargeFailureToastSonner, extractFailureReason } from "@/lib/chargeErrorToast";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
 import { Capacitor } from "@capacitor/core";
