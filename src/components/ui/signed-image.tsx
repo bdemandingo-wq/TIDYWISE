@@ -38,6 +38,8 @@ export function SignedImage({
   expiresIn = 3600,
   loading: loadingAttr = 'lazy',
   thumbWidth,
+  onLoad,
+  onError,
 }: SignedImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
