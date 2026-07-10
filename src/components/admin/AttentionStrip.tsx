@@ -91,14 +91,15 @@ export function AttentionStrip({ href, onReasonClick, clearAction, className }: 
           <Button
             type="button"
             size="sm"
-            variant="ghost"
-            className="gap-1.5 text-xs"
+            variant="outline"
+            className="gap-1.5 border-amber-400 bg-white text-xs font-medium text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-100"
             onClick={handleMarkAllRead}
             title="Hides these badges until new items appear"
           >
             <Check className="h-3.5 w-3.5" />
             Mark all read
           </Button>
+
           {clearAction && (
             <Button
               type="button"
