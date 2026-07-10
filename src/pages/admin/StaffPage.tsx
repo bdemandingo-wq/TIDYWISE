@@ -53,6 +53,8 @@ import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDash
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
 import { SEOHead } from '@/components/SEOHead';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { usePageBadgeReasons } from '@/hooks/useSidebarBadges';
 
 interface StaffMember {
   id: string;
