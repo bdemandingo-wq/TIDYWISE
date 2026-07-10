@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { SortableTaskList } from '@/components/admin/tasks/SortableTaskList';
 import { SEOHead } from '@/components/SEOHead';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
 
 type TaskType = 'daily' | 'weekly' | 'monthly' | 'note';
 
@@ -287,6 +288,14 @@ export default function TasksPage() {
       }
     >
       <div className="space-y-6">
+        <AttentionStrip
+          href="/dashboard/tasks"
+          clearAction={{
+            label: 'Mark all complete',
+            disabled: markAllCompleteMutation.isPending || tasks.filter(t => !t.is_completed && t.type !== 'note').length === 0,
+            onClick: () => markAllCompleteMutation.mutate(),
+          }}
+        />
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TaskType)}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="daily" className="gap-2">
