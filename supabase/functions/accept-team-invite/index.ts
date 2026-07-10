@@ -54,6 +54,34 @@ serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Signup mode: create a confirmed auth user server-side, then let client sign in.
+    if (mode === 'signup') {
+      if (!password || password.length < 8) {
+        return new Response(JSON.stringify({ error: "weak_password" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Check if user already exists
+      const { data: existing } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const found = existing?.users?.find((u: any) => (u.email || '').toLowerCase() === invite.email.toLowerCase());
+      if (found) {
+        return new Response(JSON.stringify({ error: "user_exists", email: invite.email }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { error: createErr } = await admin.auth.admin.createUser({
+        email: invite.email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: full_name || '' },
+      });
+      if (createErr) throw createErr;
+      return new Response(JSON.stringify({ success: true, created: true, email: invite.email }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+
     // Accept mode: must be authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
