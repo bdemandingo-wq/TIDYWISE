@@ -66,15 +66,44 @@ serve(async (req) => {
     if (!brandResult.success) return json({ error: brandResult.error }, 400);
     const brand = brandResult.brand;
 
+    let sections: any[] | undefined = Array.isArray(body.sections) && body.sections.length > 0
+      ? (body.sections as any[])
+      : undefined;
+    let savedSubject: string | undefined;
+    let savedBody: string | undefined;
+    if (!sections) {
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const col = body.templateType === "reminder"
+        ? "reminder_email_subject, reminder_email_body, reminder_email_sections"
+        : "confirmation_email_subject, confirmation_email_body, confirmation_email_sections";
+      const { data: bs } = await admin
+        .from("business_settings")
+        .select(col)
+        .eq("organization_id", body.organizationId)
+        .maybeSingle();
+      if (bs) {
+        const secKey = body.templateType === "reminder" ? "reminder_email_sections" : "confirmation_email_sections";
+        const subKey = body.templateType === "reminder" ? "reminder_email_subject" : "confirmation_email_subject";
+        const bodyKey = body.templateType === "reminder" ? "reminder_email_body" : "confirmation_email_body";
+        const secs = (bs as any)[secKey];
+        if (Array.isArray(secs) && secs.length > 0) sections = secs;
+        savedSubject = (bs as any)[subKey] || undefined;
+        savedBody = (bs as any)[bodyKey] || undefined;
+      }
+    }
+
     const sample = { ...SAMPLE_BOOKING_DATA, company_name: brand.companyName };
     const isReminder = body.templateType === "reminder";
     const { subject, html } = renderBrandedEmail({
       brand,
-      subject: body.subject || (isReminder
+      subject: body.subject || savedSubject || (isReminder
         ? "Reminder: {{service_name}} on {{scheduled_date}}"
         : "Booking Confirmation - {{booking_number}}"),
-      bodyText: body.body || "",
-      sections: Array.isArray(body.sections) ? body.sections as any : undefined,
+      bodyText: body.body || savedBody || "",
+      sections,
       data: sample,
       showAppointmentCard: true,
       bannerLabel: isReminder ? "Appointment Reminder" : "Booking Confirmed",

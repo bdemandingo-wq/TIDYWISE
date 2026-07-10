@@ -71,6 +71,19 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Server-side branded defaults, used when a section is enabled but empty. */
+const SECTION_DEFAULTS: Record<EmailSectionKey, { title: string; html: string }> = {
+  intro: { title: '', html: '<p>Hi <strong>{{customer_name}}</strong>,</p><p>Thanks for choosing <strong>{{company_name}}</strong>. Your appointment details are below.</p>' },
+  reminders: { title: 'Before we arrive', html: '<ul><li>Someone 18+ should be available, or leave entry instructions.</li><li>Secure pets in a comfortable area away from the work zone.</li><li>Move small valuables you\'d like us to skip.</li></ul>' },
+  pricing: { title: 'About your price', html: '<p>Your quoted total is <strong>${{total_amount}}</strong>. If we discover the home is significantly larger or dirtier than booked, we\'ll contact you before any adjustment.</p>' },
+  cancellation: { title: 'Cancellation & rescheduling', html: '<p>Need to reschedule? Reply to this email at least <strong>24 hours</strong> before your appointment and we\'ll take care of it.</p>' },
+  payment: { title: 'Payment', html: '<p>Your card on file will be charged after service is complete. You\'ll receive a receipt by email.</p>' },
+  satisfaction: { title: 'Our satisfaction guarantee', html: '<p>If anything isn\'t up to your standards, let us know within 24 hours and we\'ll come back to make it right.</p>' },
+  closing: { title: '', html: '<p>See you on <strong>{{scheduled_date}}</strong>!<br/>The {{company_name}} team</p>' },
+  footer: { title: '', html: '<p>Booking reference: {{booking_number}}</p>' },
+  custom: { title: 'Additional info', html: '<p></p>' },
+};
+
 /** Wrap each section's user HTML with inline email-safe styles for max client compat. */
 export function renderSectionsToHtml(
   sections: EmailSection[],
@@ -78,15 +91,20 @@ export function renderSectionsToHtml(
   primaryColor: string,
 ): string {
   const active = [...sections]
-    .filter((s) => s.enabled && (s.html?.trim() || s.title?.trim()))
+    .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
   if (active.length === 0) return '';
 
   const blocks = active.map((section) => {
-    const cleanHtml = sanitizeSectionHtml(section.html || '');
+    const rawHtml = section.html?.trim() ? section.html : SECTION_DEFAULTS[section.key]?.html ?? '';
+    const rawTitle = section.title?.trim()
+      ? section.title
+      : (section.html?.trim() ? '' : SECTION_DEFAULTS[section.key]?.title ?? '');
+    if (!rawHtml && !rawTitle) return '';
+    const cleanHtml = sanitizeSectionHtml(rawHtml);
     const bodyHtml = injectInlineStyles(replaceVariables(cleanHtml, data), primaryColor);
-    const titleHtml = section.title
-      ? `<h2 style="margin:20px 0 10px;font-size:17px;font-weight:700;color:${primaryColor};letter-spacing:.2px;">${escapeHtml(replaceVariables(section.title, data))}</h2>`
+    const titleHtml = rawTitle
+      ? `<h2 style="margin:20px 0 10px;font-size:17px;font-weight:700;color:${primaryColor};letter-spacing:.2px;">${escapeHtml(replaceVariables(rawTitle, data))}</h2>`
       : '';
     return `<div style="margin:0 0 8px;">${titleHtml}${bodyHtml}</div>`;
   });
