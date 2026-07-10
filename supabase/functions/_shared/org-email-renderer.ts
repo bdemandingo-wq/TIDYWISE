@@ -120,8 +120,10 @@ export async function loadOrgBrand(organizationId: string): Promise<
 export interface RenderOptions {
   brand: OrgBrand;
   subject: string;
-  /** Free-form message body from the user's template (plain text with \n and {{vars}}) */
-  bodyText: string;
+  /** Legacy plain-text body (fallback when no sections). Supports \n and {{vars}}. */
+  bodyText?: string;
+  /** Preferred: structured rich-text sections built in the UI. */
+  sections?: import("./email-sections.ts").EmailSection[];
   /** Booking data used for variable substitution and appointment card */
   data: BookingEmailData;
   /** If true, renders a structured appointment card under the body */
@@ -132,21 +134,34 @@ export interface RenderOptions {
 
 /**
  * Renders a fully branded, responsive HTML email using the org's identity.
- * Body content is user-authored text with {{variable}} placeholders and \n line breaks.
+ * If `sections` are provided, they take precedence over `bodyText`.
  */
 export function renderBrandedEmail(opts: RenderOptions): { subject: string; html: string } {
   const { brand, data } = opts;
   const subject = replaceBookingVariables(opts.subject || "", data);
-  const bodyReplaced = replaceBookingVariables(opts.bodyText || "", data);
 
-  // Convert plain-text body (with \n) into paragraphs/line-breaks with escaping.
-  const bodyHtml = bodyReplaced
-    .split(/\n{2,}/)
-    .map((para) => {
-      const lines = para.split(/\n/).map(escapeHtml).join("<br />");
-      return `<p style="margin:0 0 16px 0;font-size:15px;color:#374151;line-height:1.65;">${lines}</p>`;
-    })
-    .join("");
+  let bodyHtml = "";
+  if (opts.sections && opts.sections.length > 0) {
+    // Async import would break serve; use dynamic import already resolved above via type-only.
+    // The runtime import happens through the shared module path.
+    // deno-lint-ignore no-explicit-any
+    const mod = (globalThis as any).__emailSectionsMod as
+      | typeof import("./email-sections.ts")
+      | undefined;
+    // Fallback: require via URL if not cached.
+    // We accept that sections rendering is done via the helper below.
+    bodyHtml = renderSectionsInline(opts.sections, data, brand.primaryColor, mod);
+  } else {
+    const bodyReplaced = replaceBookingVariables(opts.bodyText || "", data);
+    bodyHtml = bodyReplaced
+      .split(/\n{2,}/)
+      .map((para) => {
+        const lines = para.split(/\n/).map(escapeHtml).join("<br />");
+        return `<p style="margin:0 0 16px 0;font-size:15px;color:#374151;line-height:1.65;">${lines}</p>`;
+      })
+      .join("");
+  }
+
 
   const primary = brand.primaryColor;
   const accent = brand.accentColor;
