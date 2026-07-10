@@ -115,7 +115,11 @@ export function SignedImage({
       alt={alt}
       className={className}
       loading={loadingAttr}
-      onError={() => setError(true)}
+      onLoad={() => { onLoad?.(); }}
+      onError={(e) => {
+        setError(true);
+        onError?.(e);
+      }}
     />
   );
 }
