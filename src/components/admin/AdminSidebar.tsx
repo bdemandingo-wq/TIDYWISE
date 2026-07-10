@@ -304,41 +304,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     })
   );
 
-  // Load hidden items from localStorage
-  useEffect(() => {
-    const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-    if (savedHidden) {
-      try {
-        setHiddenItems(JSON.parse(savedHidden));
-      } catch (e) {
-        console.error('Error parsing hidden nav items:', e);
-      }
-    }
-  }, []);
+  // Hidden items now come from useSidebarHiddenItems (DB-backed, per-org).
 
-  // Listen for changes to hidden items (from settings page)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-      if (savedHidden) {
-        try {
-          setHiddenItems(JSON.parse(savedHidden));
-        } catch (e) {
-          console.error('Error parsing hidden nav items:', e);
-        }
-      } else {
-        setHiddenItems([]);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    // Also listen for custom event for same-tab updates
-    window.addEventListener('navHiddenChanged', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('navHiddenChanged', handleStorageChange);
-    };
-  }, []);
 
   // Load navigation order from localStorage
   useEffect(() => {
