@@ -25,6 +25,8 @@ import {
   CATEGORIES,
   CHANNELS,
   isChannelEnabled,
+  isMasterChannelOn,
+  masterChannelKey,
   type NotificationChannel,
 } from '@/lib/notificationCatalog';
 import { useOrgRole } from '@/hooks/useOrgRole';
