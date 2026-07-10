@@ -315,6 +315,38 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     refetchInterval: 30000,
   });
 
+  // Pending time-off requests count for Staff nav badge
+  const { data: pendingTimeOffCount = 0 } = useQuery({
+    queryKey: ['time-off-pending-count', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return 0;
+      const { count } = await (supabase as any)
+        .from('time_off_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organization.id)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organization?.id,
+    refetchInterval: 30000,
+  });
+
+  // Realtime — invalidate the pending count when a request is created/updated
+  useEffect(() => {
+    if (!organization?.id) return;
+    const ch = supabase
+      .channel(`sidebar-time-off-${organization.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'time_off_requests', filter: `organization_id=eq.${organization.id}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['time-off-pending-count', organization.id] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [organization?.id, queryClient]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
