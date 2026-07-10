@@ -852,8 +852,8 @@ export default function SettingsPage() {
             confirmationEmailBody={settings.confirmation_email_body}
             reminderEmailSubject={settings.reminder_email_subject}
             reminderEmailBody={settings.reminder_email_body}
-            confirmationEmailSections={(settings as any).confirmation_email_sections}
-            reminderEmailSections={(settings as any).reminder_email_sections}
+            confirmationEmailSections={settings.confirmation_email_sections as any}
+            reminderEmailSections={settings.reminder_email_sections as any}
             onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value as any }))}
             onSave={saveSettings}
             saving={saving}
