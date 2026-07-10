@@ -20,6 +20,9 @@ interface SignedImageProps {
   loading?: 'lazy' | 'eager';
   /** Request a server-resized thumbnail of this width (gallery grids). Omit for full-res. */
   thumbWidth?: number;
+  /** Notified when the underlying <img> fires load/error (after URL resolution). */
+  onLoad?: () => void;
+  onError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
 }
 
 /**
