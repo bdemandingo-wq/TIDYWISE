@@ -168,16 +168,19 @@ const handler = async (req: Request): Promise<Response> => {
     // Load admin's custom template copy from business_settings
     let customConfirmationBody = "";
     let customConfirmationSubject = "";
+    let customSections: any = null;
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: settings } = await supabase
         .from('business_settings')
-        .select('confirmation_email_subject, confirmation_email_body')
+        .select('confirmation_email_subject, confirmation_email_body, confirmation_email_sections')
         .eq('organization_id', booking.organizationId)
         .maybeSingle();
       if (settings) {
-        customConfirmationBody = settings.confirmation_email_body || "";
-        customConfirmationSubject = settings.confirmation_email_subject || "";
+        customConfirmationBody = (settings as any).confirmation_email_body || "";
+        customConfirmationSubject = (settings as any).confirmation_email_subject || "";
+        const secs = (settings as any).confirmation_email_sections;
+        if (Array.isArray(secs) && secs.length > 0) customSections = secs;
       }
     }
 
@@ -209,10 +212,12 @@ const handler = async (req: Request): Promise<Response> => {
       brand,
       subject: customConfirmationSubject || "Booking Confirmed - {{scheduled_date}}",
       bodyText: customConfirmationBody || defaultBody,
+      sections: customSections || undefined,
       data: bookingData,
       showAppointmentCard: true,
       bannerLabel: "Booking Confirmed",
     });
+
 
     
 
