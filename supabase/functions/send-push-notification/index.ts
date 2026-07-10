@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isServiceRoleRequest } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,6 +100,17 @@ async function sendApns(deviceToken: string, title: string, body: string, data?:
 // ── Main handler ──────────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // SECURITY: internal-only — its one legitimate caller (notify-time-off-request)
+  // already invokes it with the service-role key. No frontend caller exists;
+  // an unauthenticated caller could otherwise push arbitrary title/body to
+  // every device in any org, an in-app phishing vector.
+  if (!isServiceRoleRequest(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,14 +23,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { bookingId, organizationId } = await req.json();
+    const { bookingId } = await req.json();
 
-    if (!bookingId || !organizationId) {
+    if (!bookingId) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing bookingId or organizationId" }),
+        JSON.stringify({ success: false, error: "Missing bookingId" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // SECURITY: never trust organizationId from the request body — resolve
+    // it from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(
+        JSON.stringify({ success: false, error: callerOrg.error }),
+        { status: callerOrg.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const organizationId = callerOrg.ctx.organizationId;
 
     // Opt-in check: only send if org has enabled the post-booking upsell SMS
     const { data: smsSettings } = await supabase
@@ -59,6 +71,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (bookingError || !booking) {
       console.error("[post-booking-upsell] Booking not found:", bookingError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Booking not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SECURITY: the fetch above is by bookingId alone — confirm the booking
+    // actually belongs to the caller's org before using its customer data
+    // or sending anything on the org's behalf. Without this, a caller could
+    // supply any bookingId and have another org's SMS settings/phone number
+    // used to message that OTHER org's customer.
+    if (booking.organization_id !== organizationId) {
+      console.error("[post-booking-upsell] Booking org mismatch:", { bookingId, bookingOrg: booking.organization_id, callerOrg: organizationId });
       return new Response(
         JSON.stringify({ success: false, error: "Booking not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }

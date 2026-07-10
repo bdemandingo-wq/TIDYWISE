@@ -111,6 +111,7 @@ const INSPECTION_CATEGORY_CONFIG = {
 function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }: {
   customerId: string; organizationId: string; points: number; onRedeemed: () => void;
 }) {
+  const { invokePortal } = useClientPortal();
   const [loading, setLoading] = useState(false);
   const [redeemed, setRedeemed] = useState(false);
   // Synchronous in-flight guard: React state updates batch, so a very fast
@@ -124,7 +125,11 @@ function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }:
     inFlightRef.current = true;
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('redeem-loyalty-points', {
+      // customerId/organizationId are still passed for the button's own use,
+      // but the edge function now derives both from the signed portal
+      // session (x-portal-session, attached by invokePortal) — never from
+      // this body.
+      const { data, error } = await invokePortal('redeem-loyalty-points', {
         body: { customerId, organizationId, pointsToRedeem: 100 },
       });
       if (error || data?.error) throw new Error(data?.error || error?.message);
