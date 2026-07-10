@@ -74,7 +74,20 @@ export default function StaffPage() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [activeTab, setActiveTab] = useState('team');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'team';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && t !== activeTab) setActiveTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    const next = new URLSearchParams(searchParams);
+    if (v === 'team') next.delete('tab'); else next.set('tab', v);
+    setSearchParams(next, { replace: true });
+  };
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
