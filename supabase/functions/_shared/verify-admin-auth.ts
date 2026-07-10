@@ -81,9 +81,17 @@ export async function verifyAdminAuth(
   // Use the matching membership (first one if no specific org required)
   const membership = memberships[0];
 
-  // If admin role is required, verify it
-  if (options.requireAdmin && membership.role !== "admin" && membership.role !== "owner") {
-    console.error("Admin access required, user role:", membership.role);
+  // Role gate.
+  // - Owner: everything
+  // - Manager (and legacy "admin"): full admin workspace operations, including
+  //   using the org's existing Stripe connection to charge/save cards.
+  // - Owner-only actions (billing, connecting/disconnecting Stripe, replacing
+  //   Stripe keys) must pass requireOwner: true instead of requireAdmin.
+  const adminRoles = new Set(["owner", "admin", "manager"]);
+  if (options.requireOwner && membership.role !== "owner") {
+    return { success: false, error: "Access denied: owner privileges required" };
+  }
+  if (options.requireAdmin && !adminRoles.has(membership.role)) {
     return { success: false, error: "Access denied: admin privileges required" };
   }
 
