@@ -83,6 +83,7 @@ interface ManualPayment {
 
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
+  const { isOwner } = useOrgRole();
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
