@@ -10,6 +10,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check, Users, FileText, Bell, MapPin, CalendarOff } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { TimeOffRequestsPanel } from '@/components/admin/TimeOffRequestsPanel';
+import { useOrgRole } from '@/hooks/useOrgRole';
+
 
 import {
   DropdownMenu,
@@ -67,7 +69,9 @@ interface StaffMember {
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 export default function StaffPage() {
+  const { hasFinancialAccess } = useOrgRole();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [activeTab, setActiveTab] = useState('team');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -352,11 +356,12 @@ export default function StaffPage() {
                           <div>
                             <h3 className="font-semibold">{maskName(member.name)}</h3>
                             <div className="flex items-center gap-2">
-                              {(member.base_wage || member.hourly_rate) && (
+                              {hasFinancialAccess && (member.base_wage || member.hourly_rate) && (
                                 <span className="text-sm text-muted-foreground">
                                   {isTestMode ? '$XX/hr' : `$${member.base_wage || member.hourly_rate}/hr`}
                                 </span>
                               )}
+
                               <Badge variant={member.tax_classification === '1099' ? 'secondary' : 'default'} className="text-xs">
                                 {member.tax_classification === '1099' ? '1099' : 'W-2'}
                               </Badge>

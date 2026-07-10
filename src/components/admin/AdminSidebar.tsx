@@ -42,6 +42,8 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgRole } from '@/hooks/useOrgRole';
+
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { getSignedUrl } from '@/hooks/useSignedUrl';
