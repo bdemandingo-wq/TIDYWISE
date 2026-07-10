@@ -277,6 +277,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
   
   // Get active tab from URL query param, default to "general"
