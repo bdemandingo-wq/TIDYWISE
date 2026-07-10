@@ -837,6 +837,7 @@ export default function SettingsPage() {
           <EmailSettingsCard />
 
           <EmailTemplatesSettings
+            organizationId={organization?.id}
             confirmationEmailSubject={settings.confirmation_email_subject}
             confirmationEmailBody={settings.confirmation_email_body}
             reminderEmailSubject={settings.reminder_email_subject}
@@ -849,6 +850,7 @@ export default function SettingsPage() {
             primaryColor={settings.primary_color}
             accentColor={settings.accent_color}
           />
+
         </TabsContent>
 
         {/* Reviews Settings */}
