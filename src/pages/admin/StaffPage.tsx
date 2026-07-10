@@ -120,6 +120,25 @@ export default function StaffPage() {
     },
     enabled: !!organizationId,
   });
+  const { data: pendingDocs = 0 } = useQuery({
+    queryKey: ['staff-docs-pending-count', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return 0;
+      const { count } = await supabase
+        .from('staff_documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organizationId,
+  });
+  const staffReasons = usePageBadgeReasons('/dashboard/staff');
+  const handleStaffReason = (key: string) => {
+    if (key === 'time_off') handleTabChange('time-off');
+    else if (key === 'docs') handleTabChange('documents');
+    else if (key === 'payout') handleTabChange('team');
+  };
 
 
   const filteredStaff = staff.filter((s) => {
