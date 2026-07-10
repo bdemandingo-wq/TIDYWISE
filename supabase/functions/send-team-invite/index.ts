@@ -99,34 +99,38 @@ serve(async (req) => {
     const origin = req.headers.get("origin") || "https://www.jointidywise.com";
     const acceptUrl = `${origin}/accept-invite?token=${encodeURIComponent(inviteToken)}`;
 
-    // Send email via Resend (platform key)
-    const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (resendKey) {
-      const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
-          <h2 style="margin:0 0 12px;">You're invited to ${esc(orgName)}</h2>
-          <p>You've been invited to join <strong>${esc(orgName)}</strong> on TidyWise as <strong>${esc(role)}</strong>.</p>
-          <p style="margin:24px 0;">
-            <a href="${acceptUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;">Accept invitation</a>
-          </p>
-          <p style="color:#666;font-size:12px;">This link expires in 14 days. If you weren't expecting this, ignore this email.</p>
-        </div>`;
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "TidyWise <noreply@tidywisecleaning.com>",
-          to: [email],
-          subject: `You're invited to join ${orgName} on TidyWise`,
-          html,
-        }),
+    const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+        <h2 style="margin:0 0 12px;">You're invited to ${esc(orgName)}</h2>
+        <p>You've been invited to join <strong>${esc(orgName)}</strong> as <strong>${esc(role)}</strong>.</p>
+        <p style="margin:24px 0;">
+          <a href="${acceptUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;">Accept invitation</a>
+        </p>
+        <p style="font-size:12px;color:#666;">Or paste this link into your browser:<br/><span style="word-break:break-all;">${acceptUrl}</span></p>
+        <p style="color:#666;font-size:12px;">This link expires in 14 days. If you weren't expecting this, ignore this email.</p>
+      </div>`;
+
+    const sendResult = await sendOrgEmail({
+      organizationId: orgId,
+      to: email,
+      subject: `You're invited to join ${orgName}`,
+      html,
+    });
+    console.log("send-team-invite email result:", JSON.stringify(sendResult));
+    if (!sendResult.success) {
+      return new Response(JSON.stringify({
+        error: sendResult.error || "Failed to send invite email",
+        accept_url: acceptUrl,
+      }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: true, accept_url: acceptUrl }), {
+    return new Response(JSON.stringify({ success: true, accept_url: acceptUrl, method: sendResult.method, fellBack: sendResult.fellBack }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     return new Response(JSON.stringify({ error: message }), {
