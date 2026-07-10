@@ -71,6 +71,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { organizationId } = useOrgId();
   const { isOpen: copilotOpen } = useCopilot();
+  const { overrides: iconOverrides } = useNavIconOverrides();
   const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
   const [showAddBooking, setShowAddBooking] = useState(false);
 
