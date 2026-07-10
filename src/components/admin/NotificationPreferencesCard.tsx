@@ -25,6 +25,8 @@ import {
   CATEGORIES,
   CHANNELS,
   isChannelEnabled,
+  isMasterChannelOn,
+  masterChannelKey,
   type NotificationChannel,
 } from '@/lib/notificationCatalog';
 import { useOrgRole } from '@/hooks/useOrgRole';
@@ -46,7 +48,7 @@ const CHANNEL_ICON: Record<NotificationChannel, any> = {
 
 export function NotificationPreferencesCard() {
   const prefs = useNotificationPreferences();
-  const { setChannel, snoozeType, clearSnooze, resetToDefaults, saving } =
+  const { save, setChannel, snoozeType, clearSnooze, resetToDefaults, saving } =
     useUpdateNotificationPreferences();
   const { hasFinancialAccess } = useOrgRole();
   const [resetting, setResetting] = useState(false);
@@ -117,6 +119,42 @@ export function NotificationPreferencesCard() {
           </div>
         </CardHeader>
         <CardContent className="space-y-8">
+          {/* Master channel toggles — flip a channel off across every event. */}
+          <div className="rounded-lg border bg-muted/30 p-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+              Master channels
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {CHANNELS.map(ch => {
+                const Icon = CHANNEL_ICON[ch.key];
+                const on = isMasterChannelOn(ch.key, prefs.channels);
+                return (
+                  <div key={ch.key} className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-sm truncate">{ch.short}</span>
+                    </div>
+                    <Switch
+                      checked={on}
+                      disabled={saving}
+                      onCheckedChange={async v => {
+                        const r = await save({
+                          channels: { [masterChannelKey(ch.key)]: v },
+                        });
+                        if (r.error) toast.error(r.error);
+                      }}
+                      aria-label={`Master toggle — ${ch.label}`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Turning a master channel off silences it for every notification below,
+              even ones toggled on individually.
+            </p>
+          </div>
+
           {grouped.map(([category, types]) => (
             <div key={category}>
               <div className="text-sm font-semibold mb-3 text-foreground/90">
@@ -168,7 +206,8 @@ export function NotificationPreferencesCard() {
                             t.key,
                             ch.key,
                             prefs.notification_matrix,
-                            prefs.snoozed_until
+                            prefs.snoozed_until,
+                            prefs.channels
                           );
                           const Icon = CHANNEL_ICON[ch.key];
                           return (
