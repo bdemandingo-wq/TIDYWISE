@@ -6,6 +6,7 @@
 // The identical function is used for all three paths so previews match reality.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { renderSectionsToHtml, type EmailSection } from "./email-sections.ts";
 
 export interface OrgBrand {
   companyName: string;
@@ -120,8 +121,10 @@ export async function loadOrgBrand(organizationId: string): Promise<
 export interface RenderOptions {
   brand: OrgBrand;
   subject: string;
-  /** Free-form message body from the user's template (plain text with \n and {{vars}}) */
-  bodyText: string;
+  /** Legacy plain-text body (fallback when no sections). Supports \n and {{vars}}. */
+  bodyText?: string;
+  /** Preferred: structured rich-text sections built in the UI. */
+  sections?: EmailSection[];
   /** Booking data used for variable substitution and appointment card */
   data: BookingEmailData;
   /** If true, renders a structured appointment card under the body */
@@ -132,21 +135,26 @@ export interface RenderOptions {
 
 /**
  * Renders a fully branded, responsive HTML email using the org's identity.
- * Body content is user-authored text with {{variable}} placeholders and \n line breaks.
+ * If `sections` are provided, they take precedence over `bodyText`.
  */
 export function renderBrandedEmail(opts: RenderOptions): { subject: string; html: string } {
   const { brand, data } = opts;
   const subject = replaceBookingVariables(opts.subject || "", data);
-  const bodyReplaced = replaceBookingVariables(opts.bodyText || "", data);
 
-  // Convert plain-text body (with \n) into paragraphs/line-breaks with escaping.
-  const bodyHtml = bodyReplaced
-    .split(/\n{2,}/)
-    .map((para) => {
-      const lines = para.split(/\n/).map(escapeHtml).join("<br />");
-      return `<p style="margin:0 0 16px 0;font-size:15px;color:#374151;line-height:1.65;">${lines}</p>`;
-    })
-    .join("");
+  let bodyHtml = "";
+  if (opts.sections && opts.sections.length > 0) {
+    bodyHtml = renderSectionsToHtml(opts.sections, data, brand.primaryColor);
+  } else {
+    const bodyReplaced = replaceBookingVariables(opts.bodyText || "", data);
+    bodyHtml = bodyReplaced
+      .split(/\n{2,}/)
+      .map((para) => {
+        const lines = para.split(/\n/).map(escapeHtml).join("<br />");
+        return `<p style="margin:0 0 16px 0;font-size:15px;color:#374151;line-height:1.65;">${lines}</p>`;
+      })
+      .join("");
+  }
+
 
   const primary = brand.primaryColor;
   const accent = brand.accentColor;

@@ -1870,6 +1870,7 @@ export type Database = {
           company_state: string | null
           company_zip: string | null
           confirmation_email_body: string | null
+          confirmation_email_sections: Json | null
           confirmation_email_subject: string | null
           created_at: string
           currency: string | null
@@ -1900,6 +1901,7 @@ export type Database = {
           recurring_discount_one_time: number
           recurring_discount_weekly: number
           reminder_email_body: string | null
+          reminder_email_sections: Json | null
           reminder_email_subject: string | null
           require_cleaner_payout_setup: boolean
           require_clockout_photos: boolean
@@ -1932,6 +1934,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -1962,6 +1965,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
@@ -1994,6 +1998,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -2024,6 +2029,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean

@@ -384,6 +384,8 @@ export default function SettingsPage() {
         confirmation_email_body: settings.confirmation_email_body,
         reminder_email_subject: settings.reminder_email_subject,
         reminder_email_body: settings.reminder_email_body,
+        confirmation_email_sections: (settings as any).confirmation_email_sections ?? null,
+        reminder_email_sections: (settings as any).reminder_email_sections ?? null,
         google_review_url: settings.google_review_url,
         review_sms_template: settings.review_sms_template,
         resend_api_key: settings.resend_api_key,
@@ -842,13 +844,11 @@ export default function SettingsPage() {
             confirmationEmailBody={settings.confirmation_email_body}
             reminderEmailSubject={settings.reminder_email_subject}
             reminderEmailBody={settings.reminder_email_body}
-            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value }))}
+            confirmationEmailSections={(settings as any).confirmation_email_sections}
+            reminderEmailSections={(settings as any).reminder_email_sections}
+            onUpdate={(field, value) => setSettings(prev => ({ ...prev, [field]: value as any }))}
             onSave={saveSettings}
             saving={saving}
-            companyName={settings.company_name}
-            logoUrl={settings.logo_url}
-            primaryColor={settings.primary_color}
-            accentColor={settings.accent_color}
           />
 
         </TabsContent>
