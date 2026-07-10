@@ -192,6 +192,9 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <>
+          {/* Sidebar Badges + Bell + Delivery Channel preferences */}
+          <NotificationPreferencesCard />
+
           {/* Push Notifications */}
           <Card className="mb-6">
             <CardHeader>
