@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { clearSidebarHiddenItemsCache } from '@/hooks/useSidebarHiddenItems';
 
 interface Organization {
   id: string;
