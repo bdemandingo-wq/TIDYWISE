@@ -124,7 +124,7 @@ export interface RenderOptions {
   /** Legacy plain-text body (fallback when no sections). Supports \n and {{vars}}. */
   bodyText?: string;
   /** Preferred: structured rich-text sections built in the UI. */
-  sections?: import("./email-sections.ts").EmailSection[];
+  sections?: EmailSection[];
   /** Booking data used for variable substitution and appointment card */
   data: BookingEmailData;
   /** If true, renders a structured appointment card under the body */
