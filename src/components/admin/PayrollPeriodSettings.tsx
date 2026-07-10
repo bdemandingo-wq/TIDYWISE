@@ -431,6 +431,36 @@ export function PayrollPeriodSettings() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium">Send day</label>
+                <Select
+                  value={sendDay === null ? 'default' : String(sendDay)}
+                  onValueChange={(v) => setSendDay(v === 'default' ? null : Number(v))}
+                >
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">
+                      Default (day period ends)
+                    </SelectItem>
+                    {DAYS.map((d) => {
+                      const full = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.value];
+                      return (
+                        <SelectItem key={d.value} value={String(d.value)}>
+                          {full}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {frequency === 'biweekly'
+                    ? 'Bi-weekly reports send on this day at the close of each 2-week period.'
+                    : 'Weekly reports send on this day. Leave as Default to send when the period closes.'}
+                </p>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Additional recipients</label>
                 <Textarea
                   value={recipientsText}
