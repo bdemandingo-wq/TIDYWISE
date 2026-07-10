@@ -96,7 +96,8 @@ serve(async (req) => {
     const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).maybeSingle();
     const orgName = org?.name || "your team";
 
-    const origin = req.headers.get("origin") || "https://www.jointidywise.com";
+    // Always send invite links to the production domain, never the preview/staging origin.
+    const origin = (Deno.env.get("PUBLIC_SITE_URL") || "https://www.jointidywise.com").replace(/\/$/, "");
     const acceptUrl = `${origin}/accept-invite?token=${encodeURIComponent(inviteToken)}`;
 
     const esc = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
