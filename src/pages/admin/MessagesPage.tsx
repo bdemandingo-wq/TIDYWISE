@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, isToday, isThisWeek } from 'date-fns';
 import {
   MessageSquare, Send, Search, Plus, Loader2, RefreshCw,
@@ -114,6 +115,7 @@ const formatUnreadCount = (count: number) => {
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -485,6 +487,8 @@ export default function MessagesPage() {
       return;
     }
     setConversations(prev => prev.map(c => unreadIds.includes(c.id) ? { ...c, unread_count: 0 } : c));
+    queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
     toast.success(`Marked ${unreadIds.length} conversation${unreadIds.length === 1 ? '' : 's'} read`);
   };
 
@@ -1195,6 +1199,8 @@ export default function MessagesPage() {
                     .gt('unread_count', 0);
                   if (error) { toast.error('Failed to mark all read'); return; }
                   setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                  queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+                  queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
                   toast.success('All conversations marked as read');
                 }}
                 title="Mark all as read"
@@ -1323,6 +1329,8 @@ export default function MessagesPage() {
               const ids = [...selectedForBulk];
               await Promise.all(ids.map(id => supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', id)));
               setConversations(prev => prev.map(c => selectedForBulk.has(c.id) ? { ...c, unread_count: 0 } : c));
+              queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+              queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
               toast.success(`Marked ${ids.length} as read`);
               setSelectedForBulk(new Set());
               setBulkEditMode(false);

@@ -53,6 +53,8 @@ import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDash
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
 import { SEOHead } from '@/components/SEOHead';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { usePageBadgeReasons } from '@/hooks/useSidebarBadges';
 
 interface StaffMember {
   id: string;
@@ -118,6 +120,25 @@ export default function StaffPage() {
     },
     enabled: !!organizationId,
   });
+  const { data: pendingDocs = 0 } = useQuery({
+    queryKey: ['staff-docs-pending-count', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return 0;
+      const { count } = await supabase
+        .from('staff_documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organizationId,
+  });
+  const staffReasons = usePageBadgeReasons('/dashboard/staff');
+  const handleStaffReason = (key: string) => {
+    if (key === 'time_off') handleTabChange('time-off');
+    else if (key === 'docs') handleTabChange('documents');
+    else if (key === 'payout') handleTabChange('team');
+  };
 
 
   const filteredStaff = staff.filter((s) => {
@@ -284,15 +305,21 @@ export default function StaffPage() {
       }
     >
       <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
+      <AttentionStrip href="/dashboard/staff" onReasonClick={(r) => handleStaffReason(r.key)} />
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-4">
           <TabsTrigger value="team" className="gap-2">
             <Users className="h-4 w-4" />
             Team
           </TabsTrigger>
-          <TabsTrigger value="documents" className="gap-2">
+          <TabsTrigger value="documents" className="gap-2 relative">
             <FileText className="h-4 w-4" />
             Documents
+            {pendingDocs > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                {pendingDocs}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="activity" className="gap-2">
             <Bell className="h-4 w-4" />

@@ -1,0 +1,2 @@
+REVOKE SELECT (stripe_secret_key, stripe_access_token, stripe_refresh_token) ON public.org_stripe_settings FROM authenticated, anon;
+GRANT SELECT (stripe_secret_key, stripe_access_token, stripe_refresh_token) ON public.org_stripe_settings TO service_role;

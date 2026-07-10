@@ -208,24 +208,43 @@ export default function ClientFeedbackPage() {
         onReasonClick={(r) => setFilterResolved(r.key === 'followup' ? 'followup' : 'unresolved')}
       />
       {(stats.unresolved > 0 || stats.needsFollowup > 0) && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={bulkResolveMutation.isPending || filteredEntries.filter(e => !e.is_resolved).length === 0}
-            onClick={() => bulkResolveMutation.mutate(filteredEntries.filter(e => !e.is_resolved).map(e => e.id))}
-          >
-            Mark all visible resolved
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={bulkFollowupDoneMutation.isPending || entries.filter(e => e.followup_needed && !e.is_resolved).length === 0}
-            onClick={() => bulkFollowupDoneMutation.mutate(entries.filter(e => e.followup_needed && !e.is_resolved).map(e => e.id))}
-          >
-            Mark all follow-ups complete
-          </Button>
-        </div>
+        <Card className="mb-4 border-muted">
+          <CardContent className="p-3 sm:p-4 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground mr-2">
+              This badge clears when feedback is resolved, follow-ups are complete, or you disable it in Notification Settings.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFilterResolved('unresolved')}
+            >
+              Show attention items
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={bulkFollowupDoneMutation.isPending || entries.filter(e => e.followup_needed && !e.is_resolved).length === 0}
+              onClick={() => bulkFollowupDoneMutation.mutate(entries.filter(e => e.followup_needed && !e.is_resolved).map(e => e.id))}
+            >
+              Mark all follow-ups complete
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={bulkResolveMutation.isPending || filteredEntries.filter(e => !e.is_resolved).length === 0}
+              onClick={() => {
+                const ids = filteredEntries.filter(e => !e.is_resolved).map(e => e.id);
+                if (ids.length === 0) return;
+                if (confirm(`Mark ${ids.length} unresolved item${ids.length === 1 ? '' : 's'} as resolved? Only do this if you have actually addressed them — this is not a "dismiss reminder" action.`)) {
+                  bulkResolveMutation.mutate(ids);
+                }
+              }}
+            >
+              Mark all visible resolved
+            </Button>
+          </CardContent>
+        </Card>
       )}
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
