@@ -4,11 +4,15 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export type PrefFlags = Record<string, boolean>;
+export type ChannelMatrix = Record<string, Record<string, boolean>>;
+export type SnoozeMap = Record<string, string>; // typeKey -> ISO datetime
 
 export interface NotificationPreferences {
   sidebar_badges: PrefFlags;
   bell_notifications: PrefFlags;
   channels: PrefFlags;
+  notification_matrix: ChannelMatrix;
+  snoozed_until: SnoozeMap;
 }
 
 // Canonical keys and recommended defaults. Anything not present in these maps
