@@ -19,6 +19,7 @@ interface Body {
   toEmail: string;
   subject?: string;
   body?: string;
+  sections?: unknown;
 }
 
 async function requireOrgAdmin(req: Request, organizationId: string): Promise<string | null> {
