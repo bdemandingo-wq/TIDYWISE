@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, isToday, isThisWeek } from 'date-fns';
 import {
   MessageSquare, Send, Search, Plus, Loader2, RefreshCw,
