@@ -173,6 +173,7 @@ export function PayrollPeriodSettings() {
             frequency === 'weekly' && useCustomDays ? customDays : null,
           payroll_report_email_enabled: reportEnabled,
           payroll_report_send_hour: sendHour,
+          payroll_report_send_day: sendDay,
           payroll_report_recipients: parsedRecipients,
         } as never)
         .eq('organization_id', organizationId);
