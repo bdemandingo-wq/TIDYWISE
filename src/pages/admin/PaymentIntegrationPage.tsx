@@ -430,21 +430,22 @@ export default function PaymentIntegrationPage() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDisconnect}
-                    disabled={isDisconnecting}
-                    className="text-destructive hover:text-destructive flex-shrink-0"
-                  >
-                    {isDisconnecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span className="ml-2 hidden sm:inline">Disconnect</span>
-                  </Button>
-                </div>
+                  {isOwner && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      disabled={isDisconnecting}
+                      className="text-destructive hover:text-destructive flex-shrink-0"
+                    >
+                      {isDisconnecting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      <span className="ml-2 hidden sm:inline">Disconnect</span>
+                    </Button>
+                  )}
               </CardContent>
             </Card>
 
