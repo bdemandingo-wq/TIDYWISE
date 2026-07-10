@@ -469,6 +469,25 @@ export default function MessagesPage() {
     }
   };
 
+  const markAllConversationsRead = async () => {
+    if (!organizationId) return;
+    const unreadIds = conversations.filter(c => (c.unread_count || 0) > 0).map(c => c.id);
+    if (unreadIds.length === 0) {
+      toast.info('No unread conversations');
+      return;
+    }
+    const { error } = await supabase
+      .from('sms_conversations')
+      .update({ unread_count: 0 })
+      .in('id', unreadIds);
+    if (error) {
+      toast.error('Failed to mark all read');
+      return;
+    }
+    setConversations(prev => prev.map(c => unreadIds.includes(c.id) ? { ...c, unread_count: 0 } : c));
+    toast.success(`Marked ${unreadIds.length} conversation${unreadIds.length === 1 ? '' : 's'} read`);
+  };
+
   const syncOpenPhoneMessages = async (
     showToast = true,
     options: { daysBack?: number; maxConversations?: number } = {},
@@ -1536,6 +1555,15 @@ export default function MessagesPage() {
           <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
           {!isMobile && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markAllConversationsRead}
+                disabled={!conversations.some(c => (c.unread_count || 0) > 0)}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Mark all read
+              </Button>
               <Dialog open={emailOpen} onOpenChange={async (open) => {
                 setEmailOpen(open);
                 if (open && organizationId) {
