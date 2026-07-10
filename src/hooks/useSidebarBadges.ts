@@ -3,18 +3,28 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
+import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 
 /**
  * Centralized sidebar badge counts. Each entry maps a nav href to a
  * count of unresolved / action-needed items for that section.
  * Bell/activity feed items are intentionally excluded — this is only
  * for badges that require the user to take action.
+ *
+ * Individual sub-counts are gated by the organization's notification
+ * preferences (see useNotificationPreferences). Turning off a badge
+ * only hides the count — the underlying page/data is untouched.
  */
 export function useSidebarBadges(): Record<string, number> {
   const { organization } = useOrganization();
   const { hasFinancialAccess, isOwner } = useOrgRole();
   const orgId = organization?.id;
   const queryClient = useQueryClient();
+  const prefs = useNotificationPreferences();
+  const showBadges = prefs.channels['channel.sidebar_badge'] !== false;
+  const sb = prefs.sidebar_badges;
+  const on = (k: string) => showBadges && sb[k] !== false;
+
 
   const enabled = !!orgId;
   const refetchInterval = 60_000;
