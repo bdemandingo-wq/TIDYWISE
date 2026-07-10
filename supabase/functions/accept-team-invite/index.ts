@@ -55,9 +55,13 @@ async function attachMembershipAndAccept(
     );
   if (memErr) throw new Error(`membership_upsert_failed: ${memErr.message}`);
 
+  const acceptPatch = invite.accepted_at
+    ? { accepted_by: invite.accepted_by || userId }
+    : { accepted_at: new Date().toISOString(), accepted_by: userId };
+
   const { error: acceptErr } = await admin
     .from("organization_invites")
-    .update({ accepted_at: new Date().toISOString(), accepted_by: userId })
+    .update(acceptPatch)
     .eq("id", invite.id);
   if (acceptErr) throw new Error(`invite_accept_update_failed: ${acceptErr.message}`);
 
@@ -123,9 +127,7 @@ serve(async (req) => {
 
       const found = await findAuthUserByEmail(admin, normalizedEmail);
       if (found) {
-        if (!invite.accepted_at) {
-          await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
-        }
+        await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
         return json({
           success: true,
           existing_user: true,
@@ -186,11 +188,7 @@ serve(async (req) => {
       return json({ error: "email_mismatch", expected: invite.email, attempt_id: attemptId }, 403);
     }
 
-    if (!invite.accepted_at) {
-      await attachMembershipAndAccept(admin, invite as InviteRow, user.id, attemptId);
-    } else {
-      console.log(`[accept-team-invite] ${attemptId} invite already accepted; returning success invite=${invite.id}`);
-    }
+    await attachMembershipAndAccept(admin, invite as InviteRow, user.id, attemptId);
 
     return json({
       success: true, organization_id: invite.organization_id, role: invite.role, attempt_id: attemptId,
