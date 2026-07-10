@@ -446,6 +446,7 @@ export default function PaymentIntegrationPage() {
                       <span className="ml-2 hidden sm:inline">Disconnect</span>
                     </Button>
                   )}
+                </div>
               </CardContent>
             </Card>
 
