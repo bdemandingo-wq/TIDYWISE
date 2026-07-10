@@ -11,6 +11,36 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Preview = { email: string; role: string; organization_name: string };
+type InviteResponse = {
+  success?: boolean;
+  created?: boolean;
+  existing_user?: boolean;
+  requires_sign_in?: boolean;
+  email?: string;
+  organization_id?: string;
+  role?: string;
+  error?: string;
+  message?: string;
+  attempt_id?: string;
+};
+
+async function getExactFunctionError(data: unknown, error: unknown, fallback = 'Invite request failed') {
+  const bodyError = (data as InviteResponse | null)?.error;
+  if (bodyError) return bodyError;
+
+  const context = (error as any)?.context;
+  if (context && typeof context.json === 'function') {
+    try {
+      const body = await context.json();
+      if (body?.error) return String(body.error);
+      if (body?.message) return String(body.message);
+    } catch {
+      // Fall through to the platform error message below.
+    }
+  }
+
+  return (error as Error | null)?.message || fallback;
+}
 
 export default function AcceptInvitePage() {
   const [params] = useSearchParams();
@@ -32,7 +62,7 @@ export default function AcceptInvitePage() {
         body: { token, mode: 'preview' },
       });
       if (error || (data as any)?.error) {
-        setLoadErr((data as any)?.error || error?.message || 'Invalid invite');
+        setLoadErr(await getExactFunctionError(data, error, 'Invalid invite'));
         return;
       }
       setPreview(data as Preview);
@@ -45,7 +75,7 @@ export default function AcceptInvitePage() {
       const { data, error } = await supabase.functions.invoke('accept-team-invite', {
         body: { token, mode: 'accept' },
       });
-      if (error || (data as any)?.error) throw new Error((data as any)?.error || error?.message);
+      if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
       toast.success('You joined the workspace');
       await refetch();
       if ((data as any)?.organization_id) switchOrganization((data as any).organization_id);
@@ -60,21 +90,26 @@ export default function AcceptInvitePage() {
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setBusy(true);
     try {
-      // 1) Create pre-confirmed user server-side (bypasses email confirm)
+      // 1) Server verifies the invite. Existing users are attached immediately;
+      // new users are created pre-confirmed and attached immediately.
       const { data: sData, error: sErr } = await supabase.functions.invoke('accept-team-invite', {
         body: { token, mode: 'signup', password, full_name: fullName },
       });
-      const sErrCode = (sData as any)?.error;
-      if (sErr || (sErrCode && sErrCode !== 'user_exists')) {
-        throw new Error(sErrCode || sErr?.message || 'Signup failed');
+      if (sErr || (sData as InviteResponse)?.error) {
+        throw new Error(await getExactFunctionError(sData, sErr, 'Signup failed'));
       }
-      // 2) Sign in with the password (works whether we just created it or it existed)
+
+      // 2) Sign in with the password typed on this screen. For existing users,
+      // this must be their existing password; no confirmation email is involved.
       const { error: siErr } = await supabase.auth.signInWithPassword({ email: preview.email, password });
       if (siErr) throw siErr;
-      // 3) Accept invite (attaches membership) — needs the just-set auth session
-      await acceptExisting();
+
+      toast.success('You joined the workspace');
+      await refetch();
+      if ((sData as InviteResponse)?.organization_id) switchOrganization((sData as InviteResponse).organization_id!);
+      navigate('/dashboard');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Signup failed');
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally { setBusy(false); }
   };
 
