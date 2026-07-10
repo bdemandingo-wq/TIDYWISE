@@ -19,6 +19,8 @@ import {
   ICON_MAP,
   type MobileNavItem,
 } from "@/components/mobile/MobileBottomNav";
+import { getNavItemByHref, resolveNavIcon } from "@/lib/navIcons";
+import { useNavIconOverrides } from "@/hooks/useNavIconOverrides";
 
 export function MobileBottomNavSettings() {
   const { organizationId } = useOrgId();
