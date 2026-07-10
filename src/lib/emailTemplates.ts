@@ -88,9 +88,9 @@ function textToParagraphs(text: string): string {
     .map((p) => {
       const lines = p.split(/\n/).map((l) =>
         l
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;'),
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;'),
       );
       // Bullet-like lines beginning with "- "
       if (lines.every((l) => l.trim().startsWith('- '))) {
