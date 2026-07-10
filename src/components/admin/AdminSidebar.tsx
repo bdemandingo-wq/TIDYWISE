@@ -44,6 +44,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgRole } from '@/hooks/useOrgRole';
 import { useSidebarBadgesFull, type BadgeReason } from '@/hooks/useSidebarBadges';
+import { useSidebarHiddenItems } from '@/hooks/useSidebarHiddenItems';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { Button } from '@/components/ui/button';
@@ -256,7 +257,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
-  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const { hiddenItems, isLoading: hiddenItemsLoading } = useSidebarHiddenItems();
   const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
   const { toast } = useToast();
@@ -303,41 +304,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     })
   );
 
-  // Load hidden items from localStorage
-  useEffect(() => {
-    const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-    if (savedHidden) {
-      try {
-        setHiddenItems(JSON.parse(savedHidden));
-      } catch (e) {
-        console.error('Error parsing hidden nav items:', e);
-      }
-    }
-  }, []);
+  // Hidden items now come from useSidebarHiddenItems (DB-backed, per-org).
 
-  // Listen for changes to hidden items (from settings page)
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const savedHidden = localStorage.getItem('tidywise_nav_hidden');
-      if (savedHidden) {
-        try {
-          setHiddenItems(JSON.parse(savedHidden));
-        } catch (e) {
-          console.error('Error parsing hidden nav items:', e);
-        }
-      } else {
-        setHiddenItems([]);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    // Also listen for custom event for same-tab updates
-    window.addEventListener('navHiddenChanged', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('navHiddenChanged', handleStorageChange);
-    };
-  }, []);
 
   // Load navigation order from localStorage
   useEffect(() => {
@@ -382,16 +350,24 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     []
   );
 
-  // Filter out hidden items and add badges
-  const visibleNavigation = navigation
-    .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
-    .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
-    .map(item => {
-      const count = badgeCounts[item.href] || 0;
-      return count > 0
-        ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
-        : item;
-    });
+  // Filter out hidden items and add badges. While the DB-backed visibility
+  // preference is still loading we render an EMPTY list rather than the full
+  // default set, so tabs the user hid never flash before the preference
+  // resolves. The scoped localStorage cache means repeat visits hydrate
+  // instantly (isLoading is already false), and first-time renders show a
+  // brief blank list instead of the wrong content.
+  const visibleNavigation = hiddenItemsLoading
+    ? []
+    : navigation
+        .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
+        .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
+        .map(item => {
+          const count = badgeCounts[item.href] || 0;
+          return count > 0
+            ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
+            : item;
+        });
+
 
 
   useEffect(() => {

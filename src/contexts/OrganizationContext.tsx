@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { clearSidebarHiddenItemsCache } from '@/hooks/useSidebarHiddenItems';
 
 interface Organization {
   id: string;
@@ -165,6 +166,10 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(ACTIVE_ORG_KEY, orgId);
     setOrganization(target.organization);
     setMembership({ organization_id: orgId, role: target.role });
+    // Purge per-org sidebar visibility caches — the incoming org has its own
+    // saved hidden-tabs list, and we must not leak the previous org's cache
+    // into that first render.
+    clearSidebarHiddenItemsCache();
     // Reset cached React Query data so org-scoped queries refetch
     // against the new org. Previously this called window.location.reload(),
     // which threw away scroll position, in-progress forms, and looked
