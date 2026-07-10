@@ -163,6 +163,7 @@ export function AdminNotificationBell() {
           bookingNotifications.push({
             id: `booking-${booking.id}`,
             type: 'booking' as const,
+            typeKey: 'booking.new',
             title: customerName,
             message: `${serviceName} • ${cleanDate}`,
             is_read: true,
