@@ -275,6 +275,9 @@ export default function SettingsPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const { settings: orgSettings, saveSettings: saveOrgSettings } = useOrganizationSettings();
+  // One-time non-destructive migration of legacy notify_* flags into the
+  // shared organization_notification_preferences matrix.
+  useLegacyNotificationMigration();
   
   // Get active tab from URL query param, default to "general"
   const activeTab = searchParams.get('tab') || 'general';
