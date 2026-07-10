@@ -384,6 +384,8 @@ export default function SettingsPage() {
         confirmation_email_body: settings.confirmation_email_body,
         reminder_email_subject: settings.reminder_email_subject,
         reminder_email_body: settings.reminder_email_body,
+        confirmation_email_sections: (settings as any).confirmation_email_sections ?? null,
+        reminder_email_sections: (settings as any).reminder_email_sections ?? null,
         google_review_url: settings.google_review_url,
         review_sms_template: settings.review_sms_template,
         resend_api_key: settings.resend_api_key,
