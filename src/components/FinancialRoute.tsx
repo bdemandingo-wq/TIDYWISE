@@ -4,8 +4,10 @@ import { Loader2 } from 'lucide-react';
 import { useOrgRole } from '@/hooks/useOrgRole';
 
 /**
- * Gates a route to owner + admin only. Managers are redirected to the dashboard.
- * Use for financial pages: subscription, invoices totals, payroll amounts, reports money.
+ * Gates a route to owner only. Managers are redirected to the scheduler
+ * (a safe non-financial landing page). Use for financial pages: the
+ * admin Dashboard overview, subscription, payroll, expenses, finance,
+ * and reports.
  */
 export function FinancialRoute({ children }: { children: ReactNode }) {
   const { loading, hasFinancialAccess } = useOrgRole();
@@ -16,6 +18,6 @@ export function FinancialRoute({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!hasFinancialAccess) return <Navigate to="/dashboard" replace />;
+  if (!hasFinancialAccess) return <Navigate to="/dashboard/scheduler" replace />;
   return <>{children}</>;
 }
