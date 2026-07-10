@@ -59,8 +59,20 @@ serve(async (req) => {
       return jsonResponse({ error: "organization_id is required" }, 400);
     }
 
+    // get_status is safe for any org admin (owner + manager) so managers can
+    // see "Stripe is connected for this workspace". All mutating actions
+    // (connect / exchange / manual keys / disconnect) are owner-only — managers
+    // must NOT be able to replace or remove the org's Stripe connection.
+    const ownerOnlyActions = new Set([
+      "get_oauth_url",
+      "exchange_code",
+      "save_manual_keys",
+      "disconnect",
+    ]);
+
     const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
       requireAdmin: true,
+      requireOwner: ownerOnlyActions.has(action),
       requireOrganizationId: organization_id,
     });
 
