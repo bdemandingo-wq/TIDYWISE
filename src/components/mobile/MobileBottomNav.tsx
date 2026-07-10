@@ -145,8 +145,9 @@ export function MobileBottomNav() {
       <div className="relative grid grid-cols-5 items-end pb-[env(safe-area-inset-bottom)]">
         {/* Left 2 slots */}
         {leftSlots.map((item) => (
-          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+          <NavItem key={item.id} item={item} overrides={iconOverrides} onTap={triggerHaptic} currentPath={location.pathname} />
         ))}
+
 
         {/* Center + FAB */}
         <div className="flex items-center justify-center relative">
