@@ -484,7 +484,7 @@ export default function PaymentIntegrationPage() {
             )}
 
             {/* Legacy upgrade prompt */}
-            {connectionStatus.legacy && (
+            {connectionStatus.legacy && isOwner && (
               <Card className="border-amber-500/30 bg-amber-500/5">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
