@@ -1101,8 +1101,10 @@ export default function SettingsPage() {
 
         {/* Mobile Nav */}
         <TabsContent value="mobile-nav" className="space-y-6">
+          <NavIconStyleSettings />
           <MobileBottomNavSettings />
         </TabsContent>
+
 
         {/* Import Data */}
         <TabsContent value="import" className="space-y-6">
