@@ -206,7 +206,8 @@ export function NotificationPreferencesCard() {
                             t.key,
                             ch.key,
                             prefs.notification_matrix,
-                            prefs.snoozed_until
+                            prefs.snoozed_until,
+                            prefs.channels
                           );
                           const Icon = CHANNEL_ICON[ch.key];
                           return (
