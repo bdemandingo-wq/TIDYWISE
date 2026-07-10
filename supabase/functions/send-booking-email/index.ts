@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getOrgEmailSettings } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 import { loadOrgBrand, renderBrandedEmail } from "../_shared/org-email-renderer.ts";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -129,16 +130,17 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // CRITICAL: organizationId is REQUIRED for multi-tenant isolation
-    if (!booking.organizationId) {
-      console.error("Missing organizationId - cannot send email without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required for email sending" 
-      }), {
-        status: 400,
+    // SECURITY: never trust organizationId from the request body — resolve it
+    // from the caller's own JWT + org_memberships instead. The body's value
+    // (if any) is ignored below.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(JSON.stringify({ error: callerOrg.error }), {
+        status: callerOrg.status,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+    booking.organizationId = callerOrg.ctx.organizationId;
 
     console.log("Sending booking confirmation email to:", customerEmail, "for organization:", booking.organizationId);
 

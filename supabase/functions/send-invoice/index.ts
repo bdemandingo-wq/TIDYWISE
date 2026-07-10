@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { resolveCallerOrg, isServiceRoleRequest } from "../_shared/require-caller-org.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -93,6 +94,23 @@ const handler = async (req: Request): Promise<Response> => {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
+    }
+
+    // SECURITY: this function has two legitimate callers — the admin
+    // dashboard (user JWT) and create-stripe-invoice (service role, which
+    // has already resolved organizationId correctly itself). Only the
+    // service-role path may trust the body's organizationId; everyone else
+    // gets it overwritten with their own verified org.
+    if (!isServiceRoleRequest(req)) {
+      const callerOrg = await resolveCallerOrg(req);
+      if (!callerOrg.ok) {
+        return new Response(JSON.stringify({ error: callerOrg.error }), {
+          status: callerOrg.status,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      data.organizationId = callerOrg.ctx.organizationId;
+      organizationId = callerOrg.ctx.organizationId;
     }
 
     const emailSettingsResult = await getOrgEmailSettings(data.organizationId);

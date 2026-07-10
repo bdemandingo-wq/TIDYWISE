@@ -8,6 +8,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendOrgEmail } from "../_shared/send-org-email.ts";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,11 +36,21 @@ serve(async (req) => {
 
   try {
     const body = (await req.json().catch(() => ({}))) as Body;
-    if (!body.organization_id || !body.quote_id) {
-      return new Response(JSON.stringify({ error: "organization_id and quote_id are required" }), {
+    if (!body.quote_id) {
+      return new Response(JSON.stringify({ error: "quote_id is required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // SECURITY: never trust organization_id from the request body — resolve
+    // it from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(JSON.stringify({ error: callerOrg.error }), {
+        status: callerOrg.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    body.organization_id = callerOrg.ctx.organizationId;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

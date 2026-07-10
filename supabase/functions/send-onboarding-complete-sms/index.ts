@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -33,15 +34,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { to, businessName, organizationId, ownerName } = await req.json() as OnboardingCompleteSmsRequest;
+    const { to, businessName, ownerName } = await req.json() as OnboardingCompleteSmsRequest;
 
-    if (!organizationId) {
-      console.error("[send-onboarding-complete-sms] Missing organizationId");
+    // SECURITY: never trust organizationId from the request body — resolve
+    // it from the caller's own JWT + org_memberships instead. By the time
+    // this fires, the onboarding flow has already created the org and the
+    // caller's first (owner) membership row.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing organizationId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: callerOrg.error }),
+        { status: callerOrg.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const organizationId = callerOrg.ctx.organizationId;
 
     if (!to) {
       console.error("[send-onboarding-complete-sms] Missing phone number");

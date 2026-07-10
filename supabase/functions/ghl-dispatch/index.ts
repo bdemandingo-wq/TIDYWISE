@@ -1,5 +1,6 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveCallerOrg } from '../_shared/require-caller-org.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -173,7 +174,6 @@ Deno.serve(async (req) => {
   try {
     const body = (await req.json()) as DispatchBody;
     const {
-      organization_id,
       event_type,
       payload,
       mode = 'dispatch',
@@ -181,12 +181,16 @@ Deno.serve(async (req) => {
       override_mapping,
     } = body || ({} as DispatchBody);
 
-    if (!organization_id) {
-      return new Response(JSON.stringify({ error: 'organization_id is required' }), {
-        status: 400,
+    // SECURITY: never trust organization_id from the request body — resolve
+    // it from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(JSON.stringify({ error: callerOrg.error }), {
+        status: callerOrg.status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const organization_id = callerOrg.ctx.organizationId;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -34,16 +35,18 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { jobDetails, companyName: providedCompanyName, organizationId, staffIds }: NotifyCleanersRequest = await req.json();
+    const { jobDetails, companyName: providedCompanyName, staffIds }: NotifyCleanersRequest = await req.json();
 
-    // organizationId is required — block if missing to prevent cross-org leakage
-    if (!organizationId) {
-      console.error("organizationId is required");
+    // SECURITY: never trust organizationId from the request body — resolve it
+    // from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
       return new Response(
-        JSON.stringify({ error: "organizationId is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: callerOrg.error }),
+        { status: callerOrg.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const organizationId = callerOrg.ctx.organizationId;
 
     console.log(`Notifying cleaners for org ${organizationId} about job #${jobDetails.booking_number}`);
 

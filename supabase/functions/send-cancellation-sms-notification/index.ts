@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,23 +36,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { 
-      customerName, 
-      serviceName, 
+    const {
+      customerName,
+      serviceName,
       scheduledAt,
       formattedDate: preFormattedDate,
       formattedTime: preFormattedTime,
       bookingNumber,
-      organizationId
     }: CancellationNotificationRequest = await req.json();
 
-    if (!organizationId) {
-      console.error("[send-cancellation-sms-notification] Missing organizationId");
+    // SECURITY: never trust organizationId from the request body — resolve it
+    // from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
       return new Response(
-        JSON.stringify({ success: false, error: "Missing organizationId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: callerOrg.error }),
+        { status: callerOrg.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const organizationId = callerOrg.ctx.organizationId;
 
     console.log("[send-cancellation-sms-notification] Processing notification for org:", organizationId);
 

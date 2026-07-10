@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +28,26 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const isManualSend = !!payload?.customerPhone;
-    const organizationId = payload?.organizationId;
+    let organizationId = payload?.organizationId;
+
+    // SECURITY: this function has 3 legitimate callers:
+    //  1. Cron (no organizationId, no customerPhone) — scheduled sweep of every org.
+    //  2. Its own fan-out sub-calls (organizationId, no customerPhone) — one per org.
+    //  3. The admin dashboard, sending ONE reminder for ONE booking (always
+    //     includes customerPhone). Only this path is JWT-authenticated;
+    //     the other two are cron-secret-gated below.
+    if (!isManualSend) {
+      const cronGate = requireCronSecret(req);
+      if (cronGate) return cronGate;
+    } else {
+      const callerOrg = await resolveCallerOrg(req);
+      if (!callerOrg.ok) {
+        return new Response(JSON.stringify({ error: callerOrg.error }), {
+          status: callerOrg.status, headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+      organizationId = callerOrg.ctx.organizationId;
+    }
 
     // If no organizationId and not manual, iterate all orgs (cron mode)
     if (!organizationId && !isManualSend) {
@@ -52,12 +73,17 @@ const handler = async (req: Request): Promise<Response> => {
       // completes immediately while the sub-invocations continue in the background.
       const orgUrl = `${supabaseUrl}/functions/v1/send-booking-reminder`;
       const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+      const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
 
       const invokeOrg = async (orgId: string, attempt = 0): Promise<void> => {
         try {
           const resp = await fetch(orgUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${anonKey}` },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${anonKey}`,
+              "x-cron-secret": cronSecret,
+            },
             body: JSON.stringify({ organizationId: orgId }),
           });
           if (resp.status === 429 && attempt < 2) {

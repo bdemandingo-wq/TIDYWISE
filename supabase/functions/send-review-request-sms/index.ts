@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -25,9 +26,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     const payload: ReviewRequestSmsPayload = await req.json();
-    const { bookingId, customerId, customerPhone, customerName, serviceName, organizationId } = payload;
-
-    console.log("Processing review request SMS:", { bookingId, customerName, organizationId });
+    const { bookingId, customerId, customerPhone, customerName, serviceName } = payload;
 
     if (!customerPhone || !bookingId) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -36,15 +35,18 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    if (!organizationId) {
-      console.error("Missing organizationId - cannot send review request without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required" 
-      }), {
-        status: 400,
+    // SECURITY: never trust organizationId from the request body — resolve it
+    // from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(JSON.stringify({ error: callerOrg.error }), {
+        status: callerOrg.status,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+    const organizationId = callerOrg.ctx.organizationId;
+
+    console.log("Processing review request SMS:", { bookingId, customerName, organizationId });
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
