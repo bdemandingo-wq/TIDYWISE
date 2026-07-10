@@ -44,6 +44,8 @@ import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
+import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
+import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
 
 import { CopilotSettingsCard } from '@/components/admin/CopilotSettingsCard';
 
