@@ -40,6 +40,7 @@ import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
+import { NavIconStyleSettings } from '@/components/admin/NavIconStyleSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
@@ -582,7 +583,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="reviews">Reviews</TabsTrigger>
             <TabsTrigger className="shrink-0" value="branding">Branding</TabsTrigger>
             <TabsTrigger className="shrink-0" value="sidebar">Sidebar</TabsTrigger>
-            <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="mobile-nav">Navigation</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
             <TabsTrigger
@@ -1100,8 +1101,10 @@ export default function SettingsPage() {
 
         {/* Mobile Nav */}
         <TabsContent value="mobile-nav" className="space-y-6">
+          <NavIconStyleSettings />
           <MobileBottomNavSettings />
         </TabsContent>
+
 
         {/* Import Data */}
         <TabsContent value="import" className="space-y-6">

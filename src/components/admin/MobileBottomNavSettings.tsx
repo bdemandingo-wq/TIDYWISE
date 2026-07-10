@@ -19,12 +19,19 @@ import {
   ICON_MAP,
   type MobileNavItem,
 } from "@/components/mobile/MobileBottomNav";
+import { getNavItemByHref, resolveNavIcon } from "@/lib/navIcons";
+import { useNavIconOverrides } from "@/hooks/useNavIconOverrides";
 
 export function MobileBottomNavSettings() {
   const { organizationId } = useOrgId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [slots, setSlots] = useState<MobileNavItem[]>([...DEFAULT_SLOTS]);
+  const { overrides: iconOverrides } = useNavIconOverrides();
+  const iconFor = (slot: MobileNavItem) => {
+    const def = getNavItemByHref(slot.to);
+    return def ? resolveNavIcon(def, iconOverrides) : ICON_MAP[slot.iconKey];
+  };
 
   useEffect(() => {
     if (!organizationId) return;
@@ -105,7 +112,7 @@ export function MobileBottomNavSettings() {
               <p className="text-xs text-muted-foreground mb-2 font-medium">Preview</p>
               <div className="grid grid-cols-5 gap-1">
                 {slots.slice(0, 2).map((s) => {
-                  const Icon = ICON_MAP[s.iconKey];
+                  const Icon = iconFor(s);
                   return (
                     <div key={s.id} className="flex flex-col items-center gap-0.5 text-[10px] text-muted-foreground">
                       {Icon && <Icon className="h-4 w-4" />}
@@ -119,7 +126,7 @@ export function MobileBottomNavSettings() {
                   </div>
                 </div>
                 {slots.slice(2, 4).map((s) => {
-                  const Icon = ICON_MAP[s.iconKey];
+                  const Icon = iconFor(s);
                   return (
                     <div key={s.id} className="flex flex-col items-center gap-0.5 text-[10px] text-muted-foreground">
                       {Icon && <Icon className="h-4 w-4" />}
@@ -141,7 +148,7 @@ export function MobileBottomNavSettings() {
                     </SelectTrigger>
                     <SelectContent>
                       {ALL_NAV_PAGES.map((page) => {
-                        const Icon = ICON_MAP[page.iconKey];
+                        const def = getNavItemByHref(page.to); const Icon = def ? resolveNavIcon(def, iconOverrides) : ICON_MAP[page.iconKey];
                         return (
                           <SelectItem key={page.id} value={page.id}>
                             <span className="flex items-center gap-2">

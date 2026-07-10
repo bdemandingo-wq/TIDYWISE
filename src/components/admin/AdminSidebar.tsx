@@ -2,41 +2,17 @@ import { Link, useLocation, useNavigate, matchPath } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Calendar,
-  Users,
-  ClipboardList,
-  Settings,
-  BarChart3,
-  Briefcase,
-  UserCircle,
   LogOut,
   ChevronDown,
   Home,
-  DollarSign,
-  Receipt,
-  Package,
   Menu,
-  Repeat,
-  Target,
-  MessageSquare,
-  MapPin,
-  CheckSquare,
-  CreditCard,
   Sparkles,
-  HelpCircle,
   GripVertical,
-  Tag,
   Activity,
-  Zap,
-  Brain,
-  Globe,
-  Camera,
   Plus,
   Check,
-  Bell,
-  Navigation as NavigationIcon,
-  Gauge,
-  Bug,
   Trash2,
+  type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useMemo } from 'react';
@@ -83,46 +59,62 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const defaultNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Brain },
-  { name: 'Scheduler', href: '/dashboard/scheduler', icon: Calendar },
-  { name: 'Tracking', href: '/dashboard/tracking', icon: NavigationIcon },
-  { name: 'Bookings', href: '/dashboard/bookings', icon: ClipboardList },
-  { name: 'Recurring', href: '/dashboard/recurring', icon: Repeat },
-  { name: 'Customers', href: '/dashboard/customers', icon: Users },
-  { name: 'Client Portal', href: '/dashboard/client-portal', icon: Globe },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
-  { name: 'Leads', href: '/dashboard/leads', icon: Target },
-  { name: 'Operations', href: '/dashboard/operations', icon: MapPin },
-  { name: 'Campaigns', href: '/dashboard/campaigns', icon: Zap },
-  { name: 'Feedback', href: '/dashboard/feedback', icon: MessageSquare },
-  { name: 'Services', href: '/dashboard/services', icon: Briefcase },
-  { name: 'Staff', href: '/dashboard/staff', icon: UserCircle },
-  { name: 'Checklists', href: '/dashboard/checklists', icon: CheckSquare },
-  { name: 'Booking Photos', href: '/dashboard/booking-photos', icon: Camera },
-  { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
-  { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
-  { name: 'Payroll', href: '/dashboard/payroll', icon: DollarSign },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt },
-  { name: 'Finance', href: '/dashboard/finance', icon: Receipt },
-  { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Benchmarks', href: '/dashboard/benchmarks', icon: Gauge },
-  { name: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  
-  { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
-  { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
-  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
-  
+import {
+  NAV_ITEMS,
+  NAV_ICON_LIBRARY,
+  getNavItemByHref,
+  resolveNavIcon,
+} from '@/lib/navIcons';
+import { useNavIconOverrides } from '@/hooks/useNavIconOverrides';
+
+// Sidebar order & inclusion list (subset of the shared NAV_ITEMS registry).
+// Each entry's icon comes from the shared registry, so a single change in
+// Settings → Navigation → Icon style propagates here, to mobile, and to the
+// Capacitor iOS/Android apps.
+const SIDEBAR_ITEM_IDS: string[] = [
+  'dashboard',
+  'ai-intelligence',
+  'scheduler',
+  'tracking',
+  'bookings',
+  'recurring',
+  'customers',
+  'client-portal',
+  'invoices',
+  'messages',
+  'tasks',
+  'leads',
+  'operations',
+  'campaigns',
+  'feedback',
+  'services',
+  'staff',
+  'checklists',
+  'booking-photos',
+  'inventory',
+  'discounts',
+  'payroll',
+  'expenses',
+  'finance',
+  'reports',
+  'benchmarks',
+  'notifications',
+  'automation-center',
+  'payment-integration',
+  'help',
 ];
 
-const iconMap: Record<string, typeof Home> = {
-  Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
-  Briefcase, UserCircle, CheckSquare, Package, DollarSign, Receipt, BarChart3,
-  Sparkles, CreditCard, HelpCircle, Tag, Activity, Brain, Globe, Zap, Camera, Gauge, Bug,
-};
+const defaultNavigation = SIDEBAR_ITEM_IDS
+  .map(id => NAV_ITEMS.find(n => n.id === id))
+  .filter((n): n is NonNullable<typeof n> => !!n)
+  .map(n => ({
+    name: n.name,
+    href: n.href,
+    icon: NAV_ICON_LIBRARY[n.defaultIconKey],
+  }));
+
+const iconMap: Record<string, typeof Home> = NAV_ICON_LIBRARY;
+
 
 interface NavItem {
   name: string;
@@ -291,6 +283,10 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   // Unified badge counts + breakdowns (see useSidebarBadges for details).
   const { counts: badgeCounts, breakdowns: badgeBreakdowns } = useSidebarBadgesFull();
 
+  // Per-org icon overrides (Settings → Navigation → Icon style).
+  const { overrides: iconOverrides } = useNavIconOverrides();
+
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -382,16 +378,19 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     []
   );
 
-  // Filter out hidden items and add badges
+  // Filter out hidden items, apply icon overrides, and add badges
   const visibleNavigation = navigation
     .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
     .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
     .map(item => {
+      const navDef = getNavItemByHref(item.href);
+      const icon = navDef ? resolveNavIcon(navDef, iconOverrides) : item.icon;
       const count = badgeCounts[item.href] || 0;
       return count > 0
-        ? { ...item, badge: count, breakdown: badgeBreakdowns[item.href] }
-        : item;
+        ? { ...item, icon, badge: count, breakdown: badgeBreakdowns[item.href] }
+        : { ...item, icon };
     });
+
 
 
   useEffect(() => {
@@ -662,7 +661,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
               }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors min-h-[44px] pointer-events-auto touch-manipulation"
             >
-              <Settings className="w-4 h-4" />
+              {(() => { const def = NAV_ITEMS.find(n => n.id === 'settings')!; const S = resolveNavIcon(def, iconOverrides); return <S className="w-4 h-4" />; })()}
               <span className="text-sm">Settings</span>
             </button>
 

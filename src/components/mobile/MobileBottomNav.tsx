@@ -1,17 +1,14 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import {
-  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
-  ClipboardList, Bell, Plus, Brain, CalendarDays, Repeat, UserCircle,
-  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
-  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
-  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
-} from 'lucide-react';
+import { Home, Plus } from 'lucide-react';
+import { NAV_ICON_LIBRARY, getNavItemByHref, resolveNavIcon } from '@/lib/navIcons';
+import { useNavIconOverrides } from '@/hooks/useNavIconOverrides';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { useCopilot } from '@/hooks/useCopilot';
+
 
 export type MobileNavItem = {
   id: string;
@@ -28,14 +25,12 @@ export const DEFAULT_SLOTS: MobileNavItem[] = [
   { id: 'reports', label: 'Reports', to: '/dashboard/reports', iconKey: 'BarChart3' },
 ];
 
+// Shared Lucide registry (single source of truth). See src/lib/navIcons.ts.
 export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  Home, Users, Target, MessageSquare, Settings, Calendar, BarChart3,
-  ClipboardList, Bell, Brain, CalendarDays, Repeat, UserCircle,
-  FileText, ListTodo, Crosshair, Megaphone, MessageCircle, Wrench,
-  UsersRound, CheckSquare, Camera, Package, Percent, DollarSign,
-  Receipt, PieChart, CreditCard, Zap, Briefcase, Image,
+  ...NAV_ICON_LIBRARY,
   Plus,
 };
+
 
 export const ALL_NAV_PAGES: Array<{ id: string; label: string; to: string; iconKey: string }> = [
   { id: 'dashboard', label: 'Dashboard', to: '/dashboard', iconKey: 'Home' },
@@ -76,6 +71,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { organizationId } = useOrgId();
   const { isOpen: copilotOpen } = useCopilot();
+  const { overrides: iconOverrides } = useNavIconOverrides();
   const [slots, setSlots] = useState<MobileNavItem[]>(DEFAULT_SLOTS);
   const [showAddBooking, setShowAddBooking] = useState(false);
 
@@ -150,8 +146,9 @@ export function MobileBottomNav() {
       <div className="relative grid grid-cols-5 items-end pb-[env(safe-area-inset-bottom)]">
         {/* Left 2 slots */}
         {leftSlots.map((item) => (
-          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+          <NavItem key={item.id} item={item} overrides={iconOverrides} onTap={triggerHaptic} currentPath={location.pathname} />
         ))}
+
 
         {/* Center + FAB */}
         <div className="flex items-center justify-center relative">
@@ -176,16 +173,22 @@ export function MobileBottomNav() {
 
         {/* Right 2 slots */}
         {rightSlots.map((item) => (
-          <NavItem key={item.id} item={item} onTap={triggerHaptic} currentPath={location.pathname} />
+          <NavItem key={item.id} item={item} overrides={iconOverrides} onTap={triggerHaptic} currentPath={location.pathname} />
         ))}
+
       </div>
       <AddBookingDialog open={showAddBooking} onOpenChange={setShowAddBooking} />
     </nav>
   );
 }
 
-function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () => void; currentPath: string }) {
-  const Icon = ICON_MAP[item.iconKey] ?? Home;
+function NavItem({ item, overrides, onTap, currentPath }: { item: MobileNavItem; overrides: Record<string, string>; onTap: () => void; currentPath: string }) {
+  // Prefer the org's override for the matching nav id (keyed by href),
+  // then fall back to the slot's saved iconKey, then Home.
+  const navDef = getNavItemByHref(item.to);
+  const Icon = navDef
+    ? resolveNavIcon(navDef, overrides)
+    : (ICON_MAP[item.iconKey] ?? Home);
   const isActive = currentPath === item.to || (item.to !== '/dashboard' && currentPath.startsWith(item.to + '/'));
   const isExactDashboard = item.to === '/dashboard' && currentPath === '/dashboard';
   const active = isActive || isExactDashboard;
@@ -206,4 +209,5 @@ function NavItem({ item, onTap, currentPath }: { item: MobileNavItem; onTap: () 
       <span className="leading-none">{item.label}</span>
     </NavLink>
   );
+
 }
