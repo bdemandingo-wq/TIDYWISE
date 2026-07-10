@@ -1893,6 +1893,7 @@ export type Database = {
           payroll_frequency: string
           payroll_report_email_enabled: boolean
           payroll_report_recipients: string[]
+          payroll_report_send_day: number | null
           payroll_report_send_hour: number
           payroll_start_day: number
           primary_color: string | null
@@ -1957,6 +1958,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_report_email_enabled?: boolean
           payroll_report_recipients?: string[]
+          payroll_report_send_day?: number | null
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
@@ -2021,6 +2023,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_report_email_enabled?: boolean
           payroll_report_recipients?: string[]
+          payroll_report_send_day?: number | null
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
