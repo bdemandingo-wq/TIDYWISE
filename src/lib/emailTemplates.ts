@@ -61,7 +61,7 @@ function uid(): string {
 }
 
 /** DOMPurify config: rich-text formatting only, no scripts, no styles, no iframes. */
-const SANITIZE_CONFIG: DOMPurify.Config = {
+const SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
     'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
     'h2', 'h3', 'ul', 'ol', 'li', 'a', 'blockquote', 'span',
