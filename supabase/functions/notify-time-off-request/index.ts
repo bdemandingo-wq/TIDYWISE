@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
           .from("org_memberships")
           .select("user_id, role")
           .eq("organization_id", r.organization_id)
-          .in("role", ["owner", "admin"]);
+          .in("role", ["owner", "admin", "manager"]);
         const userIds = (mems ?? []).map((m: any) => m.user_id);
         if (userIds.length) {
           const { data: profs } = await admin.from("profiles").select("email").in("id", userIds);
