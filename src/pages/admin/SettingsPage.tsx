@@ -97,6 +97,8 @@ interface BusinessSettings {
   confirmation_email_body: string;
   reminder_email_subject: string;
   reminder_email_body: string;
+  confirmation_email_sections: unknown[] | null;
+  reminder_email_sections: unknown[] | null;
   // Reviews
   google_review_url: string;
   review_sms_template: string;
