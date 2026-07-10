@@ -473,24 +473,39 @@ export default function SettingsPage() {
 
     setUploadingLogo(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = (file.name.split('.').pop() || 'png').toLowerCase();
       const fileName = `logo-${Date.now()}.${fileExt}`;
       const filePath = `${organization?.id}/logos/${fileName}`;
 
+      // Upload to the PUBLIC `business-assets` bucket so email clients can fetch it.
+      // (The old `booking-photos` bucket is private and results in broken images in emails.)
       const { error: uploadError } = await supabase.storage
-        .from('booking-photos')
-        .upload(filePath, file);
+        .from('business-assets')
+        .upload(filePath, file, { upsert: true, contentType: file.type });
 
       if (uploadError) throw uploadError;
 
-      // Store the path (not public URL) for signed URL generation
-      // For logos, we'll store the full path including 'booking-photos:' prefix
-      // to indicate it's a storage path that needs signed URL
-      updateField('logo_url', `storage:booking-photos:${filePath}`);
-      toast.success('Logo uploaded successfully');
-    } catch (error) {
+      const { data: urlData } = supabase.storage
+        .from('business-assets')
+        .getPublicUrl(filePath);
+      const publicUrl = urlData.publicUrl;
+
+      // Verify the uploaded logo is actually reachable and is an image before saving.
+      try {
+        const head = await fetch(publicUrl, { method: 'HEAD' });
+        const ct = head.headers.get('content-type') || '';
+        if (!head.ok || !ct.startsWith('image/')) {
+          throw new Error(`Uploaded logo could not be verified (status ${head.status}, type "${ct}")`);
+        }
+      } catch (verifyErr: any) {
+        throw new Error(verifyErr?.message || 'Uploaded logo failed verification');
+      }
+
+      updateField('logo_url', publicUrl);
+      toast.success('Logo uploaded and verified');
+    } catch (error: any) {
       console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
+      toast.error(error?.message || 'Failed to upload logo');
     } finally {
       setUploadingLogo(false);
     }
