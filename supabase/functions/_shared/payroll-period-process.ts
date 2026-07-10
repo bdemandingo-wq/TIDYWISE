@@ -196,6 +196,7 @@ export async function processOrg(
     .select(
       "timezone, payroll_frequency, payroll_start_day, payroll_custom_days, " +
         "payroll_report_email_enabled, payroll_report_recipients, " +
+        "payroll_report_send_day, " +
         "company_name",
     )
     .eq("organization_id", org.id)
@@ -213,6 +214,7 @@ export async function processOrg(
   const emailEnabled = bs?.payroll_report_email_enabled ?? true;
   const extraRecipients = (bs?.payroll_report_recipients as string[]) ?? [];
   const companyName = (bs?.company_name as string) || org.name;
+  const customSendDay = (bs?.payroll_report_send_day as number | null) ?? null;
 
   if (!opts.force && !emailEnabled) {
     return { ...result, skipped: "email_disabled", success: true };
@@ -226,18 +228,39 @@ export async function processOrg(
   if (opts.periodOverride) {
     periodStart = opts.periodOverride.start;
     periodEnd = opts.periodOverride.end;
-  } else if (isPeriodEndDay(today, config)) {
+  } else if (opts.force) {
+    // Admin trigger: report on the CURRENT in-progress pay period.
     periodStart = getPeriodStart(today, config);
     periodEnd = getPeriodEnd(periodStart, config);
-  } else if (opts.force) {
-    // Admin trigger on a non-end-day: report on the CURRENT in-progress
-    // pay period (the one that contains today). This matches what the
-    // Payroll dashboard shows as "Current Pay Period".
+  } else if (customSendDay !== null) {
+    // Custom send day: fire when today's day-of-week matches. Report on the
+    // most recently CLOSED period (end date strictly before today, or today
+    // if the send day happens to coincide with the period end day).
+    if (today.getUTCDay() !== customSendDay) {
+      return { ...result, skipped: "not_period_end_day", success: true };
+    }
+    // Walk back day-by-day (max 14) to find the most recent period end <= today.
+    let cursor = today;
+    let found: Date | null = null;
+    for (let i = 0; i < 14; i++) {
+      if (isPeriodEndDay(cursor, config)) {
+        found = cursor;
+        break;
+      }
+      cursor = new Date(cursor.getTime() - 86_400_000);
+    }
+    if (!found) {
+      return { ...result, skipped: "not_period_end_day", success: true };
+    }
+    periodEnd = found;
+    periodStart = getPeriodStart(periodEnd, config);
+  } else if (isPeriodEndDay(today, config)) {
     periodStart = getPeriodStart(today, config);
     periodEnd = getPeriodEnd(periodStart, config);
   } else {
     return { ...result, skipped: "not_period_end_day", success: true };
   }
+
 
   result.periodStart = toDateString(periodStart);
   result.periodEnd = toDateString(periodEnd);

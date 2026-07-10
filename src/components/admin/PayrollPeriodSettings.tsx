@@ -36,12 +36,14 @@ interface ReportSettings {
   payroll_report_email_enabled: boolean;
   payroll_report_recipients: string[];
   payroll_report_send_hour: number;
+  payroll_report_send_day: number | null;
 }
 
 const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   payroll_report_email_enabled: true,
   payroll_report_recipients: [],
   payroll_report_send_hour: 20,
+  payroll_report_send_day: null,
 };
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => {
@@ -67,7 +69,7 @@ export function PayrollPeriodSettings() {
         .from('business_settings')
         .select(
           'payroll_frequency, payroll_start_day, payroll_custom_days, ' +
-            'payroll_report_email_enabled, payroll_report_recipients, payroll_report_send_hour'
+            'payroll_report_email_enabled, payroll_report_recipients, payroll_report_send_hour, payroll_report_send_day'
         )
         .eq('organization_id', organizationId)
         .maybeSingle();
@@ -83,6 +85,8 @@ export function PayrollPeriodSettings() {
           (row.payroll_report_recipients as string[] | null) ?? [],
         payroll_report_send_hour:
           (row.payroll_report_send_hour as number | null) ?? 20,
+        payroll_report_send_day:
+          (row.payroll_report_send_day as number | null) ?? null,
       } as PayrollPeriodConfig & ReportSettings;
     },
     enabled: !!organizationId,
@@ -122,6 +126,7 @@ export function PayrollPeriodSettings() {
   const [customDays, setCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [reportEnabled, setReportEnabled] = useState(true);
   const [sendHour, setSendHour] = useState(20);
+  const [sendDay, setSendDay] = useState<number | null>(null);
   const [recipientsText, setRecipientsText] = useState('');
 
   useEffect(() => {
@@ -134,6 +139,7 @@ export function PayrollPeriodSettings() {
       }
       setReportEnabled(savedConfig.payroll_report_email_enabled);
       setSendHour(savedConfig.payroll_report_send_hour);
+      setSendDay(savedConfig.payroll_report_send_day ?? null);
       setRecipientsText((savedConfig.payroll_report_recipients ?? []).join(', '));
     }
   }, [savedConfig]);
@@ -167,6 +173,7 @@ export function PayrollPeriodSettings() {
             frequency === 'weekly' && useCustomDays ? customDays : null,
           payroll_report_email_enabled: reportEnabled,
           payroll_report_send_hour: sendHour,
+          payroll_report_send_day: sendDay,
           payroll_report_recipients: parsedRecipients,
         } as never)
         .eq('organization_id', organizationId);
@@ -420,6 +427,36 @@ export function PayrollPeriodSettings() {
                 <p className="text-xs text-muted-foreground">
                   Reports currently send daily around 8 PM ET. Per-org send times
                   will be honored when the hourly cron is enabled.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Send day</label>
+                <Select
+                  value={sendDay === null ? 'default' : String(sendDay)}
+                  onValueChange={(v) => setSendDay(v === 'default' ? null : Number(v))}
+                >
+                  <SelectTrigger className="w-[240px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">
+                      Default (day period ends)
+                    </SelectItem>
+                    {DAYS.map((d) => {
+                      const full = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.value];
+                      return (
+                        <SelectItem key={d.value} value={String(d.value)}>
+                          {full}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {frequency === 'biweekly'
+                    ? 'Bi-weekly reports send on this day at the close of each 2-week period.'
+                    : 'Weekly reports send on this day. Leave as Default to send when the period closes.'}
                 </p>
               </div>
 
