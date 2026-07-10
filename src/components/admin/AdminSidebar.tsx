@@ -364,19 +364,8 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     .filter(item => !hiddenItems.includes(item.href) && !nativeHiddenItems.includes(item.href))
     .filter(item => hasFinancialAccess || !financialOnlyHrefs.has(item.href))
     .map(item => {
-      if (item.href === '/dashboard/client-portal' && pendingRequestsCount > 0) {
-        return { ...item, badge: pendingRequestsCount };
-      }
-      if (item.href === '/dashboard/messages' && unreadMessagesCount > 0) {
-        return { ...item, badge: unreadMessagesCount };
-      }
-      if (item.href === '/dashboard/tasks' && openTasksCount > 0) {
-        return { ...item, badge: openTasksCount };
-      }
-      if (item.href === '/dashboard/staff' && pendingTimeOffCount > 0) {
-        return { ...item, badge: pendingTimeOffCount };
-      }
-      return item;
+      const count = badgeCounts[item.href] || 0;
+      return count > 0 ? { ...item, badge: count } : item;
     });
 
 
