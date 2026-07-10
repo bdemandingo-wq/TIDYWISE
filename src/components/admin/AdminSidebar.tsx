@@ -257,7 +257,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [businessDisplayName, setBusinessDisplayName] = useState<string>('My Business');
   const [navigation, setNavigation] = useState<NavItem[]>(defaultNavigation);
-  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
+  const { hiddenItems, isLoading: hiddenItemsLoading } = useSidebarHiddenItems();
   const [orgToDelete, setOrgToDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeletingOrg, setIsDeletingOrg] = useState(false);
   const { toast } = useToast();
