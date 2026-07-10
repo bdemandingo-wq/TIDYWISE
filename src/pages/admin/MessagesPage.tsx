@@ -487,6 +487,8 @@ export default function MessagesPage() {
       return;
     }
     setConversations(prev => prev.map(c => unreadIds.includes(c.id) ? { ...c, unread_count: 0 } : c));
+    queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
     toast.success(`Marked ${unreadIds.length} conversation${unreadIds.length === 1 ? '' : 's'} read`);
   };
 
