@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-type Preview = { email: string; role: string; organization_name: string };
+type Preview = { email: string; role: string; organization_name: string; existing_user?: boolean };
 type InviteResponse = {
   success?: boolean;
   created?: boolean;
@@ -160,11 +160,11 @@ export default function AcceptInvitePage() {
                 <Input value={fullName} onChange={e => setFullName(e.target.value)} />
               </div>
               <div>
-                <Label>Create a password</Label>
+                <Label>{preview.existing_user ? 'Password' : 'Create a password'}</Label>
                 <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
               </div>
               <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create account & join'}
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : preview.existing_user ? 'Sign in & join' : 'Create account & join'}
               </Button>
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account? <a className="underline" href={`/login?next=/accept-invite?token=${token}`}>Sign in</a>
