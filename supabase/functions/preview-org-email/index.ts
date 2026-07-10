@@ -17,6 +17,7 @@ interface Body {
   templateType: "confirmation" | "reminder";
   subject?: string;
   body?: string;
+  sections?: unknown;
 }
 
 async function requireOrgAdmin(req: Request, organizationId: string): Promise<string | null> {
