@@ -10,8 +10,9 @@ import { useNavigate } from 'react-router-dom';
 
 export function StaffEventNotifications() {
   const { organizationId } = useOrgId();
+  const navigate = useNavigate();
 
-  const { data: notifications = [], refetch } = useQuery({
+  const { data: eventRows = [], refetch } = useQuery({
     queryKey: ['staff-event-notifications', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -25,6 +26,40 @@ export function StaffEventNotifications() {
     },
     enabled: !!organizationId,
   });
+
+  const { data: timeOffRows = [] } = useQuery({
+    queryKey: ['staff-activity-time-off', organizationId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('time_off_requests')
+        .select('id,status,start_date,end_date,reason,created_at,reviewed_at,staff:staff(name)')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!organizationId,
+  });
+
+  // Merge time-off rows into the activity list, sorted by most recent event
+  const notifications = [
+    ...eventRows.map((n: any) => ({ ...n, __kind: 'event' as const })),
+    ...timeOffRows.map((r: any) => ({
+      __kind: 'time_off' as const,
+      id: `to-${r.id}`,
+      created_at: r.reviewed_at || r.created_at,
+      is_read: r.status !== 'pending',
+      title: r.status === 'pending'
+        ? 'Time-off requested'
+        : `Time off ${r.status}`,
+      message: `${r.staff?.name ?? 'Staff'} — ${r.start_date}${r.end_date && r.end_date !== r.start_date ? ` → ${r.end_date}` : ''}${r.reason ? ` · ${r.reason}` : ''}`,
+      event_type: 'time_off',
+      staff: r.staff,
+      status: r.status,
+    })),
+  ].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
 
