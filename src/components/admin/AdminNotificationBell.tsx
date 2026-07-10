@@ -321,9 +321,15 @@ export function AdminNotificationBell() {
                 if (bookingDetails.scheduled_at) scheduledDate = format(new Date(bookingDetails.scheduled_at), 'MMM d, yyyy');
               }
 
+              const statusKey =
+                updatedBooking.status === 'cancelled' ? 'booking.cancelled' :
+                updatedBooking.status === 'completed' ? 'booking.completed' :
+                oldBooking.payment_status !== updatedBooking.payment_status && updatedBooking.payment_status === 'failed' ? 'booking.payment_failed' :
+                'booking.rescheduled';
               const newNotification: AdminNotification = {
                 id: `booking-update-${updatedBooking.id}-${Date.now()}`,
                 type: 'booking',
+                typeKey: statusKey,
                 title: `${customerName}${scheduledDate ? ` • ${scheduledDate}` : ''}`,
                 message: `Status changed to ${updatedBooking.status}`,
                 is_read: false,
