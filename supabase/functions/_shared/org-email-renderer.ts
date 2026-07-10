@@ -143,15 +143,7 @@ export function renderBrandedEmail(opts: RenderOptions): { subject: string; html
 
   let bodyHtml = "";
   if (opts.sections && opts.sections.length > 0) {
-    // Async import would break serve; use dynamic import already resolved above via type-only.
-    // The runtime import happens through the shared module path.
-    // deno-lint-ignore no-explicit-any
-    const mod = (globalThis as any).__emailSectionsMod as
-      | typeof import("./email-sections.ts")
-      | undefined;
-    // Fallback: require via URL if not cached.
-    // We accept that sections rendering is done via the helper below.
-    bodyHtml = renderSectionsInline(opts.sections, data, brand.primaryColor, mod);
+    bodyHtml = renderSectionsToHtml(opts.sections, data, brand.primaryColor);
   } else {
     const bodyReplaced = replaceBookingVariables(opts.bodyText || "", data);
     bodyHtml = bodyReplaced
