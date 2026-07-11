@@ -511,7 +511,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
+    <div className="portal-v2 portal-v2-scroll min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
       {/* "Building your dashboard" overlay — staged reveal after creation,
           referencing the user's own answers, then lands on /choose-plan. */}
       {building && (
