@@ -680,11 +680,12 @@ export default function StaffPortal() {
         )}
 
         {hasSetAvailability === false && (
-          <div className="mb-4 p-4 rounded-lg border border-warning bg-warning/10 text-warning-foreground">
-            <p className="font-semibold">⚠️ Set Your Availability First</p>
-            <p className="text-sm text-muted-foreground">You must set your working hours before you can view or claim jobs.</p>
+          <div className="mb-6 rounded-2xl border p-4" style={{ background: 'hsl(var(--pv-warn-soft))', borderColor: 'hsl(var(--pv-warn) / 0.25)' }}>
+            <p className="font-semibold" style={{ color: 'hsl(var(--pv-warn))' }}>Set your availability first</p>
+            <p className="text-sm pv-meta mt-0.5">You must set your working hours before you can view or claim jobs.</p>
           </div>
         )}
+
         <Tabs value={currentTab} onValueChange={(val) => setActiveTab(val)} className="space-y-4">
           <div className="relative">
             <TabsList className="flex overflow-x-auto no-scrollbar h-auto p-1 w-full justify-start gap-1" style={{ flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
