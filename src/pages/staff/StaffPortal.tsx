@@ -821,10 +821,10 @@ export default function StaffPortal() {
                 ))}
               </div>
             ) : unassignedBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No open jobs right now.</p>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new opportunities!</p>
+              <div className="text-center py-16">
+                <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                <p className="pv-display text-xl">No open jobs right now</p>
+                <p className="pv-meta mt-1">Check back later for new opportunities.</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
