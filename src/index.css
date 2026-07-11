@@ -1202,11 +1202,142 @@ body {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
 }
 
+/* ─── Density / quiet helpers (visual simplification) ─── */
+
+/* Hero — no card chrome, just breathing space. */
+.portal-v2 [data-slot="card"].pv-hero,
+.portal-v2 .pv-hero {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+.portal-v2 [data-slot="card"].pv-hero:hover {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Quiet — demoted surface (loyalty, quick actions). No card box. */
+.portal-v2 [data-slot="card"].pv-quiet,
+.portal-v2 .pv-quiet {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: var(--pv-r-md);
+}
+.portal-v2 [data-slot="card"].pv-quiet:hover {
+  box-shadow: none;
+  border-color: transparent;
+}
+
+/* Row — hairline bottom only, no card box */
+.portal-v2 [data-slot="card"].pv-row,
+.portal-v2 .pv-row {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid hsl(var(--pv-border));
+  border-radius: 0;
+  box-shadow: none;
+}
+.portal-v2 [data-slot="card"].pv-row:hover {
+  box-shadow: none;
+  border-color: transparent;
+  border-bottom-color: hsl(var(--pv-border-strong));
+}
+.portal-v2 .pv-row:last-child { border-bottom: 0; }
+
+/* Divider */
+.portal-v2 .pv-divider {
+  height: 1px;
+  background: hsl(var(--pv-border));
+  border: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .portal-v2 *,
   .portal-v2 *::before,
   .portal-v2 *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Portal V2 — Dark variant
+   Activated by the app's theme switch (.dark on <html>) or by
+   prefers-color-scheme when no explicit theme is set. Same token
+   structure, tuned for legibility on layered charcoals.
+   ═══════════════════════════════════════════════════════════════ */
+.dark .portal-v2 {
+  /* Surface stack — layered charcoals, no pure black */
+  --pv-bg:         222 18% 8%;
+  --pv-surface:    222 16% 11%;
+  --pv-sunken:     222 18% 14%;
+  --pv-raised:     222 15% 13%;
+
+  /* Ink ramp — AA-compliant on --pv-bg and --pv-surface */
+  --pv-ink:        210 18% 96%;
+  --pv-ink-2:      215 14% 80%;
+  --pv-ink-3:      218 12% 66%;
+  --pv-ink-4:      220 10% 52%;
+
+  /* Hairline borders — low-opacity whites read cleaner than mid-grays */
+  --pv-border:         220 15% 100% / 0.08;
+  --pv-border-strong:  220 15% 100% / 0.14;
+
+  /* Brand — lifted for dark contrast */
+  --pv-brand:         222 96% 72%;
+  --pv-brand-ink:     222 30% 10%;
+  --pv-brand-soft:    222 55% 22%;
+
+  /* Status — soft pairs remain legible on charcoal */
+  --pv-success:       152 60% 62%;
+  --pv-success-soft:  152 40% 18%;
+  --pv-warn:          38 95% 66%;
+  --pv-warn-soft:     36 55% 18%;
+  --pv-danger:        352 85% 68%;
+  --pv-danger-soft:   352 55% 20%;
+
+  /* Elevation — deeper, softer for dark */
+  --pv-shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.35);
+  --pv-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 1px 1px hsl(0 0% 0% / 0.28);
+  --pv-shadow-md: 0 6px 16px -6px hsl(0 0% 0% / 0.55), 0 2px 4px -2px hsl(0 0% 0% / 0.35);
+  --pv-shadow-lg: 0 18px 40px -12px hsl(0 0% 0% / 0.65), 0 6px 12px -6px hsl(0 0% 0% / 0.4);
+}
+
+.dark .portal-v2-nav {
+  background: hsl(222 16% 12% / 0.78);
+  border-color: hsl(var(--pv-border));
+}
+
+/* System dark fallback — scoped, never leaks outside portal */
+@media (prefers-color-scheme: dark) {
+  html:not(.light) .portal-v2 {
+    --pv-bg:         222 18% 8%;
+    --pv-surface:    222 16% 11%;
+    --pv-sunken:     222 18% 14%;
+    --pv-raised:     222 15% 13%;
+    --pv-ink:        210 18% 96%;
+    --pv-ink-2:      215 14% 80%;
+    --pv-ink-3:      218 12% 66%;
+    --pv-ink-4:      220 10% 52%;
+    --pv-border:         220 15% 100% / 0.08;
+    --pv-border-strong:  220 15% 100% / 0.14;
+    --pv-brand:         222 96% 72%;
+    --pv-brand-ink:     222 30% 10%;
+    --pv-brand-soft:    222 55% 22%;
+    --pv-success:       152 60% 62%;
+    --pv-success-soft:  152 40% 18%;
+    --pv-warn:          38 95% 66%;
+    --pv-warn-soft:     36 55% 18%;
+    --pv-danger:        352 85% 68%;
+    --pv-danger-soft:   352 55% 20%;
+    --pv-shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.35);
+    --pv-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 1px 1px hsl(0 0% 0% / 0.28);
+    --pv-shadow-md: 0 6px 16px -6px hsl(0 0% 0% / 0.55), 0 2px 4px -2px hsl(0 0% 0% / 0.35);
+    --pv-shadow-lg: 0 18px 40px -12px hsl(0 0% 0% / 0.65), 0 6px 12px -6px hsl(0 0% 0% / 0.4);
+  }
+  html:not(.light) .portal-v2-nav {
+    background: hsl(222 16% 12% / 0.78);
   }
 }

@@ -570,109 +570,89 @@ export default function PortalDashboardPage() {
   /* ─────────────────────────── SHARED SECTIONS ─────────────────────────── */
 
   const HeroCard = () => (
-    <Card className="pv-card overflow-hidden">
-      <CardContent className="p-6 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="pv-eyebrow mb-2">Next appointment</p>
-            {nextBooking ? (
-              <>
-                <h2 className="pv-display text-[28px] sm:text-[34px] leading-[1.05] text-[hsl(var(--pv-ink))]">
-                  {nextBooking.service?.name || "Service"}
-                </h2>
-                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] text-[hsl(var(--pv-ink-2))]">
-                  <span className="inline-flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
-                    <span className="font-medium text-[hsl(var(--pv-ink))]">{getDateLabel(nextBooking.scheduled_at)}</span>
-                    <span className="text-[hsl(var(--pv-ink-3))]">
-                      · {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
-                    </span>
-                  </span>
-                  {nextBooking.address && (
-                    <span className="inline-flex items-center gap-2 min-w-0">
-                      <MapPin className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
-                      <span className="truncate">{nextBooking.address}</span>
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="pv-display text-[26px] sm:text-[30px] text-[hsl(var(--pv-ink))]">
-                  Nothing on the calendar
-                </h2>
-                <p className="mt-2 text-[14px] text-[hsl(var(--pv-ink-3))] max-w-md">
-                  When you'd like your next clean, we're a tap away.
-                </p>
-              </>
-            )}
-          </div>
-          <div className="hidden sm:flex flex-col items-end gap-2 shrink-0">
-            <StatusChip status={nextBooking?.status || 'pending'} />
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-wrap gap-2">
-          {nextBooking ? (
-            <>
+    <Card className="pv-hero">
+      <CardContent className="px-1 sm:px-2 py-8 sm:py-12">
+        <p className="pv-eyebrow mb-3">Next appointment</p>
+        {nextBooking ? (
+          <>
+            <h2 className="pv-display text-[32px] sm:text-[44px] leading-[1.02] text-[hsl(var(--pv-ink))] max-w-2xl text-balance">
+              {nextBooking.service?.name || "Service"}
+            </h2>
+            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] text-[hsl(var(--pv-ink-2))]">
+              <span className="inline-flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
+                <span className="font-medium text-[hsl(var(--pv-ink))]">{getDateLabel(nextBooking.scheduled_at)}</span>
+                <span className="text-[hsl(var(--pv-ink-3))]">
+                  · {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
+                </span>
+              </span>
+              {nextBooking.address && (
+                <span className="inline-flex items-center gap-2 min-w-0 max-w-full">
+                  <MapPin className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
+                  <span className="truncate">{nextBooking.address}</span>
+                </span>
+              )}
+              <StatusChip status={nextBooking.status || 'pending'} />
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button
                 onClick={() => handleReschedule(nextBooking)}
-                className="h-11 rounded-full px-5 text-[13.5px] font-medium"
+                className="h-11 rounded-full px-6 text-[14px] font-medium"
               >
                 <CalendarClock className="h-4 w-4 mr-1.5" />
                 Reschedule
               </Button>
-              <Button
-                variant="outline"
+              <button
                 onClick={() => handleCancelClick(nextBooking)}
-                className="h-11 rounded-full px-5 text-[13.5px] font-medium
-                           border-[hsl(var(--pv-border))] text-[hsl(var(--pv-ink-2))]
-                           hover:text-[hsl(var(--pv-danger))] hover:border-[hsl(var(--pv-danger)/0.4)] hover:bg-[hsl(var(--pv-danger-soft))]"
+                className="h-11 px-3 text-[13.5px] font-medium text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] transition-colors"
               >
-                <X className="h-4 w-4 mr-1.5" />
-                Cancel
+                Cancel booking
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 className="pv-display text-[30px] sm:text-[40px] leading-[1.05] text-[hsl(var(--pv-ink))]">
+              Nothing on the calendar
+            </h2>
+            <p className="mt-3 text-[15px] text-[hsl(var(--pv-ink-3))] max-w-md">
+              When you'd like your next clean, we're a tap away.
+            </p>
+            <div className="mt-8">
+              <Button
+                onClick={() => navigate('/portal/request')}
+                className="h-11 rounded-full px-6 text-[14px] font-medium"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Request a booking
               </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => navigate('/portal/request')}
-              className="h-11 rounded-full px-5 text-[13.5px] font-medium"
-            >
-              <Plus className="h-4 w-4 mr-1.5" />
-              Request a booking
-            </Button>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 
   const LoyaltyCard = () => (
-    <Card className="pv-card">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-full bg-[hsl(var(--pv-brand-soft))] flex items-center justify-center">
-              <Trophy className="h-[15px] w-[15px] text-[hsl(var(--pv-brand))]" />
-            </div>
-            <div>
-              <p className="pv-eyebrow">Loyalty</p>
-              <p className="text-[15px] font-medium capitalize text-[hsl(var(--pv-ink))]">{displayLoyalty.tier} member</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="pv-display text-[26px] leading-none text-[hsl(var(--pv-ink))] tabular-nums">
-              {displayLoyalty.points}
+    <Card className="pv-quiet">
+      <CardContent className="px-1 sm:px-2 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="pv-eyebrow mb-1">Loyalty</p>
+            <p className="text-[13.5px] text-[hsl(var(--pv-ink-2))] capitalize">
+              <span className="text-[hsl(var(--pv-ink))] font-medium">{displayLoyalty.points}</span> pts
+              <span className="text-[hsl(var(--pv-ink-4))] mx-1.5">·</span>
+              {displayLoyalty.tier} member
             </p>
-            <p className="text-[11px] text-[hsl(var(--pv-ink-3))] mt-0.5">points</p>
           </div>
+          <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
         </div>
         <Progress
           value={tierProgress}
-          className="h-1.5 bg-[hsl(var(--pv-sunken))]"
+          className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]"
         />
         {displayLoyalty.points >= 100 && (
-          <div className="mt-4">
+          <div className="mt-3">
             <LoyaltyRedeemButton
               customerId={user?.customer_id || ''}
               organizationId={user?.organization_id || ''}
@@ -686,29 +666,28 @@ export default function PortalDashboardPage() {
   );
 
   const QuickActions = () => (
-    <Card className="pv-card">
-      <CardContent className="p-2">
+    <Card className="pv-quiet">
+      <CardContent className="px-1 sm:px-2 py-2">
+        <p className="pv-eyebrow mb-1 px-2">Shortcuts</p>
         {[
-          { icon: Plus,      label: 'Request a booking', onClick: () => navigate('/portal/request') },
-          { icon: Gift,      label: 'Refer a friend',    onClick: () => setActiveTab('referrals') },
-          { icon: ImageIcon, label: 'Photo journal',     onClick: () => setActiveTab('journal') },
+          { icon: Gift,      label: 'Refer a friend', onClick: () => setActiveTab('referrals') },
+          { icon: ImageIcon, label: 'Photo journal',  onClick: () => setActiveTab('journal') },
         ].map(({ icon: Icon, label, onClick }) => (
           <button
             key={label}
             onClick={onClick}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-[10px] text-left text-[14px] font-medium text-[hsl(var(--pv-ink))]
-                       hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-[8px] text-left text-[13.5px] text-[hsl(var(--pv-ink-2))]
+                       hover:bg-[hsl(var(--pv-sunken))] hover:text-[hsl(var(--pv-ink))] transition-colors"
           >
-            <div className="h-8 w-8 rounded-full bg-[hsl(var(--pv-sunken))] flex items-center justify-center">
-              <Icon className="h-[15px] w-[15px] text-[hsl(var(--pv-ink-2))]" />
-            </div>
+            <Icon className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
             <span className="flex-1">{label}</span>
-            <span className="text-[hsl(var(--pv-ink-4))]">→</span>
+            <span className="text-[hsl(var(--pv-ink-4))] text-[13px]">→</span>
           </button>
         ))}
       </CardContent>
     </Card>
   );
+
 
   /* ─────────────────────────────── LAYOUT ─────────────────────────────── */
 
@@ -1172,36 +1151,34 @@ function BookingRow({
   booking: Booking; dateLabel: string; timeLabel: string; onReschedule: () => void; onCancel: () => void;
 }) {
   return (
-    <Card className="pv-card">
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-[14.5px] font-medium text-[hsl(var(--pv-ink))]">{booking.service?.name || 'Service'}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-[hsl(var(--pv-ink-3))]">
+    <Card className="pv-row">
+      <CardContent className="px-1 sm:px-2 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))]">{booking.service?.name || 'Service'}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-[hsl(var(--pv-ink-3))]">
               <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{dateLabel}</span>
               <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{timeLabel}</span>
               {booking.address && <span className="inline-flex items-center gap-1.5 min-w-0"><MapPin className="h-3.5 w-3.5" /><span className="truncate">{booking.address}</span></span>}
             </div>
           </div>
-          <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-3">
-            <div className="flex items-center gap-3">
-              <StatusChip status={booking.status} />
-              <p className="pv-display text-[18px] text-[hsl(var(--pv-ink))] tabular-nums">${booking.total_amount}</p>
-            </div>
-            <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" className="h-10 rounded-full px-3 text-[12.5px]" onClick={onReschedule}>
-                <CalendarClock className="h-3.5 w-3.5 mr-1" />
+          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+            <StatusChip status={booking.status} />
+            <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))] tabular-nums">${booking.total_amount}</p>
+            <div className="flex gap-1">
+              <button
+                onClick={onReschedule}
+                className="h-9 px-3 rounded-full text-[12.5px] font-medium text-[hsl(var(--pv-ink-2))] hover:text-[hsl(var(--pv-ink))] hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+              >
                 Reschedule
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 w-10 rounded-full text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] hover:border-[hsl(var(--pv-danger)/0.4)]"
+              </button>
+              <button
                 onClick={onCancel}
+                className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
                 aria-label="Cancel"
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -1209,3 +1186,4 @@ function BookingRow({
     </Card>
   );
 }
+
