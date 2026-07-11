@@ -532,7 +532,7 @@ export default function PricingPage() {
       <main className="portal-v2 portal-v2-scroll min-h-screen bg-background">
         <header className="border-b border-border/60">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link to="/" className="font-serif text-2xl tracking-tight">
+            <Link to="/" className="pv-display text-2xl tracking-tight">
               TIDYWISE
             </Link>
             <div className="flex items-center gap-2">
@@ -566,7 +566,7 @@ export default function PricingPage() {
           <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
             Pricing
           </p>
-          <h1 className="font-serif text-5xl md:text-6xl text-foreground mb-4">
+          <h1 className="pv-display text-5xl md:text-6xl text-foreground mb-4">
             Pick the plan that fits your business.
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -661,7 +661,7 @@ export default function PricingPage() {
                     {tier.id === 'custom' && (
                       <SettingsIcon aria-hidden="true" className="h-4 w-4 text-foreground" />
                     )}
-                    <h3 className="font-serif text-2xl">{tier.name}</h3>
+                    <h3 className="pv-display text-2xl">{tier.name}</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-5">{tier.tagline}</p>
 
@@ -727,7 +727,7 @@ export default function PricingPage() {
               Founding offer · 50 spots only
             </Badge>
 
-            <h2 className="font-serif text-4xl md:text-5xl mb-3">
+            <h2 className="pv-display text-4xl md:text-5xl mb-3">
               Pay once. Use TidyWise forever.
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mb-8">
@@ -834,7 +834,7 @@ export default function PricingPage() {
                 <Badge variant="secondary" className="mb-2">
                   Add-on · any paid plan
                 </Badge>
-                <h2 className="font-serif text-3xl mb-1">Ad management</h2>
+                <h2 className="pv-display text-3xl mb-1">Ad management</h2>
                 <p className="text-muted-foreground">
                   We run your ads. You take the calls. Bookings flow straight into
                   TidyWise.
@@ -923,7 +923,7 @@ export default function PricingPage() {
         </section>
 
         <section className="max-w-3xl mx-auto px-4 pb-20">
-          <h2 className="font-serif text-3xl mb-8 text-center">Common questions</h2>
+          <h2 className="pv-display text-3xl mb-8 text-center">Common questions</h2>
           <div className="space-y-6">
             {[
               {
