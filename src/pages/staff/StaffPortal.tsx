@@ -851,16 +851,16 @@ export default function StaffPortal() {
           <TabsContent value="history" className="space-y-4">
             <Suspense fallback={<TabFallback />}>
               <div>
-                <h2 className="text-lg font-semibold">Job History</h2>
-                <p className="text-sm text-muted-foreground">Your completed and past jobs</p>
+                <h2 className="pv-display text-2xl">Job history</h2>
+                <p className="pv-meta mt-1">Your completed and past jobs.</p>
               </div>
               {loadingHistory ? (
                 <TabFallback />
               ) : jobHistory.length === 0 ? (
-                <div className="text-center py-12">
-                  <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No job history yet.</p>
-                  <p className="text-sm text-muted-foreground mt-1">Completed jobs will appear here.</p>
+                <div className="text-center py-16">
+                  <History className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                  <p className="pv-display text-xl">No job history yet</p>
+                  <p className="pv-meta mt-1">Completed jobs will appear here.</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
