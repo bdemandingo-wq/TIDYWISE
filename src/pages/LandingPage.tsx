@@ -495,7 +495,7 @@ export default function LandingPage() {
               <Zap className="h-4 w-4" />
               Powerful Features
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+            <h2 className="pv-display text-3xl sm:text-4xl lg:text-5xl text-foreground mb-4">
               Everything you need to{" "}
               <span className="text-gradient-hero">run your business</span>
             </h2>
@@ -552,7 +552,7 @@ export default function LandingPage() {
                 <Calendar className="h-4 w-4" />
                 Free 30-Minute Demo
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-foreground leading-tight mb-4">
+              <h2 className="pv-display text-3xl sm:text-4xl text-foreground leading-tight mb-4">
                 See TidyWise{" "}
                 <span className="text-gradient-hero">in Action</span>
               </h2>
@@ -620,7 +620,7 @@ export default function LandingPage() {
                 <Shield className="h-4 w-4" />
                 Trusted worldwide
               </div>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+              <h2 className="pv-display text-3xl sm:text-4xl lg:text-5xl text-foreground mb-4">
                 Scale from startup to{" "}
                 <span className="text-gradient-hero">$1M+ revenue</span>
               </h2>
@@ -687,7 +687,7 @@ export default function LandingPage() {
               <Star className="h-4 w-4 fill-current" />
               Customer Stories
             </div>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 tracking-tight">
+            <h2 className="pv-display text-3xl sm:text-4xl lg:text-5xl text-foreground mb-4">
               Loved by cleaning businesses{" "}
               <span className="text-gradient-hero">everywhere</span>
             </h2>
@@ -734,7 +734,7 @@ export default function LandingPage() {
       <section className="py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Frequently Asked Questions</h2>
+            <h2 className="pv-display text-3xl sm:text-4xl text-foreground mb-4">Frequently Asked Questions</h2>
             <p className="text-lg text-muted-foreground">Everything you need to know before getting started.</p>
           </div>
           <div className="space-y-4">
@@ -789,7 +789,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,hsl(var(--accent-glow)/0.2)_0%,transparent_50%)]" />
         
         <div className="max-w-4xl mx-auto text-center relative">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 tracking-tight">
+          <h2 className="pv-display text-3xl sm:text-4xl lg:text-5xl text-primary-foreground mb-6">
             Ready to grow your cleaning business?
           </h2>
           <p className="text-lg sm:text-xl text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
