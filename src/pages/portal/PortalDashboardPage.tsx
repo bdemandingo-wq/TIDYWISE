@@ -1151,36 +1151,34 @@ function BookingRow({
   booking: Booking; dateLabel: string; timeLabel: string; onReschedule: () => void; onCancel: () => void;
 }) {
   return (
-    <Card className="pv-card">
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-[14.5px] font-medium text-[hsl(var(--pv-ink))]">{booking.service?.name || 'Service'}</p>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-[hsl(var(--pv-ink-3))]">
+    <Card className="pv-row">
+      <CardContent className="px-1 sm:px-2 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))]">{booking.service?.name || 'Service'}</p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] text-[hsl(var(--pv-ink-3))]">
               <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{dateLabel}</span>
               <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{timeLabel}</span>
               {booking.address && <span className="inline-flex items-center gap-1.5 min-w-0"><MapPin className="h-3.5 w-3.5" /><span className="truncate">{booking.address}</span></span>}
             </div>
           </div>
-          <div className="flex items-center justify-between sm:justify-end sm:flex-col sm:items-end gap-3">
-            <div className="flex items-center gap-3">
-              <StatusChip status={booking.status} />
-              <p className="pv-display text-[18px] text-[hsl(var(--pv-ink))] tabular-nums">${booking.total_amount}</p>
-            </div>
-            <div className="flex gap-1.5">
-              <Button variant="outline" size="sm" className="h-10 rounded-full px-3 text-[12.5px]" onClick={onReschedule}>
-                <CalendarClock className="h-3.5 w-3.5 mr-1" />
+          <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+            <StatusChip status={booking.status} />
+            <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))] tabular-nums">${booking.total_amount}</p>
+            <div className="flex gap-1">
+              <button
+                onClick={onReschedule}
+                className="h-9 px-3 rounded-full text-[12.5px] font-medium text-[hsl(var(--pv-ink-2))] hover:text-[hsl(var(--pv-ink))] hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+              >
                 Reschedule
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10 w-10 rounded-full text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] hover:border-[hsl(var(--pv-danger)/0.4)]"
+              </button>
+              <button
                 onClick={onCancel}
+                className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
                 aria-label="Cancel"
               >
                 <X className="h-4 w-4" />
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -1188,3 +1186,4 @@ function BookingRow({
     </Card>
   );
 }
+
