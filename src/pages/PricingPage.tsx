@@ -529,7 +529,7 @@ export default function PricingPage() {
         ]}
       />
 
-      <main className="min-h-screen bg-background">
+      <main className="portal-v2 portal-v2-scroll min-h-screen bg-background">
         <header className="border-b border-border/60">
           <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link to="/" className="font-serif text-2xl tracking-tight">
