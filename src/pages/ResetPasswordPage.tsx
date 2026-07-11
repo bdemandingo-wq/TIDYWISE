@@ -187,7 +187,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col">
       <SEOHead
         title="Enter Reset Code & New Password | TidyWise"
         description="Confirm your TidyWise reset code and choose a new password. Codes expire after a short window for account security on your cleaning business dashboard."
