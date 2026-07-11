@@ -3211,6 +3211,7 @@ export default function BookingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      </div>
     </AdminLayout>
   );
 }
