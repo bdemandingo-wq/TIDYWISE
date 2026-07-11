@@ -468,7 +468,7 @@ export default function LandingPage() {
               { value: '99.9%', label: 'Uptime' },
             ].map((stat, i) => (
               <div key={i} className="bg-card px-4 py-6 sm:py-8">
-                <div className="font-serif text-3xl sm:text-5xl text-foreground tabular-nums">{stat.value}</div>
+                <div className="pv-display text-3xl sm:text-5xl text-foreground tabular-nums">{stat.value}</div>
                 <div className="mt-2 text-xs sm:text-sm text-muted-foreground uppercase tracking-wider">{stat.label}</div>
               </div>
             ))}
