@@ -414,7 +414,7 @@ export default function SignupPage() {
 
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">
+            <h1 className="pv-display text-3xl leading-none tracking-tight">
               {planMeta ? 'Almost there — create your account' : 'Create your TidyWise account'}
             </h1>
             <CardDescription>
