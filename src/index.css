@@ -983,3 +983,230 @@ body {
     max-width: 100dvw !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Portal V2 — Redesign tokens (scoped to .portal-v2 wrapper only)
+   Premium, comfortable density, Inter body + Fraunces display.
+   Restyles existing shadcn components; does not replace them.
+   ═══════════════════════════════════════════════════════════════ */
+.portal-v2 {
+  /* Typography */
+  --pv-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --pv-font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+
+  /* Neutral surface stack (warm off-white, near-imperceptible tint) */
+  --pv-bg:         210 20% 98.5%;      /* page */
+  --pv-surface:    0 0% 100%;          /* cards */
+  --pv-sunken:     220 16% 96%;        /* inset chips, progress track */
+  --pv-raised:     0 0% 100%;
+
+  /* Ink ramp */
+  --pv-ink:        222 20% 11%;
+  --pv-ink-2:      222 12% 30%;        /* secondary text */
+  --pv-ink-3:      220 9% 46%;         /* tertiary / meta */
+  --pv-ink-4:      220 10% 62%;        /* icons on quiet surfaces */
+
+  /* Hairline borders */
+  --pv-border:         220 16% 90%;
+  --pv-border-strong:  220 14% 82%;
+
+  /* Brand — carry forward Klein blue, quieter usage */
+  --pv-brand:         230 84% 56%;
+  --pv-brand-ink:     0 0% 100%;
+  --pv-brand-soft:    230 90% 96%;
+
+  /* Semantic status (soft pairs) */
+  --pv-success:       152 55% 38%;
+  --pv-success-soft:  152 55% 94%;
+  --pv-warn:          32 90% 46%;
+  --pv-warn-soft:     36 100% 94%;
+  --pv-danger:        352 72% 50%;
+  --pv-danger-soft:   352 85% 96%;
+
+  /* Radii — soft, not pill */
+  --pv-r-sm: 8px;
+  --pv-r-md: 12px;
+  --pv-r-lg: 16px;
+  --pv-r-xl: 22px;
+
+  /* Elevation — low, layered, cool */
+  --pv-shadow-xs: 0 1px 0 0 hsl(220 20% 10% / 0.04);
+  --pv-shadow-sm: 0 1px 2px hsl(220 20% 10% / 0.04), 0 1px 1px hsl(220 20% 10% / 0.03);
+  --pv-shadow-md: 0 4px 12px -4px hsl(220 20% 10% / 0.08), 0 2px 4px -2px hsl(220 20% 10% / 0.05);
+  --pv-shadow-lg: 0 12px 32px -8px hsl(220 25% 10% / 0.12), 0 4px 8px -4px hsl(220 20% 10% / 0.06);
+
+  /* Bottom nav geometry */
+  --pv-nav-h: 60px;
+  --pv-nav-gap: 12px;
+
+  /* Rebind shadcn tokens INSIDE this scope only — restyles Card/Button/Tabs/etc.
+     without touching the rest of the app. */
+  --background: var(--pv-bg);
+  --foreground: var(--pv-ink);
+  --card: var(--pv-surface);
+  --card-foreground: var(--pv-ink);
+  --popover: var(--pv-surface);
+  --popover-foreground: var(--pv-ink);
+  --primary: var(--pv-brand);
+  --primary-foreground: var(--pv-brand-ink);
+  --secondary: var(--pv-sunken);
+  --secondary-foreground: var(--pv-ink);
+  --muted: var(--pv-sunken);
+  --muted-foreground: var(--pv-ink-3);
+  --accent: var(--pv-sunken);
+  --accent-foreground: var(--pv-ink);
+  --border: var(--pv-border);
+  --input: var(--pv-border);
+  --ring: var(--pv-brand);
+  --radius: var(--pv-r-md);
+
+  background-color: hsl(var(--pv-bg));
+  color: hsl(var(--pv-ink));
+  font-family: var(--pv-font-sans);
+  font-feature-settings: 'ss01', 'cv11', 'tnum';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.portal-v2 .pv-display {
+  font-family: var(--pv-font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Restyle shadcn Card: hairline border, tiny elevation, generous radius */
+.portal-v2 [data-slot="card"],
+.portal-v2 .pv-card {
+  background: hsl(var(--pv-surface));
+  border: 1px solid hsl(var(--pv-border));
+  border-radius: var(--pv-r-lg);
+  box-shadow: var(--pv-shadow-xs);
+  transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+}
+.portal-v2 [data-slot="card"]:hover {
+  box-shadow: var(--pv-shadow-sm);
+  border-color: hsl(var(--pv-border-strong));
+}
+
+/* Tabs — quieter, underline-driven */
+.portal-v2 [role="tablist"] {
+  background: transparent !important;
+  border-bottom: 1px solid hsl(var(--pv-border));
+  border-radius: 0;
+  padding: 0 !important;
+  gap: 4px;
+}
+.portal-v2 [role="tab"] {
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: hsl(var(--pv-ink-3)) !important;
+  font-weight: 500;
+  font-size: 13px;
+  padding: 10px 12px !important;
+  position: relative;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.portal-v2 [role="tab"][data-state="active"] {
+  color: hsl(var(--pv-ink)) !important;
+  box-shadow: inset 0 -2px 0 0 hsl(var(--pv-brand)) !important;
+}
+
+/* Badges — soft pill */
+.portal-v2 [data-slot="badge"] {
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+}
+
+/* Buttons — refined focus ring, subtle shadow on primary */
+.portal-v2 button:focus-visible,
+.portal-v2 [role="tab"]:focus-visible {
+  outline: 2px solid hsl(var(--pv-brand) / .35);
+  outline-offset: 2px;
+}
+
+/* Floating pill bottom nav */
+.portal-v2-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  background: hsl(0 0% 100% / 0.85);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid hsl(var(--pv-border));
+  box-shadow: var(--pv-shadow-lg);
+  max-width: calc(100vw - 24px);
+}
+.portal-v2-nav button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: hsl(var(--pv-ink-3));
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+  white-space: nowrap;
+}
+.portal-v2-nav button:hover { color: hsl(var(--pv-ink)); }
+.portal-v2-nav button[data-active="true"] {
+  color: hsl(var(--pv-ink));
+  background: hsl(var(--pv-sunken));
+}
+.portal-v2-nav .pv-nav-label {
+  display: none;
+}
+@media (min-width: 480px) {
+  .portal-v2-nav .pv-nav-label { display: inline; }
+}
+
+/* Reserve bottom clearance so scroll content never hides under the pill */
+.portal-v2-scroll {
+  padding-bottom: calc(var(--pv-nav-h) + env(safe-area-inset-bottom, 0px) + 32px);
+}
+
+/* Meta / muted text helpers */
+.portal-v2 .pv-meta { color: hsl(var(--pv-ink-3)); font-size: 13px; }
+.portal-v2 .pv-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: hsl(var(--pv-ink-3));
+}
+
+/* Status chip helpers (used by badge overrides) */
+.portal-v2 .pv-chip-success { background: hsl(var(--pv-success-soft)); color: hsl(var(--pv-success)); border-color: transparent; }
+.portal-v2 .pv-chip-warn    { background: hsl(var(--pv-warn-soft));    color: hsl(var(--pv-warn));    border-color: transparent; }
+.portal-v2 .pv-chip-danger  { background: hsl(var(--pv-danger-soft));  color: hsl(var(--pv-danger));  border-color: transparent; }
+.portal-v2 .pv-chip-brand   { background: hsl(var(--pv-brand-soft));   color: hsl(var(--pv-brand));   border-color: transparent; }
+.portal-v2 .pv-chip-neutral { background: hsl(var(--pv-sunken));       color: hsl(var(--pv-ink-2));   border-color: transparent; }
+
+/* Native safe area helpers */
+.portal-v2-header-safe {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-v2 *,
+  .portal-v2 *::before,
+  .portal-v2 *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
