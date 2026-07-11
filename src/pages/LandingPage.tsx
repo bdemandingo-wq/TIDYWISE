@@ -366,7 +366,7 @@ export default function LandingPage() {
           </div>
 
           {/* Editorial headline */}
-          <h1 className="font-serif text-[2.75rem] sm:text-6xl md:text-7xl lg:text-8xl leading-[0.95] mb-8 text-foreground">
+          <h1 className="pv-display text-[2.75rem] sm:text-6xl md:text-7xl lg:text-[5.5rem] mb-8 text-foreground">
             Run your cleaning<br />
             business like a{" "}
             <span className="italic text-primary">work of art</span>.
