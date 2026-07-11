@@ -218,7 +218,7 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background overflow-x-hidden">
       <SEOHead 
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
         description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
