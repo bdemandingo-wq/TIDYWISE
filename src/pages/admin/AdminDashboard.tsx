@@ -140,6 +140,7 @@ export default function AdminDashboard() {
           <UpcomingBookings bookings={bookings as BookingWithDetails[]} />
         </div>
       </div>
+      </div>
     </AdminLayout>
   );
 }
