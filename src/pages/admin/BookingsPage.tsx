@@ -1646,6 +1646,7 @@ export default function BookingsPage() {
       title="Bookings"
       subtitle="Manage your appointments"
     >
+      <div className="portal-v2">
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-secondary/50">
@@ -3210,6 +3211,7 @@ export default function BookingsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      </div>
     </AdminLayout>
   );
 }

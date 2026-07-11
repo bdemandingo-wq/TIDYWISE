@@ -370,7 +370,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col">
       <SEOHead title="Sign Up | TidyWise – Cleaning Business Software" description="Create your TidyWise account. Pick a plan from $49/mo (Basic), $97/mo (Pro), $197/mo (Custom), or grab one of 50 lifetime spots at $300." canonical="/signup" />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
@@ -414,7 +414,7 @@ export default function SignupPage() {
 
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">
+            <h1 className="pv-display text-3xl leading-none tracking-tight">
               {planMeta ? 'Almost there — create your account' : 'Create your TidyWise account'}
             </h1>
             <CardDescription>

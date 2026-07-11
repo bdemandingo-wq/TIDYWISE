@@ -511,7 +511,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
+    <div className="portal-v2 portal-v2-scroll min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
       {/* "Building your dashboard" overlay — staged reveal after creation,
           referencing the user's own answers, then lands on /choose-plan. */}
       {building && (
@@ -519,7 +519,7 @@ export default function OnboardingPage() {
           <div className="w-full max-w-md space-y-6">
             <div className="text-center space-y-2">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-              <h2 className="text-2xl font-bold">
+              <h2 className="pv-display text-3xl">
                 Building {businessName.trim() || 'your business'}'s dashboard
               </h2>
               <p className="text-muted-foreground text-sm">This takes just a moment…</p>
@@ -575,7 +575,7 @@ export default function OnboardingPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="pv-display text-3xl">
             {currentQuestion ? currentQuestion.title : 'Set Up Your Cleaning Business'}
           </CardTitle>
           <CardDescription>

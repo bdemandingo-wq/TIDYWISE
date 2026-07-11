@@ -211,7 +211,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col overflow-x-hidden"
+      className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col overflow-x-hidden"
       // #16: on the native app the title was clipped under the iPhone notch —
       // respect the top safe-area inset.
       style={{ touchAction: 'manipulation', paddingTop: 'env(safe-area-inset-top)' }}
@@ -233,7 +233,7 @@ export default function LoginPage() {
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">Sign in to your TidyWise account</h1>
+            <h1 className="pv-display text-3xl leading-none tracking-tight">Sign in to your TidyWise account</h1>
             <CardDescription>
               Sign in to your account
             </CardDescription>
