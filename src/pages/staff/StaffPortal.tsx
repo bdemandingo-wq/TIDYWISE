@@ -613,14 +613,23 @@ export default function StaffPortal() {
       {staffInfo?.id && (
         <StaffLocationPrompt staffId={staffInfo.id} onResolved={() => { /* unmounts itself */ }} />
       )}
-      <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="pt-[env(safe-area-inset-top,0px)]" />
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+      <div className="portal-v2 min-h-screen">
+      {/* Header — sticky glass */}
+      <header
+        className="sticky top-0 z-10 portal-v2-header-safe"
+        style={{
+          background: 'hsl(var(--pv-surface) / 0.72)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          borderBottom: '1px solid hsl(var(--pv-border))',
+        }}
+      >
+        <div className="container mx-auto px-4 sm:px-6 pb-3 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold truncate">Cleaner Portal</h1>
-            <p className="text-sm text-muted-foreground truncate">Welcome, {staffInfo?.name || 'Loading...'}</p>
+            <p className="pv-eyebrow">Cleaner Portal</p>
+            <h1 className="pv-display text-[26px] sm:text-[30px] truncate mt-0.5">
+              {staffInfo?.name ? `Hi, ${staffInfo.name.split(' ')[0]}` : 'Welcome'}
+            </h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {staffInfo && (
@@ -636,7 +645,7 @@ export default function StaffPortal() {
                     }
                   }}
                 />
-                <Badge variant="outline" className="hidden sm:flex">
+                <Badge variant="outline" className="hidden sm:flex pv-chip-neutral">
                   {staffInfo.tax_classification === 'w2' ? 'W-2 Employee' : '1099 Contractor'}
                 </Badge>
               </>
@@ -650,7 +659,7 @@ export default function StaffPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 pb-24">
+      <main className="portal-v2-scroll container mx-auto px-4 sm:px-6 py-6">
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress
