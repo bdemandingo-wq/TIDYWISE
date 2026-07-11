@@ -225,7 +225,7 @@ export default function ChoosePlanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
       <SEOHead title="Choose Your Plan | TidyWise" description="Pick a plan to activate your TidyWise account." noIndex />
 
       {/* Top bar — brand + logout only. No nav, no skip. */}
