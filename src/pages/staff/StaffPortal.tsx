@@ -761,8 +761,8 @@ export default function StaffPortal() {
           {/* My Jobs Tab */}
           <TabsContent value="my-jobs" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Your Upcoming Jobs</h2>
-              <p className="text-sm text-muted-foreground">Jobs assigned to you that are coming up</p>
+              <h2 className="pv-display text-2xl">Your upcoming jobs</h2>
+              <p className="pv-meta mt-1">Jobs assigned to you that are coming up.</p>
             </div>
             {loadingAssigned ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
