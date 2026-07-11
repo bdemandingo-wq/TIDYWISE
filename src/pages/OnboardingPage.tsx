@@ -519,7 +519,7 @@ export default function OnboardingPage() {
           <div className="w-full max-w-md space-y-6">
             <div className="text-center space-y-2">
               <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-              <h2 className="text-2xl font-bold">
+              <h2 className="pv-display text-3xl">
                 Building {businessName.trim() || 'your business'}'s dashboard
               </h2>
               <p className="text-muted-foreground text-sm">This takes just a moment…</p>
