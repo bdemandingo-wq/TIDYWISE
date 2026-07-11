@@ -233,7 +233,7 @@ export default function LoginPage() {
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">Sign in to your TidyWise account</h1>
+            <h1 className="pv-display text-3xl leading-none tracking-tight">Sign in to your TidyWise account</h1>
             <CardDescription>
               Sign in to your account
             </CardDescription>
