@@ -811,10 +811,8 @@ export default function StaffPortal() {
           {/* Available Jobs Tab */}
           <TabsContent value="available" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Available Jobs</h2>
-              <p className="text-sm text-muted-foreground">
-                Open jobs waiting to be claimed. See your potential earnings below!
-              </p>
+              <h2 className="pv-display text-2xl">Available jobs</h2>
+              <p className="pv-meta mt-1">Open jobs waiting to be claimed. See your potential earnings below.</p>
             </div>
             {loadingUnassigned ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
