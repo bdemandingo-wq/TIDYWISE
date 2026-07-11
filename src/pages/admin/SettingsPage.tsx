@@ -568,6 +568,7 @@ export default function SettingsPage() {
       title="Settings"
       subtitle="Manage your business preferences"
     >
+      <div className="portal-v2">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         {/* Prominent Subscription / Billing entry — the Subscription tab
             below can scroll off the right edge when there are many tabs,
