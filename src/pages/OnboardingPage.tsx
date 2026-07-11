@@ -575,7 +575,7 @@ export default function OnboardingPage() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Building2 className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="pv-display text-3xl">
             {currentQuestion ? currentQuestion.title : 'Set Up Your Cleaning Business'}
           </CardTitle>
           <CardDescription>
