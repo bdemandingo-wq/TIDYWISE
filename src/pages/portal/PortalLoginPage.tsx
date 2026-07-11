@@ -4,6 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 import { ArrowLeft, Eye, EyeOff, Loader2, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
+import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
 
 const loginSchema = z.object({
   email: z.string().trim().email("Please enter a valid email address"),
@@ -22,6 +24,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function PortalLoginPage() {
   const navigate = useNavigate();
+  const isNative = Capacitor.isNativePlatform();
   const [searchParams] = useSearchParams();
   const { user, signIn, loading: contextLoading } = useClientPortal();
   const [showPassword, setShowPassword] = useState(false);
@@ -67,17 +70,11 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 left-4 z-10"
-        onClick={() => navigate("/")}
-        aria-label="Go back"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </Button>
-
+    <main
+      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col"
+      // Respect the iPhone notch so the Back button is never clipped on native
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <SEOHead
         title="Client Portal Sign In | TidyWise"
         description="Sign in to your TidyWise client portal to view upcoming cleanings, request new appointments, leave tips, and manage your service preferences."
@@ -86,6 +83,15 @@ export default function PortalLoginPage() {
 
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <section className="w-full max-w-md">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4 gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
         <Card className="shadow-xl border-primary/10">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -158,11 +164,28 @@ export default function PortalLoginPage() {
             <p className="mt-2 text-center text-sm text-muted-foreground">
               Need access? Contact the business to get your portal login.
             </p>
+
+            <p className="mt-4 px-2 text-center text-xs leading-relaxed text-muted-foreground">
+              By continuing you agree to our{" "}
+              <TermsOfServiceDialog>
+                <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap">Terms of Service</button>
+              </TermsOfServiceDialog>
+              {" "}and{" "}
+              <Link
+                to="/privacy-policy"
+                className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </p>
           </CardContent>
         </Card>
       </section>
       </div>
 
+      {/* SEO/marketing copy - web only; hidden in the native app */}
+      {!isNative && (
       <section aria-labelledby="portal-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="portal-info-heading" className="text-2xl font-bold text-foreground">
@@ -237,6 +260,7 @@ export default function PortalLoginPage() {
           </div>
         </div>
       </section>
+      )}
     </main>
   );
 }

@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple, Users, HardHat } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
 
@@ -315,35 +315,40 @@ export default function LoginPage() {
                 Sign In
               </Button>
 
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
+              {/* Apple sign-in - web only; hidden on native */}
+              {!isNative && (
+                <>
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">or</span>
+                    </div>
+                  </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={loading}
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const { error } = await signInWithApple();
-                    if (error) {
-                      toast.error(error.message || 'Apple sign in failed');
-                    }
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              >
-                <Apple className="mr-2 h-4 w-4" />
-                Sign in with Apple
-              </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={loading}
+                    onClick={async () => {
+                      setLoading(true);
+                      try {
+                        const { error } = await signInWithApple();
+                        if (error) {
+                          toast.error(error.message || 'Apple sign in failed');
+                        }
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    <Apple className="mr-2 h-4 w-4" />
+                    Sign in with Apple
+                  </Button>
+                </>
+              )}
 
             </form>
 
@@ -360,38 +365,53 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Staff & Client Portal links - HIDDEN on native */}
-            {!isNative && (
-              <div className="mt-4 pt-4 border-t border-border space-y-2">
-                <Link
-                  to="/staff/login"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                >
-                  Staff Portal Login
-                </Link>
-                <Link
-                  to="/portal/login"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                >
-                  Client Portal Login
-                </Link>
+            {/* Staff & Client Portal logins - shown on web AND native so cleaners
+                and clients can reach their own sign-in from the app */}
+            <div className="mt-6 space-y-2">
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-2 text-muted-foreground">Other logins</span>
+                </div>
               </div>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                style={{ touchAction: 'manipulation' }}
+                onClick={() => navigate('/staff/login')}
+              >
+                <HardHat className="mr-2 h-4 w-4" />
+                Staff Portal Login
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                style={{ touchAction: 'manipulation' }}
+                onClick={() => navigate('/portal/login')}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Client Portal Login
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         {/* Legal links */}
-        <div className="mt-6 text-center text-xs text-muted-foreground">
+        <div className="mt-6 px-6 text-center text-xs leading-relaxed text-muted-foreground">
           By continuing you agree to our{' '}
           <TermsOfServiceDialog>
-            <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors">
-              Terms
+            <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap">
+              Terms of Service
             </button>
           </TermsOfServiceDialog>
-          {' '}and acknowledge our{' '}
+          {' '}and{' '}
           <Link
             to="/privacy-policy"
-            className="underline underline-offset-4 hover:text-foreground transition-colors"
+            className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap"
           >
             Privacy Policy
           </Link>
@@ -400,6 +420,8 @@ export default function LoginPage() {
       </div>
       </div>
 
+      {/* SEO/marketing copy - web only; hidden in the native app */}
+      {!isNative && (
       <section aria-labelledby="login-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="login-info-heading" className="text-2xl font-bold text-foreground">
@@ -451,6 +473,7 @@ export default function LoginPage() {
           </p>
         </div>
       </section>
+      )}
     </div>
   );
 }

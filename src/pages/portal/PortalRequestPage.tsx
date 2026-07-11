@@ -303,6 +303,8 @@ export default function PortalRequestPage() {
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+        {/* Keep the header below the iPhone notch/status bar on native */}
+        <div className="pt-[env(safe-area-inset-top,0px)]" />
         <div className="container mx-auto px-4 py-3 flex items-center gap-3">
           <Button
             variant="ghost"
