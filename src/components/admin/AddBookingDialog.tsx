@@ -28,7 +28,7 @@ export function AddBookingDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-6xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20 border-border/50 flex flex-col"
+        className="w-[100vw] h-[100dvh] max-w-none rounded-none sm:w-auto sm:h-auto sm:max-w-6xl sm:max-h-[90vh] sm:rounded-lg overflow-hidden bg-gradient-to-br from-background via-background to-secondary/20 border-border/50 flex flex-col p-4 sm:p-6 pt-[max(env(safe-area-inset-top),1rem)] pb-[max(env(safe-area-inset-bottom),1rem)]"
         // A tap outside (very easy on mobile) was closing the dialog and
         // wiping a half-completed booking. Only the X button closes now.
         onInteractOutside={(e) => e.preventDefault()}

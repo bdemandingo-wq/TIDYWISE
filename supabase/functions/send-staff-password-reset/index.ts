@@ -37,9 +37,7 @@ const corsHeaders = {
 
 interface PasswordResetRequest {
   email: string;
-  phone?: string;
   redirectUrl: string;
-  organizationId?: string;
 }
 
 // Format phone to E.164
@@ -62,7 +60,13 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { email, phone, redirectUrl, organizationId: providedOrgId }: PasswordResetRequest = await req.json();
+    // SECURITY: the request body only ever identifies WHICH account wants a
+    // reset (email). Destination phone and organization are always resolved
+    // server-side from the staff record below — never trust a client-
+    // supplied phone or organizationId here, or an attacker who knows a
+    // staff member's email can redirect their real recovery link to a
+    // phone number (or billing org) they control.
+    const { email, redirectUrl }: PasswordResetRequest = await req.json();
 
     if (!email) {
       return new Response(JSON.stringify({ error: "Email is required" }), {
@@ -109,12 +113,12 @@ serve(async (req) => {
       );
     }
 
-    console.log("[send-staff-password-reset] Processing password reset for:", email);
-
-    // Look up the staff member
+    // Look up the staff member. Everything downstream (org, phone) is
+    // resolved from THIS row only — the request body is never consulted
+    // again past this point.
     const { data: staffMember, error: staffError } = await supabaseAdmin
       .from("staff")
-      .select("name, user_id, organization_id, phone")
+      .select("id, name, user_id, organization_id, phone")
       .eq("email", email)
       .maybeSingle();
 
@@ -122,11 +126,14 @@ serve(async (req) => {
       console.error("[send-staff-password-reset] Error looking up staff:", staffError);
     }
 
-    const organizationId = providedOrgId || staffMember?.organization_id;
-    const staffPhone = phone || staffMember?.phone;
+    const organizationId = staffMember?.organization_id;
+    const staffPhone = staffMember?.phone;
+    const staffId = staffMember?.id ?? null;
+
+    console.log("[send-staff-password-reset] Processing password reset", { orgId: organizationId ?? null, staffId });
 
     if (!organizationId) {
-      console.log("[send-staff-password-reset] No organization found for email:", email);
+      console.log("[send-staff-password-reset] No organization found", { staffId });
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset link has been sent." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -141,7 +148,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (!smsSettings?.sms_enabled || !smsSettings?.openphone_api_key || !smsSettings?.openphone_phone_number_id) {
-      console.log("[send-staff-password-reset] SMS not configured for org:", organizationId);
+      console.log("[send-staff-password-reset] SMS not configured", { orgId: organizationId, staffId });
       return new Response(
         JSON.stringify({ error: "SMS is not configured for this organization. Please contact your administrator." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -149,7 +156,8 @@ serve(async (req) => {
     }
 
     if (!staffPhone) {
-      console.log("[send-staff-password-reset] No phone number for staff:", email);
+      // Fail closed — never fall back to a client-supplied phone number.
+      console.log("[send-staff-password-reset] No phone on file, failing closed", { orgId: organizationId, staffId });
       return new Response(
         JSON.stringify({ error: "No phone number on file. Please contact your administrator." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -193,7 +201,7 @@ serve(async (req) => {
     }
 
     if (!targetUserId) {
-      console.log("[send-staff-password-reset] No account found for email:", email);
+      console.log("[send-staff-password-reset] No auth account found", { orgId: organizationId, staffId });
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset link has been sent." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -208,7 +216,7 @@ serve(async (req) => {
       .in("role", ["staff", "admin"]);
 
     if (!roleData || roleData.length === 0) {
-      console.log("[send-staff-password-reset] User has no staff/admin role:", email);
+      console.log("[send-staff-password-reset] User has no staff/admin role", { orgId: organizationId, staffId });
       return new Response(
         JSON.stringify({ success: true, message: "If an account exists, a reset link has been sent." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -231,7 +239,9 @@ serve(async (req) => {
     }
 
     const resetLink = linkData.properties?.action_link;
-    console.log("[send-staff-password-reset] Generated reset link, sending via SMS");
+    // Never log the reset link itself — it's a live, unauthenticated
+    // recovery credential for this account.
+    console.log("[send-staff-password-reset] Recovery link generated, sending via SMS", { orgId: organizationId, staffId });
 
     // Send SMS via OpenPhone
     const formattedPhone = formatPhoneE164(staffPhone);
@@ -254,14 +264,14 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[send-staff-password-reset] SMS failed: ${response.status} - ${errorText}`);
+      console.error(`[send-staff-password-reset] SMS delivery failed: ${response.status} - ${errorText}`, { orgId: organizationId, staffId });
       return new Response(
         JSON.stringify({ error: "Failed to send SMS. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("[send-staff-password-reset] SMS sent successfully to:", formattedPhone);
+    console.log("[send-staff-password-reset] SMS delivered", { orgId: organizationId, staffId });
 
     return new Response(JSON.stringify({ success: true, message: "Password reset link sent via SMS" }), {
       status: 200,

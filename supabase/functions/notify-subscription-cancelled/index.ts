@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import { isServiceRoleRequest } from "../_shared/require-caller-org.ts";
 
 // Platform-level Resend API key (shared email service)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -23,6 +24,14 @@ interface CancellationRequest {
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // SECURITY: no frontend or edge function currently calls this — internal
+  // churn-tracking notification only, until a real caller is wired up.
+  if (!isServiceRoleRequest(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
   }
 
   try {

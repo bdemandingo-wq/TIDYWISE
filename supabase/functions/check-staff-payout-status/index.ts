@@ -46,14 +46,52 @@ serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const callerId = userData.user.id;
 
-    const { staffId, organizationId } = await req.json();
+    const { staffId, organizationId: requestedOrgId } = await req.json();
 
-    if (!staffId || !organizationId) {
+    if (!staffId || !requestedOrgId) {
       return new Response(JSON.stringify({ error: "staffId and organizationId required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // SECURITY: a valid JWT alone isn't enough — without this, any
+    // authenticated user could read any other org's staff payout status
+    // (bank last 4, Stripe requirements, disabled reasons) by supplying a
+    // different staffId/organizationId. Two legitimate caller shapes:
+    //   1. An owner/admin/manager checking a staff member's status from the
+    //      admin dashboard — allowed for any staffId in THEIR org.
+    //   2. A staff-portal user checking their OWN payout setup — allowed
+    //      only when staffId resolves to their own staff record.
+    const { data: memberships } = await supabase
+      .from("org_memberships")
+      .select("organization_id, role")
+      .eq("user_id", callerId);
+
+    const adminMembership = (memberships ?? []).find(
+      (m: { organization_id: string; role: string }) =>
+        m.organization_id === requestedOrgId && ["owner", "admin", "manager"].includes(m.role)
+    );
+
+    let organizationId: string;
+    if (adminMembership) {
+      organizationId = requestedOrgId;
+    } else {
+      const { data: staffRow } = await supabase
+        .from("staff")
+        .select("id, organization_id")
+        .eq("user_id", callerId)
+        .maybeSingle();
+
+      if (!staffRow || staffRow.id !== staffId || staffRow.organization_id !== requestedOrgId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      organizationId = staffRow.organization_id;
     }
 
     // Get existing payout account record

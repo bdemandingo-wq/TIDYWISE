@@ -63,6 +63,7 @@ import {
   sortableKeyboardCoordinates,
   useSortable,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { fmt } from '@/lib/activeCurrency';
@@ -1239,8 +1240,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     toast.success('Booking duplicated - adjust the date and save');
   };
 
-  const renderStepContent = () => {
-    const stepId = steps[currentStep]?.id;
+  const renderSectionContent = (stepId: string) => {
     switch (stepId) {
       case 'customer': return <CustomerStep />;
       case 'property': return <PropertyStep />;
@@ -1262,12 +1262,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               Apply Changes to Future Bookings?
             </DialogTitle>
             <DialogDescription>
-              This customer has {pendingBookingData?.futureBookings?.length || 0} upcoming booking(s). 
+              This customer has {pendingBookingData?.futureBookings?.length || 0} upcoming booking(s).
               Would you like to apply {pendingBookingData?.changedFields?.length === 1 ? 'this change' : 'these changes'} to all future bookings?
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            {/* Show all detected changes */}
             <div className="space-y-2">
               {pendingBookingData?.changedFields?.map((change: { field: string; oldValue: string; newValue: string; key: string }, idx: number) => (
                 <div key={idx} className="text-sm p-2 bg-secondary/50 rounded flex justify-between items-center">
@@ -1280,9 +1279,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 </div>
               ))}
             </div>
-            
             <Separator />
-            
             <p className="text-xs text-muted-foreground font-medium">Future bookings affected:</p>
             {pendingBookingData?.futureBookings?.slice(0, 3).map((fb: BookingWithDetails) => (
               <div key={fb.id} className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
@@ -1297,26 +1294,19 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button 
-              variant="outline" 
-              onClick={() => handleRecurringDialogConfirm(false)}
-            >
+            <Button variant="outline" onClick={() => handleRecurringDialogConfirm(false)}>
               This Booking Only
             </Button>
-            <Button 
-              onClick={() => handleRecurringDialogConfirm(true)}
-            >
+            <Button onClick={() => handleRecurringDialogConfirm(true)}>
               Apply to All Future
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col lg:flex-row gap-6 h-full">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Step Indicator */}
-        <div className="flex items-center justify-between mb-6 px-1 overflow-x-auto">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full pb-24 lg:pb-0">
+        {/* Main scrollable single-page form */}
+        <div className="flex-1 min-w-0 space-y-3 lg:space-y-4 order-2 lg:order-1">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -1324,200 +1314,275 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           >
             <SortableContext
               items={steps.map(s => s.id)}
-              strategy={horizontalListSortingStrategy}
+              strategy={verticalListSortingStrategy}
             >
-              <div className="flex items-center">
-                {steps.map((step, index) => (
-                  <SortableStep
-                    key={step.id}
-                    step={step}
-                    index={index}
-                    currentStep={currentStep}
-                    totalSteps={steps.length}
-                    onClick={() => goToStep(index)}
-                  />
-                ))}
-              </div>
+              {steps.map((section) => (
+                <SortableSection key={section.id} section={section}>
+                  {renderSectionContent(section.id)}
+                </SortableSection>
+              ))}
             </SortableContext>
           </DndContext>
         </div>
 
-        {/* Step Content */}
-        <div className="flex-1 overflow-y-auto pr-2">
-          {renderStepContent()}
-        </div>
-
-        {/* Navigation */}
-        <div className="flex flex-col gap-3 pt-6 mt-6 border-t border-border/50">
-          {currentStep === steps.length - 1 && (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                <Checkbox
-                  id="sendConfirmationSms"
-                  checked={sendConfirmationSms}
-                  onCheckedChange={(checked) => setSendConfirmationSms(checked as boolean)}
-                />
-                <Label
-                  htmlFor="sendConfirmationSms"
-                  className="text-sm cursor-pointer flex items-center gap-1.5"
-                >
-                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                  Send confirmation text
-                </Label>
+        {/* Persistent Sidebar: Booking summary + adjustments + actions */}
+        <div className="lg:w-80 lg:sticky lg:top-0 lg:self-start space-y-3 lg:space-y-4 order-1 lg:order-2">
+          {/* Booking Summary */}
+          <div className="bg-gradient-to-br from-card via-card to-secondary/20 rounded-2xl border border-border/50 p-5 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-
-              <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                <Checkbox
-                  id="sendConfirmationEmail"
-                  checked={sendConfirmationEmail}
-                  onCheckedChange={(checked) => setSendConfirmationEmail(checked as boolean)}
-                />
-                <Label
-                  htmlFor="sendConfirmationEmail"
-                  className="text-sm cursor-pointer flex items-center gap-1.5"
-                >
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  Send confirmation email
-                </Label>
-              </div>
-
-              <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                <Checkbox
-                  id="sendQuoteSms"
-                  checked={sendQuoteSms}
-                  onCheckedChange={(checked) => setSendQuoteSms(checked as boolean)}
-                />
-                <Label
-                  htmlFor="sendQuoteSms"
-                  className="text-sm cursor-pointer flex items-center gap-1.5"
-                >
-                  <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                  Quote SMS
-                </Label>
-              </div>
-
-              <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
-                <Checkbox
-                  id="sendQuoteEmail"
-                  checked={sendQuoteEmail}
-                  onCheckedChange={(checked) => setSendQuoteEmail(checked as boolean)}
-                />
-                <Label
-                  htmlFor="sendQuoteEmail"
-                  className="text-sm cursor-pointer flex items-center gap-1.5"
-                >
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  Quote Email
-                </Label>
-              </div>
+              <h4 className="font-semibold">Booking Summary</h4>
             </div>
-          )}
 
-          <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className="h-11"
-            >
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-
-            <div className="flex items-center gap-2">
-              {currentStep === steps.length - 1 ? (
-                <>
-                  {booking && (
-                    <Button variant="outline" onClick={handleDuplicate} className="h-11">
-                      <Copy className="mr-2 h-4 w-4" />
-                      <span className="hidden sm:inline">Duplicate</span>
-                    </Button>
-                  )}
-
-                  <Button 
-                    variant="secondary" 
-                    onClick={() => handleSubmit(true)} 
-                    disabled={savingDraft || submitting}
-                    className="h-11"
-                  >
-                    {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Save Draft</span>
-                  </Button>
-
-                  <Button 
-                    onClick={() => handleSubmit(false)} 
-                    disabled={submitting || savingDraft}
-                    className="h-11 px-4 sm:px-6 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
-                  >
-                    {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {booking ? 'Update' : 'Create'}
-                  </Button>
-                </>
-              ) : (
-                <Button onClick={handleNext} className="h-11 px-6">
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+            <div className="space-y-2 text-sm">
+              {selectedService && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Service</span>
+                  <span className="font-medium text-right">{selectedService.name}</span>
+                </div>
+              )}
+              {(bedrooms || bathrooms) && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Home</span>
+                  <span className="font-medium">{bedrooms || '?'} bd / {bathrooms || '?'} ba</span>
+                </div>
+              )}
+              {frequency && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Frequency</span>
+                  <span className="font-medium capitalize">{frequency.replace('_', '-')}</span>
+                </div>
+              )}
+              {selectedDate && selectedTime && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">When</span>
+                  <span className="font-medium text-right">
+                    {format(selectedDate, 'MMM d')} · {selectedTime}
+                  </span>
+                </div>
+              )}
+              {customerName && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer</span>
+                  <span className="font-medium text-right truncate max-w-[9rem]">{customerName}</span>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Payment Summary */}
+          <div className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm">
+            <h4 className="font-semibold mb-3">Payment Summary</h4>
+            <div className="space-y-2 text-sm">
+              {selectedService && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{selectedService.name}</span>
+                  <span className="font-medium">{fmt(calculatedPrice)}</span>
+                </div>
+              )}
+              {extrasTotal > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Add-ons</span>
+                  <span className="font-medium">+${extrasTotal.toFixed(2)}</span>
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span className="text-primary">{fmt(finalPrice)}</span>
+              </div>
+              {frequency !== 'one_time' && (
+                <Badge variant="secondary" className="w-full justify-center mt-2">
+                  {frequency === 'weekly' && 'Weekly Recurring'}
+                  {frequency === 'biweekly' && 'Bi-Weekly Recurring'}
+                  {frequency === 'monthly' && 'Monthly Recurring'}
+                  {frequency === 'triweekly' && 'Tri-Weekly Recurring'}
+                  {frequency === 'custom' && (
+                    recurringDaysOfWeek && recurringDaysOfWeek.length > 0
+                      ? `${recurringDaysOfWeek.map((d) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join('/')} Recurring`
+                      : customFrequencyDays
+                        ? `Every ${customFrequencyDays} Day${customFrequencyDays !== 1 ? 's' : ''} Recurring`
+                        : 'Custom Recurring'
+                  )}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Adjustments */}
+          <div className="bg-card rounded-2xl border border-border/50 p-5 shadow-sm space-y-3">
+            <h4 className="font-semibold">Adjustments</h4>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sendConfirmationSms"
+                checked={sendConfirmationSms}
+                onCheckedChange={(c) => setSendConfirmationSms(c as boolean)}
+              />
+              <Label htmlFor="sendConfirmationSms" className="text-sm cursor-pointer flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                Send confirmation text
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sendConfirmationEmail"
+                checked={sendConfirmationEmail}
+                onCheckedChange={(c) => setSendConfirmationEmail(c as boolean)}
+              />
+              <Label htmlFor="sendConfirmationEmail" className="text-sm cursor-pointer flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-muted-foreground" />
+                Send confirmation email
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sendQuoteSms"
+                checked={sendQuoteSms}
+                onCheckedChange={(c) => setSendQuoteSms(c as boolean)}
+              />
+              <Label htmlFor="sendQuoteSms" className="text-sm cursor-pointer flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                Quote SMS
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="sendQuoteEmail"
+                checked={sendQuoteEmail}
+                onCheckedChange={(c) => setSendQuoteEmail(c as boolean)}
+              />
+              <Label htmlFor="sendQuoteEmail" className="text-sm cursor-pointer flex items-center gap-1.5">
+                <Mail className="w-4 h-4 text-muted-foreground" />
+                Quote Email
+              </Label>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="space-y-2">
+            <Button
+              onClick={() => handleSubmit(false)}
+              disabled={submitting || savingDraft}
+              className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {booking ? 'Update Booking' : 'Save Booking'}
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => handleSubmit(true)}
+              disabled={savingDraft || submitting}
+              className="w-full h-11"
+            >
+              {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Save As Draft
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleSendQuoteEmail}
+              disabled={sendingQuoteEmail}
+              className="w-full h-11"
+            >
+              {sendingQuoteEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Mail className="mr-2 h-4 w-4" />
+              Save As Quote
+            </Button>
+
+            {booking && (
+              <Button variant="ghost" onClick={handleDuplicate} className="w-full h-10">
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicate
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Price Summary Sidebar */}
-      <div className="lg:w-72 lg:sticky lg:top-0 lg:self-start">
-        <div className="bg-gradient-to-br from-card via-card to-secondary/20 rounded-2xl border border-border/50 p-5 shadow-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
-              <Sparkles className="w-5 h-5 text-primary" />
-            </div>
-            <h4 className="font-semibold">Price Summary</h4>
-          </div>
-
-          <div className="space-y-3 text-sm">
-            {selectedService && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{selectedService.name}</span>
-                <span className="font-medium">{fmt(calculatedPrice)}</span>
-              </div>
-            )}
-
-            {extrasTotal > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Add-ons</span>
-                <span className="font-medium">+${extrasTotal.toFixed(2)}</span>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="flex justify-between text-lg font-bold">
-              <span>Total</span>
-              <span className="text-primary">{fmt(finalPrice)}</span>
-            </div>
-
-            {frequency !== 'one_time' && (
-              <Badge variant="secondary" className="w-full justify-center mt-2">
-                {frequency === 'weekly' && 'Weekly Recurring'}
-                {frequency === 'biweekly' && 'Bi-Weekly Recurring'}
-                {frequency === 'monthly' && 'Monthly Recurring'}
-                {frequency === 'triweekly' && 'Tri-Weekly Recurring'}
-                {frequency === 'custom' && (
-                  recurringDaysOfWeek && recurringDaysOfWeek.length > 0
-                    ? `${recurringDaysOfWeek
-                        .map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
-                        .join('/')} Recurring`
-                    : customFrequencyDays
-                      ? `Every ${customFrequencyDays} Day${customFrequencyDays !== 1 ? 's' : ''} Recurring`
-                      : 'Custom Recurring'
-                )}
-              </Badge>
-            )}
-          </div>
+      {/* Mobile sticky bottom action bar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-background/95 backdrop-blur border-t border-border px-3 py-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] flex items-center gap-2 shadow-lg">
+        <div className="flex flex-col min-w-0">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Total</span>
+          <span className="text-base font-bold text-primary leading-tight">{fmt(finalPrice)}</span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleSubmit(true)}
+          disabled={savingDraft || submitting}
+          className="ml-auto h-10"
+        >
+          {savingDraft && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          Draft
+        </Button>
+        <Button
+          onClick={() => handleSubmit(false)}
+          disabled={submitting || savingDraft}
+          size="sm"
+          className="h-10 px-4 bg-gradient-to-r from-primary to-accent"
+        >
+          {submitting && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+          {booking ? 'Update' : 'Save'}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// Sortable single-page section wrapper
+interface SortableSectionProps {
+  section: StepItem;
+  children: React.ReactNode;
+}
+
+function SortableSection({ section, children }: SortableSectionProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+
+  const Icon = section.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden",
+        isDragging && "ring-2 ring-primary"
+      )}
+    >
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 bg-secondary/20">
+        <button
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${section.label} section`}
+          className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <MenuIcon className="w-4 h-4" />
+        </button>
+        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+          <Icon className="w-4 h-4" />
+        </div>
+        <h3 className="font-semibold text-sm">{section.label}</h3>
+      </div>
+      <div className="p-4 md:p-5">
+        {children}
       </div>
     </div>
-    </>
   );
 }

@@ -19,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, isToday, isThisWeek } from 'date-fns';
 import {
   MessageSquare, Send, Search, Plus, Loader2, RefreshCw,
@@ -114,6 +115,7 @@ const formatUnreadCount = (count: number) => {
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   const { organizationId } = useOrgId();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -467,6 +469,27 @@ export default function MessagesPage() {
       // Immediately update local state so the blue dot disappears
       setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
     }
+  };
+
+  const markAllConversationsRead = async () => {
+    if (!organizationId) return;
+    const unreadIds = conversations.filter(c => (c.unread_count || 0) > 0).map(c => c.id);
+    if (unreadIds.length === 0) {
+      toast.info('No unread conversations');
+      return;
+    }
+    const { error } = await supabase
+      .from('sms_conversations')
+      .update({ unread_count: 0 })
+      .in('id', unreadIds);
+    if (error) {
+      toast.error('Failed to mark all read');
+      return;
+    }
+    setConversations(prev => prev.map(c => unreadIds.includes(c.id) ? { ...c, unread_count: 0 } : c));
+    queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+    toast.success(`Marked ${unreadIds.length} conversation${unreadIds.length === 1 ? '' : 's'} read`);
   };
 
   const syncOpenPhoneMessages = async (
@@ -1176,6 +1199,8 @@ export default function MessagesPage() {
                     .gt('unread_count', 0);
                   if (error) { toast.error('Failed to mark all read'); return; }
                   setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                  queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+                  queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
                   toast.success('All conversations marked as read');
                 }}
                 title="Mark all as read"
@@ -1304,6 +1329,8 @@ export default function MessagesPage() {
               const ids = [...selectedForBulk];
               await Promise.all(ids.map(id => supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', id)));
               setConversations(prev => prev.map(c => selectedForBulk.has(c.id) ? { ...c, unread_count: 0 } : c));
+              queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+              queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
               toast.success(`Marked ${ids.length} as read`);
               setSelectedForBulk(new Set());
               setBulkEditMode(false);
@@ -1536,6 +1563,15 @@ export default function MessagesPage() {
           <SEOHead title="Messages | TidyWise" description="View and send messages to clients" noIndex />
           {!isMobile && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={markAllConversationsRead}
+                disabled={!conversations.some(c => (c.unread_count || 0) > 0)}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Mark all read
+              </Button>
               <Dialog open={emailOpen} onOpenChange={async (open) => {
                 setEmailOpen(open);
                 if (open && organizationId) {

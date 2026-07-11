@@ -3,7 +3,7 @@
 // pings the website for basic quality signals, and writes everything to DB.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 import { generateObject } from "npm:ai@5";
-import { createOpenAICompatible } from "npm:@ai-sdk/openai-compatible@1";
+import { createAnthropic } from "npm:@ai-sdk/anthropic@1";
 import { z } from "npm:zod@3.23.8";
 
 const corsHeaders = {
@@ -14,14 +14,11 @@ const corsHeaders = {
 
 const PLACES_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY") ?? "";
 
-const gateway = createOpenAICompatible({
-  name: "lovable",
-  baseURL: "https://ai.gateway.lovable.dev/v1",
-  headers: {
-    "Lovable-API-Key": Deno.env.get("LOVABLE_API_KEY") ?? "",
-    "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-  },
+const anthropic = createAnthropic({
+  apiKey: Deno.env.get("ANTHROPIC_API_KEY") ?? "",
 });
+const MODEL_HAIKU = "claude-haiku-4-5";
+const MODEL_SONNET = "claude-sonnet-4-6";
 
 function letterGrade(score: number): string {
   if (score >= 90) return "A";
@@ -246,7 +243,7 @@ Review text:
 """${review.text.slice(0, 2000)}"""`;
 
   const { object } = await generateObject({
-    model: gateway("google/gemini-3-flash-preview"),
+    model: anthropic(MODEL_HAIKU),
     prompt,
     schema: PerReviewSentimentSchema,
   });
@@ -278,7 +275,7 @@ Tasks:
 2. Generate 5-8 *specific*, *actionable* improvement tips this owner could do this week. Reference their actual weak signals (low recency, missing booking flow, value complaints, etc.). Keep each tip body under 240 chars. Tips should never be generic.`;
 
   const { object } = await generateObject({
-    model: gateway("google/gemini-3-flash-preview"),
+    model: anthropic(MODEL_SONNET),
     prompt,
     schema: InsightsSchema,
   });

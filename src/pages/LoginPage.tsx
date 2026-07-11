@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple, Users, HardHat } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 // Validation schema
 const loginSchema = z.object({
@@ -29,6 +30,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const claimSlug = searchParams.get('claim');
   const isNative = Capacitor.isNativePlatform();
+  // Flip to false if App Review ever objects to the external signup link
+  const SHOW_NATIVE_SIGNUP_LINK = true;
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
@@ -208,7 +211,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col overflow-x-hidden"
+      className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col overflow-x-hidden"
       // #16: on the native app the title was clipped under the iPhone notch —
       // respect the top safe-area inset.
       style={{ touchAction: 'manipulation', paddingTop: 'env(safe-area-inset-top)' }}
@@ -230,7 +233,7 @@ export default function LoginPage() {
         
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <h1 className="text-2xl font-bold leading-none tracking-tight">Sign in to your TidyWise account</h1>
+            <h1 className="pv-display text-3xl leading-none tracking-tight">Sign in to your TidyWise account</h1>
             <CardDescription>
               Sign in to your account
             </CardDescription>
@@ -352,8 +355,11 @@ export default function LoginPage() {
 
             </form>
 
-            {/* Sign up link - HIDDEN on native (App Store Guideline 3.1.1) */}
-            {!isNative && (
+            {/* Sign up: web shows the normal route; native opens the website
+                in the system browser. Apple's US external-link rules (post
+                Epic injunction, guideline 3.1.1(a)) permit this — if review
+                ever objects, set SHOW_NATIVE_SIGNUP_LINK = false. */}
+            {!isNative ? (
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
                 <Link
@@ -362,6 +368,17 @@ export default function LoginPage() {
                 >
                   Create account
                 </Link>
+              </div>
+            ) : SHOW_NATIVE_SIGNUP_LINK && (
+              <div className="mt-6 text-center text-sm">
+                <span className="text-muted-foreground">Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => Browser.open({ url: 'https://www.jointidywise.com/signup' })}
+                  className="text-primary hover:underline font-medium"
+                >
+                  Sign up on our website
+                </button>
               </div>
             )}
 

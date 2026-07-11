@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Bell, Clock, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,10 +15,15 @@ import { formatInTimezone } from '@/lib/timezoneUtils';
 import { useNavigate } from 'react-router-dom';
 import { useOrgId } from '@/hooks/useOrgId';
 import { showBrowserNotification } from '@/hooks/usePushNotifications';
+import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/useNotificationPreferences';
+import { isChannelEnabled, typeByKey } from '@/lib/notificationCatalog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface AdminNotification {
   id: string;
   type: 'booking' | 'payment' | 'customer' | 'staff' | 'system';
+  /** Catalog key from src/lib/notificationCatalog.ts driving channels + route. */
+  typeKey?: string;
   title: string;
   message: string;
   is_read: boolean;
@@ -35,6 +40,20 @@ export function AdminNotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      return new Set(JSON.parse(localStorage.getItem('admin-notif-dismissed') || '[]'));
+    } catch { return new Set(); }
+  });
+  const prefs = useNotificationPreferences();
+  const { snoozeType } = useUpdateNotificationPreferences();
+
+  const persistDismissed = (set: Set<string>) => {
+    setDismissedIds(new Set(set));
+    try { localStorage.setItem('admin-notif-dismissed', JSON.stringify([...set])); } catch {}
+  };
 
   // One-time prompt for browser notification permission so desktop notifications
   // actually fire when realtime events arrive (booking requests, new leads, etc.).
@@ -103,6 +122,7 @@ export function AdminNotificationBell() {
         return {
           id: `request-${n.id}`,
           type: 'customer' as const,
+          typeKey: 'client.portal_request',
           title: `New Booking Request`,
           message: `${customerName} requested ${serviceName} on ${requestDate}`,
           is_read: n.is_read,
@@ -143,6 +163,7 @@ export function AdminNotificationBell() {
           bookingNotifications.push({
             id: `booking-${booking.id}`,
             type: 'booking' as const,
+            typeKey: 'booking.new',
             title: customerName,
             message: `${serviceName} • ${cleanDate}`,
             is_read: true,
@@ -259,6 +280,7 @@ export function AdminNotificationBell() {
             const newNotification: AdminNotification = {
               id: `booking-${newBooking.id}`,
               type: 'booking',
+              typeKey: 'booking.new',
               title: 'New Booking Created',
               message: `Scheduled for ${newBooking.scheduled_at ? format(new Date(newBooking.scheduled_at), 'MMM d') : 'TBD'}`,
               is_read: false,
@@ -299,9 +321,15 @@ export function AdminNotificationBell() {
                 if (bookingDetails.scheduled_at) scheduledDate = format(new Date(bookingDetails.scheduled_at), 'MMM d, yyyy');
               }
 
+              const statusKey =
+                updatedBooking.status === 'cancelled' ? 'booking.cancelled' :
+                updatedBooking.status === 'completed' ? 'booking.completed' :
+                oldBooking.payment_status !== updatedBooking.payment_status && updatedBooking.payment_status === 'failed' ? 'booking.payment_failed' :
+                'booking.rescheduled';
               const newNotification: AdminNotification = {
                 id: `booking-update-${updatedBooking.id}-${Date.now()}`,
                 type: 'booking',
+                typeKey: statusKey,
                 title: `${customerName}${scheduledDate ? ` • ${scheduledDate}` : ''}`,
                 message: `Status changed to ${updatedBooking.status}`,
                 is_read: false,
@@ -382,83 +410,174 @@ export function AdminNotificationBell() {
     if (!notification.is_read) {
       markAsRead(notification.id);
     }
-    if (notification.link) {
-      setIsOpen(false);
-      navigate(notification.link);
-    }
+    setIsOpen(false);
+    const route = notification.typeKey ? typeByKey(notification.typeKey)?.route : undefined;
+    const dest = notification.link || route;
+    if (dest) navigate(dest);
+  };
+
+  const dismissOne = (id: string) => {
+    persistDismissed(new Set([...dismissedIds, id]));
+    setSelected(prev => {
+      const n = new Set(prev); n.delete(id); return n;
+    });
+  };
+
+  const markSelectedComplete = () => {
+    if (!selected.size) return;
+    const next = new Set(dismissedIds);
+    selected.forEach(id => next.add(id));
+    persistDismissed(next);
+    setNotifications(prev => prev.map(n => selected.has(n.id) ? { ...n, is_read: true } : n));
+    setSelected(new Set());
+  };
+
+  const snoozeSelected = async (hours: number) => {
+    const typeKeys = new Set<string>();
+    notifications.forEach(n => { if (selected.has(n.id) && n.typeKey) typeKeys.add(n.typeKey); });
+    for (const k of typeKeys) await snoozeType(k, hours);
+    setSelected(new Set());
   };
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'booking':
-        return '📅';
-      case 'payment':
-        return '💳';
-      case 'customer':
-        return '👤';
-      case 'staff':
-        return '👷';
-      default:
-        return '🔔';
+      case 'booking': return '📅';
+      case 'payment': return '💳';
+      case 'customer': return '👤';
+      case 'staff': return '👷';
+      default: return '🔔';
     }
   };
+
+  // Filter by user preferences (bell channel + snooze) and by dismissed ids.
+  const visibleNotifications = useMemo(() => {
+    return notifications.filter(n => {
+      if (dismissedIds.has(n.id)) return false;
+      if (n.typeKey) {
+        return isChannelEnabled(n.typeKey, 'bell', prefs.notification_matrix, prefs.snoozed_until);
+      }
+      return true;
+    });
+  }, [notifications, dismissedIds, prefs.notification_matrix, prefs.snoozed_until]);
+
+  const visibleUnread = visibleNotifications.filter(n => !n.is_read).length;
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {visibleUnread > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {visibleUnread > 9 ? '9+' : visibleUnread}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h4 className="font-semibold">Notifications</h4>
-          {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
-              {unreadCount > 0 ? 'Mark all read' : 'Clear all'}
+      <PopoverContent className="w-96 p-0" align="end">
+        <div className="flex items-center justify-between p-3 border-b gap-2">
+          <h4 className="font-semibold text-sm">Notifications</h4>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => navigate('/dashboard/notifications')}>
+              Preferences
             </Button>
-          )}
+            {visibleNotifications.length > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={markAllAsRead}>
+                {visibleUnread > 0 ? 'Mark all read' : 'Clear all'}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {selected.size > 0 && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/40 border-b text-xs">
+            <span className="text-muted-foreground">{selected.size} selected</span>
+            <div className="flex gap-1">
+              <Button size="sm" variant="ghost" className="h-6 px-2 gap-1" onClick={() => snoozeSelected(24)}>
+                <Clock className="w-3 h-3" /> 24h
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2 gap-1" onClick={markSelectedComplete}>
+                <Check className="w-3 h-3" /> Complete
+              </Button>
+            </div>
+          </div>
+        )}
+
         <ScrollArea className="h-80">
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
+          {visibleNotifications.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground text-sm">
               No notifications yet
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.slice(0, 15).map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
-                    !notification.is_read ? 'bg-primary/5' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-lg mt-0.5">{getTypeIcon(notification.type)}</span>
-                    {!notification.is_read && (
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
-                    )}
-                    <div className={!notification.is_read ? '' : 'ml-4'}>
-                      <p className="font-medium text-sm">{notification.title}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
+              {visibleNotifications.slice(0, 25).map((notification) => {
+                const checked = selected.has(notification.id);
+                return (
+                  <div
+                    key={notification.id}
+                    className={`group flex items-start gap-2 p-3 hover:bg-muted/50 transition-colors ${
+                      !notification.is_read ? 'bg-primary/5' : ''
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(v) => {
+                        setSelected(prev => {
+                          const n = new Set(prev);
+                          if (v) n.add(notification.id); else n.delete(notification.id);
+                          return n;
+                        });
+                      }}
+                      className="mt-1"
+                      aria-label="Select notification"
+                    />
+                    <button
+                      type="button"
+                      className="flex-1 text-left min-w-0"
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{getTypeIcon(notification.type)}</span>
+                        <p className="font-medium text-sm truncate">{notification.title}</p>
+                        {!notification.is_read && (
+                          <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1">
                         {format(new Date(notification.created_at), 'MMM d, h:mm a')}
                       </p>
+                    </button>
+                    <div className="opacity-0 group-hover:opacity-100 flex flex-col gap-1">
+                      {notification.typeKey && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          title="Snooze 24h"
+                          onClick={() => snoozeType(notification.typeKey!, 24)}
+                        >
+                          <Clock className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6"
+                        title="Dismiss"
+                        onClick={() => dismissOne(notification.id)}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>

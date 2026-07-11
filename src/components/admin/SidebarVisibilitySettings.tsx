@@ -4,9 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/useAuth';
-import { useOrgId } from '@/hooks/useOrgId';
+import { useSidebarHiddenItems } from '@/hooks/useSidebarHiddenItems';
 import {
   Home,
   Calendar,
@@ -64,108 +62,30 @@ const sidebarItems = [
 ];
 
 export function SidebarVisibilitySettings() {
-  const [hiddenItems, setHiddenItems] = useState<string[]>([]);
-  const [initialHiddenItems, setInitialHiddenItems] = useState<string[]>([]);
+  const { hiddenItems: savedHidden, isLoading, save, reset, refresh } = useSidebarHiddenItems();
+  const [draftHidden, setDraftHidden] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const { user } = useAuth();
-  const { organizationId } = useOrgId();
+  const [resetting, setResetting] = useState(false);
 
-  // Load from database on mount
+  // Sync draft to saved whenever the DB result changes (e.g. after org switch).
   useEffect(() => {
-    const loadPreferences = async () => {
-      if (!user?.id || !organizationId) return;
-      
-      const { data } = await supabase
-        .from('user_preferences')
-        .select('preference_value')
-        .eq('user_id', user.id)
-        .eq('organization_id', organizationId)
-        .eq('preference_key', 'sidebar_hidden')
-        .maybeSingle();
-      
-      if (data?.preference_value) {
-        const hidden = data.preference_value as string[];
-        setHiddenItems(hidden);
-        setInitialHiddenItems(hidden);
-        // Sync to localStorage for sidebar component
-        localStorage.setItem('tidywise_nav_hidden', JSON.stringify(hidden));
-        window.dispatchEvent(new Event('navHiddenChanged'));
-      } else {
-        setHiddenItems([]);
-        setInitialHiddenItems([]);
-        localStorage.removeItem('tidywise_nav_hidden');
-        window.dispatchEvent(new Event('navHiddenChanged'));
-      }
-    };
-    
-    loadPreferences();
-  }, [user?.id, organizationId]);
+    setDraftHidden(savedHidden);
+  }, [savedHidden]);
 
-  // Track changes
-  useEffect(() => {
-    const changed = JSON.stringify(hiddenItems.sort()) !== JSON.stringify(initialHiddenItems.sort());
-    setHasChanges(changed);
-  }, [hiddenItems, initialHiddenItems]);
-
-  const saveToDatabase = async (newHidden: string[]) => {
-    if (!user?.id || !organizationId) return;
-    
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          organization_id: organizationId,
-          preference_key: 'sidebar_hidden',
-          preference_value: newHidden,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,organization_id,preference_key'
-        });
-      
-      if (error) throw error;
-    } catch (e) {
-      console.error('Error saving preferences:', e);
-      toast.error('Failed to save preference');
-    } finally {
-      setSaving(false);
-    }
-  };
+  const hasChanges =
+    JSON.stringify([...draftHidden].sort()) !== JSON.stringify([...savedHidden].sort());
 
   const toggleItem = (href: string) => {
-    setHiddenItems(prev => {
-      const newHidden = prev.includes(href)
-        ? prev.filter(h => h !== href)
-        : [...prev, href];
-      
-      // Update localStorage for instant preview
-      localStorage.setItem('tidywise_nav_hidden', JSON.stringify(newHidden));
-      window.dispatchEvent(new Event('navHiddenChanged'));
-      
-      return newHidden;
-    });
+    setDraftHidden((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href],
+    );
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .upsert({
-          user_id: user!.id,
-          organization_id: organizationId,
-          preference_key: 'sidebar_hidden',
-          preference_value: hiddenItems,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,organization_id,preference_key'
-        });
-      
-      if (error) throw error;
-      
-      setInitialHiddenItems([...hiddenItems]);
+      await save(draftHidden);
+      refresh();
       toast.success('Sidebar settings saved');
     } catch (e) {
       console.error('Error saving preferences:', e);
@@ -176,26 +96,29 @@ export function SidebarVisibilitySettings() {
   };
 
   const resetToDefault = async () => {
-    setHiddenItems([]);
-    setInitialHiddenItems([]);
-    localStorage.removeItem('tidywise_nav_hidden');
-    localStorage.removeItem('tidywise_nav_order');
-    window.dispatchEvent(new Event('navHiddenChanged'));
-    
-    // Delete from database
-    if (user?.id && organizationId) {
-      await supabase
-        .from('user_preferences')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('organization_id', organizationId)
-        .eq('preference_key', 'sidebar_hidden');
+    setResetting(true);
+    try {
+      await reset();
+      // Legacy ordering key is unrelated to visibility but historically was
+      // cleared here — keep that behaviour for consistency.
+      try {
+        localStorage.removeItem('tidywise_nav_order');
+      } catch {
+        /* ignore */
+      }
+      setDraftHidden([]);
+      refresh();
+      toast.success('Sidebar reset to default');
+    } catch (e) {
+      console.error('Error resetting preferences:', e);
+      toast.error('Failed to reset settings');
+    } finally {
+      setResetting(false);
     }
-    
-    toast.success('Sidebar reset to default');
   };
 
-  const visibleCount = sidebarItems.length - hiddenItems.length;
+  const visibleCount = sidebarItems.length - draftHidden.length;
+  const busy = saving || resetting;
 
   return (
     <Card>
@@ -211,15 +134,15 @@ export function SidebarVisibilitySettings() {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={resetToDefault} className="gap-2" disabled={saving}>
-              <RotateCcw className="w-4 h-4" />
+            <Button variant="outline" size="sm" onClick={resetToDefault} className="gap-2" disabled={busy}>
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
               Reset
             </Button>
-            <Button 
-              size="sm" 
-              onClick={handleSave} 
-              className="gap-2" 
-              disabled={saving || !hasChanges}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              className="gap-2"
+              disabled={busy || !hasChanges}
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Save Changes
@@ -228,11 +151,17 @@ export function SidebarVisibilitySettings() {
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="secondary">{visibleCount} visible</Badge>
-          {hiddenItems.length > 0 && (
-            <Badge variant="outline">{hiddenItems.length} hidden</Badge>
+          {draftHidden.length > 0 && (
+            <Badge variant="outline">{draftHidden.length} hidden</Badge>
           )}
           {hasChanges && (
             <Badge variant="secondary" className="bg-warning text-warning-foreground">Unsaved changes</Badge>
+          )}
+          {isLoading && (
+            <Badge variant="outline" className="gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Loading
+            </Badge>
           )}
         </div>
       </CardHeader>
@@ -240,9 +169,9 @@ export function SidebarVisibilitySettings() {
         <div className="grid gap-3">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
-            const isHidden = hiddenItems.includes(item.href);
+            const isHidden = draftHidden.includes(item.href);
             const isRequired = item.required;
-            
+
             return (
               <div
                 key={item.href}
@@ -266,6 +195,7 @@ export function SidebarVisibilitySettings() {
                     <Switch
                       checked={!isHidden}
                       onCheckedChange={() => toggleItem(item.href)}
+                      disabled={busy}
                     />
                   )}
                   {isRequired && (
@@ -276,7 +206,7 @@ export function SidebarVisibilitySettings() {
             );
           })}
         </div>
-        
+
         <p className="text-sm text-muted-foreground mt-4">
           💡 Tip: You can also drag and drop items in the sidebar to reorder them. The P&L Overview is located under <strong>Reports</strong>.
         </p>

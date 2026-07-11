@@ -94,14 +94,15 @@ serve(async (req) => {
             step,
           });
 
-          const res = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({ from: `${companyName} <${fromEmail}>`, to: [customer.email], subject, html }),
+          const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+          const sendResult = await sendOrgEmail({
+            organizationId: org.id,
+            to: customer.email,
+            subject,
+            html,
           });
 
-          if (res.ok) {
-            // Log so we don't resend
+          if (sendResult.success) {
             await supabase.from("winback_drip_log").insert({
               organization_id: org.id,
               customer_id: customer.id,
@@ -109,6 +110,7 @@ serve(async (req) => {
             });
             results[`step${step}`]++;
           }
+
         }
       }
     }

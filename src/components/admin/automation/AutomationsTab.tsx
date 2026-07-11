@@ -15,8 +15,10 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
-  AlertTriangle, MessageSquare, Plus, Trash2,
+  AlertTriangle, MessageSquare, Plus, Trash2, Pencil,
 } from 'lucide-react';
+import { AutomationEditorDialog } from './AutomationEditorDialog';
+
 import { format } from 'date-fns';
 
 interface ReminderInterval {
@@ -383,6 +385,8 @@ export function AutomationsTab() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ key: string; name: string } | null>(null);
+
 
   const { data: automations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['organization-automations', organization?.id],
@@ -640,11 +644,21 @@ export function AutomationsTab() {
                           </div>
                         </div>
                       </div>
-                      <Switch
-                        checked={auto.is_enabled}
-                        onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
-                        className="flex-shrink-0 scale-110"
-                      />
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing({ key: auto.automation_type, name: formatName(auto.automation_type) })}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                        <Switch
+                          checked={auto.is_enabled}
+                          onCheckedChange={(checked) => toggleMutation.mutate({ id: auto.id, is_enabled: checked })}
+                          className="scale-110"
+                        />
+                      </div>
+
                     </div>
 
                     {isReminder && (
@@ -692,10 +706,20 @@ export function AutomationsTab() {
                           <p className="text-sm text-muted-foreground">{meta?.description ?? 'Automation disabled'}</p>
                         </div>
                       </div>
-                      <Switch
-                        checked={false}
-                        onCheckedChange={() => toggleMutation.mutate({ id: auto.id, is_enabled: true })}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditing({ key: auto.automation_type, name: formatName(auto.automation_type) })}
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                        <Switch
+                          checked={false}
+                          onCheckedChange={() => toggleMutation.mutate({ id: auto.id, is_enabled: true })}
+                        />
+                      </div>
+
                     </div>
                   </CardContent>
                 </Card>
@@ -780,6 +804,16 @@ export function AutomationsTab() {
           </Card>
         )}
       </div>
+      {editing && organization?.id && (
+        <AutomationEditorDialog
+          open={!!editing}
+          onOpenChange={(v) => !v && setEditing(null)}
+          organizationId={organization.id}
+          automationKey={editing.key}
+          automationName={editing.name}
+        />
+      )}
     </div>
   );
 }
+

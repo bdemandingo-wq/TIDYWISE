@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { resolveCallerOrg, isServiceRoleRequest } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,12 +35,33 @@ serve(async (req: Request) => {
     const stripe = new Stripe(platformStripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Optional: filter to specific org
-    let filterOrgId: string | null = null;
+    let requestedOrgId: string | null = null;
     try {
       const body = await req.json();
-      filterOrgId = body?.organizationId || null;
+      requestedOrgId = body?.organizationId || null;
     } catch {
       // cron call with no body
+    }
+
+    // SECURITY: a single-org request is the manual/frontend path — require a
+    // real caller and resolve the org from THEIR JWT, never the body. A
+    // request with no organizationId is the full cross-org sweep and must
+    // only run for the scheduler (service role).
+    let filterOrgId: string | null = null;
+    if (requestedOrgId) {
+      const callerOrg = await resolveCallerOrg(req);
+      if (!callerOrg.ok) {
+        return new Response(JSON.stringify({ error: callerOrg.error }), {
+          status: callerOrg.status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      filterOrgId = callerOrg.ctx.organizationId;
+    } else if (!isServiceRoleRequest(req)) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch all payout accounts with payouts_enabled = false that have a stripe_account_id

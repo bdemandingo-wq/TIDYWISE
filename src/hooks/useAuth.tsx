@@ -47,6 +47,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const consecutive401sRef = useRef(0);
 
   const signOut = async () => {
+    // Purge per-user/per-org sidebar visibility cache so the next signed-in
+    // user (e.g. on a shared device) never inherits stale hidden tabs.
+    const { clearSidebarHiddenItemsCache } = await import('@/hooks/useSidebarHiddenItems');
+    clearSidebarHiddenItemsCache();
     await noSessionAuth.signOut();
     setSubscription(null);
     setShowSubscriptionDialog(false);

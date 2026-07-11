@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Routes that are considered "root" tabs — back button should not navigate away from these
 const ROOT_ROUTES = [
@@ -55,6 +56,7 @@ function getParentRoute(path: string): string | null {
 }
 
 export function useAppStateHandler() {
+  const queryClient = useQueryClient();
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
       // --- Mobile Web: intercept popstate to prevent logout on back ---
@@ -112,6 +114,11 @@ export function useAppStateHandler() {
 
       const resumeListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (isActive) {
+          // Data was going stale on the phone: with refetchOnWindowFocus off
+          // and a 5-min staleTime, changes made elsewhere (admin approving a
+          // cleaner's document, a cleaner uploading booking photos) never
+          // showed up until a manual reload. Refresh everything on resume.
+          queryClient.invalidateQueries();
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {

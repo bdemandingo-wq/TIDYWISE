@@ -230,26 +230,6 @@ export function ServiceStep() {
             </div>
           )}
 
-          {/* Price Override */}
-          <div>
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              Adjust Price (Override)
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Leave empty to use calculated price"
-              value={totalAmount > 0 ? totalAmount : ''}
-              onChange={(e) => setTotalAmount(parseFloat(e.target.value) || 0)}
-              className="mt-2 h-11 bg-secondary/30 border-border/50"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Enter a value only if you want to override the calculated price
-            </p>
-          </div>
-
           {/* Pricing Mode Tabs - Only show sqft if enabled */}
           {showSqft ? (
             <div>

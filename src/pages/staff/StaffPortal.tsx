@@ -17,6 +17,8 @@ import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
+import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
+
 
 // Lazy-load heavy tab components to speed up initial render
 const CleanerAvailabilityManager = lazy(() => import('@/components/staff/CleanerAvailabilityManager').then(m => ({ default: m.CleanerAvailabilityManager })));
@@ -611,14 +613,23 @@ export default function StaffPortal() {
       {staffInfo?.id && (
         <StaffLocationPrompt staffId={staffInfo.id} onResolved={() => { /* unmounts itself */ }} />
       )}
-      <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="pt-[env(safe-area-inset-top,0px)]" />
-        <div className="container mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+      <div className="portal-v2 min-h-screen">
+      {/* Header — sticky glass */}
+      <header
+        className="sticky top-0 z-10 portal-v2-header-safe"
+        style={{
+          background: 'hsl(var(--pv-surface) / 0.72)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          borderBottom: '1px solid hsl(var(--pv-border))',
+        }}
+      >
+        <div className="container mx-auto px-4 sm:px-6 pb-3 flex items-end justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold truncate">Cleaner Portal</h1>
-            <p className="text-sm text-muted-foreground truncate">Welcome, {staffInfo?.name || 'Loading...'}</p>
+            <p className="pv-eyebrow">Cleaner Portal</p>
+            <h1 className="pv-display text-[26px] sm:text-[30px] truncate mt-0.5">
+              {staffInfo?.name ? `Hi, ${staffInfo.name.split(' ')[0]}` : 'Welcome'}
+            </h1>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {staffInfo && (
@@ -634,7 +645,7 @@ export default function StaffPortal() {
                     }
                   }}
                 />
-                <Badge variant="outline" className="hidden sm:flex">
+                <Badge variant="outline" className="hidden sm:flex pv-chip-neutral">
                   {staffInfo.tax_classification === 'w2' ? 'W-2 Employee' : '1099 Contractor'}
                 </Badge>
               </>
@@ -648,7 +659,7 @@ export default function StaffPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 pb-24">
+      <main className="portal-v2-scroll container mx-auto px-4 sm:px-6 py-6">
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress
@@ -669,11 +680,12 @@ export default function StaffPortal() {
         )}
 
         {hasSetAvailability === false && (
-          <div className="mb-4 p-4 rounded-lg border border-warning bg-warning/10 text-warning-foreground">
-            <p className="font-semibold">⚠️ Set Your Availability First</p>
-            <p className="text-sm text-muted-foreground">You must set your working hours before you can view or claim jobs.</p>
+          <div className="mb-6 rounded-2xl border p-4" style={{ background: 'hsl(var(--pv-warn-soft))', borderColor: 'hsl(var(--pv-warn) / 0.25)' }}>
+            <p className="font-semibold" style={{ color: 'hsl(var(--pv-warn))' }}>Set your availability first</p>
+            <p className="text-sm pv-meta mt-0.5">You must set your working hours before you can view or claim jobs.</p>
           </div>
         )}
+
         <Tabs value={currentTab} onValueChange={(val) => setActiveTab(val)} className="space-y-4">
           <div className="relative">
             <TabsList className="flex overflow-x-auto no-scrollbar h-auto p-1 w-full justify-start gap-1" style={{ flexWrap: 'nowrap', WebkitOverflowScrolling: 'touch' }}>
@@ -736,6 +748,11 @@ export default function StaffPortal() {
                 <Banknote className="w-4 h-4" />
                 Payouts
               </TabsTrigger>
+              <TabsTrigger value="time-off" className="gap-1.5 min-h-[44px] shrink-0 px-3">
+                <Calendar className="w-4 h-4" />
+                Time Off
+              </TabsTrigger>
+
             </TabsList>
             {/* Scroll fade indicator */}
             <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
@@ -744,8 +761,8 @@ export default function StaffPortal() {
           {/* My Jobs Tab */}
           <TabsContent value="my-jobs" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Your Upcoming Jobs</h2>
-              <p className="text-sm text-muted-foreground">Jobs assigned to you that are coming up</p>
+              <h2 className="pv-display text-2xl">Your upcoming jobs</h2>
+              <p className="pv-meta mt-1">Jobs assigned to you that are coming up.</p>
             </div>
             {loadingAssigned ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -754,10 +771,10 @@ export default function StaffPortal() {
                 ))}
               </div>
             ) : assignedBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <CalendarCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No upcoming jobs assigned to you.</p>
-                <p className="text-sm text-muted-foreground mt-1">Check the Available tab to claim new jobs!</p>
+              <div className="text-center py-16">
+                <CalendarCheck className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                <p className="pv-display text-xl">No upcoming jobs</p>
+                <p className="pv-meta mt-1">Check the Available tab to claim new jobs.</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -794,10 +811,8 @@ export default function StaffPortal() {
           {/* Available Jobs Tab */}
           <TabsContent value="available" className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold">Available Jobs</h2>
-              <p className="text-sm text-muted-foreground">
-                Open jobs waiting to be claimed. See your potential earnings below!
-              </p>
+              <h2 className="pv-display text-2xl">Available jobs</h2>
+              <p className="pv-meta mt-1">Open jobs waiting to be claimed. See your potential earnings below.</p>
             </div>
             {loadingUnassigned ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -806,10 +821,10 @@ export default function StaffPortal() {
                 ))}
               </div>
             ) : unassignedBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <Briefcase className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No open jobs right now.</p>
-                <p className="text-sm text-muted-foreground mt-1">Check back later for new opportunities!</p>
+              <div className="text-center py-16">
+                <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                <p className="pv-display text-xl">No open jobs right now</p>
+                <p className="pv-meta mt-1">Check back later for new opportunities.</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -836,16 +851,16 @@ export default function StaffPortal() {
           <TabsContent value="history" className="space-y-4">
             <Suspense fallback={<TabFallback />}>
               <div>
-                <h2 className="text-lg font-semibold">Job History</h2>
-                <p className="text-sm text-muted-foreground">Your completed and past jobs</p>
+                <h2 className="pv-display text-2xl">Job history</h2>
+                <p className="pv-meta mt-1">Your completed and past jobs.</p>
               </div>
               {loadingHistory ? (
                 <TabFallback />
               ) : jobHistory.length === 0 ? (
-                <div className="text-center py-12">
-                  <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No job history yet.</p>
-                  <p className="text-sm text-muted-foreground mt-1">Completed jobs will appear here.</p>
+                <div className="text-center py-16">
+                  <History className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                  <p className="pv-display text-xl">No job history yet</p>
+                  <p className="pv-meta mt-1">Completed jobs will appear here.</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -959,7 +974,16 @@ export default function StaffPortal() {
               )}
             </Suspense>
           </TabsContent>
+
+          <TabsContent value="time-off" className="space-y-4">
+            {staffInfo?.id && staffInfo?.organization_id ? (
+              <TimeOffRequests staffId={staffInfo.id} organizationId={staffInfo.organization_id} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
+          </TabsContent>
         </Tabs>
+
       </main>
     </div>
     </>

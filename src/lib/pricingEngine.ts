@@ -56,14 +56,54 @@ function resolveSqftPart(input: PricingEngineInput): number {
 function resolveBedBathPart(input: PricingEngineInput): number {
   const grid = input.bedroomPricing ?? [];
   if (grid.length === 0) return 0;
-  if (input.bedrooms == null || input.bathrooms == null) return 0;
+  if (input.bedrooms == null && input.bathrooms == null) return 0;
 
-  const bed = String(input.bedrooms);
-  const bath = String(input.bathrooms);
-  const match = grid.find(
-    (p) => String(p.bedrooms) === bed && String(p.bathrooms) === bath,
-  );
-  return match ? Number(match.basePrice) || 0 : 0;
+  const bed = input.bedrooms != null ? String(input.bedrooms) : null;
+  const bath = input.bathrooms != null ? String(input.bathrooms) : null;
+
+  // Exact match first
+  if (bed && bath) {
+    const exact = grid.find(
+      (p) => String(p.bedrooms) === bed && String(p.bathrooms) === bath,
+    );
+    if (exact) return Number(exact.basePrice) || 0;
+  }
+
+  // Nearest-bathroom fallback for the selected bedroom count.
+  // Fixes: pricing grids don't always contain every bed/bath permutation,
+  // which caused service cards to fall back to $0 / minimum price.
+  if (bed) {
+    const bedMatches = grid.filter((p) => String(p.bedrooms) === bed);
+    if (bedMatches.length > 0) {
+      if (bath != null) {
+        const target = Number(bath);
+        const nearest = [...bedMatches].sort(
+          (a, b) =>
+            Math.abs(Number(a.bathrooms) - target) -
+            Math.abs(Number(b.bathrooms) - target),
+        )[0];
+        return Number(nearest.basePrice) || 0;
+      }
+      // No bath picked yet — use the lowest-bath row for this bedroom count.
+      const lowest = [...bedMatches].sort(
+        (a, b) => Number(a.bathrooms) - Number(b.bathrooms),
+      )[0];
+      return Number(lowest.basePrice) || 0;
+    }
+  }
+
+  // Only bath picked — pick the lowest-bedroom row matching the bath.
+  if (bath) {
+    const bathMatches = grid.filter((p) => String(p.bathrooms) === bath);
+    if (bathMatches.length > 0) {
+      const lowest = [...bathMatches].sort(
+        (a, b) => Number(a.bedrooms) - Number(b.bedrooms),
+      )[0];
+      return Number(lowest.basePrice) || 0;
+    }
+  }
+
+  return 0;
 }
 
 export function calculateBasePrice(input: PricingEngineInput): PricingEngineResult {

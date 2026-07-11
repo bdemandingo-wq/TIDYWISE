@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
 import { OfflineIndicator } from './OfflineIndicator';
@@ -21,9 +21,56 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   
   // Apply org branding colors to entire CRM theme
   useBrandingColors();
-
-  // Hide the top header bar on mobile for immersive tabs (Messages, Scheduler)
   const isMobileView = useIsMobile();
+
+  // Edge-swipe to open the sidebar on touch devices. React synthetic touch
+  // handlers on the wrapper miss touches that land on fixed-positioned
+  // children (header, bottom nav, sheet overlays), so we attach native
+  // document-level listeners. On mobile we dispatch a global event so the
+  // AdminSidebar Sheet (which owns its own open state) actually opens.
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let fromEdge = false;
+    let tracking = false;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startX = t.clientX;
+      startY = t.clientY;
+      fromEdge = t.clientX <= 28;
+      tracking = true;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - startX;
+      const dy = Math.abs(t.clientY - startY);
+      if (dy > 60) return;
+      if (isMobileView) {
+        if (fromEdge && dx > 50) {
+          window.dispatchEvent(new CustomEvent('tw:open-mobile-sidebar'));
+        } else if (dx < -60 && startX <= 288) {
+          window.dispatchEvent(new CustomEvent('tw:close-mobile-sidebar'));
+        }
+        return;
+      }
+      // Desktop swipe (rare, but preserved)
+      if (fromEdge && dx > 60 && !sidebarOpen) setSidebarOpen(true);
+      else if (dx < -60 && sidebarOpen && startX <= 288) setSidebarOpen(false);
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    document.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [isMobileView, sidebarOpen]);
   const isInsideConversation = Boolean(
     matchPath('/dashboard/messages/:conversationId', location.pathname)
   );

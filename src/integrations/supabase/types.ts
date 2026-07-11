@@ -799,6 +799,176 @@ export type Database = {
           },
         ]
       }
+      automation_definitions: {
+        Row: {
+          automation_key: string
+          created_at: string
+          enabled: boolean
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          automation_key: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          automation_key?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_definitions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_steps: {
+        Row: {
+          automation_id: string
+          channel: string
+          created_at: string
+          direction: string
+          email_body: string
+          email_subject: string
+          enabled: boolean
+          id: string
+          label: string
+          offset_minutes: number | null
+          offset_unit: string
+          offset_value: number
+          organization_id: string
+          position: number
+          recipient_cleaner: boolean
+          recipient_client: boolean
+          recipient_owner: boolean
+          sms_body: string
+          updated_at: string
+        }
+        Insert: {
+          automation_id: string
+          channel?: string
+          created_at?: string
+          direction?: string
+          email_body?: string
+          email_subject?: string
+          enabled?: boolean
+          id?: string
+          label: string
+          offset_minutes?: number | null
+          offset_unit?: string
+          offset_value?: number
+          organization_id: string
+          position?: number
+          recipient_cleaner?: boolean
+          recipient_client?: boolean
+          recipient_owner?: boolean
+          sms_body?: string
+          updated_at?: string
+        }
+        Update: {
+          automation_id?: string
+          channel?: string
+          created_at?: string
+          direction?: string
+          email_body?: string
+          email_subject?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          offset_minutes?: number | null
+          offset_unit?: string
+          offset_value?: number
+          organization_id?: string
+          position?: number
+          recipient_cleaner?: boolean
+          recipient_client?: boolean
+          recipient_owner?: boolean
+          sms_body?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_steps_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automation_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_steps_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_triggers: {
+        Row: {
+          automation_id: string
+          created_at: string
+          direction: string | null
+          id: string
+          meta: Json
+          offset_unit: string | null
+          offset_value: number | null
+          organization_id: string
+          trigger_key: string
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          meta?: Json
+          offset_unit?: string | null
+          offset_value?: number | null
+          organization_id: string
+          trigger_key: string
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          meta?: Json
+          offset_unit?: string | null
+          offset_value?: number | null
+          organization_id?: string
+          trigger_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_triggers_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automation_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_triggers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       benchmark_audit_logs: {
         Row: {
           created_at: string
@@ -1700,6 +1870,7 @@ export type Database = {
           company_state: string | null
           company_zip: string | null
           confirmation_email_body: string | null
+          confirmation_email_sections: Json | null
           confirmation_email_subject: string | null
           created_at: string
           currency: string | null
@@ -1722,6 +1893,7 @@ export type Database = {
           payroll_frequency: string
           payroll_report_email_enabled: boolean
           payroll_report_recipients: string[]
+          payroll_report_send_day: number | null
           payroll_report_send_hour: number
           payroll_start_day: number
           primary_color: string | null
@@ -1730,6 +1902,7 @@ export type Database = {
           recurring_discount_one_time: number
           recurring_discount_weekly: number
           reminder_email_body: string | null
+          reminder_email_sections: Json | null
           reminder_email_subject: string | null
           require_cleaner_payout_setup: boolean
           require_clockout_photos: boolean
@@ -1762,6 +1935,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -1784,6 +1958,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_report_email_enabled?: boolean
           payroll_report_recipients?: string[]
+          payroll_report_send_day?: number | null
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
@@ -1792,6 +1967,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
@@ -1824,6 +2000,7 @@ export type Database = {
           company_state?: string | null
           company_zip?: string | null
           confirmation_email_body?: string | null
+          confirmation_email_sections?: Json | null
           confirmation_email_subject?: string | null
           created_at?: string
           currency?: string | null
@@ -1846,6 +2023,7 @@ export type Database = {
           payroll_frequency?: string
           payroll_report_email_enabled?: boolean
           payroll_report_recipients?: string[]
+          payroll_report_send_day?: number | null
           payroll_report_send_hour?: number
           payroll_start_day?: number
           primary_color?: string | null
@@ -1854,6 +2032,7 @@ export type Database = {
           recurring_discount_one_time?: number
           recurring_discount_weekly?: number
           reminder_email_body?: string | null
+          reminder_email_sections?: Json | null
           reminder_email_subject?: string | null
           require_cleaner_payout_setup?: boolean
           require_clockout_photos?: boolean
@@ -5391,6 +5570,79 @@ export type Database = {
           },
         ]
       }
+      org_email_daily_sends: {
+        Row: {
+          method: string
+          organization_id: string
+          sent_count: number
+          sent_on: string
+          updated_at: string
+        }
+        Insert: {
+          method?: string
+          organization_id: string
+          sent_count?: number
+          sent_on?: string
+          updated_at?: string
+        }
+        Update: {
+          method?: string
+          organization_id?: string
+          sent_count?: number
+          sent_on?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_email_daily_sends_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_email_send_failures: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          fell_back_to: string | null
+          id: string
+          method: string
+          organization_id: string
+          recipient: string | null
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          fell_back_to?: string | null
+          id?: string
+          method: string
+          organization_id: string
+          recipient?: string | null
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          fell_back_to?: string | null
+          id?: string
+          method?: string
+          organization_id?: string
+          recipient?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_email_send_failures_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_feature_flags: {
         Row: {
           ai_assistant_enabled: boolean | null
@@ -5809,34 +6061,46 @@ export type Database = {
         Row: {
           created_at: string
           email_footer: string | null
+          email_send_method: string
           from_email: string
           from_name: string
+          gmail_account_type: string
           id: string
           organization_id: string
           reply_to_email: string | null
           resend_api_key: string | null
+          smtp_app_password: string | null
+          smtp_email: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email_footer?: string | null
+          email_send_method?: string
           from_email: string
           from_name: string
+          gmail_account_type?: string
           id?: string
           organization_id: string
           reply_to_email?: string | null
           resend_api_key?: string | null
+          smtp_app_password?: string | null
+          smtp_email?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email_footer?: string | null
+          email_send_method?: string
           from_email?: string
           from_name?: string
+          gmail_account_type?: string
           id?: string
           organization_id?: string
           reply_to_email?: string | null
           resend_api_key?: string | null
+          smtp_app_password?: string | null
+          smtp_email?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -5844,6 +6108,53 @@ export type Database = {
             foreignKeyName: "organization_email_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          organization_id: string
+          role: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          organization_id: string
+          role: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          organization_id?: string
+          role?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -5911,6 +6222,7 @@ export type Database = {
       organization_mobile_nav_settings: {
         Row: {
           created_at: string
+          icon_overrides: Json
           id: string
           items: Json
           organization_id: string
@@ -5919,6 +6231,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id: string
@@ -5927,6 +6240,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          icon_overrides?: Json
           id?: string
           items?: Json
           organization_id?: string
@@ -5938,6 +6252,50 @@ export type Database = {
             foreignKeyName: "organization_mobile_nav_settings_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_notification_preferences: {
+        Row: {
+          bell_notifications: Json
+          channels: Json
+          created_at: string
+          notification_matrix: Json
+          organization_id: string
+          sidebar_badges: Json
+          snoozed_until: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          notification_matrix?: Json
+          organization_id: string
+          sidebar_badges?: Json
+          snoozed_until?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bell_notifications?: Json
+          channels?: Json
+          created_at?: string
+          notification_matrix?: Json
+          organization_id?: string
+          sidebar_badges?: Json
+          snoozed_until?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_notification_preferences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
@@ -8946,6 +9304,66 @@ export type Database = {
           },
         ]
       }
+      time_off_requests: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          end_date: string
+          id: string
+          organization_id: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          staff_id: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          end_date: string
+          id?: string
+          organization_id: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          staff_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_off_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "time_off_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tips: {
         Row: {
           amount: number | null
@@ -9720,6 +10138,24 @@ export type Database = {
         Args: { p_cohort?: string; p_org_id: string }
         Returns: Json
       }
+      get_org_email_settings_safe: {
+        Args: { _organization_id: string }
+        Returns: {
+          created_at: string
+          email_footer: string
+          email_send_method: string
+          from_email: string
+          from_name: string
+          gmail_account_type: string
+          id: string
+          organization_id: string
+          reply_to_email: string
+          resend_api_key_configured: boolean
+          smtp_email: string
+          smtp_password_configured: boolean
+          updated_at: string
+        }[]
+      }
       get_org_ghl_dispatch_config: {
         Args: { _org_id: string }
         Returns: {
@@ -9727,6 +10163,20 @@ export type Database = {
           auth_token: string
           enabled: boolean
           event_config: Json
+          webhook_url: string
+        }[]
+      }
+      get_org_ghl_settings_safe: {
+        Args: { _organization_id: string }
+        Returns: {
+          auth_header_name: string
+          auth_token_configured: boolean
+          created_at: string
+          enabled: boolean
+          event_config: Json
+          id: string
+          organization_id: string
+          updated_at: string
           webhook_url: string
         }[]
       }
@@ -9750,6 +10200,23 @@ export type Database = {
           stripe_access_token: string
           stripe_account_id: string
           stripe_secret_key: string
+        }[]
+      }
+      get_org_stripe_settings_safe: {
+        Args: { p_organization_id: string }
+        Returns: {
+          connected_at: string
+          created_at: string
+          id: string
+          is_connected: boolean
+          organization_id: string
+          stripe_account_id: string
+          stripe_default_currency: string
+          stripe_display_name: string
+          stripe_payouts_enabled: boolean
+          stripe_publishable_key: string
+          stripe_user_email: string
+          updated_at: string
         }[]
       }
       get_public_booking_settings: { Args: { p_org_id: string }; Returns: Json }
@@ -9789,6 +10256,7 @@ export type Database = {
       get_user_organization_id: { Args: never; Returns: string }
       has_active_subscription: { Args: { _org_id: string }; Returns: boolean }
       has_openphone_api_key: { Args: { _org_id: string }; Returns: boolean }
+      has_org_financial_access: { Args: { _org_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -9800,6 +10268,10 @@ export type Database = {
         Args: { p_password: string }
         Returns: string
       }
+      increment_org_email_daily_send: {
+        Args: { _delta?: number; _method?: string; _organization_id: string }
+        Returns: number
+      }
       is_client_portal_user: {
         Args: { _client_user_id: string; _user_id: string }
         Returns: boolean
@@ -9810,9 +10282,21 @@ export type Database = {
       is_org_member:
         | { Args: { _org_id: string }; Returns: boolean }
         | { Args: { _org_id: string; _user_id: string }; Returns: boolean }
+      is_org_operator: { Args: { _org_id: string }; Returns: boolean }
+      is_org_owner: { Args: { _org_id: string }; Returns: boolean }
       is_org_staff: { Args: { _org_id: string }; Returns: boolean }
       is_platform_admin: { Args: never; Returns: boolean }
       is_platform_blog_admin: { Args: never; Returns: boolean }
+      list_org_members: {
+        Args: { _organization_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
+      }
       log_benchmark_event: {
         Args: {
           p_duration_ms: number
@@ -9823,6 +10307,17 @@ export type Database = {
           p_status: string
         }
         Returns: string
+      }
+      log_org_email_send_failure: {
+        Args: {
+          _error_message: string
+          _fell_back_to: string
+          _method: string
+          _organization_id: string
+          _recipient: string
+          _subject: string
+        }
+        Returns: undefined
       }
       mark_client_notification_read: {
         Args: { p_client_user_id: string; p_notification_id: string }
@@ -9859,6 +10354,10 @@ export type Database = {
         }[]
       }
       refresh_peer_benchmark_snapshots: { Args: never; Returns: number }
+      remove_org_member: {
+        Args: { _organization_id: string; _target_user_id: string }
+        Returns: undefined
+      }
       reset_client_portal_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
@@ -9917,6 +10416,14 @@ export type Database = {
           p_phone?: string
         }
         Returns: boolean
+      }
+      update_org_member_role: {
+        Args: {
+          _new_role: string
+          _organization_id: string
+          _target_user_id: string
+        }
+        Returns: undefined
       }
       validate_client_portal_login: {
         Args: { p_email: string; p_password: string }

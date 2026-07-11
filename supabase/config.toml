@@ -123,6 +123,9 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.send-help-center-email]
     verify_jwt = false
+  [functions.send-gmail-test-email]
+    verify_jwt = false
+
   [functions.send-invoice-reminder]
     verify_jwt = false
   [functions.send-on-the-way-sms]

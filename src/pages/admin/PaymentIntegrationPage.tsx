@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { showChargeFailureToastSonner, extractFailureReason } from "@/lib/chargeErrorToast";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
 import { Capacitor } from "@capacitor/core";
@@ -82,6 +83,7 @@ interface ManualPayment {
 
 export default function PaymentIntegrationPage() {
   const { organization } = useOrganization();
+  const { isOwner } = useOrgRole();
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -428,20 +430,22 @@ export default function PaymentIntegrationPage() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDisconnect}
-                    disabled={isDisconnecting}
-                    className="text-destructive hover:text-destructive flex-shrink-0"
-                  >
-                    {isDisconnecting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span className="ml-2 hidden sm:inline">Disconnect</span>
-                  </Button>
+                  {isOwner && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDisconnect}
+                      disabled={isDisconnecting}
+                      className="text-destructive hover:text-destructive flex-shrink-0"
+                    >
+                      {isDisconnecting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      <span className="ml-2 hidden sm:inline">Disconnect</span>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -480,7 +484,7 @@ export default function PaymentIntegrationPage() {
             )}
 
             {/* Legacy upgrade prompt */}
-            {connectionStatus.legacy && (
+            {connectionStatus.legacy && isOwner && (
               <Card className="border-amber-500/30 bg-amber-500/5">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
@@ -620,6 +624,23 @@ export default function PaymentIntegrationPage() {
               </Card>
             )}
           </>
+        ) : !isOwner ? (
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-foreground">Stripe isn't connected yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Only the workspace owner can connect this organization's Stripe
+                    account. Ask an owner to open Payment Integration and finish setup.
+                    Once connected, you'll be able to charge saved cards using the
+                    workspace's Stripe account — you don't need your own.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <>
             {/* Pre-connect warning */}

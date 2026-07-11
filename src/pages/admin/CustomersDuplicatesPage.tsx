@@ -263,53 +263,68 @@ export default function CustomersDuplicatesPage() {
   );
 
   // #9: delete a duplicate record outright (typical for 0-booking dupes)
-  // Bulk cleanup: one click deletes the empty duplicate from every pair —
-  // keeps the record with bookings/spend, or the older one when both are empty.
+  // Multi-select delete: owner picks specific records via checkboxes.
+  // Uses .select('id') on the delete so we can detect the silent-RLS case
+  // where 0 rows are actually removed despite a "successful" request.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   const bulkDeleteMutation = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error('No org');
-      const idsToDelete: string[] = [];
-      for (const pair of pairs) {
-        const aStats = stats.get(pair.a.id);
-        const bStats = stats.get(pair.b.id);
-        const aEmpty = (aStats?.total_bookings ?? 0) === 0 && (aStats?.total_revenue ?? 0) === 0;
-        const bEmpty = (bStats?.total_bookings ?? 0) === 0 && (bStats?.total_revenue ?? 0) === 0;
-        if (aEmpty && !bEmpty) idsToDelete.push(pair.a.id);
-        else if (bEmpty && !aEmpty) idsToDelete.push(pair.b.id);
-        else if (aEmpty && bEmpty) {
-          // both empty — keep the older record, delete the newer one
-          const newer = new Date(pair.a.created_at) > new Date(pair.b.created_at) ? pair.a : pair.b;
-          idsToDelete.push(newer.id);
-        }
-        // both have history → skip; needs a manual merge decision
-      }
-      const unique = [...new Set(idsToDelete)];
-      if (unique.length === 0) return 0;
-      const { error } = await supabase
+      const ids = [...selectedIds];
+      if (ids.length === 0) return { deleted: 0, requested: 0 };
+      const { data, error } = await supabase
         .from('customers')
         .delete()
-        .in('id', unique)
-        .eq('organization_id', orgId);
+        .in('id', ids)
+        .eq('organization_id', orgId)
+        .select('id');
       if (error) throw error;
-      return unique.length;
+      return { deleted: (data || []).length, requested: ids.length };
     },
-    onSuccess: (count) => {
+    onSuccess: ({ deleted, requested }) => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customer-duplicates', orgId] });
-      toast.success(count === 0 ? 'Nothing to clean — remaining pairs need a manual merge' : `${count} duplicate ${count === 1 ? 'record' : 'records'} deleted`);
+      setSelectedIds(new Set());
+      if (deleted === 0 && requested > 0) {
+        toast.error(
+          'Delete was blocked — no rows were removed. The customers table is likely missing a DELETE policy for org admins.',
+        );
+      } else if (deleted < requested) {
+        toast.warning(`${deleted} of ${requested} deleted — the rest have bookings/invoices or were blocked.`);
+      } else {
+        toast.success(`${deleted} ${deleted === 1 ? 'record' : 'records'} deleted`);
+      }
     },
-    onError: (err: Error) => toast.error(err.message || 'Bulk delete failed'),
+    onError: (err: Error) => {
+      toast.error(
+        err.message?.includes('violates foreign key')
+          ? 'Some records have bookings or invoices — merge those instead of deleting.'
+          : err.message || 'Delete failed',
+      );
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (customer: Customer) => {
       if (!orgId) throw new Error('No org');
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('customers')
         .delete()
         .eq('id', customer.id)
-        .eq('organization_id', orgId);
+        .eq('organization_id', orgId)
+        .select('id');
       if (error) throw error;
+      if ((data || []).length === 0) {
+        throw new Error('Delete was blocked — the customers table needs a DELETE policy for org admins.');
+      }
       return customer;
     },
     onSuccess: (customer) => {
@@ -481,20 +496,20 @@ export default function CustomersDuplicatesPage() {
       subtitle={`${pairs.length} potential ${pairs.length === 1 ? 'duplicate' : 'duplicates'}`}
       actions={
         <div className="flex gap-2">
-          {pairs.length > 0 && (
+          {selectedIds.size > 0 && (
             <Button
               variant="outline"
               size="sm"
               className="text-destructive hover:text-destructive"
               disabled={bulkDeleteMutation.isPending}
               onClick={() => {
-                if (window.confirm('Delete the empty (0 bookings, $0) record from every duplicate pair? Pairs where both records have history are skipped. This cannot be undone.')) {
+                if (window.confirm(`Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'record' : 'records'}? This cannot be undone.`)) {
                   bulkDeleteMutation.mutate();
                 }
               }}
             >
               {bulkDeleteMutation.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
-              Clean up empty duplicates
+              Delete selected ({selectedIds.size})
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/customers')}>
@@ -532,6 +547,8 @@ export default function CustomersDuplicatesPage() {
                 setConfirmMerge({ pair, primary, secondary })
               }
               onIgnore={() => ignoreMutation.mutate(pair)}
+              selectedIds={selectedIds}
+              onToggleSelected={toggleSelected}
               onDelete={(customer) => {
                 if (window.confirm(`Delete ${customer.first_name} ${customer.last_name}? This cannot be undone.`)) {
                   deleteMutation.mutate(customer);
@@ -601,6 +618,8 @@ interface PairCardProps {
   onIgnore: () => void;
   onDelete: (customer: Customer) => void;
   ignoring: boolean;
+  selectedIds: Set<string>;
+  onToggleSelected: (id: string) => void;
 }
 
 function DuplicatePairCard({
@@ -611,6 +630,8 @@ function DuplicatePairCard({
   onIgnore,
   onDelete,
   ignoring,
+  selectedIds,
+  onToggleSelected,
 }: PairCardProps) {
   return (
     <Card>
@@ -647,6 +668,8 @@ function DuplicatePairCard({
             }
             onKeepThisOne={() => onMerge(pair.a, pair.b)}
             onDelete={() => onDelete(pair.a)}
+            selected={selectedIds.has(pair.a.id)}
+            onToggleSelected={() => onToggleSelected(pair.a.id)}
           />
           <CustomerCompareCard
             customer={pair.b}
@@ -661,6 +684,8 @@ function DuplicatePairCard({
             }
             onKeepThisOne={() => onMerge(pair.b, pair.a)}
             onDelete={() => onDelete(pair.b)}
+            selected={selectedIds.has(pair.b.id)}
+            onToggleSelected={() => onToggleSelected(pair.b.id)}
           />
         </div>
       </CardContent>
@@ -695,6 +720,8 @@ function CustomerCompareCard({
   mergeLabel,
   onKeepThisOne,
   onDelete,
+  selected,
+  onToggleSelected,
 }: {
   customer: Customer;
   stats: CustomerStats | undefined;
@@ -704,6 +731,8 @@ function CustomerCompareCard({
   mergeLabel: React.ReactNode;
   onKeepThisOne: () => void;
   onDelete: () => void;
+  selected: boolean;
+  onToggleSelected: () => void;
 }) {
   const sameField = (k: keyof Customer) =>
     norm(customer[k] as string | null) === norm(otherCustomer[k] as string | null) &&
@@ -745,16 +774,19 @@ function CustomerCompareCard({
         <Button size="sm" onClick={onKeepThisOne} className="w-full">
           {primaryLabel}
         </Button>
-        {/* #9: allow deleting a duplicate record outright (0-booking dupes
-            usually shouldn't be merged, just removed) */}
-        <Button
-          size="sm"
-          variant="outline"
-          className="w-full text-destructive hover:text-destructive"
-          onClick={onDelete}
-        >
-          <Trash2 className="w-4 h-4 mr-1.5" /> Delete this record
-        </Button>
+        {/* Multi-select delete: check the records to remove, then use the
+            "Delete selected" button in the page header. */}
+        <label className="flex items-center justify-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm cursor-pointer hover:bg-muted/50">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-destructive"
+            checked={selected}
+            onChange={onToggleSelected}
+          />
+          <span className={selected ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+            {selected ? 'Selected for deletion' : 'Select to delete'}
+          </span>
+        </label>
         <p className="text-xs text-muted-foreground text-center">
           {mergeLabel}
         </p>

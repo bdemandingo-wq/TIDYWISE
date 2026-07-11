@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useAllStaff } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,12 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check, Users, FileText, Bell, MapPin } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Mail, Phone, Edit, Trash2, Calendar, KeyRound, Copy, Check, Users, FileText, Bell, MapPin, CalendarOff } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { TimeOffRequestsPanel } from '@/components/admin/TimeOffRequestsPanel';
+import { useOrgRole } from '@/hooks/useOrgRole';
+
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +53,8 @@ import { StaffComplianceDashboard } from '@/components/admin/StaffComplianceDash
 import { AdminSignableDocManager } from '@/components/admin/AdminSignableDocManager';
 import { PendingDocumentsReview } from '@/components/admin/PendingDocumentsReview';
 import { SEOHead } from '@/components/SEOHead';
+import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { usePageBadgeReasons } from '@/hooks/useSidebarBadges';
 
 interface StaffMember {
   id: string;
@@ -64,9 +72,24 @@ interface StaffMember {
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 export default function StaffPage() {
+  const { hasFinancialAccess } = useOrgRole();
   const [searchTerm, setSearchTerm] = useState('');
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [activeTab, setActiveTab] = useState('team');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'team';
+  const [activeTab, setActiveTab] = useState(initialTab);
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && t !== activeTab) setActiveTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  const handleTabChange = (v: string) => {
+    setActiveTab(v);
+    const next = new URLSearchParams(searchParams);
+    if (v === 'team') next.delete('tab'); else next.set('tab', v);
+    setSearchParams(next, { replace: true });
+  };
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
@@ -84,6 +107,39 @@ export default function StaffPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organizationId } = useOrgId();
+  const { data: pendingTimeOff = 0 } = useQuery({
+    queryKey: ['time-off-pending-count', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return 0;
+      const { count } = await (supabase as any)
+        .from('time_off_requests')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organizationId,
+  });
+  const { data: pendingDocs = 0 } = useQuery({
+    queryKey: ['staff-docs-pending-count', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return 0;
+      const { count } = await supabase
+        .from('staff_documents')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', organizationId)
+        .eq('status', 'pending');
+      return count || 0;
+    },
+    enabled: !!organizationId,
+  });
+  const staffReasons = usePageBadgeReasons('/dashboard/staff');
+  const handleStaffReason = (key: string) => {
+    if (key === 'time_off') handleTabChange('time-off');
+    else if (key === 'docs') handleTabChange('documents');
+    else if (key === 'payout') handleTabChange('team');
+  };
+
 
   const filteredStaff = staff.filter((s) => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -249,19 +305,34 @@ export default function StaffPage() {
       }
     >
       <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3 mb-4">
+      <AttentionStrip href="/dashboard/staff" onReasonClick={(r) => handleStaffReason(r.key)} />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-4">
           <TabsTrigger value="team" className="gap-2">
             <Users className="h-4 w-4" />
             Team
           </TabsTrigger>
-          <TabsTrigger value="documents" className="gap-2">
+          <TabsTrigger value="documents" className="gap-2 relative">
             <FileText className="h-4 w-4" />
             Documents
+            {pendingDocs > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                {pendingDocs}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="activity" className="gap-2">
             <Bell className="h-4 w-4" />
             Activity
+          </TabsTrigger>
+          <TabsTrigger value="time-off" className="gap-2 relative">
+            <CalendarOff className="h-4 w-4" />
+            Time Off
+            {pendingTimeOff > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                {pendingTimeOff}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -335,11 +406,12 @@ export default function StaffPage() {
                           <div>
                             <h3 className="font-semibold">{maskName(member.name)}</h3>
                             <div className="flex items-center gap-2">
-                              {(member.base_wage || member.hourly_rate) && (
+                              {hasFinancialAccess && (member.base_wage || member.hourly_rate) && (
                                 <span className="text-sm text-muted-foreground">
                                   {isTestMode ? '$XX/hr' : `$${member.base_wage || member.hourly_rate}/hr`}
                                 </span>
                               )}
+
                               <Badge variant={member.tax_classification === '1099' ? 'secondary' : 'default'} className="text-xs">
                                 {member.tax_classification === '1099' ? '1099' : 'W-2'}
                               </Badge>
@@ -466,7 +538,12 @@ export default function StaffPage() {
             <StaffComplianceDashboard organizationId={organizationId} />
           )}
         </TabsContent>
+
+        <TabsContent value="time-off" className="space-y-4">
+          <TimeOffRequestsPanel />
+        </TabsContent>
       </Tabs>
+
 
       <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
       <EditStaffDialog 

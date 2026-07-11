@@ -109,6 +109,19 @@ export default function BookingPhotosPage() {
     staff:staff!booking_photos_staff_id_fkey(name)
   `;
 
+  // Live gallery: new cleaner uploads appear within seconds, like a native
+  // photo library, instead of waiting for a manual refresh.
+  useEffect(() => {
+    if (!organization?.id) return;
+    const channel = supabase
+      .channel(`booking-photos-${organization.id}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'booking_photos', filter: `organization_id=eq.${organization.id}` },
+        () => queryClient.invalidateQueries({ queryKey: ['booking-photos', organization.id] }))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [organization?.id, queryClient]);
+
   const { data: photos = [], isLoading, error: photosError, refetch } = useQuery({
     queryKey: ['booking-photos', organization?.id],
     queryFn: async () => {

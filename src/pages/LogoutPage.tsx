@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthNoSession } from '@/hooks/useAuthNoSession';
+import { clearSidebarHiddenItemsCache } from '@/hooks/useSidebarHiddenItems';
 import { Loader2 } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 
@@ -30,6 +31,10 @@ export default function LogoutPage() {
           key.startsWith('sb-') || key.includes('supabase')
         );
         sessionKeys.forEach(key => sessionStorage.removeItem(key));
+
+        // Purge per-user/per-org sidebar visibility cache so the next
+        // user on this device does not inherit stale hidden tabs.
+        clearSidebarHiddenItemsCache();
         
       } catch (err) {
         console.error('Logout error:', err);

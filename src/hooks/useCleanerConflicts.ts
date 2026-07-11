@@ -39,8 +39,10 @@ export function useCleanerConflicts(
 ) {
   const [allBookingsOnDate, setAllBookingsOnDate] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
+  const [timeOffStaffIds, setTimeOffStaffIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const { organizationId } = useOrgId();
+
 
   // Fetch bookings and working hours for the selected date
   useEffect(() => {
@@ -118,6 +120,18 @@ export function useCleanerConflicts(
 
         if (hoursError) throw hoursError;
         setWorkingHours(hoursData || []);
+
+        // Approved time-off requests overlapping the selected date
+        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+        const { data: toData } = await (supabase as any)
+          .from('time_off_requests')
+          .select('staff_id')
+          .eq('organization_id', organizationId)
+          .eq('status', 'approved')
+          .lte('start_date', dateStr)
+          .gte('end_date', dateStr);
+        setTimeOffStaffIds(new Set((toData || []).map((r: any) => r.staff_id)));
+
       } catch (error) {
         console.error('Error fetching bookings/working hours for conflicts:', error);
         setAllBookingsOnDate([]);
@@ -241,17 +255,19 @@ export function useCleanerConflicts(
     for (const staffId of staffIds) {
       const conflicts = checkConflictsForStaff(staffId);
       const isWithinWorkingHours = isStaffWithinWorkingHours(staffId);
-      
+      const isOnTimeOff = timeOffStaffIds.has(staffId);
+
       availabilityMap.set(staffId, {
         staffId,
-        isAvailable: conflicts.length === 0 && isWithinWorkingHours,
+        isAvailable: conflicts.length === 0 && isWithinWorkingHours && !isOnTimeOff,
         conflicts,
-        isOutsideWorkingHours: !isWithinWorkingHours
+        isOutsideWorkingHours: !isWithinWorkingHours || isOnTimeOff,
       });
     }
 
     return availabilityMap;
-  }, [checkConflictsForStaff, isStaffWithinWorkingHours]);
+  }, [checkConflictsForStaff, isStaffWithinWorkingHours, timeOffStaffIds]);
+
 
   return {
     loading,

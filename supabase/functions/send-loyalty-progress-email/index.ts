@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import { isServiceRoleRequest } from "../_shared/require-caller-org.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -54,6 +55,15 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ error: "Email service not configured" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+  }
+
+  // SECURITY: no frontend or edge function currently calls this — internal
+  // only until a caller is wired up, and that caller must send this org's
+  // own organizationId, verified server-side, not trust it blind.
+  if (!isServiceRoleRequest(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -265,37 +275,25 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: `${companyName} <${senderEmail}>`,
-        to: [customerEmail],
-        subject: `🎉 You earned ${pointsEarned} loyalty points!`,
-        html: emailHtml,
-      }),
+    const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
+    const sendResult = await sendOrgEmail({
+      organizationId,
+      to: customerEmail,
+      subject: `🎉 You earned ${pointsEarned} loyalty points!`,
+      html: emailHtml,
     });
-
-    const data = await res.json();
-    
-    // If domain not verified, return helpful error
-    if (!res.ok && data?.name === 'validation_error' && data?.message?.includes('not verified')) {
-      const domain = senderEmail.split('@')[1];
-      console.error(`Domain ${domain} is not verified on Resend`);
-      throw new Error(`Your email domain (${domain}) is not verified. Please verify it at https://resend.com/domains to send emails.`);
-    }
-
-    if (!res.ok) {
-      console.error("Resend API error:", data);
+    if (!sendResult.success) {
+      if (/not verified/i.test(sendResult.error || "")) {
+        const domain = senderEmail.split('@')[1];
+        throw new Error(`Your email domain (${domain}) is not verified. Please verify it to send emails.`);
+      }
       return new Response(
-        JSON.stringify({ error: "Failed to send email" }),
+        JSON.stringify({ error: sendResult.error || "Failed to send email" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    console.log("Email sent successfully:", data);
+    const data = { id: sendResult.id, method: sendResult.method };
+
 
     return new Response(
       JSON.stringify({ success: true, data }),

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,14 +13,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { organization_id, date_from, date_to } = await req.json();
+    const { date_from, date_to } = await req.json();
 
-    if (!organization_id || !date_from || !date_to) {
+    if (!date_from || !date_to) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // SECURITY: never trust organization_id from the request body — resolve
+    // it from the caller's own JWT + org_memberships instead.
+    const callerOrg = await resolveCallerOrg(req);
+    if (!callerOrg.ok) {
+      return new Response(JSON.stringify({ error: callerOrg.error }), {
+        status: callerOrg.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const organization_id = callerOrg.ctx.organizationId;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
