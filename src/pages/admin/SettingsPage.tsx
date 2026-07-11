@@ -556,7 +556,7 @@ export default function SettingsPage() {
     return (
       <AdminLayout title="Settings" subtitle="Manage your business preferences">
       <SEOHead title="Settings | TidyWise" description="Configure your business settings" noIndex />
-        <div className="flex items-center justify-center h-64">
+        <div className="portal-v2 flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       </AdminLayout>
