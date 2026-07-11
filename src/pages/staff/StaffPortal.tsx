@@ -771,10 +771,10 @@ export default function StaffPortal() {
                 ))}
               </div>
             ) : assignedBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <CalendarCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No upcoming jobs assigned to you.</p>
-                <p className="text-sm text-muted-foreground mt-1">Check the Available tab to claim new jobs!</p>
+              <div className="text-center py-16">
+                <CalendarCheck className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+                <p className="pv-display text-xl">No upcoming jobs</p>
+                <p className="pv-meta mt-1">Check the Available tab to claim new jobs.</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
