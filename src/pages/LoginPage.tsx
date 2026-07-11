@@ -211,7 +211,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen bg-background flex flex-col overflow-x-hidden"
+      className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col overflow-x-hidden"
       // #16: on the native app the title was clipped under the iPhone notch —
       // respect the top safe-area inset.
       style={{ touchAction: 'manipulation', paddingTop: 'env(safe-area-inset-top)' }}
