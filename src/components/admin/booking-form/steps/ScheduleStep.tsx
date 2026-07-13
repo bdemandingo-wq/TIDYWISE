@@ -15,6 +15,8 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
+import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
+import { useOrgId } from '@/hooks/useOrgId';
 
 type Coordinates = { lat: number; lng: number };
 
