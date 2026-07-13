@@ -792,7 +792,7 @@ export default function PortalDashboardPage() {
       </header>
 
       {/* Content */}
-      <div className="portal-v2-scroll max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+      <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8">
         <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
