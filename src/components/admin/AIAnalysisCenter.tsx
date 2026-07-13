@@ -376,7 +376,7 @@ export function AIAnalysisCenter() {
         { type: 'dynamic-chips', organizationId: orgId },
       );
       if (error) throw error;
-      setDynamicChips(data?.chips || []);
+      setDynamicChips(((data as { chips?: string[] } | null)?.chips) || []);
     } catch {
       // Fallback chips
       setDynamicChips([
