@@ -173,9 +173,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
             className={cn(
               'text-xs font-medium',
               progressPercent >= 75
-                ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                ? 'bg-success/10 text-success border-success/30'
                 : progressPercent >= 50
-                ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'
+                ? 'bg-warning/10 text-warning border-warning/30'
                 : 'bg-muted text-muted-foreground'
             )}
           >
@@ -195,14 +195,14 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
               className={cn(
                 'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors',
                 step.completed
-                  ? 'bg-green-500/5 hover:bg-green-500/10'
+                  ? 'bg-success/5 hover:bg-success/10'
                   : 'bg-muted/50 hover:bg-muted'
               )}
             >
               <div
                 className={cn(
                   'flex-shrink-0',
-                  step.completed ? 'text-green-500' : step.status === 'pending' ? 'text-yellow-500' : 'text-muted-foreground'
+                  step.completed ? 'text-success' : step.status === 'pending' ? 'text-warning' : 'text-muted-foreground'
                 )}
               >
                 {step.completed ? (
@@ -225,9 +225,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
                   className={cn(
                     'text-[10px] px-1.5 py-0',
                     step.status === 'complete'
-                      ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                      ? 'bg-success/10 text-success border-success/30'
                       : step.status === 'pending'
-                      ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'
+                      ? 'bg-warning/10 text-warning border-warning/30'
                       : 'text-muted-foreground'
                   )}
                 >

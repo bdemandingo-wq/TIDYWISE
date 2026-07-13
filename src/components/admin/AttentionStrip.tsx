@@ -54,22 +54,22 @@ export function AttentionStrip({ href, onReasonClick, clearAction, className }: 
   };
 
   return (
-    <Card className={`mb-4 border-amber-300 bg-amber-50/60 dark:bg-amber-900/10 ${className || ''}`}>
+    <Card className={`mb-4 border-warning/30 bg-warning/10 ${className || ''}`}>
       <div className="flex flex-wrap items-center gap-3 p-3 sm:p-4">
         <div className="flex items-center gap-2 shrink-0">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTriangle className="h-4 w-4 text-warning" />
           <span className="text-sm font-medium">
             {total} {label}{total === 1 ? '' : 's'} need attention
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {reasons.map(r => (
-            <div key={r.key} className="flex items-stretch overflow-hidden rounded-md border border-amber-300 bg-white dark:bg-transparent">
+            <div key={r.key} className="flex items-stretch overflow-hidden rounded-md border border-warning/30 bg-background">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1.5 rounded-none px-2 hover:bg-amber-100"
+                className="h-7 gap-1.5 rounded-none px-2 hover:bg-warning/10"
                 onClick={() => onReasonClick?.(r)}
               >
                 <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[10px]">{r.count}</Badge>
@@ -79,7 +79,7 @@ export function AttentionStrip({ href, onReasonClick, clearAction, className }: 
                 type="button"
                 aria-label={`Mark ${r.label} as read`}
                 title="Mark as read"
-                className="flex items-center border-l border-amber-300 px-1.5 text-amber-700 hover:bg-amber-100"
+                className="flex items-center border-l border-warning/30 px-1.5 text-warning hover:bg-warning/10"
                 onClick={(e) => { e.stopPropagation(); handleDismissOne(r); }}
               >
                 <X className="h-3 w-3" />
@@ -92,7 +92,7 @@ export function AttentionStrip({ href, onReasonClick, clearAction, className }: 
             type="button"
             size="sm"
             variant="outline"
-            className="gap-1.5 border-amber-400 bg-white text-xs font-medium text-amber-900 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-100"
+            className="gap-1.5 border-warning/40 bg-background text-xs font-medium text-warning hover:bg-warning/10"
             onClick={handleMarkAllRead}
             title="Hides these badges until new items appear"
           >

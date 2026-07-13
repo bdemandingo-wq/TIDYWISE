@@ -74,12 +74,12 @@ interface Lead {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  new: { label: 'New', color: 'bg-blue-500' },
-  follow_up: { label: 'Follow Up', color: 'bg-yellow-500' },
-  quoted: { label: 'Quoted', color: 'bg-purple-500' },
-  commercial: { label: 'Commercial', color: 'bg-amber-500' },
-  converted: { label: 'Converted', color: 'bg-green-500' },
-  lost: { label: 'Lost', color: 'bg-red-500' },
+  new: { label: 'New', color: 'bg-info' },
+  follow_up: { label: 'Follow Up', color: 'bg-warning' },
+  quoted: { label: 'Quoted', color: 'bg-info' },
+  commercial: { label: 'Commercial', color: 'bg-warning' },
+  converted: { label: 'Converted', color: 'bg-success' },
+  lost: { label: 'Lost', color: 'bg-destructive' },
 };
 
 const SOURCE_OPTIONS = [
@@ -527,7 +527,7 @@ export default function LeadsPage() {
               <div className="mt-4 pt-4 border-t">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Overall Conversion Rate</span>
-                  <span className="text-lg font-bold text-green-600">
+                  <span className="text-lg font-bold text-success">
                     {stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0}%
                   </span>
                 </div>
@@ -578,37 +578,37 @@ export default function LeadsPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">New</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.new}</p>
+            <p className="text-2xl font-bold text-info">{stats.new}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Follow Up</p>
-            <p className="text-2xl font-bold text-yellow-600">{stats.follow_up}</p>
+            <p className="text-2xl font-bold text-warning">{stats.follow_up}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Quoted</p>
-            <p className="text-2xl font-bold text-purple-600">{stats.quoted}</p>
+            <p className="text-2xl font-bold text-info">{stats.quoted}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Commercial</p>
-            <p className="text-2xl font-bold text-amber-600">{stats.commercial}</p>
+            <p className="text-2xl font-bold text-warning">{stats.commercial}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Converted</p>
-            <p className="text-2xl font-bold text-green-600">{stats.converted}</p>
+            <p className="text-2xl font-bold text-success">{stats.converted}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Lost</p>
-            <p className="text-2xl font-bold text-red-600">{stats.lost}</p>
+            <p className="text-2xl font-bold text-destructive">{stats.lost}</p>
           </CardContent>
         </Card>
       </div>
@@ -767,7 +767,7 @@ export default function LeadsPage() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger>
-                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                <AlertTriangle className="w-4 h-4 text-warning" />
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>No booking found for this lead</p>
@@ -841,7 +841,7 @@ export default function LeadsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              <AlertTriangle className="w-5 h-5 text-warning" />
               Abandoned Bookings
             </CardTitle>
           </CardHeader>
@@ -890,7 +890,7 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell className="text-sm">
                           {link.link_opened_at ? (
-                            <span className="text-amber-600">{format(new Date(link.link_opened_at), 'MMM d, h:mm a')}</span>
+                            <span className="text-warning">{format(new Date(link.link_opened_at), 'MMM d, h:mm a')}</span>
                           ) : (
                             <span className="text-muted-foreground">Not opened</span>
                           )}

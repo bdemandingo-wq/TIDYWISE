@@ -414,11 +414,11 @@ export default function PaymentIntegrationPage() {
 
         {connectionStatus?.connected ? (
           <>
-            <Card className="border-green-500/30 bg-green-500/5">
+            <Card className="border-success/30 bg-success/5">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <CheckCircle2 className="h-6 w-6 text-green-500 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-6 w-6 text-success flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="font-semibold text-foreground text-lg">
                         ✅ Stripe Connected {connectionStatus.legacy && "(API Keys)"}
@@ -490,10 +490,10 @@ export default function PaymentIntegrationPage() {
 
             {/* Legacy upgrade prompt */}
             {connectionStatus.legacy && isOwner && (
-              <Card className="border-amber-500/30 bg-amber-500/5">
+              <Card className="border-warning/30 bg-warning/5">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-semibold text-foreground">Upgrade to Stripe Connect (Recommended)</p>
                       <p className="text-sm text-muted-foreground mt-1">
@@ -597,7 +597,7 @@ export default function PaymentIntegrationPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-500" />
+                    <DollarSign className="h-4 w-4 text-success" />
                     Recent Manual Charges
                   </CardTitle>
                 </CardHeader>
@@ -615,7 +615,7 @@ export default function PaymentIntegrationPage() {
                           </p>
                         </div>
                         <div className="text-right shrink-0 ml-3">
-                          <p className="font-semibold text-sm text-green-600">{fmt(p.amount)}</p>
+                          <p className="font-semibold text-sm text-success">{fmt(p.amount)}</p>
                           {p.stripe_charge_id && (
                             <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[100px]">
                               {p.stripe_charge_id.slice(0, 16)}...
@@ -630,10 +630,10 @@ export default function PaymentIntegrationPage() {
             )}
           </>
         ) : !isOwner ? (
-          <Card className="border-amber-500/30 bg-amber-500/5">
+          <Card className="border-warning/30 bg-warning/5">
             <CardContent className="pt-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-foreground">Stripe isn't connected yet</p>
                   <p className="text-sm text-muted-foreground mt-1">
@@ -649,10 +649,10 @@ export default function PaymentIntegrationPage() {
         ) : (
           <>
             {/* Pre-connect warning */}
-            <Card className="border-amber-500/30 bg-amber-500/5">
+            <Card className="border-warning/30 bg-warning/5">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-6 w-6 text-warning flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-semibold text-foreground">Before you connect: this must be YOUR Stripe account</p>
                     <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
@@ -813,7 +813,7 @@ export default function PaymentIntegrationPage() {
         <Card className="bg-secondary/30">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-foreground">What You Can Accept with Stripe</p>
                 <ul className="text-sm text-muted-foreground mt-2 space-y-1">

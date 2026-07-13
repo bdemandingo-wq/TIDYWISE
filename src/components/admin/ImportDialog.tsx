@@ -308,8 +308,8 @@ export function ImportDialog({
           {step === 'mapping' && (
             <ScrollArea className="h-[400px] pr-4">
               <div className="space-y-4 py-4">
-                <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm">
-                  <AlertCircle className="w-4 h-4 text-blue-500" />
+                <div className="flex items-center gap-2 p-3 bg-info/10 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-info" />
                   <span>Found {csvRows.length} rows to import. Map CSV columns to fields below.</span>
                 </div>
 
@@ -335,7 +335,7 @@ export function ImportDialog({
                         </SelectContent>
                       </Select>
                       {columnMapping[field.dbField] && (
-                        <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
                       )}
                     </div>
                   ))}
@@ -348,16 +348,16 @@ export function ImportDialog({
           {step === 'preview' && (
             <ScrollArea className="h-[400px]">
               <div className="space-y-4 py-4">
-                <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg text-sm">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                <div className="flex items-center gap-2 p-3 bg-warning/10 rounded-lg text-sm">
+                  <AlertCircle className="w-4 h-4 text-warning" />
                   <span>Showing first 5 of {csvRows.length} records. Review before importing.</span>
                 </div>
 
                 {columnMapping['first_name'] &&
                   columnMapping['last_name'] &&
                   columnMapping['first_name'] === columnMapping['last_name'] && (
-                    <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg text-sm">
-                      <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="flex items-start gap-2 p-3 bg-info/10 rounded-lg text-sm">
+                      <AlertCircle className="w-4 h-4 text-info mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="font-medium">
                           Splitting "{columnMapping['first_name']}" into First Name / Last Name
@@ -418,7 +418,7 @@ export function ImportDialog({
               ) : importResult && (
                 <>
                   {importResult.success > 0 ? (
-                    <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-success" />
                   ) : (
                     <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
                   )}

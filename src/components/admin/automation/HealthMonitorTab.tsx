@@ -179,8 +179,8 @@ export function HealthMonitorTab() {
 
   const statusIcon = (status: string) => {
     switch (status) {
-      case 'ok': return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+      case 'ok': return <CheckCircle2 className="w-5 h-5 text-success" />;
+      case 'warning': return <AlertTriangle className="w-5 h-5 text-warning" />;
       case 'error': return <XCircle className="w-5 h-5 text-destructive" />;
       default: return <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />;
     }
@@ -188,9 +188,9 @@ export function HealthMonitorTab() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case 'ok': return <Badge className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/10">🟢 Healthy</Badge>;
-      case 'warning': return <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 hover:bg-yellow-500/10">🟡 Warning</Badge>;
-      case 'error': return <Badge className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10">🔴 Issue</Badge>;
+      case 'ok': return <Badge className="bg-success/10 text-success border-success/20 hover:bg-success/10">🟢 Healthy</Badge>;
+      case 'warning': return <Badge className="bg-warning/10 text-warning border-warning/20 hover:bg-warning/10">🟡 Warning</Badge>;
+      case 'error': return <Badge className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/10">🔴 Issue</Badge>;
       default: return <Badge variant="secondary">Loading</Badge>;
     }
   };
@@ -205,7 +205,7 @@ export function HealthMonitorTab() {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <CheckCircle2 className="w-4 h-4 text-success" />
               <span className="text-xs font-medium text-muted-foreground">Healthy</span>
             </div>
             <p className="text-3xl font-bold mt-1">{okCount}</p>
@@ -214,7 +214,7 @@ export function HealthMonitorTab() {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <AlertTriangle className="w-4 h-4 text-warning" />
               <span className="text-xs font-medium text-muted-foreground">Issues</span>
             </div>
             <p className="text-3xl font-bold mt-1">{issueCount}</p>
