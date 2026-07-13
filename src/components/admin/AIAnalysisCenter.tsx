@@ -412,10 +412,9 @@ export function AIAnalysisCenter() {
     }
   }, [orgId, businessSnapshot]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (revenue > 0 || hotLeadsCount > 0) fetchInsights();
-  }, [orgId]);
+  }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Scheduling recommendation ───
   const [schedRec, setSchedRec] = useState('');
