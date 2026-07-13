@@ -229,6 +229,20 @@ export default function PublicBookingPage() {
         if (data.room_reduction_prices && typeof data.room_reduction_prices === 'object') {
           setRoomReductionPrices((prev) => ({ ...prev, ...data.room_reduction_prices }));
         }
+        const rawMode = data.scheduling_mode;
+        const mode: 'specific' | 'arrival_window' = rawMode === 'arrival_window' ? 'arrival_window' : 'specific';
+        const windows = Array.isArray(data.arrival_windows)
+          ? (data.arrival_windows as typeof arrivalWindows)
+              .filter((w) => w && typeof w.start_time === 'string' && typeof w.end_time === 'string')
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          : [];
+        // Fallback: if arrival mode but no enabled windows, stay on specific
+        if (mode === 'arrival_window' && windows.filter((w) => w.enabled).length === 0) {
+          setSchedulingMode('specific');
+        } else {
+          setSchedulingMode(mode);
+        }
+        setArrivalWindows(windows);
       });
   }, [organizationId]);
 
