@@ -238,6 +238,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   };
 
   const { organizationId } = useOrgId();
+  const { data: schedulingConfig } = useSchedulingMode(organizationId);
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
