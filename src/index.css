@@ -1202,6 +1202,12 @@ body {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
 }
 
+/* Compact density — for dense surfaces like Scheduler.
+   Slightly tighter type; existing button sizing preserved so grid cells
+   and icon buttons don't inflate. Tabs get the 44px minimum for thumbs. */
+.portal-v2.pv-compact { font-size: 13px; }
+.portal-v2.pv-compact [role="tab"] { min-height: 44px; }
+
 /* ─── Density / quiet helpers (visual simplification) ─── */
 
 /* Hero — no card chrome, just breathing space. */
