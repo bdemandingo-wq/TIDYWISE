@@ -212,8 +212,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
       if (!orgId) return 0;
       const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
       const [sms, emails] = await Promise.all([
-        supabase.from('campaign_sms_sends').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('created_at', since),
-        supabase.from('campaign_emails').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('created_at', since),
+        supabase.from('campaign_sms_sends').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('sent_at', since),
+        supabase.from('campaign_emails').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('sent_at', since),
       ]);
       return (sms.count || 0) + (emails.count || 0);
     },
