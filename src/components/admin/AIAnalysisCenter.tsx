@@ -524,9 +524,9 @@ export function AIAnalysisCenter() {
 
       toast.success(`Message sent to ${draftTarget.name}`);
       setDraftOpen(false);
-    } catch (e: any) {
+    } catch (e) {
       console.error('Send SMS error:', e);
-      toast.error(e?.message || 'Could not send SMS. Copy the message instead.');
+      toast.error(e instanceof Error ? e.message : 'Could not send SMS. Copy the message instead.');
     } finally {
       setDraftSending(false);
     }
