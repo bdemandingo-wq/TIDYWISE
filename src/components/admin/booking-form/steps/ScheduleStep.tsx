@@ -89,6 +89,11 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     zipCode,
   } = useBookingForm();
 
+  const { organizationId } = useOrgId();
+  const { data: schedulingConfig } = useSchedulingMode(organizationId);
+  const isArrivalWindow = schedulingConfig?.mode === 'arrival_window';
+  const enabledWindows = (schedulingConfig?.windows ?? []).filter((w) => w.enabled);
+
   // State for job location coordinates (geocoded from address)
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [isGeocodingJob, setIsGeocodingJob] = useState(false);
