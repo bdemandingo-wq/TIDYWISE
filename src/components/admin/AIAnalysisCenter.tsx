@@ -364,7 +364,7 @@ export function AIAnalysisCenter() {
 
   useEffect(() => {
     if (orgId) fetchProactiveInsights();
-  }, [orgId]);
+  }, [orgId, fetchProactiveInsights]);
 
   // ─── Dynamic Chips ───
   const [dynamicChips, setDynamicChips] = useState<string[]>([]);
@@ -390,7 +390,7 @@ export function AIAnalysisCenter() {
 
   useEffect(() => {
     if (orgId) fetchDynamicChips();
-  }, [orgId]);
+  }, [orgId, fetchDynamicChips]);
 
   // ─── AI Insights (structured) ───
   const [insights, setInsights] = useState<AiInsight[]>([]);
