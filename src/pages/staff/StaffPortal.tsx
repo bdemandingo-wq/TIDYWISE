@@ -660,7 +660,7 @@ export default function StaffPortal() {
       </header>
 
       {/* Main Content */}
-      <main className="portal-v2-scroll container mx-auto px-4 sm:px-6 py-6">
+      <main className="portal-v2-scroll container mx-auto px-3 sm:px-6 py-5 sm:py-6">
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress
