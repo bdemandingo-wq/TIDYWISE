@@ -754,6 +754,7 @@ export default function CustomersPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       {atCustomerLimit && (
         <div className="mb-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5 flex items-center justify-between gap-3">
           <p className="text-sm text-destructive">
@@ -1336,7 +1337,8 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

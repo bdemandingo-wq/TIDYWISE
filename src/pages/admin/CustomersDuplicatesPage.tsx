@@ -480,13 +480,15 @@ export default function CustomersDuplicatesPage() {
   if (!isAdmin) {
     return (
       <AdminLayout title="Duplicates" subtitle="Admin only">
+<div className="portal-v2 portal-v2-scroll">
         <SEOHead title="Duplicates | TidyWise" description="Admin-only duplicate review" noIndex />
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
             This page is restricted to org owners and admins.
           </CardContent>
         </Card>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -519,6 +521,7 @@ export default function CustomersDuplicatesPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Duplicate Customers | TidyWise" description="Review and merge duplicate customers" noIndex />
 
       {loadingCustomers ? (
@@ -604,7 +607,8 @@ export default function CustomersDuplicatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

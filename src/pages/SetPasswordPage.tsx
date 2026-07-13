@@ -105,7 +105,7 @@ export default function SetPasswordPage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />
       </div>
     );
@@ -114,7 +114,7 @@ export default function SetPasswordPage() {
   return (
     <>
       <SEOHead title="Set Your Password — TidyWise" description="Choose a password to activate your TidyWise account." />
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background px-4 py-12">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">

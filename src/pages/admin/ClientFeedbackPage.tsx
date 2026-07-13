@@ -203,6 +203,7 @@ export default function ClientFeedbackPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <AttentionStrip
         href="/dashboard/feedback"
         onReasonClick={(r) => setFilterResolved(r.key === 'followup' ? 'followup' : 'unresolved')}
@@ -394,7 +395,8 @@ export default function ClientFeedbackPage() {
           }
         }}
       />
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

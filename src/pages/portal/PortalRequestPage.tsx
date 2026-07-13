@@ -286,14 +286,14 @@ export default function PortalRequestPage() {
 
   if (loading || !user || !customer) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <main className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <SEOHead
         title="Request a Booking | Client Portal"
         description="Submit a booking request for your preferred date and service."

@@ -474,6 +474,7 @@ export default function LeadsPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="leads">
       <AttentionStrip
         href="/dashboard/leads"
@@ -959,7 +960,8 @@ export default function LeadsPage() {
 
       
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

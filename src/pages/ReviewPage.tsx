@@ -158,7 +158,7 @@ export default function ReviewPage() {
 
   if (isLoading || redirectedToGoogle) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
         <SEOHead title="Leave a Review" description="Share your feedback about your cleaning service experience." noIndex />
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -170,7 +170,7 @@ export default function ReviewPage() {
 
   if (!isValid) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">🔗</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Invalid or Expired Link</h1>
@@ -182,7 +182,7 @@ export default function ReviewPage() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="h-10 w-10 text-emerald-600" />
@@ -200,7 +200,7 @@ export default function ReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
       <TrackingPixels metaPixelId={trackingIds.meta_pixel_id} googleAnalyticsId={trackingIds.google_analytics_id} />
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
         <div className="text-center mb-8">

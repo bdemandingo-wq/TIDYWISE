@@ -264,11 +264,13 @@ export default function ReportsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Reports" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Reports | TidyWise" description="View business reports and analytics" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -314,6 +316,7 @@ export default function ReportsPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="reports">
       {/* Summary Stats - Uniform Card Size */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
@@ -597,6 +600,7 @@ export default function ReportsPage() {
         </TabsContent>
       </Tabs>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

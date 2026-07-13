@@ -41,6 +41,7 @@ function FeatureGuideTab() {
 export default function AutomationCenterPage() {
   return (
     <AdminLayout title="Automation Center">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Automation Center" description="Manage automated workflows, view logs, and get smart suggestions." noIndex />
       <PlanFeatureGate feature="automation_center">
         <Tabs defaultValue="automations" className="space-y-6">
@@ -80,6 +81,7 @@ export default function AutomationCenterPage() {
           </TabsContent>
         </Tabs>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

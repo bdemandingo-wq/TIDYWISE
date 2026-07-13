@@ -287,6 +287,7 @@ export default function TasksPage() {
         </Dialog>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <div className="space-y-6">
         <AttentionStrip
           href="/dashboard/tasks"
@@ -428,6 +429,7 @@ export default function TasksPage() {
         </Tabs>
         <p className="text-xs text-muted-foreground text-center">💡 Double-click a task or note to edit it inline. Drag the grip handle to reorder tasks.</p>
       </div>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

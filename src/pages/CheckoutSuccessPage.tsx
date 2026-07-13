@@ -176,7 +176,7 @@ export default function CheckoutSuccessPage() {
         noIndex
       />
       <main
-        className="min-h-screen bg-background flex items-center justify-center p-4"
+        className="portal-v2 portal-v2-scroll min-h-screen bg-background flex items-center justify-center p-4"
         aria-labelledby={headingId}
       >
         <Card

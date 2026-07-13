@@ -157,6 +157,7 @@ export default function NotificationsPage() {
 
   return (
     <AdminLayout title="Notifications" subtitle="Manage how you receive notifications">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Notifications | TidyWise" description="Configure notification preferences" noIndex />
       {loading ? (
         <div className="space-y-6">
@@ -298,6 +299,7 @@ export default function NotificationsPage() {
           </Card>
         </>
       )}
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

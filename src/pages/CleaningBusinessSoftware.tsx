@@ -230,7 +230,7 @@ export default function CleaningBusinessSoftware() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
       <SEOHead
         title="Cleaning Business Software — Plans from $49/mo | TIDYWISE"
         description="Cleaning business software with scheduling, CRM, payroll, GPS tracking, and invoicing in one platform. Plans from $49/mo for unlimited users, with optional Pro at $97/mo. Built to beat Jobber and Housecall Pro."

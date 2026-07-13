@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col">
       <SEOHead
         title="Reset Your TidyWise Password | Account Recovery"
         description="Forgot your TidyWise password? Enter your email and we'll send a one-time reset code so you can get back into your cleaning business dashboard in minutes."

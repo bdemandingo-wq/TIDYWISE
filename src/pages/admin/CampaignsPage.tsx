@@ -613,11 +613,13 @@ export default function CampaignsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Campaigns" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Campaigns | TidyWise" description="Create and manage marketing campaigns" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 min-h-[44px] animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -632,6 +634,7 @@ export default function CampaignsPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="campaigns">
         <div className="space-y-6">
           {/* Channel Toggle */}
@@ -1585,7 +1588,8 @@ export default function CampaignsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

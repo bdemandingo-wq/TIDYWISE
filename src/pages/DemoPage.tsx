@@ -44,7 +44,7 @@ export default function DemoPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
       <SEOHead
         title="Book a Free TidyWise Demo | Live Walkthrough"
         description="Schedule a free 30-minute demo with Emmanuel. See the full TidyWise platform live and get your cleaning business automated same day."
