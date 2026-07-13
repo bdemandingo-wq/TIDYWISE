@@ -254,7 +254,7 @@ export function AIAnalysisCenter() {
         : { data: [] as { id: string; name: string }[] };
       const serviceName = new Map((services || []).map(s => [s.id, s.name]));
 
-      const results: any[] = [];
+      const results: ChurnCustomer[] = [];
       for (const c of customers) {
         const entry = byCustomer.get(c.id);
         if (!entry) continue;
