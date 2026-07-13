@@ -637,7 +637,7 @@ export default function PortalDashboardPage() {
 
   const LoyaltyCard = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-4">
+      <CardContent className="px-4 sm:px-2 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="pv-eyebrow mb-1">Loyalty</p>
@@ -669,7 +669,7 @@ export default function PortalDashboardPage() {
 
   const QuickActions = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-2">
+      <CardContent className="px-2 sm:px-2 py-2">
         <p className="pv-eyebrow mb-1 px-2">Shortcuts</p>
         {[
           { icon: Gift,      label: 'Refer a friend', onClick: () => setActiveTab('referrals') },
@@ -689,6 +689,7 @@ export default function PortalDashboardPage() {
       </CardContent>
     </Card>
   );
+
 
 
   /* ─────────────────────────────── LAYOUT ─────────────────────────────── */
