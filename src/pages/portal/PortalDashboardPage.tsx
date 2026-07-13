@@ -239,11 +239,12 @@ function BottomPillNav({
         onClick={onRequest}
         aria-label="Book"
         style={{ background: 'hsl(var(--pv-brand))', color: 'hsl(var(--pv-brand-ink))' }}
-        className="!px-4"
+        className="!px-3 sm:!px-4"
       >
         <Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />
         <span className="pv-nav-label">Book</span>
       </button>
+
     </nav>
   );
 }
@@ -571,16 +572,16 @@ export default function PortalDashboardPage() {
 
   const HeroCard = () => (
     <Card className="pv-hero">
-      <CardContent className="px-1 sm:px-2 py-8 sm:py-12">
+      <CardContent className="px-4 sm:px-2 py-6 sm:py-12">
         <p className="pv-eyebrow mb-3">Next appointment</p>
         {nextBooking ? (
           <>
-            <h2 className="pv-display text-[32px] sm:text-[44px] leading-[1.02] text-[hsl(var(--pv-ink))] max-w-2xl text-balance">
+            <h2 className="pv-display text-[26px] sm:text-[44px] leading-[1.05] text-[hsl(var(--pv-ink))] max-w-2xl text-balance break-words">
               {nextBooking.service?.name || "Service"}
             </h2>
-            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] text-[hsl(var(--pv-ink-2))]">
-              <span className="inline-flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] sm:text-[14px] text-[hsl(var(--pv-ink-2))]">
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
                 <span className="font-medium text-[hsl(var(--pv-ink))]">{getDateLabel(nextBooking.scheduled_at)}</span>
                 <span className="text-[hsl(var(--pv-ink-3))]">
                   · {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
@@ -594,10 +595,10 @@ export default function PortalDashboardPage() {
               )}
               <StatusChip status={nextBooking.status || 'pending'} />
             </div>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => handleReschedule(nextBooking)}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <CalendarClock className="h-4 w-4 mr-1.5" />
                 Reschedule
@@ -612,16 +613,16 @@ export default function PortalDashboardPage() {
           </>
         ) : (
           <>
-            <h2 className="pv-display text-[30px] sm:text-[40px] leading-[1.05] text-[hsl(var(--pv-ink))]">
+            <h2 className="pv-display text-[26px] sm:text-[40px] leading-[1.08] text-[hsl(var(--pv-ink))]">
               Nothing on the calendar
             </h2>
             <p className="mt-3 text-[15px] text-[hsl(var(--pv-ink-3))] max-w-md">
               When you'd like your next clean, we're a tap away.
             </p>
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <Button
                 onClick={() => navigate('/portal/request')}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <Plus className="h-4 w-4 mr-1.5" />
                 Request a booking
@@ -633,9 +634,10 @@ export default function PortalDashboardPage() {
     </Card>
   );
 
+
   const LoyaltyCard = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-4">
+      <CardContent className="px-4 sm:px-2 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="pv-eyebrow mb-1">Loyalty</p>
@@ -667,7 +669,7 @@ export default function PortalDashboardPage() {
 
   const QuickActions = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-2">
+      <CardContent className="px-2 sm:px-2 py-2">
         <p className="pv-eyebrow mb-1 px-2">Shortcuts</p>
         {[
           { icon: Gift,      label: 'Refer a friend', onClick: () => setActiveTab('referrals') },
@@ -689,6 +691,7 @@ export default function PortalDashboardPage() {
   );
 
 
+
   /* ─────────────────────────────── LAYOUT ─────────────────────────────── */
 
   return (
@@ -704,13 +707,14 @@ export default function PortalDashboardPage() {
       <header
         className={`sticky top-0 z-40 border-b border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-bg)/0.85)] backdrop-blur-md ${isNative ? 'portal-v2-header-safe' : ''}`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
-            <h1 className="pv-display text-[20px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
+            <h1 className="pv-display text-[18px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
               Hello, {firstName}
             </h1>
           </div>
+
           <div className="flex items-center gap-1">
             <Sheet>
               <SheetTrigger asChild>
@@ -788,7 +792,7 @@ export default function PortalDashboardPage() {
       </header>
 
       {/* Content */}
-      <div className="portal-v2-scroll max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+      <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8">
         <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
