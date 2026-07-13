@@ -742,6 +742,7 @@ export default function SettingsPage() {
         <TabsContent value="booking-form" className="space-y-6">
           <BookingFormShareCard organizationSlug={organization?.slug} />
           {organization?.slug && <EmbedCodeCard orgSlug={organization.slug} />}
+          <SchedulingModeCard />
           <FormDisplaySettings />
         </TabsContent>
 
