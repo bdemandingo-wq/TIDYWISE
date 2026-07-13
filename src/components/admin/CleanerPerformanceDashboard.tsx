@@ -230,8 +230,8 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 <p className="text-sm text-muted-foreground">Total Paid Out</p>
                 <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(totalTeamEarnings)}`}</p>
               </div>
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                <DollarSign className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <DollarSign className="w-5 h-5 text-primary" />
               </div>
             </div>
           </CardContent>
