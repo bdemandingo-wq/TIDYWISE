@@ -354,8 +354,8 @@ export function AIAnalysisCenter() {
         { type: 'proactive-insights', organizationId: orgId },
       );
       if (error) throw error;
-      setProactiveInsights(data?.insights || []);
-    } catch (e: any) {
+      setProactiveInsights(((data as { insights?: ProactiveInsight[] } | null)?.insights) || []);
+    } catch (e) {
       console.error('Proactive insights error:', e);
     } finally {
       setProactiveLoading(false);
