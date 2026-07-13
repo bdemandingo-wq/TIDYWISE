@@ -102,6 +102,7 @@ export default function BenchmarksPage() {
 
   return (
     <AdminLayout title="Benchmarks">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Benchmarks · TidyWise" description="See how your business compares to anonymous peers." noIndex />
       <div className="space-y-6 max-w-6xl mx-auto">
         <div>
@@ -217,6 +218,7 @@ export default function BenchmarksPage() {
           </>
         )}
       </div>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

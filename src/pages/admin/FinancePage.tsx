@@ -386,6 +386,7 @@ export default function FinancePage() {
       title="Finance & Taxes"
       subtitle="Profit & loss, transactions, and tax exports"
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
       <PlanFeatureGate feature="reports">
       {/* Stripe Sync Header */}
@@ -734,6 +735,7 @@ export default function FinancePage() {
         </TabsContent>
       </Tabs>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

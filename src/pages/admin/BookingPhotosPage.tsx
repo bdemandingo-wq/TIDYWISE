@@ -298,6 +298,7 @@ export default function BookingPhotosPage() {
 
   return (
     <AdminLayout title="Booking Media">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Booking Media | TidyWise" description="View and manage photos and videos from your cleaning bookings" noIndex />
       <PlanFeatureGate feature="booking_photos">
         <div className="space-y-6">
@@ -522,6 +523,7 @@ export default function BookingPhotosPage() {
           </DialogContent>
         </Dialog>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

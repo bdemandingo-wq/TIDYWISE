@@ -176,6 +176,7 @@ export default function CustomWorkRequestPage() {
 
   return (
     <AdminLayout title="Custom work">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead
         title="Custom work | TidyWise"
         description="Submit your monthly done-for-you request."
@@ -372,6 +373,7 @@ export default function CustomWorkRequestPage() {
           </Card>
         </div>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

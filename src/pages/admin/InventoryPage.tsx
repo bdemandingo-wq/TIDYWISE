@@ -311,6 +311,7 @@ export default function InventoryPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="inventory">
         {/* Filter Tabs + Search */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
@@ -577,7 +578,8 @@ export default function InventoryPage() {
           organizationId={organization?.id || ''}
         />
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

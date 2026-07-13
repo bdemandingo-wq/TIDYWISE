@@ -258,6 +258,7 @@ export default function ExpensesPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="expenses">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
@@ -493,6 +494,7 @@ export default function ExpensesPage() {
         </DialogContent>
       </Dialog>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

@@ -239,6 +239,7 @@ export default function OperationsTrackerPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       {/* Weekly Stats - This Week */}
       <div className="mb-6">
         <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
@@ -495,7 +496,8 @@ export default function OperationsTrackerPage() {
           }
         }}
       />
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

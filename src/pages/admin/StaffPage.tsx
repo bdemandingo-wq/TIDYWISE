@@ -304,6 +304,7 @@ export default function StaffPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Staff | TidyWise" description="Manage your cleaning staff" noIndex />
       <AttentionStrip href="/dashboard/staff" onReasonClick={(r) => handleStaffReason(r.key)} />
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -668,6 +669,7 @@ export default function StaffPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

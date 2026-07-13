@@ -64,6 +64,7 @@ export default function SubscriptionPage() {
 
   return (
     <AdminLayout title="Subscription" subtitle="Your TidyWise plan">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Subscription | TidyWise" description="TidyWise subscription" noIndex />
 
       <div className="mx-auto max-w-2xl space-y-4">
@@ -153,6 +154,7 @@ export default function SubscriptionPage() {
         onPaused={() => checkSubscription()}
         onSaved={() => checkSubscription()}
       />
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

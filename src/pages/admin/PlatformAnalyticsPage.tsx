@@ -306,39 +306,45 @@ export default function PlatformAnalyticsPage() {
   if (user?.email !== 'support@tidywisecleaning.com') {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Platform Analytics | TidyWise" description="View platform usage and engagement analytics" noIndex />
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">This page is only accessible to platform administrators.</p>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
   if (loading) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Loading platform data...</p>
           </div>
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
   if (error) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Error loading data">
+<div className="portal-v2 portal-v2-scroll">
         <Card className="border-destructive/20">
           <CardContent className="py-12 text-center">
             <p className="text-destructive mb-4">{error}</p>
             <Button onClick={fetchAnalytics}>Try Again</Button>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -352,6 +358,7 @@ export default function PlatformAnalyticsPage() {
       title="Platform Analytics"
       subtitle="Monitor signups, organizations, and subscriptions"
     >
+<div className="portal-v2 portal-v2-scroll">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex items-center justify-between">
@@ -1111,7 +1118,8 @@ export default function PlatformAnalyticsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
 
   );
 }

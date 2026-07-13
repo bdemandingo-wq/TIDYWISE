@@ -847,6 +847,7 @@ export default function PayrollPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
@@ -1382,6 +1383,7 @@ export default function PayrollPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

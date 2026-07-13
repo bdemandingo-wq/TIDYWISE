@@ -184,11 +184,13 @@ export default function HelpPage() {
   if (loading) {
     return (
       <AdminLayout title="Help Center" subtitle="Tutorial videos and support">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Help Center | TidyWise" description="Get help and support for your account" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -259,6 +261,7 @@ export default function HelpPage() {
         ) : undefined
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <div className="space-y-8">
         {/* Videos Section */}
         <div data-tour-id="help-videos">
@@ -368,6 +371,7 @@ export default function HelpPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
