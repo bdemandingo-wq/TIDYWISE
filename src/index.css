@@ -1023,6 +1023,17 @@ body {
   --pv-danger:        352 72% 50%;
   --pv-danger-soft:   352 85% 96%;
 
+  /* shadcn semantic aliases inside .portal-v2 */
+  --surface-raised:   var(--pv-raised);
+  --success:          var(--pv-success);
+  --warning:          var(--pv-warn);
+  --info:             var(--pv-brand);
+  --destructive:      var(--pv-danger);
+  --success-soft:     var(--pv-success-soft);
+  --warning-soft:     var(--pv-warn-soft);
+  --info-soft:        var(--pv-brand-soft);
+  --destructive-soft: var(--pv-danger-soft);
+
   /* Radii — soft, not pill */
   --pv-r-sm: 8px;
   --pv-r-md: 12px;
@@ -1196,6 +1207,22 @@ body {
 .portal-v2 .pv-chip-danger  { background: hsl(var(--pv-danger-soft));  color: hsl(var(--pv-danger));  border-color: transparent; }
 .portal-v2 .pv-chip-brand   { background: hsl(var(--pv-brand-soft));   color: hsl(var(--pv-brand));   border-color: transparent; }
 .portal-v2 .pv-chip-neutral { background: hsl(var(--pv-sunken));       color: hsl(var(--pv-ink-2));   border-color: transparent; }
+
+/* Raised surface and soft-tint helpers used on the AI Intelligence page */
+.portal-v2 .pv-surface-raised {
+  background: hsl(var(--surface-raised));
+  border: 1px solid hsl(var(--pv-border));
+  border-radius: var(--pv-r-lg);
+  box-shadow: var(--pv-shadow-xs);
+}
+.portal-v2 .pv-surface-raised:hover {
+  border-color: hsl(var(--pv-border-strong));
+}
+.portal-v2 .pv-soft-success { background: hsl(var(--success-soft)); color: hsl(var(--success)); }
+.portal-v2 .pv-soft-warning { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
+.portal-v2 .pv-soft-info    { background: hsl(var(--info-soft));    color: hsl(var(--info));    }
+.portal-v2 .pv-soft-destructive { background: hsl(var(--destructive-soft)); color: hsl(var(--destructive)); }
+
 
 /* Native safe area helpers */
 .portal-v2-header-safe {
