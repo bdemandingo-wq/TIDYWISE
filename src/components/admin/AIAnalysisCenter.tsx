@@ -412,6 +412,7 @@ export function AIAnalysisCenter() {
     }
   }, [orgId, businessSnapshot]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (revenue > 0 || hotLeadsCount > 0) fetchInsights();
   }, [orgId]);
@@ -432,6 +433,7 @@ export function AIAnalysisCenter() {
     finally { setSchedLoading(false); }
   }, [orgId, businessSnapshot]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'scheduling' && !schedRec) fetchScheduleRec();
   }, [activeTab]);
@@ -456,6 +458,7 @@ export function AIAnalysisCenter() {
     }
   }, [orgId]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'playbook' && !playbook) fetchPlaybook();
   }, [activeTab]);
