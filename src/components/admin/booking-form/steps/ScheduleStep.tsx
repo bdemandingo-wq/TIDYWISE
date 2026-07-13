@@ -424,7 +424,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                   No arrival windows configured. Add them in Settings → Booking Form.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {enabledWindows.map((w) => {
                     const active = selectedTime === w.start_time;
                     return (
@@ -432,7 +432,10 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                         key={w.id}
                         type="button"
                         variant={active ? 'default' : 'outline'}
-                        className={cn('h-12 justify-center', active && 'ring-2 ring-primary/30')}
+                        className={cn(
+                          'h-12 px-4 justify-center whitespace-nowrap text-sm',
+                          active && 'ring-2 ring-primary/30'
+                        )}
                         onClick={() => setSelectedTime(w.start_time)}
                       >
                         {w.label || formatWindowRange(w)}
