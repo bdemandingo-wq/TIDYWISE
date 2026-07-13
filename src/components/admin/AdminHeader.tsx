@@ -26,7 +26,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
 
   return (
     <>
-      <div className="sticky top-0 z-30 w-full max-w-full overflow-x-hidden">
+      <div className="portal-v2 sticky top-0 z-30 w-full max-w-full overflow-x-hidden">
         <header className="bg-background/80 backdrop-blur-sm border-b border-border pt-[env(safe-area-inset-top)]">
 
           {/* Primary row: hamburger spacer + title + icon buttons */}
