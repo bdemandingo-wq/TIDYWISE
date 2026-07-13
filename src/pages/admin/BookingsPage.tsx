@@ -121,12 +121,12 @@ import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
-  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
-  no_show: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  pending: { bg: 'bg-warning/10', text: 'text-warning', dot: 'bg-warning' },
+  confirmed: { bg: 'bg-info/10', text: 'text-info', dot: 'bg-info' },
+  in_progress: { bg: 'bg-info/10', text: 'text-info', dot: 'bg-info' },
+  completed: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+  cancelled: { bg: 'bg-destructive/10', text: 'text-destructive', dot: 'bg-destructive' },
+  no_show: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
 };
 
 const statusLabels: Record<string, string> = {
@@ -142,22 +142,22 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
   const hasPaymentIntent = !!(booking as any).payment_intent_id;
 
   if (booking.payment_status === 'paid') {
-    return { label: 'Paid', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: '✓' };
+    return { label: 'Paid', bg: 'bg-success/10', text: 'text-success', icon: '✓' };
   }
 
   if (booking.payment_status === 'refunded') {
-    return { label: 'Refunded', bg: 'bg-slate-100', text: 'text-slate-600', icon: '↩' };
+    return { label: 'Refunded', bg: 'bg-muted', text: 'text-muted-foreground', icon: '↩' };
   }
 
   if (booking.payment_status === 'partial') {
-    return { label: 'Partially Refunded', bg: 'bg-slate-100', text: 'text-slate-700', icon: '↩' };
+    return { label: 'Partially Refunded', bg: 'bg-muted', text: 'text-foreground', icon: '↩' };
   }
 
   if (hasPaymentIntent) {
-    return { label: 'Hold', bg: 'bg-amber-50', text: 'text-amber-700', icon: '◐' };
+    return { label: 'Hold', bg: 'bg-warning/10', text: 'text-warning', icon: '◐' };
   }
 
-  return { label: 'Unpaid', bg: 'bg-rose-50', text: 'text-rose-700', icon: '○' };
+  return { label: 'Unpaid', bg: 'bg-destructive/10', text: 'text-destructive', icon: '○' };
 };
 
 export default function BookingsPage() {
@@ -1689,12 +1689,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-amber-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-warning/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-amber-100 rounded-xl">
-                    <Clock className="w-5 h-5 text-amber-600" />
+                  <div className="p-2 bg-warning/10 rounded-xl">
+                    <Clock className="w-5 h-5 text-warning" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Pending Payment</span>
                 </div>
@@ -1702,12 +1702,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-blue-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-info/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 rounded-xl">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-info/10 rounded-xl">
+                    <User className="w-5 h-5 text-info" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Uncleaned</span>
                 </div>
@@ -1715,12 +1715,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-emerald-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-success/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-emerald-100 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  <div className="p-2 bg-success/10 rounded-xl">
+                    <DollarSign className="w-5 h-5 text-success" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Clean Completed</span>
                 </div>
@@ -1796,7 +1796,7 @@ export default function BookingsPage() {
           </Select>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+            className="h-11 gap-2 rounded-xl text-info border-info/20 hover:bg-info/10"
             onClick={handleBulkNotifyWeekCleaners}
             disabled={bulkNotifyingWeek}
           >
@@ -1805,7 +1805,7 @@ export default function BookingsPage() {
           </Button>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            className="h-11 gap-2 rounded-xl text-success border-success/20 hover:bg-success/10"
             onClick={handlePrepareWeeklyReminders}
           >
             <Phone className="w-4 h-4" />
@@ -1855,7 +1855,7 @@ export default function BookingsPage() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-11 gap-2 rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50"
+                className="h-11 gap-2 rounded-xl text-info border-info/20 hover:bg-info/10"
                 onClick={handleBulkNotifyCleaners}
                 disabled={bulkNotifyingCleaners}
               >
@@ -1978,8 +1978,8 @@ export default function BookingsPage() {
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
                       isCleaned
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-red-50 text-red-700"
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
                     )}>
                       {isCleaned ? (
                         <>
@@ -1988,7 +1988,7 @@ export default function BookingsPage() {
                         </>
                       ) : (
                         <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
                           uncleaned
                         </>
                       )}
@@ -1997,8 +1997,8 @@ export default function BookingsPage() {
                     <div className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
                       isPaid
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-orange-50 text-orange-700"
+                        ? "bg-success/10 text-success"
+                        : "bg-warning/10 text-warning"
                     )}>
                       {isPaid ? (
                         <>
@@ -2116,9 +2116,9 @@ export default function BookingsPage() {
                               size="icon"
                               className={cn(
                                 "h-7 w-7 rounded-full",
-                                urgentReminder 
-                                  ? "bg-amber-100 text-amber-600 hover:bg-amber-200" 
-                                  : "bg-blue-50 text-blue-500 hover:bg-blue-100"
+                                urgentReminder
+                                  ? "bg-warning/15 text-warning hover:bg-warning/25"
+                                  : "bg-info/10 text-info hover:bg-info/20"
                               )}
                               onClick={() => handleSendReminder(booking)}
                               disabled={sendingReminder === booking.id}
@@ -2572,7 +2572,7 @@ export default function BookingsPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                        <Badge variant="outline" className="bg-warning/10 text-warning">
                           ${booking.total_amount?.toFixed(2)} unpaid
                         </Badge>
                         <Button
@@ -2728,7 +2728,7 @@ export default function BookingsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
               onClick={() => {
                 if (chargeConfirmBooking) {
                   handleChargeCard(chargeConfirmBooking);
@@ -2820,7 +2820,7 @@ export default function BookingsPage() {
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
             {!(refundDialogBooking as any)?.payment_intent_id && (
-              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <div className="rounded-md bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
                 ⚠️ No Stripe payment found for this booking. This will be a <strong>manual record-only</strong> update — no money will be returned via Stripe. To process an actual Stripe refund, the booking must have been charged through the app first.
               </div>
             )}
