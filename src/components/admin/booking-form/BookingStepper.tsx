@@ -613,12 +613,20 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
     // Handle "reclean" special case - it's not a real service UUID
     const isReclean = selectedServiceId === 'reclean';
-    
+
+    // If org is in arrival-window mode, find the window matching selectedTime and persist bounds
+    const matchedWindow = schedulingConfig?.mode === 'arrival_window'
+      ? (schedulingConfig.windows || []).find((w) => w.enabled && w.start_time === selectedTime)
+      : undefined;
+
     return {
       customer_id: customerId || null,
       service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
       staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
       scheduled_at: scheduledAtISO,
+      is_arrival_window: !!matchedWindow,
+      arrival_window_start: matchedWindow?.start_time ?? null,
+      arrival_window_end: matchedWindow?.end_time ?? null,
       duration: selectedService?.duration || 60,
       total_amount: totalAmount > 0 ? totalAmount : calculatedPrice,
       status: isDraft ? 'pending' as const : 'confirmed' as const,
