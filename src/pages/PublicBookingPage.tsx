@@ -1147,7 +1147,7 @@ export default function PublicBookingPage() {
                           return h * 60 + m;
                         };
                         return (
-                          <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-1">
+                          <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto pr-1">
                             {enabledWindows.map((w) => {
                               const startMin = toMin(w.start_time);
                               const endMin = toMin(w.end_time);
@@ -1163,14 +1163,14 @@ export default function PublicBookingPage() {
                                   key={w.id}
                                   variant={active ? 'default' : 'outline'}
                                   className={cn(
-                                    'h-14 transition-all duration-200 justify-center text-base',
+                                    'h-14 px-4 transition-all duration-200 justify-center text-sm whitespace-nowrap',
                                     active && 'ring-2 ring-primary/30 shadow-md',
                                     !anyAvailable && 'opacity-40 cursor-not-allowed line-through'
                                   )}
                                   disabled={!anyAvailable}
                                   onClick={() => setSelectedTime(w.start_time)}
                                 >
-                                  <Clock className="w-4 h-4 mr-2" />
+                                  <Clock className="w-4 h-4 mr-2 shrink-0" />
                                   {w.label || `${formatTime24to12(w.start_time)} - ${formatTime24to12(w.end_time)}`}
                                 </Button>
                               );
