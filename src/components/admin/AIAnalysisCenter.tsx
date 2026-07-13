@@ -822,7 +822,7 @@ export function AIAnalysisCenter() {
                         <button
                           type="button"
                           onClick={() => openDraftMessage(
-                            { name: `${c.first_name} ${c.last_name}`, phone: (c as any).phone, email: (c as any).email },
+                            { name: `${c.first_name} ${c.last_name}`, phone: c.phone, email: c.email },
                             `Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`,
                             'sms',
                           )}
