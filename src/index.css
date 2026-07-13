@@ -1203,12 +1203,10 @@ body {
 }
 
 /* Compact density — for dense surfaces like Scheduler.
-   Slightly tighter type; keeps interactive tap targets thumb-friendly. */
+   Slightly tighter type; existing button sizing preserved so grid cells
+   and icon buttons don't inflate. Tabs get the 44px minimum for thumbs. */
 .portal-v2.pv-compact { font-size: 13px; }
-.portal-v2.pv-compact button:not([data-slot="badge"]):not(.pv-nav-label),
-.portal-v2.pv-compact [role="tab"] {
-  min-height: 44px;
-}
+.portal-v2.pv-compact [role="tab"] { min-height: 44px; }
 
 /* ─── Density / quiet helpers (visual simplification) ─── */
 
