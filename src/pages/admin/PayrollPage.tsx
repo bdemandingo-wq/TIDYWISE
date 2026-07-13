@@ -786,9 +786,9 @@ export default function PayrollPage() {
   };
 
   const getRowHighlight = (detail: BookingPayrollDetail) => {
-    if (detail.profit < 0) return 'bg-red-50 dark:bg-red-950/20';
-    if (detail.labor_percent > settings.labor_percent_warning_threshold) return 'bg-amber-50 dark:bg-amber-950/20';
-    if (detail.margin_percent > settings.margin_percent_good_threshold) return 'bg-green-50 dark:bg-green-950/10';
+    if (detail.profit < 0) return 'bg-destructive/5';
+    if (detail.labor_percent > settings.labor_percent_warning_threshold) return 'bg-warning/5';
+    if (detail.margin_percent > settings.margin_percent_good_threshold) return 'bg-success/5';
     return '';
   };
 
@@ -810,13 +810,13 @@ export default function PayrollPage() {
           </div>
           <div>
             <p className="text-muted-foreground">Profit</p>
-            <p className={cn("font-semibold", forecast.profit < 0 ? "text-destructive" : "text-green-600")}>
+            <p className={cn("font-semibold", forecast.profit < 0 ? "text-destructive" : "text-success")}>
               {isTestMode ? '$XXX' : `${fmt(forecast.profit)}`}
             </p>
           </div>
           <div>
             <p className="text-muted-foreground">Labor %</p>
-            <p className={cn("font-semibold", forecast.laborPct > settings.labor_percent_warning_threshold ? "text-amber-600" : "")}>
+            <p className={cn("font-semibold", forecast.laborPct > settings.labor_percent_warning_threshold ? "text-warning" : "")}>
               {isTestMode ? 'XX%' : `${forecast.laborPct.toFixed(1)}%`}
             </p>
           </div>
@@ -905,8 +905,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <TrendingUp className="w-5 h-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-info/10">
+                <TrendingUp className="w-5 h-5 text-info" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Revenue (Net)</p>
@@ -918,12 +918,12 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg", totalProfit >= 0 ? "bg-green-500/10" : "bg-destructive/10")}>
-                {totalProfit >= 0 ? <TrendingUp className="w-5 h-5 text-green-500" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
+              <div className={cn("p-2 rounded-lg", totalProfit >= 0 ? "bg-success/10" : "bg-destructive/10")}>
+                {totalProfit >= 0 ? <TrendingUp className="w-5 h-5 text-success" /> : <TrendingDown className="w-5 h-5 text-destructive" />}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Profit</p>
-                <p className={cn("text-xl font-bold", totalProfit < 0 ? "text-destructive" : "text-green-600")}>
+                <p className={cn("text-xl font-bold", totalProfit < 0 ? "text-destructive" : "text-success")}>
                   {isTestMode ? '$XXX' : `${fmt(totalProfit)}`}
                 </p>
               </div>
@@ -933,8 +933,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg", avgLaborPct > settings.labor_percent_warning_threshold ? "bg-amber-500/10" : "bg-muted")}>
-                <Percent className={cn("w-5 h-5", avgLaborPct > settings.labor_percent_warning_threshold ? "text-amber-500" : "text-muted-foreground")} />
+              <div className={cn("p-2 rounded-lg", avgLaborPct > settings.labor_percent_warning_threshold ? "bg-warning/10" : "bg-muted")}>
+                <Percent className={cn("w-5 h-5", avgLaborPct > settings.labor_percent_warning_threshold ? "text-warning" : "text-muted-foreground")} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Avg Labor %</p>
@@ -946,8 +946,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10">
-                <Briefcase className="w-5 h-5 text-green-500" />
+              <div className="p-2 rounded-lg bg-success/10">
+                <Briefcase className="w-5 h-5 text-success" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Assigned Cleans</p>
@@ -959,8 +959,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Clock className="w-5 h-5 text-blue-500" />
+              <div className="p-2 rounded-lg bg-info/10">
+                <Clock className="w-5 h-5 text-info" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Hours</p>
@@ -972,8 +972,8 @@ export default function PayrollPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={cn("p-2 rounded-lg", contractorsNeedingFiling > 0 ? "bg-amber-500/10" : "bg-muted")}>
-                <AlertTriangle className={cn("w-5 h-5", contractorsNeedingFiling > 0 ? "text-amber-500" : "text-muted-foreground")} />
+              <div className={cn("p-2 rounded-lg", contractorsNeedingFiling > 0 ? "bg-warning/10" : "bg-muted")}>
+                <AlertTriangle className={cn("w-5 h-5", contractorsNeedingFiling > 0 ? "text-warning" : "text-muted-foreground")} />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">1099 Filing</p>
@@ -1002,13 +1002,13 @@ export default function PayrollPage() {
       )}
 
       {missingPayCount > 0 && (
-        <Card className="mb-4 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+        <Card className="mb-4 border-warning/30 bg-warning/5">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
               <div>
-                <h3 className="font-semibold text-amber-800 dark:text-amber-400">Missing Pay Data</h3>
-                <p className="text-sm text-amber-700 dark:text-amber-500 mt-1">
+                <h3 className="font-semibold text-warning">Missing Pay Data</h3>
+                <p className="text-sm text-warning mt-1">
                   {missingPayCount} booking(s) have $0 cleaner pay configured.
                 </p>
               </div>
@@ -1018,13 +1018,13 @@ export default function PayrollPage() {
       )}
 
       {contractorsNeedingFiling > 0 && (
-        <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
+        <Card className="mb-6 border-warning/30 bg-warning/5">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
               <div>
-                <h3 className="font-semibold text-amber-800 dark:text-amber-400">1099 Tax Filing Required</h3>
-                <p className="text-sm text-amber-700 dark:text-amber-500 mt-1">
+                <h3 className="font-semibold text-warning">1099 Tax Filing Required</h3>
+                <p className="text-sm text-warning mt-1">
                   {contractorsNeedingFiling} contractor(s) have earned $600 or more this year and require 1099-NEC filing.
                 </p>
               </div>
@@ -1104,16 +1104,16 @@ export default function PayrollPage() {
                        </TableCell>
                        <TableCell className="text-right">{isTestMode ? 'X' : s.assignedCleans}</TableCell>
                        <TableCell className="text-right">{isTestMode ? 'X.X' : s.totalHours}</TableCell>
-                       <TableCell className="text-right font-medium text-green-600">
+                       <TableCell className="text-right font-medium text-success">
                          {isTestMode ? '$XXX' : `${fmt(s.totalPay)}`}
                        </TableCell>
                        <TableCell className="text-right">
                          {isTestMode ? '$XXX' : `${fmt(s.revenueAttributed)}`}
                        </TableCell>
-                       <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-green-600")}>
+                       <TableCell className={cn("text-right font-medium", s.profitAttributed < 0 ? "text-destructive" : "text-success")}>
                          {isTestMode ? '$XXX' : `${fmt(s.profitAttributed)}`}
                        </TableCell>
-                       <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
+                       <TableCell className={cn("text-right", s.laborPercent > settings.labor_percent_warning_threshold ? "text-warning font-medium" : "")}>
                          {isTestMode ? 'XX%' : `${s.laborPercent.toFixed(1)}%`}
                        </TableCell>
                        <TableCell className="text-right">
@@ -1122,12 +1122,12 @@ export default function PayrollPage() {
                        <TableCell>
                          <div className="flex items-center gap-2">
                            {s.requiresTaxFiling && (
-                             <Badge variant="outline" className="border-amber-500 text-amber-600">
+                             <Badge variant="outline" className="border-warning text-warning">
                                <AlertTriangle className="w-3 h-3 mr-1" />1099
                              </Badge>
                            )}
                            {isPaid && (
-                             <Badge variant="default" className="bg-green-600">
+                             <Badge variant="default" className="bg-success">
                                <CheckCircle2 className="w-3 h-3 mr-1" />
                                {paymentInfo?.payment_method === 'stripe_transfer' ? 'Paid (Stripe)' : 'Paid (External)'}
                              </Badge>
@@ -1243,7 +1243,7 @@ export default function PayrollPage() {
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>
                       <TableCell>{maskName(b.customer_name)}</TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
+                      <TableCell className="text-right font-medium text-success">
                         <div className="flex items-center justify-end gap-1.5">
                           {isTestMode ? '$XXX' : `${fmt(b.calculated_pay)}`}
                         </div>
@@ -1251,13 +1251,13 @@ export default function PayrollPage() {
                       <TableCell className="text-right">
                         {isTestMode ? '$XXX' : `${fmt(b.revenue_net)}`}
                       </TableCell>
-                      <TableCell className={cn("text-right", b.labor_percent > settings.labor_percent_warning_threshold ? "text-amber-600 font-medium" : "")}>
+                      <TableCell className={cn("text-right", b.labor_percent > settings.labor_percent_warning_threshold ? "text-warning font-medium" : "")}>
                         {isTestMode ? 'XX%' : `${b.labor_percent.toFixed(1)}%`}
                       </TableCell>
-                      <TableCell className={cn("text-right font-medium", b.profit < 0 ? "text-destructive" : "text-green-600")}>
+                      <TableCell className={cn("text-right font-medium", b.profit < 0 ? "text-destructive" : "text-success")}>
                         {isTestMode ? '$XXX' : `${fmt(b.profit)}`}
                       </TableCell>
-                      <TableCell className={cn("text-right", b.margin_percent < 0 ? "text-destructive" : b.margin_percent > settings.margin_percent_good_threshold ? "text-green-600" : "")}>
+                      <TableCell className={cn("text-right", b.margin_percent < 0 ? "text-destructive" : b.margin_percent > settings.margin_percent_good_threshold ? "text-success" : "")}>
                         {isTestMode ? 'XX%' : `${b.margin_percent.toFixed(1)}%`}
                       </TableCell>
                     </TableRow>
@@ -1268,16 +1268,16 @@ export default function PayrollPage() {
                         Totals ({filteredBookingPayrollDetails.length} booking{filteredBookingPayrollDetails.length !== 1 ? 's' : ''})
                       </TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : filteredTotalHours.toFixed(2)}</TableCell>
-                      <TableCell className="text-right text-green-600">
+                      <TableCell className="text-right text-success">
                         {isTestMode ? '$XXX' : `${fmt(filteredTotalPay)}`}
                       </TableCell>
                       <TableCell className="text-right">
                         {isTestMode ? '$XXX' : `${fmt(filteredTotalRevenue)}`}
                       </TableCell>
-                      <TableCell className={cn("text-right", filteredTotalRevenue > 0 && (filteredTotalPay / filteredTotalRevenue) * 100 > settings.labor_percent_warning_threshold ? "text-amber-600" : "")}>
+                      <TableCell className={cn("text-right", filteredTotalRevenue > 0 && (filteredTotalPay / filteredTotalRevenue) * 100 > settings.labor_percent_warning_threshold ? "text-warning" : "")}>
                         {isTestMode ? 'XX%' : filteredTotalRevenue > 0 ? `${((filteredTotalPay / filteredTotalRevenue) * 100).toFixed(1)}%` : '—'}
                       </TableCell>
-                      <TableCell className={cn("text-right", filteredTotalProfit < 0 ? "text-destructive" : "text-green-600")}>
+                      <TableCell className={cn("text-right", filteredTotalProfit < 0 ? "text-destructive" : "text-success")}>
                         {isTestMode ? '$XXX' : `${fmt(filteredTotalProfit)}`}
                       </TableCell>
                       <TableCell className="text-right">

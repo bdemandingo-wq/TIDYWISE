@@ -368,16 +368,16 @@ export function PaymentStep() {
           </div>
           
           {appliedDiscount ? (
-            <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+            <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl border border-success/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                  <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-success" />
                 </div>
                 <div>
-                  <p className="font-medium text-emerald-800 dark:text-emerald-200">
+                  <p className="font-medium text-success">
                     {appliedDiscount.code}
                   </p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                  <p className="text-xs text-success">
                     {appliedDiscount.discount_type === 'percentage' 
                       ? `${appliedDiscount.discount_value}% off` 
                       : `$${appliedDiscount.discount_value} off`}
@@ -435,7 +435,7 @@ export function PaymentStep() {
                 <span>{fmt(pricingBreakdown.subtotal)}</span>
               </div>
               {appliedDiscount && (
-                <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400">
+                <div className="flex justify-between text-sm text-success">
                   <span>Discount ({appliedDiscount.code})</span>
                   <span>-${pricingBreakdown.discountAmount.toFixed(2)}</span>
                 </div>
@@ -454,7 +454,7 @@ export function PaymentStep() {
               )}
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/30">
                 <span>Grand Total</span>
-                <span className={appliedDiscount ? 'text-emerald-600 dark:text-emerald-400' : ''}>
+                <span className={appliedDiscount ? 'text-success' : ''}>
                   ${pricingBreakdown.grandTotal.toFixed(2)}
                 </span>
               </div>
@@ -542,7 +542,7 @@ export function PaymentStep() {
                   <><Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Saving…</span></>
                 )}
                 {paySaveStatus === 'saved' && (
-                  <><CheckCircle className="h-3 w-3 text-emerald-600" /><span className="text-emerald-600">Saved ✓</span></>
+                  <><CheckCircle className="h-3 w-3 text-success" /><span className="text-success">Saved ✓</span></>
                 )}
                 {paySaveStatus === 'error' && (
                   <><AlertCircle className="h-3 w-3 text-destructive" /><span className="text-destructive">Error saving</span>
@@ -553,9 +553,9 @@ export function PaymentStep() {
             )}
 
             {cleanerWage && (
-              <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300">Estimated Cleaner Pay</p>
-                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+              <div className="mt-4 p-4 bg-success/10 rounded-xl border border-success/20">
+                <p className="text-xs text-success">Estimated Cleaner Pay</p>
+                <p className="text-xl font-bold text-success">
                   ${computedExpectedPay != null ? computedExpectedPay.toFixed(2) : '0.00'}
                 </p>
               </div>
@@ -584,7 +584,7 @@ export function PaymentStep() {
                       )}
                       <span className="font-medium">{staffMember?.name || 'Unknown'}</span>
                     </div>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="font-semibold text-success">
                       ${pay.toFixed(2)}
                     </span>
                   </div>
@@ -592,7 +592,7 @@ export function PaymentStep() {
               })}
               <div className="flex justify-between pt-2 border-t border-border/50 font-semibold">
                 <span>Total Team Pay</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="text-success">
                   ${Object.values(teamMemberPay).reduce((sum, pay) => sum + pay, 0).toFixed(2)}
                 </span>
               </div>
@@ -637,24 +637,24 @@ export function PaymentStep() {
           </div>
 
           {paymentCollectionMethod === 'in_person' ? (
-            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
-                <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center gap-3 p-4 bg-info/10 rounded-xl border border-info/20">
+              <div className="w-10 h-10 rounded-full bg-info/15 flex items-center justify-center flex-shrink-0">
+                <DollarSign className="h-5 w-5 text-info" />
               </div>
               <div>
-                <p className="font-medium text-blue-800 dark:text-blue-200">In-Person Payment</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">
+                <p className="font-medium text-info">In-Person Payment</p>
+                <p className="text-xs text-info">
                   Payment will be collected in person (cash, Venmo, Zelle, etc.). No card on file required.
                 </p>
               </div>
             </div>
           ) : stripeConfigured === false ? (
             <div className="space-y-3">
-              <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <div className="flex items-center gap-3 p-4 bg-warning/10 rounded-xl border border-warning/20">
+                <AlertCircle className="h-5 w-5 text-warning flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-amber-800 dark:text-amber-200">Stripe Not Connected</p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                  <p className="font-medium text-warning">Stripe Not Connected</p>
+                  <p className="text-xs text-warning">
                     To save cards on file, connect your Stripe account in Settings → Payment Integration. Or use "In-Person Payment" to skip card collection.
                   </p>
                 </div>
@@ -666,16 +666,16 @@ export function PaymentStep() {
             </div>
           ) : cardInfo?.hasCard ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              <div className="flex items-center justify-between p-4 bg-success/10 rounded-xl border border-success/20">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center">
-                    <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center">
+                    <CheckCircle className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <p className="font-medium capitalize text-emerald-800 dark:text-emerald-200">
+                    <p className="font-medium capitalize text-success">
                       {cardInfo.brand} •••• {cardInfo.last4}
                     </p>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                    <p className="text-xs text-success">
                       Expires {cardInfo.expMonth}/{cardInfo.expYear}
                     </p>
                   </div>
@@ -713,7 +713,7 @@ export function PaymentStep() {
             </div>
           ) : customerEmail ? (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200">
+              <div className="flex items-center gap-2 p-4 bg-warning/10 border border-warning/20 rounded-xl text-warning">
                 <AlertCircle className="h-5 w-5 flex-shrink-0" />
                 <p className="text-sm">No card on file for this customer</p>
               </div>

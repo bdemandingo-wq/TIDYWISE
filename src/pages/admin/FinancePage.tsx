@@ -402,11 +402,11 @@ export default function FinancePage() {
           Sync with Stripe
         </Button>
         {stripeConnected ? (
-          <Badge variant="outline" className="gap-1 text-green-700 border-green-300 bg-green-50">
+          <Badge variant="outline" className="gap-1 text-success border-success/30 bg-success/10">
             <CheckCircle className="w-3 h-3" /> Stripe Live
           </Badge>
         ) : (
-          <Badge variant="outline" className="gap-1 text-yellow-700 border-yellow-300 bg-yellow-50">
+          <Badge variant="outline" className="gap-1 text-warning border-warning/30 bg-warning/10">
             <AlertTriangle className="w-3 h-3" /> {stripeError ? 'Cached Data' : 'Loading...'}
           </Badge>
         )}
@@ -418,7 +418,7 @@ export default function FinancePage() {
       </div>
 
       {stripeError && (
-        <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm">
+        <div className="flex items-center gap-2 p-3 mb-4 rounded-md bg-warning/10 border border-warning/20 text-warning text-sm">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>Unable to fetch live Stripe data. Showing estimates from local records.</span>
         </div>
@@ -471,11 +471,11 @@ export default function FinancePage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-green-500" />
+              <DollarSign className="w-4 h-4 text-success" />
               <span className="text-xs text-muted-foreground">Total Sales</span>
-              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-success ml-auto" /> : <AlertTriangle className="w-3 h-3 text-warning ml-auto" />}
             </div>
-            <p className="text-xl font-bold text-green-600">
+            <p className="text-xl font-bold text-success">
               {isTestMode ? '$X,XXX.XX' : fmt(metrics.totalSales)}
             </p>
             <p className="text-[10px] text-muted-foreground">
@@ -488,14 +488,14 @@ export default function FinancePage() {
             )}
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+        <Card className="bg-gradient-to-br from-info/10 to-info/5">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <DollarSign className="w-4 h-4 text-blue-500" />
+              <DollarSign className="w-4 h-4 text-info" />
               <span className="text-xs text-muted-foreground">Portal Revenue</span>
-              <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />
+              <CheckCircle className="w-3 h-3 text-success ml-auto" />
             </div>
-            <p className="text-xl font-bold text-blue-600">
+            <p className="text-xl font-bold text-info">
               {isTestMode ? '$X,XXX.XX' : `${fmt(metrics.portalRevenue)}`}
             </p>
             <p className="text-[10px] text-muted-foreground">
@@ -506,11 +506,11 @@ export default function FinancePage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <CreditCard className="w-4 h-4 text-orange-500" />
+              <CreditCard className="w-4 h-4 text-warning" />
               <span className="text-xs text-muted-foreground">Processing Fees</span>
-              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-success ml-auto" /> : <AlertTriangle className="w-3 h-3 text-warning ml-auto" />}
             </div>
-            <p className="text-xl font-bold text-orange-600">
+            <p className="text-xl font-bold text-warning">
               {isTestMode ? '-$XXX.XX' : `-${fmt((stripeConnected ? stripeData.total_fees : metrics.totalFees))}`}
             </p>
           </CardContent>
@@ -518,10 +518,10 @@ export default function FinancePage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <Receipt className="w-4 h-4 text-blue-500" />
+              <Receipt className="w-4 h-4 text-info" />
               <span className="text-xs text-muted-foreground">Cleaner Pay</span>
             </div>
-            <p className="text-xl font-bold text-blue-600">
+            <p className="text-xl font-bold text-info">
               {isTestMode ? '-$X,XXX.XX' : `-${fmt(metrics.totalCleanerPay)}`}
             </p>
           </CardContent>
@@ -529,15 +529,15 @@ export default function FinancePage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingDown className="w-4 h-4 text-red-500" />
+              <TrendingDown className="w-4 h-4 text-destructive" />
               <span className="text-xs text-muted-foreground">Refunds</span>
-              {stripeConnected ? <CheckCircle className="w-3 h-3 text-green-500 ml-auto" /> : <AlertTriangle className="w-3 h-3 text-yellow-500 ml-auto" />}
+              {stripeConnected ? <CheckCircle className="w-3 h-3 text-success ml-auto" /> : <AlertTriangle className="w-3 h-3 text-warning ml-auto" />}
             </div>
-            <p className="text-xl font-bold text-red-600">
+            <p className="text-xl font-bold text-destructive">
               {isTestMode ? '-$X.XX' : `-${fmt((stripeConnected ? stripeData.total_refunds : metrics.totalRefunds))}`}
             </p>
             {stripeConnected && stripeData.disputes_count > 0 && (
-              <p className="text-[10px] text-red-500">{stripeData.disputes_count} disputes (-${stripeData.total_disputes})</p>
+              <p className="text-[10px] text-destructive">{stripeData.disputes_count} disputes (-${stripeData.total_disputes})</p>
             )}
           </CardContent>
         </Card>
@@ -549,7 +549,7 @@ export default function FinancePage() {
             </div>
             <p className={cn(
               "text-xl font-bold",
-              (stripeConnected ? stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-red-600"
+              (stripeConnected ? stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses : metrics.netProfit) >= 0 ? "text-primary" : "text-destructive"
             )}>
               {isTestMode ? '$X,XXX.XX' : `${fmt((stripeConnected ? (stripeData.net_revenue + metrics.portalRevenue - metrics.totalCleanerPay - metrics.totalExpenses) : metrics.netProfit))}`}
             </p>
@@ -558,11 +558,11 @@ export default function FinancePage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-1">
-              <Calculator className="w-4 h-4 text-purple-500" />
+              <Calculator className="w-4 h-4 text-primary" />
               <span className="text-xs text-muted-foreground">Spend / Customer</span>
-              {stripeConnected && <CheckCircle className="w-3 h-3 text-green-500 ml-auto" />}
+              {stripeConnected && <CheckCircle className="w-3 h-3 text-success ml-auto" />}
             </div>
-            <p className="text-xl font-bold text-purple-600">
+            <p className="text-xl font-bold text-primary">
               {isTestMode ? '$XXX.XX' : `${fmt((stripeConnected ? stripeData.spend_per_customer : (metrics.transactionCount > 0 ? metrics.totalSales / metrics.transactionCount : 0)))}`}
             </p>
             {stripeConnected && (
@@ -610,16 +610,16 @@ export default function FinancePage() {
                       <TableCell>#{t.booking_number}</TableCell>
                       <TableCell>{maskName(t.customer_name)}</TableCell>
                       <TableCell>{t.service_name}</TableCell>
-                      <TableCell className="text-right font-medium text-green-600">
+                      <TableCell className="text-right font-medium text-success">
                         {isTestMode ? '$XXX.XX' : `${fmt(t.gross_amount)}`}
                       </TableCell>
-                      <TableCell className="text-right text-orange-600">
+                      <TableCell className="text-right text-warning">
                         {isTestMode ? '-$X.XX' : `-${fmt(t.processing_fee)}`}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {isTestMode ? '$XXX.XX' : `${fmt(t.net_amount)}`}
                       </TableCell>
-                      <TableCell className="text-right text-blue-600">
+                      <TableCell className="text-right text-info">
                         {isTestMode ? '$XX.XX' : `${fmt(t.cleaner_pay)}`}
                       </TableCell>
                       <TableCell>
@@ -690,11 +690,11 @@ export default function FinancePage() {
               <div className="space-y-4 max-w-md">
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="font-medium">Total Sales (Gross)</span>
-                  <span className="text-lg font-bold text-green-600">{isTestMode ? '+$X,XXX.XX' : `+${fmt(metrics.totalSales)}`}</span>
+                  <span className="text-lg font-bold text-success">{isTestMode ? '+$X,XXX.XX' : `+${fmt(metrics.totalSales)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Processing Fees <span className="text-xs">(Stripe only)</span></span>
-                  <span className="text-orange-600">{isTestMode ? '-$XXX.XX' : `-${fmt(metrics.totalFees)}`}</span>
+                  <span className="text-warning">{isTestMode ? '-$XXX.XX' : `-${fmt(metrics.totalFees)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b bg-muted/50 px-3 rounded">
                   <span className="font-medium">Net Revenue</span>
@@ -702,7 +702,7 @@ export default function FinancePage() {
                 </div>
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Cleaner Pay</span>
-                  <span className="text-blue-600">{isTestMode ? '-$X,XXX.XX' : `-${fmt(metrics.totalCleanerPay)}`}</span>
+                  <span className="text-info">{isTestMode ? '-$X,XXX.XX' : `-${fmt(metrics.totalCleanerPay)}`}</span>
                 </div>
                 {Object.entries(metrics.expensesByCategory).map(([category, amount]) => (
                   <div key={category} className="flex justify-between items-center py-3 border-b">
@@ -718,13 +718,13 @@ export default function FinancePage() {
                 )}
                 <div className="flex justify-between items-center py-3 border-b">
                   <span className="text-muted-foreground">Less: Refunds</span>
-                  <span className="text-red-600">{isTestMode ? '-$X.XX' : `-${fmt(metrics.totalRefunds)}`}</span>
+                  <span className="text-destructive">{isTestMode ? '-$X.XX' : `-${fmt(metrics.totalRefunds)}`}</span>
                 </div>
                 <div className="flex justify-between items-center py-4 bg-primary/10 px-3 rounded-lg">
                   <span className="text-lg font-bold">Net Profit</span>
                   <span className={cn(
                     "text-xl font-bold",
-                    metrics.netProfit >= 0 ? "text-primary" : "text-red-600"
+                    metrics.netProfit >= 0 ? "text-primary" : "text-destructive"
                   )}>
                     {isTestMode ? '$X,XXX.XX' : `${fmt(metrics.netProfit)}`}
                   </span>

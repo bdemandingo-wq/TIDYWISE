@@ -387,55 +387,55 @@ export default function PlatformAnalyticsPage() {
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.signups.total || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <ArrowUpRight className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">+{analytics?.signups.last30Days || 0}</span>
+                <ArrowUpRight className="w-3 h-3 text-success" />
+                <span className="text-xs text-success font-medium">+{analytics?.signups.last30Days || 0}</span>
                 <span className="text-xs text-muted-foreground">last 30 days</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-info/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Organizations</CardTitle>
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Building2 className="h-4 w-4 text-blue-500" />
+              <div className="p-2 bg-info/10 rounded-lg">
+                <Building2 className="h-4 w-4 text-info" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.organizations.total || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <ArrowUpRight className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">+{analytics?.organizations.last30Days || 0}</span>
+                <ArrowUpRight className="w-3 h-3 text-success" />
+                <span className="text-xs text-success font-medium">+{analytics?.organizations.last30Days || 0}</span>
                 <span className="text-xs text-muted-foreground">last 30 days</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-green-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-success/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Active Subscriptions</CardTitle>
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <CreditCard className="h-4 w-4 text-green-500" />
+              <div className="p-2 bg-success/10 rounded-lg">
+                <CreditCard className="h-4 w-4 text-success" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.subscriptions.active || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs text-blue-500 font-medium">{analytics?.subscriptions.trialing || 0} trialing</span>
+                <span className="text-xs text-info font-medium">{analytics?.subscriptions.trialing || 0} trialing</span>
                 <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-red-500">{analytics?.subscriptions.canceled || 0} canceled</span>
+                <span className="text-xs text-destructive">{analytics?.subscriptions.canceled || 0} canceled</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-warning/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle>
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-amber-500" />
+              <div className="p-2 bg-warning/10 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-warning" />
               </div>
             </CardHeader>
             <CardContent>
@@ -778,7 +778,7 @@ export default function PlatformAnalyticsPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-500" />
+                  <Building2 className="w-5 h-5 text-info" />
                   Recent Organizations
                   <Badge variant="secondary" className="ml-auto">Last 30 days</Badge>
                 </CardTitle>
@@ -832,8 +832,8 @@ export default function PlatformAnalyticsPage() {
                               onCheckedChange={() => toggleSelect(setSelectedOrgs, org.id)}
                             />
 
-                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                              <Building2 className="w-5 h-5 text-blue-500" />
+                            <div className="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center">
+                              <Building2 className="w-5 h-5 text-info" />
                             </div>
                             <div>
                               <p className="font-medium text-sm">{org.name}</p>
@@ -876,7 +876,7 @@ export default function PlatformAnalyticsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-purple-500" />
+                    <Activity className="w-5 h-5 text-primary" />
                     User Activity Tracking
                     <Badge variant="secondary">Live</Badge>
                   </CardTitle>
@@ -910,8 +910,8 @@ export default function PlatformAnalyticsPage() {
                 <div className="space-y-6">
                   {/* Activity Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <p className="text-2xl font-bold text-purple-600">
+                    <div className="text-center p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-2xl font-bold text-primary">
                         {activityFilter === 'all' 
                           ? (sessionStats?.userList?.length || 0)
                           : activityFilter === 'admin'
@@ -923,8 +923,8 @@ export default function PlatformAnalyticsPage() {
                         {activityFilter === 'client_portal' ? 'Portal Users' : 'Active Users'} (All Time)
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-3 bg-info/10 rounded-lg border border-info/20">
+                      <p className="text-2xl font-bold text-info">
                         {activityFilter === 'all' 
                           ? Math.round(((sessionStats?.userList?.length || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)
                           : activityFilter === 'admin'
@@ -936,10 +936,10 @@ export default function PlatformAnalyticsPage() {
                         {activityFilter === 'client_portal' ? 'Portal Engagement' : 'Engagement Rate'}
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <div className="text-center p-3 bg-success/10 rounded-lg border border-success/20">
                       <div className="flex items-center justify-center gap-1">
-                        <Timer className="w-4 h-4 text-green-600" />
-                        <p className="text-2xl font-bold text-green-600">
+                        <Timer className="w-4 h-4 text-success" />
+                        <p className="text-2xl font-bold text-success">
                           {formatDuration(
                             activityFilter === 'all' 
                               ? (sessionStats?.avgSessionDuration || 0)
@@ -951,8 +951,8 @@ export default function PlatformAnalyticsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground">Avg Session Duration</p>
                     </div>
-                    <div className="text-center p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                      <p className="text-2xl font-bold text-amber-600">
+                    <div className="text-center p-3 bg-warning/10 rounded-lg border border-warning/20">
+                      <p className="text-2xl font-bold text-warning">
                         {activityFilter === 'all' 
                           ? (sessionStats?.totalSessions || 0)
                           : activityFilter === 'admin'
@@ -1007,7 +1007,7 @@ export default function PlatformAnalyticsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1">
+                                    <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20 flex items-center gap-1">
                                       <Clock className="w-3 h-3" />
                                       {formatDuration(userStat.total_duration_seconds)}
                                     </Badge>
