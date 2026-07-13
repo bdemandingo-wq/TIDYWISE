@@ -432,10 +432,9 @@ export function AIAnalysisCenter() {
     finally { setSchedLoading(false); }
   }, [orgId, businessSnapshot]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'scheduling' && !schedRec) fetchScheduleRec();
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Growth Playbook ───
   const [playbook, setPlaybook] = useState('');
