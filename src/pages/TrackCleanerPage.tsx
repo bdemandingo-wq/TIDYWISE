@@ -10,7 +10,7 @@ export default function TrackCleanerPage() {
         description="Real-time arrival tracking for your TidyWise cleaning service. Your cleaner is en route — sit tight, they'll be there soon."
         noIndex
       />
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background p-4">
         <h1 className="sr-only">Tracking your cleaner's arrival</h1>
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center space-y-4">

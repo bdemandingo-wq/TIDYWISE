@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 export default function PrivacyPolicyPage() {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
       <SEOHead
         title="Privacy Policy | TidyWise"
         description="Read TidyWise's Privacy Policy. Learn what information we collect and how we use it to provide app functionality."

@@ -253,7 +253,7 @@ export default function AcceptInvitePage() {
 
   if (loadErr) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="max-w-md w-full">
           <CardHeader><CardTitle>Invite unavailable</CardTitle></CardHeader>
           <CardContent><p className="text-muted-foreground">{loadErr}</p></CardContent>
@@ -262,13 +262,13 @@ export default function AcceptInvitePage() {
     );
   }
   if (!preview || authLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    return <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   }
 
   const emailMatches = user?.email?.toLowerCase() === preview.email.toLowerCase();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center p-6 bg-background">
       <Card className="max-w-md w-full">
         <CardHeader>
           <CardTitle>Join {preview.organization_name}</CardTitle>
