@@ -393,7 +393,7 @@ export function AIAnalysisCenter() {
   }, [orgId]);
 
   // ─── AI Insights (structured) ───
-  const [insights, setInsights] = useState<any[]>([]);
+  const [insights, setInsights] = useState<AiInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
 
   const fetchInsights = useCallback(async () => {
@@ -404,9 +404,9 @@ export function AIAnalysisCenter() {
         { type: 'insights', organizationId: orgId, businessSnapshot },
       );
       if (error) throw error;
-      setInsights(data?.insights || []);
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to generate insights');
+      setInsights(((data as { insights?: AiInsight[] } | null)?.insights) || []);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate insights');
     } finally {
       setInsightsLoading(false);
     }
