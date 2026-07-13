@@ -1199,6 +1199,21 @@ body {
   padding-bottom: calc(var(--pv-nav-h) + env(safe-area-inset-bottom, 0px) + 32px);
 }
 
+/* Fade-edge indicator for horizontally scrollable tab strips in portal */
+.portal-v2-tabs-scroller {
+  position: relative;
+}
+.portal-v2-tabs-scroller::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  background: linear-gradient(to right, hsl(var(--pv-bg) / 0), hsl(var(--pv-bg)));
+}
+
 
 /* Meta / muted text helpers */
 .portal-v2 .pv-meta { color: hsl(var(--pv-ink-3)); font-size: 13px; }
