@@ -17,7 +17,7 @@ import {
   Heart, Banknote, UserPlus, ChevronDown, CheckCircle,
 } from 'lucide-react';
 import { BookingWithDetails } from '@/hooks/useBookings';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 interface BookingActionSheetProps {
   booking: BookingWithDetails | null;
