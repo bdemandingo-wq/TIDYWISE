@@ -239,11 +239,12 @@ function BottomPillNav({
         onClick={onRequest}
         aria-label="Book"
         style={{ background: 'hsl(var(--pv-brand))', color: 'hsl(var(--pv-brand-ink))' }}
-        className="!px-4"
+        className="!px-3 sm:!px-4"
       >
         <Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />
         <span className="pv-nav-label">Book</span>
       </button>
+
     </nav>
   );
 }
