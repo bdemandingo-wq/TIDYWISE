@@ -529,14 +529,6 @@ export default function PortalDashboardPage() {
     }
   };
 
-  if (loading || !user || !customer) {
-    return (
-      <main className="portal-v2 min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--pv-ink-4))]" />
-      </main>
-    );
-  }
-
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const upcomingBookings = useMemo(
     () => bookings.filter((b) => new Date(b.scheduled_at) >= new Date() && b.status !== "cancelled"),
@@ -546,6 +538,14 @@ export default function PortalDashboardPage() {
     () => bookings.filter((b) => new Date(b.scheduled_at) < new Date() || b.status === "cancelled"),
     [bookings]
   );
+
+  if (loading || !user || !customer) {
+    return (
+      <main className="portal-v2 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--pv-ink-4))]" />
+      </main>
+    );
+  }
 
   const displayLoyalty = loyalty || { points: 0, lifetime_points: 0, tier: "bronze" };
 
