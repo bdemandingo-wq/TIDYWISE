@@ -1561,6 +1561,8 @@ export type Database = {
           ai_converted: boolean | null
           ai_source_conversation_id: string | null
           apt_suite: string | null
+          arrival_window_end: string | null
+          arrival_window_start: string | null
           bathrooms: string | null
           bedrooms: string | null
           booking_number: number
@@ -1588,6 +1590,7 @@ export type Database = {
           frequency: string | null
           has_pets: boolean
           id: string
+          is_arrival_window: boolean
           is_draft: boolean | null
           is_test: boolean | null
           location_id: string | null
@@ -1624,6 +1627,8 @@ export type Database = {
           ai_converted?: boolean | null
           ai_source_conversation_id?: string | null
           apt_suite?: string | null
+          arrival_window_end?: string | null
+          arrival_window_start?: string | null
           bathrooms?: string | null
           bedrooms?: string | null
           booking_number?: number
@@ -1651,6 +1656,7 @@ export type Database = {
           frequency?: string | null
           has_pets?: boolean
           id?: string
+          is_arrival_window?: boolean
           is_draft?: boolean | null
           is_test?: boolean | null
           location_id?: string | null
@@ -1687,6 +1693,8 @@ export type Database = {
           ai_converted?: boolean | null
           ai_source_conversation_id?: string | null
           apt_suite?: string | null
+          arrival_window_end?: string | null
+          arrival_window_start?: string | null
           bathrooms?: string | null
           bedrooms?: string | null
           booking_number?: number
@@ -1714,6 +1722,7 @@ export type Database = {
           frequency?: string | null
           has_pets?: boolean
           id?: string
+          is_arrival_window?: boolean
           is_draft?: boolean | null
           is_test?: boolean | null
           location_id?: string | null
@@ -1879,6 +1888,7 @@ export type Database = {
           accent_color: string | null
           allow_online_booking: boolean | null
           app_url: string | null
+          arrival_windows: Json
           benchmarks_opt_in: boolean
           booking_buffer_minutes: number | null
           cancellation_policy: string | null
@@ -1930,6 +1940,7 @@ export type Database = {
           require_deposit: boolean | null
           resend_api_key: string | null
           review_sms_template: string | null
+          scheduling_mode: string
           surge_holiday_enabled: boolean
           surge_holiday_multiplier: number
           surge_lastminute_enabled: boolean
@@ -1944,6 +1955,7 @@ export type Database = {
           accent_color?: string | null
           allow_online_booking?: boolean | null
           app_url?: string | null
+          arrival_windows?: Json
           benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
@@ -1995,6 +2007,7 @@ export type Database = {
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
+          scheduling_mode?: string
           surge_holiday_enabled?: boolean
           surge_holiday_multiplier?: number
           surge_lastminute_enabled?: boolean
@@ -2009,6 +2022,7 @@ export type Database = {
           accent_color?: string | null
           allow_online_booking?: boolean | null
           app_url?: string | null
+          arrival_windows?: Json
           benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
           cancellation_policy?: string | null
@@ -2060,6 +2074,7 @@ export type Database = {
           require_deposit?: boolean | null
           resend_api_key?: string | null
           review_sms_template?: string | null
+          scheduling_mode?: string
           surge_holiday_enabled?: boolean
           surge_holiday_multiplier?: number
           surge_lastminute_enabled?: boolean
