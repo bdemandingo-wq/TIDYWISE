@@ -42,6 +42,7 @@ import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails, useBookings } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';
 import { useBookingForm } from './BookingFormContext';
+import { useSchedulingMode } from '@/hooks/useSchedulingMode';
 import { CustomerStep } from './steps/CustomerStep';
 import { PropertyStep } from './steps/PropertyStep';
 import { ServiceStep } from './steps/ServiceStep';
