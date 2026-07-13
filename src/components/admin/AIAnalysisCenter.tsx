@@ -510,7 +510,8 @@ export function AIAnalysisCenter() {
         body: { to: draftTarget.phone, message: draftText.trim(), organizationId: orgId },
       });
       if (error) throw error;
-      if ((data as any)?.success === false) throw new Error((data as any)?.error || 'Send failed');
+      const smsData = data as { success?: boolean; error?: string } | null;
+      if (smsData?.success === false) throw new Error(smsData.error || 'Send failed');
 
       // Mark the lead as contacted so it drops out of Hot & Stale.
       if (draftTarget.id && orgId) {
