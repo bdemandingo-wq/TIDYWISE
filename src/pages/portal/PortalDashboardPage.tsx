@@ -572,16 +572,16 @@ export default function PortalDashboardPage() {
 
   const HeroCard = () => (
     <Card className="pv-hero">
-      <CardContent className="px-1 sm:px-2 py-8 sm:py-12">
+      <CardContent className="px-4 sm:px-2 py-6 sm:py-12">
         <p className="pv-eyebrow mb-3">Next appointment</p>
         {nextBooking ? (
           <>
-            <h2 className="pv-display text-[32px] sm:text-[44px] leading-[1.02] text-[hsl(var(--pv-ink))] max-w-2xl text-balance">
+            <h2 className="pv-display text-[26px] sm:text-[44px] leading-[1.05] text-[hsl(var(--pv-ink))] max-w-2xl text-balance break-words">
               {nextBooking.service?.name || "Service"}
             </h2>
-            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] text-[hsl(var(--pv-ink-2))]">
-              <span className="inline-flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] sm:text-[14px] text-[hsl(var(--pv-ink-2))]">
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
                 <span className="font-medium text-[hsl(var(--pv-ink))]">{getDateLabel(nextBooking.scheduled_at)}</span>
                 <span className="text-[hsl(var(--pv-ink-3))]">
                   · {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
@@ -595,10 +595,10 @@ export default function PortalDashboardPage() {
               )}
               <StatusChip status={nextBooking.status || 'pending'} />
             </div>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => handleReschedule(nextBooking)}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <CalendarClock className="h-4 w-4 mr-1.5" />
                 Reschedule
@@ -613,16 +613,16 @@ export default function PortalDashboardPage() {
           </>
         ) : (
           <>
-            <h2 className="pv-display text-[30px] sm:text-[40px] leading-[1.05] text-[hsl(var(--pv-ink))]">
+            <h2 className="pv-display text-[26px] sm:text-[40px] leading-[1.08] text-[hsl(var(--pv-ink))]">
               Nothing on the calendar
             </h2>
             <p className="mt-3 text-[15px] text-[hsl(var(--pv-ink-3))] max-w-md">
               When you'd like your next clean, we're a tap away.
             </p>
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <Button
                 onClick={() => navigate('/portal/request')}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <Plus className="h-4 w-4 mr-1.5" />
                 Request a booking
@@ -633,6 +633,7 @@ export default function PortalDashboardPage() {
       </CardContent>
     </Card>
   );
+
 
   const LoyaltyCard = () => (
     <Card className="pv-quiet">
