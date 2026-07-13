@@ -1120,6 +1120,52 @@ export default function PublicBookingPage() {
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                         <span className="text-muted-foreground">Loading availability...</span>
                       </div>
+                    ) : schedulingMode === 'arrival_window' ? (
+                      (() => {
+                        const enabledWindows = arrivalWindows.filter((w) => w.enabled);
+                        if (enabledWindows.length === 0) {
+                          return (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">No arrival windows configured.</p>
+                            </div>
+                          );
+                        }
+                        const toMin = (t: string) => {
+                          const [h, m] = t.split(':').map(Number);
+                          return h * 60 + m;
+                        };
+                        return (
+                          <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-1">
+                            {enabledWindows.map((w) => {
+                              const startMin = toMin(w.start_time);
+                              const endMin = toMin(w.end_time);
+                              const anyAvailable = availableSlots.length === 0
+                                ? true
+                                : availableSlots.some((s) => {
+                                    const sMin = toMin(s.time);
+                                    return s.available && sMin >= startMin && sMin < endMin;
+                                  });
+                              const active = selectedTime === w.start_time;
+                              return (
+                                <Button
+                                  key={w.id}
+                                  variant={active ? 'default' : 'outline'}
+                                  className={cn(
+                                    'h-14 transition-all duration-200 justify-center text-base',
+                                    active && 'ring-2 ring-primary/30 shadow-md',
+                                    !anyAvailable && 'opacity-40 cursor-not-allowed line-through'
+                                  )}
+                                  disabled={!anyAvailable}
+                                  onClick={() => setSelectedTime(w.start_time)}
+                                >
+                                  <Clock className="w-4 h-4 mr-2" />
+                                  {w.label || `${formatTime24to12(w.start_time)} - ${formatTime24to12(w.end_time)}`}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
                     ) : availableSlots.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground mb-2">No available time slots for this date.</p>
