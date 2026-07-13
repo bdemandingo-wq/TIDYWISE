@@ -36,6 +36,9 @@ const BookingSchema = z.object({
     bathroom: z.number().int().min(0).max(50).optional(),
     full_bath: z.number().int().min(0).max(50).optional(),
   }).partial().optional().nullable(),
+  is_arrival_window: z.boolean().optional().nullable(),
+  arrival_window_start: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  arrival_window_end: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
