@@ -707,13 +707,14 @@ export default function PortalDashboardPage() {
       <header
         className={`sticky top-0 z-40 border-b border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-bg)/0.85)] backdrop-blur-md ${isNative ? 'portal-v2-header-safe' : ''}`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
-            <h1 className="pv-display text-[20px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
+            <h1 className="pv-display text-[18px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
               Hello, {firstName}
             </h1>
           </div>
+
           <div className="flex items-center gap-1">
             <Sheet>
               <SheetTrigger asChild>
