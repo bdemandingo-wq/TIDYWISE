@@ -37,6 +37,7 @@ import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDiscountSettingsCard';
 import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
+import { SchedulingModeCard } from '@/components/admin/SchedulingModeCard';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
