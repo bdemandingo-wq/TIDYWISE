@@ -155,6 +155,24 @@ interface ProactiveInsight {
   action: string;
 }
 
+interface AiInsight {
+  priority: string;
+  confidence: string;
+  insight: string;
+  action: string;
+  promptText?: string;
+}
+
+interface ChurnCustomer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+  daysSince: number;
+  serviceName: string;
+}
+
 export function AIAnalysisCenter() {
   const isMobile = useIsMobile();
   const { organization } = useOrganization();
