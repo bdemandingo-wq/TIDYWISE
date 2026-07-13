@@ -613,9 +613,9 @@ export function AIAnalysisCenter() {
           }
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       console.error('Chat error:', e);
-      toast.error(e.message || 'Chat error');
+      toast.error(e instanceof Error ? e.message : 'Chat error');
     } finally {
       setChatLoading(false);
     }
