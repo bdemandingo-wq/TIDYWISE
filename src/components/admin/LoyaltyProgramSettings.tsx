@@ -196,8 +196,8 @@ export function LoyaltyProgramSettings() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                <Gift className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                <Gift className="w-5 h-5 text-success" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{stats.totalPoints.toLocaleString()}</p>
@@ -351,17 +351,17 @@ export function LoyaltyProgramSettings() {
                 <div key={tx.id} className="flex items-center justify-between text-sm py-2 border-b last:border-0">
                   <div>
                     <Badge variant="outline" className={
-                      tx.transaction_type === 'earned' ? 'bg-emerald-50 text-emerald-700' :
-                      tx.transaction_type === 'bonus' ? 'bg-blue-50 text-blue-700' :
-                      tx.transaction_type === 'redeemed' ? 'bg-orange-50 text-orange-700' :
-                      'bg-gray-50 text-gray-700'
+                      tx.transaction_type === 'earned' ? 'bg-success/10 text-success' :
+                      tx.transaction_type === 'bonus' ? 'bg-info/10 text-info' :
+                      tx.transaction_type === 'redeemed' ? 'bg-warning/10 text-warning' :
+                      'bg-muted text-muted-foreground'
                     }>
                       {tx.transaction_type}
                     </Badge>
                     <span className="ml-2 text-muted-foreground">{tx.description}</span>
                   </div>
                   <div className="text-right">
-                    <span className={tx.points >= 0 ? 'text-emerald-600 font-medium' : 'text-red-600 font-medium'}>
+                    <span className={tx.points >= 0 ? 'text-success font-medium' : 'text-destructive font-medium'}>
                       {tx.points >= 0 ? '+' : ''}{tx.points} pts
                     </span>
                     <p className="text-xs text-muted-foreground">

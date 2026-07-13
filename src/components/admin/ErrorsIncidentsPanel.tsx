@@ -83,23 +83,23 @@ const SECTIONS: {
   {
     key: 'critical',
     label: 'Critical',
-    border: 'border-l-red-500',
-    dot: 'bg-red-500',
-    badge: 'bg-red-500/15 text-red-400 border-red-500/30',
+    border: 'border-l-destructive',
+    dot: 'bg-destructive',
+    badge: 'bg-destructive/15 text-destructive border-destructive/30',
   },
   {
     key: 'warning',
     label: 'Warning',
-    border: 'border-l-yellow-500',
-    dot: 'bg-yellow-500',
-    badge: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+    border: 'border-l-warning',
+    dot: 'bg-warning',
+    badge: 'bg-warning/15 text-warning border-warning/30',
   },
   {
     key: 'info',
     label: 'Info',
-    border: 'border-l-blue-500',
-    dot: 'bg-blue-500',
-    badge: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    border: 'border-l-info',
+    dot: 'bg-info',
+    badge: 'bg-info/15 text-info border-info/30',
   },
 ];
 
@@ -306,10 +306,10 @@ function Section({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full">
-        <div className="flex items-center justify-between rounded-lg bg-white border shadow-sm px-5 py-4 hover:bg-slate-50 transition-colors">
+        <div className="flex items-center justify-between rounded-lg bg-card border shadow-sm px-5 py-4 hover:bg-secondary/50 transition-colors">
           <div className="flex items-center gap-3">
             <span className={cn('w-3.5 h-3.5 rounded-full', config.dot)} />
-            <span className="text-lg font-bold text-slate-900 tracking-tight">{config.label}</span>
+            <span className="text-lg font-bold text-foreground tracking-tight">{config.label}</span>
             <Badge
               variant="outline"
               className={cn(
@@ -321,14 +321,14 @@ function Section({
             </Badge>
           </div>
           <ChevronDown
-            className={cn('w-5 h-5 text-slate-400 transition-transform', open && 'rotate-180')}
+            className={cn('w-5 h-5 text-muted-foreground transition-transform', open && 'rotate-180')}
           />
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-3 pt-3">
           {issues.length === 0 ? (
-            <p className="text-sm text-slate-400 px-4 py-2">
+            <p className="text-sm text-muted-foreground px-4 py-2">
               No {config.label.toLowerCase()} issues.
             </p>
           ) : (
@@ -490,8 +490,8 @@ export function ErrorsIncidentsPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Errors &amp; Incidents</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-bold text-foreground">Errors &amp; Incidents</h2>
+          <p className="text-sm text-muted-foreground">
             Unresolved Sentry issues
             {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
           </p>
@@ -502,7 +502,7 @@ export function ErrorsIncidentsPanel() {
               variant="ghost"
               size="sm"
               onClick={clearDismissed}
-              className="gap-1.5 text-slate-600"
+              className="gap-1.5 text-muted-foreground"
             >
               <RotateCcw className="w-4 h-4" />
               Restore hidden
@@ -530,11 +530,11 @@ export function ErrorsIncidentsPanel() {
       )}
 
       {isError && !isLoading && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-6 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-semibold text-red-800">Couldn’t load incidents</p>
-            <p className="text-red-700 mt-1">
+            <p className="font-semibold text-destructive">Couldn’t load incidents</p>
+            <p className="text-destructive mt-1">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
@@ -542,9 +542,9 @@ export function ErrorsIncidentsPanel() {
       )}
 
       {!isLoading && !isError && total === 0 && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-10 flex flex-col items-center text-center gap-3">
-          <CheckCircle2 className="w-12 h-12 text-green-600" />
-          <p className="text-base font-semibold text-green-800">
+        <div className="rounded-lg border border-success/20 bg-success/10 p-10 flex flex-col items-center text-center gap-3">
+          <CheckCircle2 className="w-12 h-12 text-success" />
+          <p className="text-base font-semibold text-success">
             All clear — no active incidents.
           </p>
         </div>
@@ -565,7 +565,7 @@ export function ErrorsIncidentsPanel() {
 
 
       {isFetching && !isLoading && (
-        <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
           Refreshing…
         </div>

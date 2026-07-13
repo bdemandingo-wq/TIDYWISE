@@ -162,9 +162,9 @@ function DetailsList({ items, filter }: { items: DetailItem[]; filter: 'failed' 
           {item.status === 'failed' ? (
             <XCircle className="w-3.5 h-3.5 text-destructive mt-0.5 flex-shrink-0" />
           ) : item.status === 'pending' ? (
-            <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 flex-shrink-0" />
+            <AlertTriangle className="w-3.5 h-3.5 text-warning mt-0.5 flex-shrink-0" />
           ) : (
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-success mt-0.5 flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -374,7 +374,7 @@ export function AutomationHealthMonitor() {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              <CheckCircle2 className="w-4 h-4 text-success" />
               <span className="text-xs font-medium text-muted-foreground">Sent</span>
             </div>
             <p className="text-2xl font-bold mt-1">{totalSent}</p>
@@ -392,7 +392,7 @@ export function AutomationHealthMonitor() {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+              <AlertTriangle className="w-4 h-4 text-warning" />
               <span className="text-xs font-medium text-muted-foreground">Pending</span>
             </div>
             <p className="text-2xl font-bold mt-1">{totalPending}</p>
@@ -415,7 +415,7 @@ export function AutomationHealthMonitor() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <AlertTriangle className="w-4 h-4 text-warning" />
               Abandoned Bookings
             </CardTitle>
             <CardDescription>Booking links sent but not completed</CardDescription>
@@ -427,11 +427,11 @@ export function AutomationHealthMonitor() {
                 <p className="text-xs text-muted-foreground">Links Sent</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-amber-600">{abandonedStats.opened}</p>
+                <p className="text-2xl font-bold text-warning">{abandonedStats.opened}</p>
                 <p className="text-xs text-muted-foreground">Opened</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg text-center">
-                <p className="text-2xl font-bold text-green-600">{abandonedStats.completed}</p>
+                <p className="text-2xl font-bold text-success">{abandonedStats.completed}</p>
                 <p className="text-xs text-muted-foreground">Completed</p>
               </div>
               <div className="p-3 bg-muted/50 rounded-lg text-center">
@@ -441,8 +441,8 @@ export function AutomationHealthMonitor() {
               </div>
             </div>
             {abandonedStats.abandoned > 0 && (
-              <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+              <div className="mt-3 p-3 bg-warning/10 border border-warning/20 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
                 <p className="text-sm">
                   <strong>{abandonedStats.abandoned}</strong> customers opened their booking link but didn't complete.
                 </p>
@@ -469,10 +469,10 @@ export function AutomationHealthMonitor() {
                 <p className="text-2xl font-bold text-destructive">{campaignAbandonedStats.totalAbandoned}</p>
               </div>
               {campaignAbandonedStats.best && campaignAbandonedStats.best.completed > 0 && (
-                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Best Conversion</p>
                   <p className="text-sm font-medium truncate">{campaignAbandonedStats.best.name}</p>
-                  <p className="text-lg font-bold text-green-600">
+                  <p className="text-lg font-bold text-success">
                     {Math.round((campaignAbandonedStats.best.completed / campaignAbandonedStats.best.sent) * 100)}%
                   </p>
                 </div>

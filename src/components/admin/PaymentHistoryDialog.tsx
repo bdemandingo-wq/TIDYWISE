@@ -92,13 +92,13 @@ export function PaymentHistoryDialog({
   const getPaymentBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-emerald-100 text-emerald-700">Paid</Badge>;
+        return <Badge className="bg-success/10 text-success">Paid</Badge>;
       case 'refunded':
-        return <Badge className="bg-slate-100 text-slate-600">Refunded</Badge>;
+        return <Badge className="bg-muted text-muted-foreground">Refunded</Badge>;
       case 'partial':
-        return <Badge className="bg-amber-100 text-amber-700">Partial</Badge>;
+        return <Badge className="bg-warning/10 text-warning">Partial</Badge>;
       default:
-        return <Badge className="bg-rose-100 text-rose-700">Unpaid</Badge>;
+        return <Badge className="bg-destructive/10 text-destructive">Unpaid</Badge>;
     }
   };
 
@@ -120,19 +120,19 @@ export function PaymentHistoryDialog({
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+              <div className="bg-success/10 rounded-xl p-4 border border-success/20">
                 <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm text-emerald-700">Total Paid</span>
+                  <DollarSign className="w-4 h-4 text-success" />
+                  <span className="text-sm text-success">Total Paid</span>
                 </div>
-                <p className="text-2xl font-bold text-emerald-700">{fmt(totals.paid)}</p>
+                <p className="text-2xl font-bold text-success">{fmt(totals.paid)}</p>
               </div>
-              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+              <div className="bg-warning/10 rounded-xl p-4 border border-warning/20">
                 <div className="flex items-center gap-2 mb-1">
-                  <DollarSign className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm text-amber-700">Pending</span>
+                  <DollarSign className="w-4 h-4 text-warning" />
+                  <span className="text-sm text-warning">Pending</span>
                 </div>
-                <p className="text-2xl font-bold text-amber-700">{fmt(totals.pending)}</p>
+                <p className="text-2xl font-bold text-warning">{fmt(totals.pending)}</p>
               </div>
               <div className="bg-primary/10 rounded-xl p-4 border border-primary/20">
                 <div className="flex items-center gap-2 mb-1">

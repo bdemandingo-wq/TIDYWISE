@@ -239,16 +239,16 @@ export function EmailSettingsCard() {
     <div className="space-y-6">
       {/* Summary chip */}
       {gmailConfigured ? (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 px-4 py-2.5">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div className="text-sm text-emerald-900 dark:text-emerald-100">
+        <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/10 px-4 py-2.5">
+          <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+          <div className="text-sm text-success">
             Sending from: <span className="font-semibold">{settings.smtp_email}</span>
           </div>
         </div>
       ) : (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-          <div className="text-sm text-amber-900 dark:text-amber-100">
+        <div className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-4 py-2.5">
+          <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
+          <div className="text-sm text-warning">
             Gmail not connected yet — customer emails will fall back to our shared sender until you finish setup below.
           </div>
         </div>
@@ -305,7 +305,7 @@ export function EmailSettingsCard() {
                   <Label htmlFor="smtpPassword">
                     App password{' '}
                     {hasSmtpPassword && (
-                      <span className="text-xs text-emerald-600 inline-flex items-center gap-1">
+                      <span className="text-xs text-success inline-flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> saved
                       </span>
                     )}
@@ -358,7 +358,7 @@ export function EmailSettingsCard() {
                       overLimit
                         ? 'text-destructive font-semibold'
                         : nearLimit
-                          ? 'text-amber-600 font-semibold'
+                          ? 'text-warning font-semibold'
                           : 'text-muted-foreground'
                     }
                   >
@@ -368,7 +368,7 @@ export function EmailSettingsCard() {
                 <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                   <div
                     className={`h-full transition-all ${
-                      overLimit ? 'bg-destructive' : nearLimit ? 'bg-amber-500' : 'bg-primary'
+                      overLimit ? 'bg-destructive' : nearLimit ? 'bg-warning' : 'bg-primary'
                     }`}
                     style={{ width: `${gmailPct}%` }}
                   />
@@ -382,9 +382,9 @@ export function EmailSettingsCard() {
                   </Alert>
                 )}
                 {!overLimit && nearLimit && (
-                  <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+                  <Alert className="border-warning/20 bg-warning/10">
+                    <AlertTriangle className="h-4 w-4 text-warning" />
+                    <AlertDescription className="text-xs text-warning">
                       You're near your daily Gmail limit. Sends over {gmailLimit.toLocaleString()} today auto-fallback
                       to TidyWise.
                     </AlertDescription>
@@ -512,9 +512,9 @@ export function EmailSettingsCard() {
           <Separator />
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <Alert variant="default" className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 flex-1">
-              <AlertTriangle className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-xs text-amber-800 dark:text-amber-200">
+            <Alert variant="default" className="border-warning/20 bg-warning/10 flex-1">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertDescription className="text-xs text-warning">
                 Changes apply to all customer emails: booking confirmations, reminders, invoices, review requests, and
                 campaigns.
               </AlertDescription>

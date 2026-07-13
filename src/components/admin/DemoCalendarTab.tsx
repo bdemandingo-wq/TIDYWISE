@@ -50,11 +50,11 @@ interface BlockedDate {
 }
 
 const statusColors: Record<string, string> = {
-  confirmed: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  cancelled: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  rescheduled: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  completed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  pending: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
+  confirmed: 'bg-success/10 text-success',
+  cancelled: 'bg-destructive/10 text-destructive',
+  rescheduled: 'bg-warning/10 text-warning',
+  completed: 'bg-info/10 text-info',
+  pending: 'bg-warning/10 text-warning',
 };
 
 const statusIcons: Record<string, string> = {
@@ -424,10 +424,10 @@ export function DemoCalendarTab() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
           { label: 'Total', value: stats.total, color: 'text-foreground' },
-          { label: 'Confirmed', value: stats.confirmed, color: 'text-green-500' },
-          { label: 'Rescheduled', value: stats.rescheduled, color: 'text-yellow-500' },
-          { label: 'Completed', value: stats.completed, color: 'text-blue-500' },
-          { label: 'Cancelled', value: stats.cancelled, color: 'text-red-500' },
+          { label: 'Confirmed', value: stats.confirmed, color: 'text-success' },
+          { label: 'Rescheduled', value: stats.rescheduled, color: 'text-warning' },
+          { label: 'Completed', value: stats.completed, color: 'text-info' },
+          { label: 'Cancelled', value: stats.cancelled, color: 'text-destructive' },
           { label: 'This Week', value: stats.thisWeek, color: 'text-primary' },
         ].map(stat => (
           <Card key={stat.label}>
@@ -718,7 +718,7 @@ export function DemoCalendarTab() {
                     >
                       <span>{format(day, 'd')}</span>
                       {dayBookings.length > 0 && (
-                        <span className="absolute bottom-0.5 w-1.5 h-1.5 rounded-full bg-green-500" />
+                        <span className="absolute bottom-0.5 w-1.5 h-1.5 rounded-full bg-success" />
                       )}
                       {isBlocked && (
                         <span className="absolute top-0.5 right-0.5 text-destructive">
