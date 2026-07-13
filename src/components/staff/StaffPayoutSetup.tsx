@@ -286,11 +286,11 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
     
     switch (payoutStatus.status) {
       case 'active':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" />Active</Badge>;
+        return <Badge className="bg-success/20 text-success border-success/30"><CheckCircle2 className="w-3 h-3 mr-1" />Active</Badge>;
       case 'pending_verification':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" />Pending Verification</Badge>;
+        return <Badge className="bg-warning/20 text-warning border-warning/30"><Clock className="w-3 h-3 mr-1" />Pending Verification</Badge>;
       case 'onboarding':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30"><AlertCircle className="w-3 h-3 mr-1" />Setup Incomplete</Badge>;
+        return <Badge className="bg-info/20 text-info border-info/30"><AlertCircle className="w-3 h-3 mr-1" />Setup Incomplete</Badge>;
       default:
         return <Badge variant="outline"><AlertCircle className="w-3 h-3 mr-1" />Not Set Up</Badge>;
     }
@@ -348,9 +348,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         <CardContent className="space-y-4">
           {isSetUp ? (
             <>
-              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className="w-8 h-8 text-green-500" />
+                  <ShieldCheck className="w-8 h-8 text-success" />
                   <div>
                     <p className="font-medium">✅ Payout Account Connected</p>
                     <p className="text-sm text-muted-foreground">
@@ -406,9 +406,9 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
             </>
           ) : isPending ? (
             <>
-              <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+              <div className="p-4 rounded-lg bg-warning/10 border border-warning/20">
                 <div className="flex items-center gap-3">
-                  <Clock className="w-8 h-8 text-yellow-500" />
+                  <Clock className="w-8 h-8 text-warning" />
                   <div>
                     <p className="font-medium">✅ Submitted to Stripe for Review</p>
                     <p className="text-sm text-muted-foreground">
@@ -422,7 +422,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 <p><strong>What happens next:</strong></p>
                 <ul className="list-disc pl-4 space-y-1">
                   <li>Stripe verifies your identity and bank details</li>
-                  <li>Once approved, your status will change to <span className="text-green-400 font-medium">Active</span></li>
+                  <li>Once approved, your status will change to <span className="text-success font-medium">Active</span></li>
                   <li>You'll then receive payouts directly to your bank account</li>
                 </ul>
               </div>
@@ -458,15 +458,15 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                 </p>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                    <ShieldCheck className="w-4 h-4 text-success" />
                     Bank-level security
                   </li>
                   <li className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                    <ShieldCheck className="w-4 h-4 text-success" />
                     Your info is never shared with your employer
                   </li>
                   <li className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-green-500" />
+                    <ShieldCheck className="w-4 h-4 text-success" />
                     Takes about 5 minutes to complete
                   </li>
                 </ul>
@@ -501,8 +501,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                           <SelectItem value="BR">🇧🇷 Brazil</SelectItem>
                         </SelectContent>
                       </Select>
-                      <div className="flex items-start gap-2 p-2 rounded-md bg-yellow-500/10 border border-yellow-500/20">
-                        <AlertCircle className="w-4 h-4 text-yellow-500 mt-0.5 shrink-0" />
+                      <div className="flex items-start gap-2 p-2 rounded-md bg-warning/10 border border-warning/20">
+                        <AlertCircle className="w-4 h-4 text-warning mt-0.5 shrink-0" />
                         <p className="text-xs text-muted-foreground">
                           Pick the country where your bank account is held. Stripe locks the country once setup starts — to change it later you'll need to use <strong>Reset Payout Setup</strong> below.
                         </p>
@@ -510,8 +510,8 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                     </div>
                   )}
                   {isOnboarding && (
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                      <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-info/10 border border-info/20">
+                      <AlertCircle className="w-4 h-4 text-info mt-0.5 shrink-0" />
                       <p className="text-xs text-muted-foreground">
                         Your account was started for a specific country and Stripe locks that selection. If your bank is in a different country, use <strong>Reset Payout Setup</strong> below and start over.
                       </p>
@@ -537,7 +537,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
               {/* Step 2: Show prominent redirect button */}
               {onboardingUrl && (
                 <div className="space-y-3">
-                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-center">
+                  <div className="p-3 rounded-lg bg-info/10 border border-info/20 text-sm text-center">
                     ✅ Setup link is ready! Tap the button below to continue.
                   </div>
                   <Button
@@ -600,7 +600,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
                             variant="outline"
                             className={
                               booking.payment_status === 'paid'
-                                ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                                ? 'bg-success/10 text-success border-success/30'
                                 : 'text-muted-foreground'
                             }
                           >

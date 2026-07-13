@@ -160,31 +160,31 @@ export function PaymentHistoryLogDialog({ open, onOpenChange, booking }: Payment
   };
 
   const getEventColor = (type: PaymentEvent['type'], status: PaymentEvent['status']) => {
-    if (status === 'failed') return 'bg-rose-100 text-rose-700';
-    if (status === 'pending') return 'bg-amber-100 text-amber-700';
-    
+    if (status === 'failed') return 'bg-destructive/10 text-destructive';
+    if (status === 'pending') return 'bg-warning/10 text-warning';
+
     switch (type) {
       case 'hold':
-        return 'bg-amber-100 text-amber-700';
+        return 'bg-warning/10 text-warning';
       case 'capture':
       case 'charge':
-        return 'bg-emerald-100 text-emerald-700';
+        return 'bg-success/10 text-success';
       case 'refund':
       case 'release':
-        return 'bg-slate-100 text-slate-700';
+        return 'bg-muted text-muted-foreground';
       default:
-        return 'bg-blue-100 text-blue-700';
+        return 'bg-info/10 text-info';
     }
   };
 
   const getStatusBadge = (status: PaymentEvent['status']) => {
     switch (status) {
       case 'success':
-        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Success</Badge>;
+        return <Badge variant="outline" className="bg-success/10 text-success border-success/20">Success</Badge>;
       case 'pending':
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Pending</Badge>;
+        return <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">Pending</Badge>;
       case 'failed':
-        return <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">Failed</Badge>;
+        return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Failed</Badge>;
     }
   };
 
@@ -265,11 +265,11 @@ export function PaymentHistoryLogDialog({ open, onOpenChange, booking }: Payment
               <Badge 
                 variant="outline" 
                 className={
-                  booking.payment_status === 'paid' 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  booking.payment_status === 'paid'
+                    ? 'bg-success/10 text-success border-success/20'
                     : booking.payment_status === 'refunded'
-                      ? 'bg-slate-50 text-slate-700 border-slate-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                      ? 'bg-muted text-muted-foreground border-border'
+                      : 'bg-warning/10 text-warning border-warning/20'
                 }
               >
                 {booking.payment_status === 'paid' ? 'Paid' : 

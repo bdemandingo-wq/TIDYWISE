@@ -334,7 +334,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
 
     if (availability.isOutsideWorkingHours) {
       return (
-        <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 text-xs">
+        <Badge variant="outline" className="ml-2 bg-warning/10 text-warning border-warning/20 text-xs">
           <AlertCircle className="h-3 w-3 mr-1" />
           Off today
         </Badge>
@@ -343,14 +343,14 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
 
     if (availability.isAvailable) {
       return (
-        <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+        <Badge variant="outline" className="ml-2 bg-success/10 text-success border-success/20 text-xs">
           <CheckCircle className="h-3 w-3 mr-1" />
           Available
         </Badge>
       );
     } else {
       return (
-        <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200 text-xs">
+        <Badge variant="outline" className="ml-2 bg-warning/10 text-warning border-warning/20 text-xs">
           <AlertCircle className="h-3 w-3 mr-1" />
           Busy
         </Badge>
@@ -474,7 +474,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                             <span className="flex-1">{member.name}</span>
                             {/* Distance badge - show if staff has home coordinates */}
                             {distance && (
-                              <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 flex items-center gap-0.5 shrink-0">
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-info/10 text-info flex items-center gap-0.5 shrink-0">
                                 <Car className="h-3 w-3" />
                                 {distance.display} ({distance.driveDisplay})
                               </span>
@@ -483,9 +483,9 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                             {selectedDate && selectedTime && (
                               <span className={cn(
                                 "text-xs px-1.5 py-0.5 rounded shrink-0",
-                                hasConflicts 
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" 
-                                  : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                                hasConflicts
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-success/10 text-success"
                               )}>
                                 {hasConflicts ? 'Busy' : 'Available'}
                               </span>
@@ -528,7 +528,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                         <div 
                           className={cn(
                             "flex items-center justify-between p-2 bg-background rounded border gap-2",
-                            memberConflicts && memberConflicts.length > 0 && "border-amber-300 bg-amber-50/50"
+                            memberConflicts && memberConflicts.length > 0 && "border-warning/30 bg-warning/5"
                           )}
                         >
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -537,7 +537,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                             </Badge>
                             <span className="font-medium">{member.name}</span>
                             {memberConflicts && memberConflicts.length > 0 && (
-                              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
+                              <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20 text-xs">
                                 <AlertCircle className="h-3 w-3 mr-1" />
                                 Conflict
                               </Badge>
@@ -628,9 +628,9 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                           {selectedDate && selectedTime && (
                             <span className={cn(
                               "text-xs px-1.5 py-0.5 rounded",
-                              hasConflicts 
-                                ? "bg-amber-100 text-amber-700" 
-                                : "bg-emerald-100 text-emerald-700"
+                              hasConflicts
+                                ? "bg-warning/10 text-warning"
+                                : "bg-success/10 text-success"
                             )}>
                               {hasConflicts ? 'Busy' : 'Available'}
                             </span>
