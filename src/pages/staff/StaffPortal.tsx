@@ -624,14 +624,14 @@ export default function StaffPortal() {
           borderBottom: '1px solid hsl(var(--pv-border))',
         }}
       >
-        <div className="container mx-auto px-4 sm:px-6 pb-3 flex items-end justify-between gap-3">
-          <div className="min-w-0">
+        <div className="container mx-auto px-3 sm:px-6 pb-3 pt-2 flex items-end justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <p className="pv-eyebrow">Cleaner Portal</p>
-            <h1 className="pv-display text-[26px] sm:text-[30px] truncate mt-0.5">
+            <h1 className="pv-display text-[22px] sm:text-[30px] truncate mt-0.5">
               {staffInfo?.name ? `Hi, ${staffInfo.name.split(' ')[0]}` : 'Welcome'}
             </h1>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {staffInfo && (
               <>
               <NotificationBell 
@@ -645,17 +645,18 @@ export default function StaffPortal() {
                     }
                   }}
                 />
-                <Badge variant="outline" className="hidden sm:flex pv-chip-neutral">
+                <Badge variant="outline" className="hidden md:flex pv-chip-neutral">
                   {staffInfo.tax_classification === 'w2' ? 'W-2 Employee' : '1099 Contractor'}
                 </Badge>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px]">
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px] px-2.5 sm:px-3">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
+
       </header>
 
       {/* Main Content */}
