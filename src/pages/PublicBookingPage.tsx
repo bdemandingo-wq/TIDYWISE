@@ -455,6 +455,18 @@ export default function PublicBookingPage() {
             square_footage: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : undefined,
             has_pets: hasPets,
             room_reductions: roomReductions,
+            ...(schedulingMode === 'arrival_window' && selectedTime
+              ? (() => {
+                  const w = arrivalWindows.find((x) => x.enabled && x.start_time === selectedTime);
+                  return w
+                    ? {
+                        is_arrival_window: true,
+                        arrival_window_start: w.start_time,
+                        arrival_window_end: w.end_time,
+                      }
+                    : {};
+                })()
+              : {}),
           },
         });
 
