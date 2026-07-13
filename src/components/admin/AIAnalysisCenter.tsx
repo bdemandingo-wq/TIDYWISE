@@ -456,10 +456,9 @@ export function AIAnalysisCenter() {
     }
   }, [orgId]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (activeTab === 'playbook' && !playbook) fetchPlaybook();
-  }, [activeTab]);
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Ask AI chat ───
   const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
