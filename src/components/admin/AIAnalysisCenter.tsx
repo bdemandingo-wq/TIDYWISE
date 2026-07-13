@@ -490,8 +490,8 @@ export function AIAnalysisCenter() {
         { type: 'draft-message', prompt, channel, organizationId: orgId },
       );
       if (error) throw error;
-      setDraftText((data as any)?.message || '');
-    } catch (e: any) {
+      setDraftText(((data as { message?: string } | null)?.message) || '');
+    } catch (e) {
       console.error('Draft message error:', e);
       toast.error('Could not generate draft message.');
     } finally {
