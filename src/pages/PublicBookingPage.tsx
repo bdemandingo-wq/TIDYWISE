@@ -108,6 +108,8 @@ export default function PublicBookingPage() {
   const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [recurringDiscountConfig, setRecurringDiscountConfig] =
     useState<RecurringDiscountConfig>(HARDCODED_DEFAULTS);
+  const [schedulingMode, setSchedulingMode] = useState<'specific' | 'arrival_window'>('specific');
+  const [arrivalWindows, setArrivalWindows] = useState<Array<{ id: string; label?: string; start_time: string; end_time: string; sort_order: number; enabled: boolean }>>([]);
   // Per-org pet + exclude-parameters config (from get_public_booking_settings RPC).
   const [petFee, setPetFee] = useState<number>(25);
   const [petToggleEnabled, setPetToggleEnabled] = useState<boolean>(true);
