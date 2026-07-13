@@ -448,8 +448,8 @@ export function AIAnalysisCenter() {
         { type: 'growth-playbook', organizationId: orgId },
       );
       if (error) throw error;
-      setPlaybook(data?.playbook || '');
-    } catch (e: any) {
+      setPlaybook(((data as { playbook?: string } | null)?.playbook) || '');
+    } catch {
       toast.error('Failed to generate playbook');
     } finally {
       setPlaybookLoading(false);
