@@ -926,7 +926,9 @@ export function AIAnalysisCenter() {
                       className={`max-w-[min(80%,calc(100vw-5rem))] overflow-hidden break-words px-3.5 py-2.5 rounded-xl text-sm leading-relaxed ${msg.role === 'user' ? 'bg-primary/20 border border-primary/30 text-foreground' : 'bg-muted border border-border text-foreground'}`}
                     >
                       {msg.role === 'assistant' ? (
-                        <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">{msg.content}</ReactMarkdown>
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
                       ) : (
                         msg.content
                       )}
