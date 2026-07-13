@@ -83,6 +83,27 @@ export type Database = {
           },
         ]
       }
+      abuse_throttle: {
+        Row: {
+          action: string
+          bucket: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          action: string
+          bucket: string
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          action?: string
+          bucket?: string
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
       account_deletion_requests: {
         Row: {
           created_at: string
