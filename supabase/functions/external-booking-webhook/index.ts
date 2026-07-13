@@ -293,6 +293,9 @@ const handler = async (req: Request): Promise<Response> => {
         extras: payload.extras || null,
         has_pets: payload.has_pets ?? false,
         room_reductions: payload.room_reductions ?? null,
+        is_arrival_window: payload.is_arrival_window ?? false,
+        arrival_window_start: payload.arrival_window_start ?? null,
+        arrival_window_end: payload.arrival_window_end ?? null,
         status: 'pending',
         payment_status: 'pending',
       })
