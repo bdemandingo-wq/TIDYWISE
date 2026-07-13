@@ -198,8 +198,8 @@ export function SubscriptionBanner() {
     },
     trialing: {
       Icon: Clock,
-      tone: 'border-amber-300/40 bg-amber-50 dark:bg-amber-950/20',
-      iconWrap: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+      tone: 'border-warning/30 bg-warning/5',
+      iconWrap: 'bg-warning/10 text-warning',
       title: planLabel ? `${planLabel} plan — trial` : 'Trial active',
       subtitle: trialEndDate
         ? `Trial ends on ${trialEndDate}`

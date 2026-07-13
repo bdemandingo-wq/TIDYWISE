@@ -88,9 +88,9 @@ export function BenchmarkInsightsPanel({ organizationId, cohort, myMetrics, peer
               <Badge
                 variant="secondary"
                 className={cn(
-                  ins.severity === 'warning' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-                  ins.severity === 'opportunity' && 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                  ins.severity === 'good' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+                  ins.severity === 'warning' && 'bg-warning/10 text-warning',
+                  ins.severity === 'opportunity' && 'bg-info/10 text-info',
+                  ins.severity === 'good' && 'bg-success/10 text-success',
                 )}
               >
                 {ins.severity}

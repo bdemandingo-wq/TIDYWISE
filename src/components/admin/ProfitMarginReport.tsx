@@ -173,17 +173,17 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
   }, [profitData]);
 
   const getMarginColor = (margin: number) => {
-    if (margin >= 50) return 'text-emerald-600 dark:text-emerald-400';
-    if (margin >= 30) return 'text-blue-600 dark:text-blue-400';
-    if (margin >= 15) return 'text-amber-600 dark:text-amber-400';
-    return 'text-rose-600 dark:text-rose-400';
+    if (margin >= 50) return 'text-success';
+    if (margin >= 30) return 'text-info';
+    if (margin >= 15) return 'text-warning';
+    return 'text-destructive';
   };
 
   const getMarginBadge = (margin: number) => {
-    if (margin >= 50) return { label: 'Excellent', variant: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' };
-    if (margin >= 30) return { label: 'Good', variant: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' };
-    if (margin >= 15) return { label: 'Fair', variant: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' };
-    return { label: 'Low', variant: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' };
+    if (margin >= 50) return { label: 'Excellent', variant: 'bg-success/10 text-success' };
+    if (margin >= 30) return { label: 'Good', variant: 'bg-info/10 text-info' };
+    if (margin >= 15) return { label: 'Fair', variant: 'bg-warning/10 text-warning' };
+    return { label: 'Low', variant: 'bg-destructive/10 text-destructive' };
   };
 
   const exportToCSV = () => {
@@ -258,8 +258,8 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(summaryStats.totalRevenue)}`}</p>
               </div>
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2 rounded-lg bg-success/10">
+                <DollarSign className="w-5 h-5 text-success" />
               </div>
             </div>
           </CardContent>
@@ -272,8 +272,8 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
                 <p className="text-sm text-muted-foreground">Total Cleaner Pay</p>
                 <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(summaryStats.totalCleanerPay)}`}</p>
               </div>
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-info/10">
+                <DollarSign className="w-5 h-5 text-info" />
               </div>
             </div>
           </CardContent>
@@ -302,8 +302,8 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
                   {summaryStats.avgMargin.toFixed(1)}%
                 </p>
               </div>
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Percent className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2 rounded-lg bg-warning/10">
+                <Percent className="w-5 h-5 text-warning" />
               </div>
             </div>
           </CardContent>
@@ -313,10 +313,10 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
       {/* Most/Least Profitable */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {summaryStats.mostProfitable && (
-          <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-emerald-900/10">
+          <Card className="border-success/20 bg-gradient-to-br from-success/5 to-transparent">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <TrendingUp className="w-4 h-4 text-success" />
                 Most Profitable Job
               </CardTitle>
             </CardHeader>
@@ -324,7 +324,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
               <p className="font-semibold">{summaryStats.mostProfitable.serviceName}</p>
               <p className="text-sm text-muted-foreground">{maskName(summaryStats.mostProfitable.customerName)}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-lg font-bold text-emerald-600">{isTestMode ? 'XX.X%' : `${summaryStats.mostProfitable.marginPercent.toFixed(1)}%`}</span>
+                <span className="text-lg font-bold text-success">{isTestMode ? 'XX.X%' : `${summaryStats.mostProfitable.marginPercent.toFixed(1)}%`}</span>
                 <span className="text-sm text-muted-foreground">margin</span>
                 <span className="text-sm text-foreground">{maskAmount(summaryStats.mostProfitable.profit)}</span>
               </div>
@@ -333,10 +333,10 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
         )}
         
         {summaryStats.leastProfitable && summaryStats.totalJobs > 1 && (
-          <Card className="border-rose-200 dark:border-rose-800 bg-gradient-to-br from-rose-50/50 to-transparent dark:from-rose-900/10">
+          <Card className="border-destructive/20 bg-gradient-to-br from-destructive/5 to-transparent">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingDown className="w-4 h-4 text-rose-600" />
+                <TrendingDown className="w-4 h-4 text-destructive" />
                 Least Profitable Job
               </CardTitle>
             </CardHeader>
@@ -344,7 +344,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
               <p className="font-semibold">{summaryStats.leastProfitable.serviceName}</p>
               <p className="text-sm text-muted-foreground">{maskName(summaryStats.leastProfitable.customerName)}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="text-lg font-bold text-rose-600">{isTestMode ? 'XX.X%' : `${summaryStats.leastProfitable.marginPercent.toFixed(1)}%`}</span>
+                <span className="text-lg font-bold text-destructive">{isTestMode ? 'XX.X%' : `${summaryStats.leastProfitable.marginPercent.toFixed(1)}%`}</span>
                 <span className="text-sm text-muted-foreground">margin</span>
                 <span className="text-sm text-foreground">{maskAmount(summaryStats.leastProfitable.profit)}</span>
               </div>

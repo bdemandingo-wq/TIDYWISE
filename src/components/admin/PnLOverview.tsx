@@ -736,10 +736,10 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
   };
   
   const statusColors = {
-    'ahead': 'bg-green-500/20 text-green-700 dark:text-green-400',
-    'on-track': 'bg-green-500/20 text-green-700 dark:text-green-400',
-    'at-risk': 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400',
-    'behind': 'bg-red-500/20 text-red-700 dark:text-red-400',
+    'ahead': 'bg-success/20 text-success',
+    'on-track': 'bg-success/20 text-success',
+    'at-risk': 'bg-warning/20 text-warning',
+    'behind': 'bg-destructive/20 text-destructive',
   };
   
   const statusIcons = {
@@ -1041,7 +1041,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                   </TableRow>
                   <TableRow className="bg-muted/50 border-t-2">
                     <TableCell className="font-bold">Net Profit ({summaryData.periodLabel})</TableCell>
-                    <TableCell className={`text-right font-bold ${summaryData.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <TableCell className={`text-right font-bold ${summaryData.netProfit >= 0 ? 'text-success' : 'text-destructive'}`}>
                       ${summaryData.netProfit.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right font-medium">
@@ -1364,7 +1364,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
             <Card>
               <CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Planned Spend</p>
-                <p className={`text-2xl font-bold ${totalMarketingSpend <= totalMarketingBudget ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-2xl font-bold ${totalMarketingSpend <= totalMarketingBudget ? 'text-success' : 'text-destructive'}`}>
                   ${totalMarketingSpend.toLocaleString()}
                 </p>
                 <Badge className={statusColors[getStatus(totalMarketingBudget, totalMarketingSpend, false)]}>

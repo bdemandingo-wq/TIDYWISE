@@ -69,8 +69,8 @@ export function BenchmarkHeadlineCard({
               direction === 'flat'
                 ? 'bg-muted text-muted-foreground'
                 : good
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
-                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+                ? 'bg-success/10 text-success'
+                : 'bg-warning/10 text-warning',
             )}
           >
             <Icon className="h-3 w-3" />
