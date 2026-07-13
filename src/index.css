@@ -1202,6 +1202,18 @@ body {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
 }
 
+/* Compact density — for dense surfaces like Scheduler.
+   Tightens card padding + font while preserving 44px min tap targets
+   on interactive controls (buttons, tabs, [role="button"]). */
+.portal-v2.pv-compact [data-slot="card"] > * { padding: 12px; }
+.portal-v2.pv-compact { font-size: 13px; }
+.portal-v2.pv-compact button,
+.portal-v2.pv-compact [role="tab"],
+.portal-v2.pv-compact [role="button"] {
+  min-height: 44px;
+}
+.portal-v2.pv-compact .h-8 { min-height: 44px; }
+
 /* ─── Density / quiet helpers (visual simplification) ─── */
 
 /* Hero — no card chrome, just breathing space. */
