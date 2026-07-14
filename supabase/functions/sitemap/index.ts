@@ -86,6 +86,51 @@ Deno.serve(async (req) => {
       // locations table may not have slug column — skip silently
     }
 
+    // Static compare pages
+    const compareCompetitors = [
+      "jobber",
+      "housecall-pro",
+      "zenmaid",
+      "booking-koala",
+      "launch27",
+      "servicetitan",
+    ];
+    for (const c of compareCompetitors) {
+      urls.push(urlNode(`${SITE_URL}/compare/${c}`, undefined, "monthly", 0.8));
+    }
+
+    // Programmatic compare-by-niche pages (6 x 6 = 36)
+    const compareNiches = [
+      "airbnb-cleaners",
+      "solo-cleaners",
+      "commercial-cleaning",
+      "move-out-cleaning",
+      "maid-services",
+      "carpet-cleaning",
+    ];
+    for (const c of compareCompetitors) {
+      for (const n of compareNiches) {
+        urls.push(urlNode(`${SITE_URL}/compare/${c}/for/${n}`, undefined, "monthly", 0.7));
+      }
+    }
+
+    // Score company pages
+    try {
+      const { data: companies } = await supabase
+        .from("score_companies")
+        .select("slug, last_scored_at, updated_at")
+        .not("slug", "is", null)
+        .limit(5000);
+      for (const c of (companies ?? []) as Array<{ slug: string; last_scored_at?: string; updated_at?: string }>) {
+        if (!c.slug) continue;
+        const lastmod = (c.last_scored_at || c.updated_at)?.split("T")[0];
+        urls.push(urlNode(`${SITE_URL}/score/c/${c.slug}`, lastmod, "weekly", 0.6));
+      }
+    } catch (_e) {
+      // score_companies table may not exist — skip silently
+    }
+
+
     const xml =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
