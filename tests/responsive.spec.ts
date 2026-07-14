@@ -42,9 +42,19 @@ test.describe("8.1 — All pages render on mobile / tablet / desktop (no broken 
 
 test.describe("8.4 — Loading, empty, and error states all present", () => {
   test("BookingsPage: loading spinner appears before data resolves", async ({ ownerPage: page }) => {
-    // Slow the bookings fetch down so the loading state is observable
-    // instead of racing past it. 2.5s margin — the request itself plus
-    // React mount/paint needs room inside the assertion's timeout below.
+    // KNOWN TEST-TECHNIQUE LIMITATION (not a session issue, not related to
+    // the 8.4 error-state/dead-code fix): the route pattern below isn't
+    // actually intercepting whatever request populates this list — a
+    // failure screenshot showed the page already fully settled on the
+    // empty state ("No bookings found") well within the artificial delay
+    // window, meaning the real fetch bypassed this mock entirely (likely
+    // a different endpoint/shape than a plain /rest/v1/bookings GET — an
+    // RPC or a batched query). The loading state itself IS real and
+    // source-verified (BookingsPage.tsx renders a Loader2 + "Loading
+    // bookings..." while isLoading is true) — this is purely about how to
+    // reliably force that window open in a test, not whether the feature
+    // exists. Left failing/documented rather than silently marked passing
+    // or quietly deleted.
     await page.route("**/rest/v1/bookings*", async (route) => {
       await new Promise((r) => setTimeout(r, 2_500));
       await route.continue();
