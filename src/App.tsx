@@ -143,6 +143,7 @@ const BookingSoftware = lazy(() => import("./pages/features/BookingSoftware"));
 const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
 const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
+const CompareNichePage = lazy(() => import("./pages/compare/CompareNichePage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const ChoosePlanPage = lazy(() => import("./pages/ChoosePlanPage"));
 const CheckoutSuccessPage = lazy(() => import("./pages/CheckoutSuccessPage"));
@@ -404,6 +405,7 @@ const App = () => (
                     <Route path="/compare/zenmaid" element={<CompareZenMaid />} />
                     <Route path="/compare/servicetitan" element={<CompareServiceTitan />} />
                     <Route path="/compare/launch27" element={<CompareLaunch27 />} />
+                    <Route path="/compare/:competitorSlug/for/:nicheSlug" element={<CompareNichePage />} />
                     
                     {/* Feature Pages */}
                     <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />
