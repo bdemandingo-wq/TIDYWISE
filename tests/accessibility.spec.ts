@@ -81,6 +81,17 @@ test.describe("9.1 — Service-type & time-slot comboboxes expose accessible nam
 
 test.describe("9.2 — Full keyboard navigation of core flows", () => {
   test("login form is fully operable by keyboard alone", async ({ page }) => {
+    // NOT A BUG (re-investigated 2026-07-14): a single Tab from #password
+    // does NOT land on Sign In — it lands on "Forgot password?" first,
+    // which sits between the password field and the submit button in both
+    // DOM and visual order (LoginPage.tsx). That's correct, accessible tab
+    // order (a real, useful link legitimately in the flow) — the original
+    // version of this test assumed a direct password->submit hop, which
+    // was simply a wrong assumption, not a product defect. Forcibly
+    // excluding a real interactive link from tab order (tabIndex={-1})
+    // would itself be a worse a11y anti-pattern than leaving it as-is.
+    // This test now verifies the form is fully keyboard-operable end to
+    // end without assuming a specific number of hops.
     await page.goto("/login");
     await page.locator("#email").focus();
     await expect(page.locator("#email")).toBeFocused();
@@ -88,21 +99,42 @@ test.describe("9.2 — Full keyboard navigation of core flows", () => {
     await page.keyboard.press("Tab");
     await expect(page.locator("#password")).toBeFocused();
     await page.keyboard.type(OWNER.password);
-    await page.keyboard.press("Tab");
+
+    // Tab forward (up to 3 hops — password -> [forgot-password link] ->
+    // submit, with slack) until Sign In is genuinely reached via keyboard,
+    // proving real reachability rather than assuming a fixed hop count.
     const submit = page.getByRole("button", { name: "Sign In", exact: true });
+    let reached = false;
+    for (let i = 0; i < 3; i++) {
+      await page.keyboard.press("Tab");
+      if (await submit.evaluate((el) => el === document.activeElement)) {
+        reached = true;
+        break;
+      }
+    }
+    expect(reached, "Sign In button was not reachable via Tab within 3 hops from #password").toBe(true);
     await expect(submit).toBeFocused();
     await page.keyboard.press("Enter");
     await page.waitForURL("**/dashboard**", { timeout: 20_000 });
   });
 
   test("pricing page: billing-interval radios are operable with arrow keys", async ({ page }) => {
+    // FIXED 2026-07-14: was two independently-tabbable buttons with no
+    // roving tabindex and no arrow-key handler at all — ArrowRight simply
+    // did nothing. Now implements the WAI-ARIA radiogroup pattern: arrow
+    // keys move both focus and selection, and only the checked option is
+    // in the tab order (tabIndex=0), matching real radiogroup semantics.
     await page.goto("/pricing");
     const monthly = page.getByRole("radio", { name: "Monthly", exact: true });
+    const yearly = page.getByRole("radio", { name: /Yearly billing/i });
     await monthly.focus();
     await expect(monthly).toBeFocused();
     await page.keyboard.press("ArrowRight");
-    const yearly = page.getByRole("radio", { name: /Yearly billing/i });
     await expect(yearly).toHaveAttribute("aria-checked", "true");
+    await expect(yearly).toBeFocused();
+    // Roving tabindex: only the checked radio should be in the tab order.
+    await expect(yearly).toHaveAttribute("tabindex", "0");
+    await expect(monthly).toHaveAttribute("tabindex", "-1");
   });
 });
 
@@ -131,6 +163,37 @@ test.describe("9.3 — Focus management on modals/popovers", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible({ timeout: 5_000 });
     await expect(trigger, "focus should return to the trigger button after the dialog closes").toBeFocused();
+  });
+
+  test("New Booking dialog: closes on Escape even with focus inside the nested customer-search field", async ({
+    ownerPage: page,
+  }) => {
+    // FIXED 2026-07-14: AddBookingDialog.tsx had onEscapeKeyDown={(e) =>
+    // e.preventDefault()}, disabling Escape-to-close entirely — confirmed
+    // live it didn't close on repeated Escape presses from ANY focus
+    // position, not specifically because of this nested field. Removed
+    // (see AddBookingDialog.tsx for the full reasoning — the tap-outside
+    // protection it was bundled with stays intact). This test targets the
+    // specific scenario originally reported: focus inside the nested
+    // CustomerSearchInput, which has its own Escape handler (closes its
+    // dropdown) — Escape must still propagate up and close the dialog too.
+    await page.goto("/dashboard/bookings");
+    await page.getByPlaceholder("Search by name, service, or booking #...").fill(`no-such-booking-${Date.now()}`);
+    const trigger = page.getByRole("button", { name: "Create Booking", exact: true });
+    await expect(trigger).toBeVisible({ timeout: 10_000 });
+    await trigger.click();
+
+    const dialog = page.getByRole("dialog").filter({ hasText: "New Booking" });
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole("tab", { name: "Existing Customer" }).click();
+    const searchInput = page.getByPlaceholder(/search customers/i);
+    await searchInput.click();
+    await searchInput.type("a");
+    await expect(searchInput).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible({ timeout: 5_000 });
   });
 
   test("Loyalty 'Add Bonus Points' popup: KNOWN GAP — hand-rolled overlay has no focus trap", async ({
