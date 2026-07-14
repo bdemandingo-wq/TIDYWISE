@@ -6,7 +6,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarIcon, Clock, Users, X, UserPlus, DollarSign, AlertCircle, CheckCircle, MapPin, Car } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useBookingForm } from '../BookingFormContext';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,8 @@ import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
 import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
 import { useOrgId } from '@/hooks/useOrgId';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { getDateInTimezone } from '@/lib/timezoneUtils';
 
 type Coordinates = { lat: number; lng: number };
 
@@ -94,9 +96,39 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   const isArrivalWindow = schedulingConfig?.mode === 'arrival_window';
   const enabledWindows = (schedulingConfig?.windows ?? []).filter((w) => w.enabled);
 
+  // Business rule: no same-day or next-day bookings from the admin form.
+  // `day` here is react-day-picker's own calendar-day Date (midnight
+  // local, same convention selectedDateTimeToUTCISO already treats as the
+  // "intended" org-local date elsewhere in this form) — compare its own
+  // Y/M/D directly against "today"/"tomorrow" as they currently are in the
+  // ORG's timezone, not the browser's, so this doesn't drift for staff
+  // traveling or an org based in a different timezone than the browser.
+  const orgTimezone = useOrgTimezone();
+  const isWithinBookingBlackout = useCallback(
+    (day: Date) => {
+      const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      const todayStr = getDateInTimezone(new Date(), orgTimezone);
+      const tomorrowStr = getDateInTimezone(addDays(new Date(), 1), orgTimezone);
+      return dayStr === todayStr || dayStr === tomorrowStr;
+    },
+    [orgTimezone],
+  );
+
   // State for job location coordinates (geocoded from address)
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   const [isGeocodingJob, setIsGeocodingJob] = useState(false);
+
+  // The date popover needs to be a controlled Dialog so it can be closed
+  // programmatically once a day is picked (Calendar's onSelect alone
+  // doesn't close it — that's the 3.6 gap).
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const handleDateSelect = useCallback(
+    (day: Date | undefined) => {
+      setSelectedDate(day);
+      setIsDatePickerOpen(false);
+    },
+    [setSelectedDate],
+  );
 
   // Geocode the job address when it changes - with cache, retry, and fallback queries
   useEffect(() => {
@@ -384,7 +416,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
               <Label className="text-sm font-medium">Select Date *</Label>
             </div>
-            <Popover>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -401,7 +433,8 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={handleDateSelect}
+                  disabled={isWithinBookingBlackout}
                   initialFocus
                   className="pointer-events-auto"
                 />

@@ -171,25 +171,44 @@ test.describe("3.2 — Edit booking updates all fields", () => {
     await expect(page.getByRole("heading", { name: "Edit Booking", exact: true })).toBeVisible({ timeout: 10_000 });
 
     // Reopen the date picker and pick a different day than whatever is set.
-    await page.getByRole("button", { name: /Pick a date|[A-Z][a-z]+day,/ }).first().click();
+    // While editing, PaymentStep.tsx's debounced cleaner-pay autosave
+    // (autosavePayToDb, 500ms) can trigger a re-render that remounts the
+    // day-cell buttons mid-click, detaching Playwright's click target —
+    // retry a few times, re-opening the popover fresh each attempt, since
+    // this is orthogonal to what 3.2 is actually testing.
+    const dateTrigger = page.getByRole("button", { name: /Pick a date|[A-Z][a-z]+day,/ }).first();
     const dayCells = page.locator('button[name="day"]:not([disabled])');
-    await expect(dayCells.first()).toBeVisible({ timeout: 5_000 });
-    await dayCells.last().click();
+    let dateSelected = false;
+    for (let attempt = 0; attempt < 4 && !dateSelected; attempt++) {
+      await dateTrigger.click();
+      await expect(dayCells.first()).toBeVisible({ timeout: 5_000 });
+      try {
+        await dayCells.last().click({ timeout: 5_000 });
+        dateSelected = true;
+      } catch {
+        // popover likely closed mid-click from an unrelated re-render — retry
+      }
+    }
+    expect(dateSelected, "could not select a new date after 4 attempts (day cells kept detaching)").toBe(true);
     await page.keyboard.press("Escape"); // popover doesn't auto-close on select (3.6)
 
     const updateBtn = page.getByRole("button", { name: "Update Booking", exact: true });
     await expect(updateBtn).toBeEnabled();
-    // Scope the response matcher to THIS booking's id — a broad "any
-    // PATCH to /rest/v1/bookings" matcher can false-positive on an
-    // unrelated background PATCH (e.g. a realtime/view-tracking update)
-    // that resolves before the real Update Booking submission does,
-    // making the test check dialog-closed prematurely.
+    // Scope the response matcher to THIS booking's id AND require a 200
+    // (not 204). PaymentStep.tsx also runs a legitimate, unrelated
+    // debounced autosave for cleaner pay while editing
+    // (autosavePayToDb) that PATCHes this same booking id without
+    // .select(), returning 204 No Content — it can race the real "Update
+    // Booking" submission's PATCH (which uses .select().single() and
+    // always returns 200 + the row). Matching on id/method alone
+    // sometimes caught the autosave's 204 instead of the real update.
     const [response] = await Promise.all([
       page.waitForResponse(
         (res) =>
           res.url().includes("/rest/v1/bookings") &&
           res.url().includes(id) &&
-          res.request().method() === "PATCH",
+          res.request().method() === "PATCH" &&
+          res.status() === 200,
         { timeout: 15_000 },
       ),
       updateBtn.click(),
@@ -272,14 +291,12 @@ test.describe("3.6 — Date-picker popover closes after selection", () => {
     await expect(dayCells.first()).toBeVisible({ timeout: 5_000 });
     await dayCells.first().click();
 
-    // KNOWN BUG (verified in source, src/components/admin/booking-form/steps/ScheduleStep.tsx):
-    // the Calendar's onSelect only calls setSelectedDate — nothing closes
-    // the popover. Expected result per checklist ("Popover dismisses, no
-    // overlap bug") currently does NOT hold; this assertion documents the
-    // real behavior so a future fix flips this test green without edits.
+    // FIXED 2026-07-14: ScheduleStep.tsx's date Popover is now controlled
+    // (isDatePickerOpen) and closes on selection via handleDateSelect,
+    // instead of relying on Calendar's onSelect alone (which only updated
+    // form state and never closed anything).
     const popover = page.getByRole("dialog").filter({ hasText: /^(Su|Mo|Tu|We|Th|Fr|Sa)/ }).first();
-    const stillOpen = await popover.isVisible().catch(() => false);
-    expect(stillOpen, "Calendar popover does not auto-close on date select (known gap — see ScheduleStep.tsx onSelect)").toBe(true);
+    await expect(popover, "calendar popover should close after picking a date").not.toBeVisible({ timeout: 5_000 });
   });
 });
 
@@ -291,17 +308,27 @@ test.describe("3.9 — No same-day / next-day booking allowed (business rule)", 
     await pickFirstService(page);
     await page.getByRole("button", { name: "Pick a date", exact: false }).click();
 
-    // FINDING (verified in source): ScheduleStep.tsx's <Calendar> has NO
-    // `disabled` prop at all — today and every future date are selectable.
-    // The only same-day restriction in the codebase is a TIME-SLOT filter
-    // (business_settings.minimum_notice_hours, enforced in
-    // check-availability/index.ts) that hides today's slots once they're
-    // within the notice window — it does not disable date CELLS, and has
-    // no "next-day" component at all. This test asserts the checklist's
-    // stated expected result ("Those dates disabled in picker") and will
-    // currently FAIL, correctly surfacing that this business rule is not
-    // implemented as described — not a flaky or fake-passing test.
+    // FIXED 2026-07-14: ScheduleStep.tsx's <Calendar> now takes a
+    // `disabled={isWithinBookingBlackout}` prop that blocks today and
+    // tomorrow (computed in the org's own timezone, not the browser's).
+    // Also confirms the day after tomorrow is NOT over-blocked.
     const todayCell = page.locator('button[name="day"][aria-current="date"]');
-    await expect(todayCell, "today's date cell should be disabled per checklist 3.9 — currently is NOT (no disabled prop in ScheduleStep.tsx Calendar)").toBeDisabled();
+    await expect(todayCell, "today's date cell should be disabled per checklist 3.9").toBeDisabled({ timeout: 10_000 });
+
+    // Locate tomorrow as the next day cell after today's in DOM order
+    // (chronological within the visible month grid) rather than relying on
+    // exact aria-label date-string formatting.
+    const allDayCells = page.locator('button[name="day"]');
+    const cellCount = await allDayCells.count();
+    let todayIndex = -1;
+    for (let i = 0; i < cellCount; i++) {
+      if ((await allDayCells.nth(i).getAttribute("aria-current")) === "date") {
+        todayIndex = i;
+        break;
+      }
+    }
+    expect(todayIndex, "could not locate today's cell in the calendar grid").toBeGreaterThanOrEqual(0);
+    await expect(allDayCells.nth(todayIndex + 1), "tomorrow's date cell should also be disabled per checklist 3.9").toBeDisabled();
+    await expect(allDayCells.nth(todayIndex + 2), "the day after tomorrow should be selectable, not over-blocked").toBeEnabled();
   });
 });
