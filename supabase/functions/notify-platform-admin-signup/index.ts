@@ -3,8 +3,22 @@
 // Previously sent SMS via OpenPhone to two platform admin phone numbers.
 // SMS removed for cost control — now sends a single email to
 // support@tidywisecleaning.com (the platform admin inbox) via Resend.
-
+//
+// SECURITY (2026-07-14): previously trusted email/fullName/phone entirely
+// from the request body with no caller-identity check — anyone could spam
+// support@'s inbox with an officially-formatted "new signup" email
+// carrying an attacker-controlled reply_to and free-text name/phone,
+// impersonating a lead. Both call sites (SignupPage.tsx right after
+// signUp() succeeds, OnboardingPage.tsx during onboarding) always have a
+// live Supabase session by the time they call this — signup on this app
+// auto-establishes a session with no email-confirmation gate — so this
+// now requires a valid JWT and derives email/fullName from the caller's
+// own auth record instead of trusting the body for those two fields.
+// phone/signupMethod stay body-supplied (low-risk free-text metadata in
+// an internal notification email, not identity-bearing).
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { checkAndRecord, getClientIp } from "../_shared/rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,8 +28,6 @@ const corsHeaders = {
 const ADMIN_EMAIL = "support@tidywisecleaning.com";
 
 interface NotifySignupRequest {
-  email: string;
-  fullName?: string;
   phone?: string;
   signupMethod?: string; // 'email' | 'google'
 }
@@ -39,13 +51,43 @@ serve(async (req) => {
       );
     }
 
-    const { email, fullName, phone, signupMethod } = (await req.json()) as NotifySignupRequest;
-    if (!email) {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ success: false, error: "Email is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const { data: userData, error: userError } = await supabase.auth.getUser(
+      authHeader.slice("Bearer ".length).trim(),
+    );
+    if (userError || !userData?.user?.email) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const email = userData.user.email;
+    const fullName = (userData.user.user_metadata as Record<string, unknown> | null)?.full_name as string | undefined
+      ?? (userData.user.user_metadata as Record<string, unknown> | null)?.name as string | undefined;
+
+    // Defense in depth even though this is now caller-identified — caps
+    // how many admin-notification emails one account can trigger.
+    const rateLimit = await checkAndRecord(supabase, "notify_platform_admin_signup",
+      `user:${userData.user.id}|ip:${getClientIp(req)}`, { maxPerWindow: 5, windowSeconds: 3600 });
+    if (rateLimit.blocked) {
+      return new Response(
+        JSON.stringify({ success: true, skipped: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { phone, signupMethod } = (await req.json()) as NotifySignupRequest;
 
     const timestamp = new Date().toLocaleString("en-US", {
       timeZone: "America/New_York",
