@@ -10300,6 +10300,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_stripe_secret_key: {
+        Args: { _organization_id: string }
+        Returns: boolean
+      }
       hash_client_portal_password: {
         Args: { p_password: string }
         Returns: string
