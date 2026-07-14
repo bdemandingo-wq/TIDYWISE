@@ -22,7 +22,10 @@ export async function signInStaff(email: string, password: string) {
 
   const allowed = await hasStaffOrAdminRole(authData.user.id);
   if (!allowed) {
-    await supabase.auth.signOut();
+    // scope: 'local' — this just undoes the sign-in that was just attempted
+    // on this device; not a "sign out everywhere" action. See
+    // useAuthNoSession.tsx's signOut() for the fuller rationale.
+    await supabase.auth.signOut({ scope: "local" });
     throw new Error("You do not have access to the staff portal. Please contact your administrator.");
   }
 
