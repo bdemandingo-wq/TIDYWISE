@@ -39,3 +39,7 @@ supabase/.temp/
 # Not committed because we ship iOS-first; regenerate when an Android
 # build is actually needed.
 android/
+
+# Playwright output
+/test-results/
+/playwright-report/
