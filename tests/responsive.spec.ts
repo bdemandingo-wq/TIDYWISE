@@ -53,33 +53,29 @@ test.describe("8.4 — Loading, empty, and error states all present", () => {
     await expect(page.getByText("Loading bookings...")).toBeVisible({ timeout: 8_000 });
   });
 
-  test("BookingsPage: error state — KNOWN GAP: the intended Retry button is unreachable dead code", async ({
+  test("BookingsPage: error state renders the full UI (heading + working Retry) on a failed fetch", async ({
     ownerPage: page,
   }) => {
-    // Source-verified (BookingsPage.tsx): there are TWO different
-    // error-handling code paths for the same `error` value. An early
-    // `if (error) return (...)` near the top of the component (~line
-    // 1633) renders a bare "Failed to load bookings. Please try again."
-    // message with NO retry action, and unconditionally returns —
-    // meaning the SEPARATE, more complete error UI further down in the
-    // main render (~line 1887: heading + "Retry" button wired to
-    // queryClient.invalidateQueries) can never execute, since the early
-    // return already exited the function whenever `error` is truthy.
-    // The Retry button is real, intentional code — just permanently
-    // unreachable. This test documents the ACTUAL rendered state rather
-    // than the unreachable one it currently can't be blamed for missing.
+    // FIXED 2026-07-14 (pushed, pending Lovable redeploy as of this
+    // writing): BookingsPage.tsx used to have an early `if (error) return
+    // (...)` near the top of the component that rendered a bare "Failed
+    // to load bookings. Please try again." message with no recovery
+    // action, and unconditionally returned — making the fuller error UI
+    // further down (heading + "Retry" button wired to
+    // queryClient.invalidateQueries) permanently unreachable dead code.
+    // The early return was removed. Until the redeploy lands, this test
+    // will correctly show the OLD bare-message behavior as a failure —
+    // that's the honest signal, not a flake.
     await page.route("**/rest/v1/bookings*", (route) =>
       route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "simulated failure" }) }),
     );
     await page.goto("/dashboard/bookings");
-    await expect(page.getByText("Failed to load bookings. Please try again.", { exact: true })).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Failed to load bookings", exact: true })).toBeVisible({
       timeout: 15_000, // React Query's default retry+backoff runs before `error` settles
     });
     const retryButton = page.getByRole("button", { name: "Retry", exact: true });
-    expect(
-      await retryButton.isVisible().catch(() => false),
-      "the Retry button IS reachable now — the dead-code early-return bug in BookingsPage.tsx appears to be fixed; update this test to assert the full error UI (heading + Retry) instead",
-    ).toBe(false);
+    await expect(retryButton).toBeVisible();
+    await expect(retryButton).toBeEnabled();
   });
 
   test("BookingsPage: empty state renders when the org has no bookings", async ({ ownerPage: page }) => {

@@ -116,7 +116,6 @@ import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
 import { CancelBookingDialog, type CancellationCategory } from '@/components/admin/CancelBookingDialog';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
-import { SEOHead } from '@/components/SEOHead';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -1630,16 +1629,14 @@ export default function BookingsPage() {
     }
   };
 
-  if (error) {
-    return (
-      <AdminLayout title="Bookings" subtitle="Error loading bookings">
-      <SEOHead title="Bookings | TidyWise" description="Manage all your cleaning bookings in one place" noIndex />
-        <div className="flex items-center justify-center h-64">
-          <p className="text-destructive">Failed to load bookings. Please try again.</p>
-        </div>
-      </AdminLayout>
-    );
-  }
+  // NOTE: there used to be an early `if (error) return (...)` here showing
+  // a bare "Failed to load bookings" message with no way to recover. It
+  // unconditionally pre-empted the fuller error state below (heading +
+  // Retry button, wired to queryClient.invalidateQueries), making that
+  // Retry button permanently unreachable dead code. Removed so the real
+  // error UI (rendered inside the tab content below) actually gets a
+  // chance to run, and so the rest of the page (tabs, stats) doesn't go
+  // fully blank on a fetch error.
 
   return (
     <AdminLayout
