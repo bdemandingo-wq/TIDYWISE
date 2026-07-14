@@ -312,7 +312,17 @@ test.describe("3.9 — No same-day / next-day booking allowed (business rule)", 
     // `disabled={isWithinBookingBlackout}` prop that blocks today and
     // tomorrow (computed in the org's own timezone, not the browser's).
     // Also confirms the day after tomorrow is NOT over-blocked.
-    const todayCell = page.locator('button[name="day"][aria-current="date"]');
+    //
+    // NOTE: this Calendar (src/components/ui/calendar.tsx) never actually
+    // sets aria-current="date" on today's cell — that was a wrong
+    // assumption baked into this test from the very first (pre-fix) run,
+    // where the locator's "element(s) not found" error was misread as
+    // confirming the missing `disabled` prop rather than also being a
+    // bad selector. Live DOM inspection confirmed today's cell is
+    // reliably identifiable via the day_today modifier class
+    // ("bg-accent"), which is unique to it (tomorrow's cell has neither
+    // bg-accent nor aria-current).
+    const todayCell = page.locator('button[name="day"].bg-accent');
     await expect(todayCell, "today's date cell should be disabled per checklist 3.9").toBeDisabled({ timeout: 10_000 });
 
     // Locate tomorrow as the next day cell after today's in DOM order
@@ -322,7 +332,7 @@ test.describe("3.9 — No same-day / next-day booking allowed (business rule)", 
     const cellCount = await allDayCells.count();
     let todayIndex = -1;
     for (let i = 0; i < cellCount; i++) {
-      if ((await allDayCells.nth(i).getAttribute("aria-current")) === "date") {
+      if ((await allDayCells.nth(i).evaluate((el) => el.classList.contains("bg-accent")))) {
         todayIndex = i;
         break;
       }
