@@ -301,33 +301,37 @@ test.describe("3.6 — Date-picker popover closes after selection", () => {
 });
 
 test.describe("3.9 — No same-day / next-day booking allowed (business rule)", () => {
-  test("admin New Booking date-picker disables today and tomorrow", async ({ ownerPage: page }) => {
+  test("admin New Booking date-picker: this org is NOT restricted (rule is TidyWise-only, not universal)", async ({ ownerPage: page }) => {
     test.skip(!orgHasCustomers, "org unexpectedly has 0 customers again — see file header for how this was unblocked");
 
+    // HISTORY: originally implemented as a universal rule (2026-07-14,
+    // first pass) — ScheduleStep.tsx's <Calendar> disabled today/tomorrow
+    // for every org, and a matching DB trigger (enforce_booking_notice_period)
+    // rejected same-day/next-day INSERT/UPDATE for every org. That broke
+    // same-day/next-day booking for 81 other paying orgs on the platform
+    // who never opted into TidyWise Cleaning's own business rule — confirmed
+    // via a live blast-radius query. Scoped down the same day (both the
+    // client Calendar's isWithinBookingBlackout and the DB trigger) to
+    // TidyWise Cleaning's own org (e95b92d0-7099-408e-a773-e4407b34f8b4)
+    // only. This QA org (0f329006-...) is NOT that org, so it now stands
+    // in for "any other tenant" and should see NO restriction — this test
+    // asserts that, i.e. that the scoping fix actually took effect and
+    // this org isn't collateral damage anymore.
+    //
+    // A real per-org opt-in (business_settings.minimum_notice_hours, plus
+    // the Settings UI for it, which doesn't exist yet) is tracked as
+    // separate follow-up work. Verifying TidyWise Cleaning's own org
+    // still HAS the restriction isn't covered by this suite — it would
+    // need credentials for that org, which aren't part of this QA harness.
     await openNewBookingDialog(page);
     await pickFirstService(page);
     await page.getByRole("button", { name: "Pick a date", exact: false }).click();
 
-    // FIXED 2026-07-14: ScheduleStep.tsx's <Calendar> now takes a
-    // `disabled={isWithinBookingBlackout}` prop that blocks today and
-    // tomorrow (computed in the org's own timezone, not the browser's).
-    // Also confirms the day after tomorrow is NOT over-blocked.
-    //
-    // NOTE: this Calendar (src/components/ui/calendar.tsx) never actually
-    // sets aria-current="date" on today's cell — that was a wrong
-    // assumption baked into this test from the very first (pre-fix) run,
-    // where the locator's "element(s) not found" error was misread as
-    // confirming the missing `disabled` prop rather than also being a
-    // bad selector. Live DOM inspection confirmed today's cell is
-    // reliably identifiable via the day_today modifier class
-    // ("bg-accent"), which is unique to it (tomorrow's cell has neither
-    // bg-accent nor aria-current).
+    // "today" is identified via the day_today modifier class (bg-accent) —
+    // this Calendar never sets aria-current="date" on it.
     const todayCell = page.locator('button[name="day"].bg-accent');
-    await expect(todayCell, "today's date cell should be disabled per checklist 3.9").toBeDisabled({ timeout: 10_000 });
+    await expect(todayCell, "today's date cell should be selectable for a non-TidyWise org").toBeEnabled({ timeout: 10_000 });
 
-    // Locate tomorrow as the next day cell after today's in DOM order
-    // (chronological within the visible month grid) rather than relying on
-    // exact aria-label date-string formatting.
     const allDayCells = page.locator('button[name="day"]');
     const cellCount = await allDayCells.count();
     let todayIndex = -1;
@@ -338,7 +342,6 @@ test.describe("3.9 — No same-day / next-day booking allowed (business rule)", 
       }
     }
     expect(todayIndex, "could not locate today's cell in the calendar grid").toBeGreaterThanOrEqual(0);
-    await expect(allDayCells.nth(todayIndex + 1), "tomorrow's date cell should also be disabled per checklist 3.9").toBeDisabled();
-    await expect(allDayCells.nth(todayIndex + 2), "the day after tomorrow should be selectable, not over-blocked").toBeEnabled();
+    await expect(allDayCells.nth(todayIndex + 1), "tomorrow's date cell should also be selectable for a non-TidyWise org").toBeEnabled();
   });
 });
