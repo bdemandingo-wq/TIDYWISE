@@ -15,6 +15,8 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
+import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
+import { useOrgId } from '@/hooks/useOrgId';
 
 type Coordinates = { lat: number; lng: number };
 
@@ -86,6 +88,11 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     state,
     zipCode,
   } = useBookingForm();
+
+  const { organizationId } = useOrgId();
+  const { data: schedulingConfig } = useSchedulingMode(organizationId);
+  const isArrivalWindow = schedulingConfig?.mode === 'arrival_window';
+  const enabledWindows = (schedulingConfig?.windows ?? []).filter((w) => w.enabled);
 
   // State for job location coordinates (geocoded from address)
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
@@ -407,22 +414,52 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-4">
               <Clock className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Select Time *</Label>
+              <Label className="text-sm font-medium">
+                {isArrivalWindow ? 'Select Arrival Window *' : 'Select Time *'}
+              </Label>
             </div>
-            <Select value={selectedTime} onValueChange={setSelectedTime}>
-              <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
-                <SelectValue placeholder="Select time slot">
-                  {selectedTime ? getTimeLabel(selectedTime) : 'Select time slot'}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border max-h-64">
-                {TIME_SLOTS.map((slot) => (
-                  <SelectItem key={slot.value} value={slot.value}>
-                    {slot.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isArrivalWindow ? (
+              enabledWindows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No arrival windows configured. Add them in Settings → Booking Form.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {enabledWindows.map((w) => {
+                    const active = selectedTime === w.start_time;
+                    return (
+                      <Button
+                        key={w.id}
+                        type="button"
+                        variant={active ? 'default' : 'outline'}
+                        className={cn(
+                          'h-12 px-4 justify-center whitespace-nowrap text-sm',
+                          active && 'ring-2 ring-primary/30'
+                        )}
+                        onClick={() => setSelectedTime(w.start_time)}
+                      >
+                        {w.label || formatWindowRange(w)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <Select value={selectedTime} onValueChange={setSelectedTime}>
+                <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
+                  <SelectValue placeholder="Select time slot">
+                    {selectedTime ? getTimeLabel(selectedTime) : 'Select time slot'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border max-h-64">
+                  {TIME_SLOTS.map((slot) => (
+                    <SelectItem key={slot.value} value={slot.value}>
+                      {slot.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </CardContent>
         </Card>
       </div>

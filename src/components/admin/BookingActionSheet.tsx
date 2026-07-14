@@ -17,7 +17,7 @@ import {
   Heart, Banknote, UserPlus, ChevronDown, CheckCircle,
 } from 'lucide-react';
 import { BookingWithDetails } from '@/hooks/useBookings';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 interface BookingActionSheetProps {
   booking: BookingWithDetails | null;
@@ -169,7 +169,9 @@ export function BookingActionSheet({
   sendingReminder, sendingCleanerNotification, notifyingOpenJob,
   sendingReviewRequest, sendingTipRequest,
 }: BookingActionSheetProps) {
-  const { canShowPaymentFlows } = usePlatform();
+  // Payment actions here charge the org's own customers via the org's Stripe for
+  // real-world cleaning services — exempt from Apple IAP, so shown on native too.
+  const canShowPaymentFlows = true;
 
   if (!booking) return null;
 

@@ -108,6 +108,8 @@ export default function PublicBookingPage() {
   const [trackingIds, setTrackingIds] = useState<{ meta_pixel_id: string | null; google_analytics_id: string | null }>({ meta_pixel_id: null, google_analytics_id: null });
   const [recurringDiscountConfig, setRecurringDiscountConfig] =
     useState<RecurringDiscountConfig>(HARDCODED_DEFAULTS);
+  const [schedulingMode, setSchedulingMode] = useState<'specific' | 'arrival_window'>('specific');
+  const [arrivalWindows, setArrivalWindows] = useState<Array<{ id: string; label?: string; start_time: string; end_time: string; sort_order: number; enabled: boolean }>>([]);
   // Per-org pet + exclude-parameters config (from get_public_booking_settings RPC).
   const [petFee, setPetFee] = useState<number>(25);
   const [petToggleEnabled, setPetToggleEnabled] = useState<boolean>(true);
@@ -227,6 +229,20 @@ export default function PublicBookingPage() {
         if (data.room_reduction_prices && typeof data.room_reduction_prices === 'object') {
           setRoomReductionPrices((prev) => ({ ...prev, ...data.room_reduction_prices }));
         }
+        const rawMode = data.scheduling_mode;
+        const mode: 'specific' | 'arrival_window' = rawMode === 'arrival_window' ? 'arrival_window' : 'specific';
+        const windows = Array.isArray(data.arrival_windows)
+          ? (data.arrival_windows as typeof arrivalWindows)
+              .filter((w) => w && typeof w.start_time === 'string' && typeof w.end_time === 'string')
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+          : [];
+        // Fallback: if arrival mode but no enabled windows, stay on specific
+        if (mode === 'arrival_window' && windows.filter((w) => w.enabled).length === 0) {
+          setSchedulingMode('specific');
+        } else {
+          setSchedulingMode(mode);
+        }
+        setArrivalWindows(windows);
       });
   }, [organizationId]);
 
@@ -439,6 +455,18 @@ export default function PublicBookingPage() {
             square_footage: selectedSqFtIndex !== null ? squareFootageRanges[selectedSqFtIndex].label : undefined,
             has_pets: hasPets,
             room_reductions: roomReductions,
+            ...(schedulingMode === 'arrival_window' && selectedTime
+              ? (() => {
+                  const w = arrivalWindows.find((x) => x.enabled && x.start_time === selectedTime);
+                  return w
+                    ? {
+                        is_arrival_window: true,
+                        arrival_window_start: w.start_time,
+                        arrival_window_end: w.end_time,
+                      }
+                    : {};
+                })()
+              : {}),
           },
         });
 
@@ -1104,6 +1132,52 @@ export default function PublicBookingPage() {
                         <Loader2 className="w-5 h-5 animate-spin text-primary" />
                         <span className="text-muted-foreground">Loading availability...</span>
                       </div>
+                    ) : schedulingMode === 'arrival_window' ? (
+                      (() => {
+                        const enabledWindows = arrivalWindows.filter((w) => w.enabled);
+                        if (enabledWindows.length === 0) {
+                          return (
+                            <div className="text-center py-8">
+                              <p className="text-muted-foreground">No arrival windows configured.</p>
+                            </div>
+                          );
+                        }
+                        const toMin = (t: string) => {
+                          const [h, m] = t.split(':').map(Number);
+                          return h * 60 + m;
+                        };
+                        return (
+                          <div className="flex flex-wrap gap-2 max-h-[400px] overflow-y-auto pr-1">
+                            {enabledWindows.map((w) => {
+                              const startMin = toMin(w.start_time);
+                              const endMin = toMin(w.end_time);
+                              const anyAvailable = availableSlots.length === 0
+                                ? true
+                                : availableSlots.some((s) => {
+                                    const sMin = toMin(s.time);
+                                    return s.available && sMin >= startMin && sMin < endMin;
+                                  });
+                              const active = selectedTime === w.start_time;
+                              return (
+                                <Button
+                                  key={w.id}
+                                  variant={active ? 'default' : 'outline'}
+                                  className={cn(
+                                    'h-14 px-4 transition-all duration-200 justify-center text-sm whitespace-nowrap',
+                                    active && 'ring-2 ring-primary/30 shadow-md',
+                                    !anyAvailable && 'opacity-40 cursor-not-allowed line-through'
+                                  )}
+                                  disabled={!anyAvailable}
+                                  onClick={() => setSelectedTime(w.start_time)}
+                                >
+                                  <Clock className="w-4 h-4 mr-2 shrink-0" />
+                                  {w.label || `${formatTime24to12(w.start_time)} - ${formatTime24to12(w.end_time)}`}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
                     ) : availableSlots.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground mb-2">No available time slots for this date.</p>
