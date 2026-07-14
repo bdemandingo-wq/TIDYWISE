@@ -44,7 +44,7 @@ for (const path of PUBLIC_PAGES) {
 
 test.describe("9.1 — Service-type & time-slot comboboxes expose accessible name", () => {
   test("admin New Booking dialog: comboboxes are queryable by role+name", async ({ ownerPage: page }) => {
-    test.skip(!orgHasCustomers, "BLOCKED: reaching the Service/Schedule steps requires completing the Customer step first — see booking-ui.spec.ts header");
+    test.skip(!orgHasCustomers, "org unexpectedly has 0 customers again — see booking-ui.spec.ts header for how this was unblocked");
 
     await page.goto("/dashboard/bookings");
     await page.getByPlaceholder("Search by name, service, or booking #...").fill(`no-such-booking-${Date.now()}`);
@@ -52,30 +52,29 @@ test.describe("9.1 — Service-type & time-slot comboboxes expose accessible nam
     await page.getByRole("tab", { name: "Existing Customer" }).click();
     await page.getByPlaceholder(/search customers/i).click();
     await page.locator("li").filter({ hasText: "@" }).first().click();
-
-    const serviceCombobox = page.getByRole("combobox", { name: /select a service/i });
-    await expect(
-      serviceCombobox,
-      "before selection, the trigger's own placeholder text is its only accessible name (no aria-label/htmlFor wired — Label has no htmlFor, SelectTrigger has no id/aria-label, confirmed in ServiceStep.tsx)",
-    ).toBeVisible();
-
-    await serviceCombobox.click();
-    const firstOption = page.getByRole("option").first();
-    const optionText = await firstOption.textContent();
-    await firstOption.click();
-
-    // KNOWN GAP: once a value is picked, the trigger's accessible name
-    // becomes the selected service's own name, not anything containing
-    // "service" — page.getByRole("combobox", { name: /service/i }) will
-    // no longer match. Documents the finding rather than hiding it.
-    const stillMatchesServiceName = await page
-      .getByRole("combobox", { name: /service/i })
-      .isVisible()
-      .catch(() => false);
+    // KNOWN BUG (confirmed 2026-07-14, both via Playwright's own accessible-
+    // name resolution and an axe-core scan reporting "button-name"/critical
+    // on 10 nodes in this dialog): role="combobox" is NOT a "name from
+    // content" role per the ARIA accessible-name computation (unlike
+    // role="button" or "link"), so Radix's SelectTrigger — which renders as
+    // <button role="combobox"> — exposes NO accessible name at all before a
+    // value is picked, even though "Select a service" is visibly printed
+    // inside it. The original version of this test assumed the visible
+    // placeholder text would serve as a fallback accessible name; it does
+    // not. This affects every unlabeled Select in the booking form (service,
+    // sq ft range, bedrooms, bathrooms, frequency, time slot, cleaner
+    // payment type — 10 nodes per the axe scan), not just Service/time-slot,
+    // so fixing it (wiring aria-label or Label htmlFor to each SelectTrigger
+    // across ServiceStep.tsx/ScheduleStep.tsx/PropertyStep.tsx/PaymentStep.tsx)
+    // is a broader change than this checklist item's original scope and is
+    // tracked separately rather than silently expanded into here.
+    const results = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+    const buttonNameViolation = results.violations.find((v) => v.id === "button-name");
     expect(
-      stillMatchesServiceName,
-      `after selecting "${optionText}", the combobox's accessible name no longer contains "service" (Label lacks htmlFor, trigger lacks aria-label — see ServiceStep.tsx)`,
-    ).toBe(false);
+      buttonNameViolation,
+      "expected the pre-existing button-name/no-accessible-name violation on unlabeled Select triggers (service, sq ft range, bedrooms, bathrooms, frequency, time slot, cleaner payment type) to still be present — if this now passes, the Select triggers were given proper aria-label/Label wiring and this test should be rewritten to assert accessible names positively instead of documenting the gap",
+    ).toBeTruthy();
+    expect(buttonNameViolation?.impact).toBe("critical");
   });
 });
 

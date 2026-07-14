@@ -203,10 +203,21 @@ const App = () => (
         maxAge: 1000 * 60 * 60 * 24,
         dehydrateOptions: {
           // Persist only successful reads; never persist mutations or
-          // huge/ephemeral queries.
+          // huge/ephemeral queries. Also exclude 'service-pricing': its
+          // query data is a Map (see useServicePricing.ts), and Map
+          // instances don't survive a JSON.stringify/parse round-trip —
+          // they rehydrate as plain objects, so a later .get() call
+          // throws "TypeError: [x].get is not a function" wherever
+          // pricing is looked up (New/Edit Booking's Service step,
+          // ServicePricingEditor, ExtrasPricingManager). Confirmed live
+          // 2026-07-14. Excluding it also means pricing is never served
+          // stale from an offline cache, which matters more here than
+          // for bookings/customers since a stale price could mis-charge
+          // a customer.
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
-            !JSON.stringify(q.queryKey).includes('signed'),
+            !JSON.stringify(q.queryKey).includes('signed') &&
+            !JSON.stringify(q.queryKey).includes('service-pricing'),
         },
       }}
     >

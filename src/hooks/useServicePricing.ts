@@ -59,7 +59,11 @@ export function useServicePricing() {
   });
 
   const getServicePricing = useCallback((serviceId: string): ServicePricingData => {
-    const existing = servicePricing.get(serviceId);
+    // servicePricing can be a stale, non-Map plain object if it was
+    // hydrated from an already-corrupted offline cache entry written
+    // before Maps were excluded from persistence (see App.tsx) — guard
+    // rather than crash on .get().
+    const existing = servicePricing instanceof Map ? servicePricing.get(serviceId) : undefined;
     if (existing) return existing;
 
     // Return defaults based on service type from pricingData
@@ -80,8 +84,8 @@ export function useServicePricing() {
     if (!organization?.id) return false;
 
     try {
-      const existing = servicePricing.get(serviceId);
-      
+      const existing = servicePricing instanceof Map ? servicePricing.get(serviceId) : undefined;
+
       const pricingData = {
         organization_id: organization.id,
         service_id: serviceId,
