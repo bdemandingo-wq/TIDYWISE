@@ -497,7 +497,7 @@ export function PaymentStep() {
               <div>
                 <Label className="text-xs text-muted-foreground">Payment Type</Label>
                 <Select value={cleanerWageType} onValueChange={setCleanerWageType}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Cleaner payment type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">

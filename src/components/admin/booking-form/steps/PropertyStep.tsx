@@ -176,7 +176,7 @@ export function PropertyStep() {
             <div>
               <Label className="text-sm font-medium">Saved Address</Label>
               <Select value={matchingLocationId} onValueChange={handleLocationSelect}>
-                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Saved address">
                   <SelectValue placeholder="Select a saved address" />
                 </SelectTrigger>
                 <SelectContent>

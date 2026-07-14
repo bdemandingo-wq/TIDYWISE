@@ -479,7 +479,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
               )
             ) : (
               <Select value={selectedTime} onValueChange={setSelectedTime}>
-                <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
+                <SelectTrigger className="h-12 bg-secondary/30 border-border/50" aria-label="Select time slot">
                   <SelectValue placeholder="Select time slot">
                     {selectedTime ? getTimeLabel(selectedTime) : 'Select time slot'}
                   </SelectValue>
@@ -521,7 +521,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
             // Single staff selection - only show staff who are available based on working hours
             <>
               <Select value={selectedStaffId || "unassigned"} onValueChange={(val) => setSelectedStaffId(val === "unassigned" ? "" : val)}>
-                <SelectTrigger className="h-12 bg-secondary/30 border-border/50">
+                <SelectTrigger className="h-12 bg-secondary/30 border-border/50" aria-label="Assign staff">
                   <SelectValue placeholder="Select a cleaner (optional)">
                     {selectedStaffId && (staff?.find(s => s.id === selectedStaffId)?.name || availableStaff.find(s => s.id === selectedStaffId)?.name)}
                   </SelectValue>
