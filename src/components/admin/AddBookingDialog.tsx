@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +19,31 @@ interface AddBookingDialogProps {
   onDuplicate?: (booking: BookingWithDetails) => void;
 }
 
-export function AddBookingDialog({ 
-  open, 
-  onOpenChange, 
-  defaultDate, 
-  booking, 
-  onDuplicate 
+export function AddBookingDialog({
+  open,
+  onOpenChange,
+  defaultDate,
+  booking,
+  onDuplicate
 }: AddBookingDialogProps) {
+  // This dialog is opened from 5+ different call sites (BookingsPage,
+  // SchedulerCalendar, UpcomingBookings, AdminHeader, MobileBottomNav),
+  // each with its own trigger button, and is a CONTROLLED dialog
+  // (open/onOpenChange from the caller's own state) rather than using
+  // Radix's <DialogTrigger>. Radix's automatic "return focus to the
+  // trigger" behavior relies on DialogTrigger recording that reference —
+  // without it, focus doesn't return anywhere specific on close (confirmed
+  // live 2026-07-14). Capturing document.activeElement ourselves at the
+  // moment the dialog opens, and restoring it via onCloseAutoFocus, works
+  // regardless of which of the 5+ triggers opened it, without needing to
+  // change any of those call sites individually.
+  const triggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open) {
+      triggerRef.current = document.activeElement as HTMLElement | null;
+    }
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -40,6 +59,17 @@ export function AddBookingDialog({
         // Escape at all, from any focus position, until this was removed.
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => {
+          // Fall back to Radix's default (focus whatever it thinks is
+          // right) if the original trigger no longer exists in the DOM —
+          // e.g. BookingsPage's "Create Booking" button only renders in
+          // the empty state, so it may have unmounted after a booking was
+          // created and the list is no longer empty.
+          if (triggerRef.current && document.contains(triggerRef.current)) {
+            e.preventDefault();
+            triggerRef.current.focus();
+          }
+        }}
       >
         <DialogHeader className="pb-2 flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 text-xl">

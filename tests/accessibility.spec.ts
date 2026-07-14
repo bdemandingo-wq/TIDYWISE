@@ -162,6 +162,15 @@ test.describe("9.3 — Focus management on modals/popovers", () => {
 
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible({ timeout: 5_000 });
+    // FIXED 2026-07-14: this assertion was never actually exercised before
+    // that day — Escape didn't close the dialog at all until the fix a few
+    // commits back, so this line never ran. Once it could run, it
+    // surfaced a second, separate gap: AddBookingDialog is a controlled
+    // dialog (open/onOpenChange from the caller, not Radix's
+    // <DialogTrigger>), so Radix had no reference for which element to
+    // restore focus to. Fixed in AddBookingDialog.tsx by capturing
+    // document.activeElement on open and restoring it via
+    // onCloseAutoFocus.
     await expect(trigger, "focus should return to the trigger button after the dialog closes").toBeFocused();
   });
 
