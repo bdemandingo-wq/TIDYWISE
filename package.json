@@ -10,7 +10,10 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:qa": "playwright test -c playwright.qa.config.ts",
+    "test:qa:setup": "playwright test -c playwright.qa.config.ts --project=setup",
+    "test:qa:report": "playwright show-report qa-report"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",
@@ -109,11 +112,12 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@babel/parser": "^7.29.2",
-    "@playwright/test": "^1.57.0",
     "@babel/traverse": "^7.29.0",
     "@babel/types": "^7.29.0",
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
