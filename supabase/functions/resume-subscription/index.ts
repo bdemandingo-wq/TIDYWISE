@@ -54,13 +54,33 @@ serve(async (req) => {
       pause_collection: null,
     });
 
-    // Mark the active pause row as resumed
-    await supabase
-      .from("subscription_pauses")
-      .update({ status: "resumed", resumed_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("stripe_subscription_id", paused.id)
-      .eq("status", "active");
+    // Mark the active pause row as resumed. Stripe already resumed
+    // billing above — don't report failure to the customer for a purely
+    // local mirroring issue, but don't let it go unnoticed either: a
+    // stuck "active" pause row could make the app keep showing a
+    // "paused" state to a customer who's actually being billed again.
+    let pauseRowUpdated = false;
+    let lastPauseUpdateErr: string | undefined;
+    for (let attempt = 1; attempt <= 2 && !pauseRowUpdated; attempt++) {
+      const { error: pauseUpdateErr } = await supabase
+        .from("subscription_pauses")
+        .update({ status: "resumed", resumed_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .eq("stripe_subscription_id", paused.id)
+        .eq("status", "active");
+      if (!pauseUpdateErr) {
+        pauseRowUpdated = true;
+      } else {
+        lastPauseUpdateErr = pauseUpdateErr.message;
+        console.error(`[RESUME-SUB] subscription_pauses update failed (attempt ${attempt}/2):`, pauseUpdateErr);
+      }
+    }
+    if (!pauseRowUpdated) {
+      console.error(
+        `[RESUME-SUB] CRITICAL: Stripe subscription ${paused.id} resumed but subscription_pauses row for ` +
+        `user ${userId} still shows status='active' after 2 attempts (${lastPauseUpdateErr}) — needs manual reconciliation.`,
+      );
+    }
 
     return new Response(
       JSON.stringify({ success: true, subscription_id: updated.id }),

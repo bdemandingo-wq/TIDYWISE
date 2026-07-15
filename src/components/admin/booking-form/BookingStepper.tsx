@@ -850,11 +850,20 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         persistedBookingId = booking.id;
 
         // ALWAYS sync team assignments on update to prevent stale/duplicate entries
-        // Delete all existing team assignments for this booking first
-        await supabase
+        // Delete all existing team assignments for this booking first.
+        // If this delete fails, we must NOT proceed to re-insert below —
+        // doing so would leave the old pay-share rows in place alongside
+        // the new ones, double-paying whoever was already assigned.
+        const { error: teamAssignmentsDeleteError } = await supabase
           .from('booking_team_assignments')
           .delete()
           .eq('booking_id', booking.id);
+        if (teamAssignmentsDeleteError) {
+          throw new Error(
+            `Could not update pay assignments for this booking (${teamAssignmentsDeleteError.message}). ` +
+            `Booking details were saved, but pay-share was NOT changed — please retry to avoid double-paying staff.`
+          );
+        }
 
         // Re-insert based on current form state
         if (isTeamMode && selectedTeamMembers.length > 1) {
@@ -862,24 +871,36 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           for (let i = 0; i < selectedTeamMembers.length; i++) {
             const staffId = selectedTeamMembers[i];
             let payShare = teamMemberPay[staffId] ?? 0;
-            await supabase.from('booking_team_assignments').insert({
+            const { error: teamAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
               booking_id: booking.id,
               staff_id: staffId,
               pay_share: payShare,
               is_primary: i === 0,
               organization_id: organizationId,
             });
+            if (teamAssignmentInsertError) {
+              throw new Error(
+                `Pay assignment failed to save for one staff member (${teamAssignmentInsertError.message}). ` +
+                `Please retry — old assignments were already cleared.`
+              );
+            }
           }
         } else if (bookingData.staff_id) {
           // Single staff → one primary assignment
           // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
-          await supabase.from('booking_team_assignments').insert({
+          const { error: singleAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
             booking_id: booking.id,
             staff_id: bookingData.staff_id,
             pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
             is_primary: true,
             organization_id: organizationId,
           });
+          if (singleAssignmentInsertError) {
+            throw new Error(
+              `Pay assignment failed to save (${singleAssignmentInsertError.message}). ` +
+              `Please retry — old assignments were already cleared.`
+            );
+          }
         }
 
         // Update checklist if a checklist template was selected during edit
@@ -1024,24 +1045,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 }
               }
 
-              await supabase.from('booking_team_assignments').insert({
+              // Note: unlike the update path above, we don't throw on
+              // failure here — the booking row itself was already
+              // created, and retrying the whole submit would create a
+              // SECOND duplicate booking rather than just retry this
+              // insert. Surface it instead so pay tracking gets fixed
+              // by hand rather than silently missing.
+              const { error: newTeamAssignmentError } = await supabase.from('booking_team_assignments').insert({
                 booking_id: newBooking.id,
                 staff_id: staffId,
                 pay_share: payShare,
                 is_primary: i === 0,
                 organization_id: organizationId,
               });
+              if (newTeamAssignmentError) {
+                console.error('Failed to save pay assignment for staff', staffId, newTeamAssignmentError);
+                toast.error(`Booking saved, but pay assignment failed for one staff member — please set it manually.`);
+              }
             }
           } else if (bookingData.staff_id) {
             // Single staff → one primary assignment only
             // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
-            await supabase.from('booking_team_assignments').insert({
+            const { error: newSingleAssignmentError } = await supabase.from('booking_team_assignments').insert({
               booking_id: newBooking.id,
               staff_id: bookingData.staff_id,
               pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
               is_primary: true,
               organization_id: organizationId,
             });
+            if (newSingleAssignmentError) {
+              console.error('Failed to save pay assignment', newSingleAssignmentError);
+              toast.error('Booking saved, but the pay assignment failed to save — please set it manually.');
+            }
           }
         }
 

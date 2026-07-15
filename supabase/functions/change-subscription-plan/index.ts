@@ -166,7 +166,7 @@ serve(async (req) => {
         }
       }
       if (orgId) {
-        await supabase
+        const { error: cancelDowngradeErr } = await supabase
           .from("organizations")
           .update({
             plan_downgrade_scheduled_to: null,
@@ -174,6 +174,9 @@ serve(async (req) => {
             stripe_schedule_id: null,
           })
           .eq("id", orgId);
+        if (cancelDowngradeErr) {
+          console.error("[CHANGE-SUB-PLAN] clearing downgrade fields failed (Stripe schedule already released):", { orgId, error: cancelDowngradeErr });
+        }
       }
       log("downgrade cancelled", { scheduleId });
       return new Response(
@@ -199,8 +202,12 @@ serve(async (req) => {
       });
 
       // Reflect new plan immediately + clear any prior pending downgrade.
+      // Stripe has already charged the proration by this point — a
+      // failure here must not be reported as success, since the customer
+      // paid for an upgrade whose feature-gates never actually opened.
+      let planUpdateFailed = false;
       if (orgId) {
-        await supabase
+        const { error: planUpdateErr } = await supabase
           .from("organizations")
           .update({
             plan_type: plan,
@@ -209,9 +216,26 @@ serve(async (req) => {
             stripe_schedule_id: null,
           })
           .eq("id", orgId);
+        if (planUpdateErr) {
+          planUpdateFailed = true;
+          console.error("[CHANGE-SUB-PLAN] CRITICAL: customer charged for upgrade but plan_type update failed:", {
+            orgId, subId: updated.id, plan, error: planUpdateErr,
+          });
+        }
       }
 
-      log("upgraded", { subId: updated.id, plan });
+      log("upgraded", { subId: updated.id, plan, planUpdateFailed });
+      if (planUpdateFailed) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            mode: "upgrade",
+            subscription_id: updated.id,
+            error: "Your payment went through, but we couldn't finish unlocking the new plan. This has been flagged — please refresh in a minute or contact support.",
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
       return new Response(
         JSON.stringify({ success: true, mode: "upgrade", subscription_id: updated.id }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -260,7 +284,7 @@ serve(async (req) => {
     // Persist the pending downgrade so the UI can show a banner and
     // offer a cancel action.
     if (orgId) {
-      await supabase
+      const { error: downgradeScheduleErr } = await supabase
         .from("organizations")
         .update({
           plan_downgrade_scheduled_to: plan,
@@ -268,6 +292,15 @@ serve(async (req) => {
           stripe_schedule_id: scheduleId,
         })
         .eq("id", orgId);
+      if (downgradeScheduleErr) {
+        // No immediate charge here (proration_behavior: "none"), so this
+        // isn't a "customer paid, got nothing" case — but the UI's
+        // downgrade banner/cancel action won't reflect the real Stripe
+        // schedule until this is fixed, so still worth being loud about.
+        console.error("[CHANGE-SUB-PLAN] downgrade scheduled at Stripe but organizations update failed:", {
+          orgId, scheduleId, plan, error: downgradeScheduleErr,
+        });
+      }
     }
 
     log("downgrade scheduled", { scheduleId, plan, scheduledAtIso });

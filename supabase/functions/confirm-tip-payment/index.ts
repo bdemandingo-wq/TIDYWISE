@@ -74,7 +74,7 @@ const handler = async (req: Request): Promise<Response> => {
     const session = await stripeResult.stripe.checkout.sessions.retrieve(tip.payment_intent_id);
 
     if (session.payment_status === 'paid') {
-      await supabase
+      const { error: tipUpdateError } = await supabase
         .from('tips')
         .update({
           status: 'paid',
@@ -82,6 +82,20 @@ const handler = async (req: Request): Promise<Response> => {
           payment_intent_id: (session.payment_intent as string) || tip.payment_intent_id,
         })
         .eq('id', tip.id);
+
+      if (tipUpdateError) {
+        // Stripe already has this paid — do NOT tell the caller it
+        // succeeded. This endpoint re-checks Stripe on every call, so
+        // the caller retrying is itself the recovery path; returning
+        // success here would make the retry never happen.
+        console.error("[confirm-tip-payment] CRITICAL: Stripe confirms paid but tips update failed:", {
+          tipId: tip.id, organizationId: tip.organization_id, error: tipUpdateError,
+        });
+        return new Response(
+          JSON.stringify({ success: false, error: "Payment confirmed but we couldn't save it — please retry." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       logAudit({
         action: 'payment.tip',

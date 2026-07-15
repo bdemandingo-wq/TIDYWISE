@@ -645,10 +645,18 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`[openphone-webhook] Successfully saved ${direction} message`);
 
     // Detect SMS opt-out keywords (STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT, OPTOUT)
+    // optOutDetected gates the AI auto-reply block below regardless of
+    // whether the DB write to persist it succeeds — a customer who just
+    // texted STOP must not get an automated reply from THIS webhook
+    // delivery no matter what, that's not something a DB retry can fix
+    // after the fact. TCPA/CAN-SPAM carry per-message statutory damages,
+    // so this can't be a best-effort log-and-continue.
+    let optOutDetected = false;
     if (direction === 'inbound' && content) {
       const normalized = content.trim().toUpperCase().replace(/[^A-Z]/g, '');
       const OPT_OUT_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT'];
       if (OPT_OUT_KEYWORDS.includes(normalized)) {
+        optOutDetected = true;
         try {
           // Find most recent campaign send to this phone for attribution
           const { data: lastSend } = await supabase
@@ -668,17 +676,40 @@ const handler = async (req: Request): Promise<Response> => {
 
           const customerIdToOptOut = convData?.customer_id || lastSend?.customer_id;
           if (customerIdToOptOut) {
-            await supabase
-              .from('customers')
-              .update({
-                marketing_status: 'opted_out',
-                opted_out_at: new Date().toISOString(),
-                opted_out_method: 'sms_stop',
-                opted_out_campaign_id: lastSend?.campaign_id || null,
-              })
-              .eq('id', customerIdToOptOut)
-              .eq('organization_id', organizationId);
-            console.log(`[openphone-webhook] Customer ${customerIdToOptOut} opted out via SMS keyword "${normalized}"`);
+            // Retry inline rather than rely on OpenPhone redelivering the
+            // webhook: the message-dedup check earlier in this function
+            // (openphone_message_id) would short-circuit any redelivery
+            // before ever reaching this block again, so an HTTP 500 here
+            // would not actually produce a useful retry.
+            let optOutSaved = false;
+            let lastOptOutErr: string | undefined;
+            for (let attempt = 1; attempt <= 3 && !optOutSaved; attempt++) {
+              const { error: optOutErr } = await supabase
+                .from('customers')
+                .update({
+                  marketing_status: 'opted_out',
+                  opted_out_at: new Date().toISOString(),
+                  opted_out_method: 'sms_stop',
+                  opted_out_campaign_id: lastSend?.campaign_id || null,
+                })
+                .eq('id', customerIdToOptOut)
+                .eq('organization_id', organizationId);
+              if (!optOutErr) {
+                optOutSaved = true;
+              } else {
+                lastOptOutErr = optOutErr.message;
+                console.error(`[openphone-webhook] opt-out update failed (attempt ${attempt}/3):`, optOutErr);
+              }
+            }
+            if (optOutSaved) {
+              console.log(`[openphone-webhook] Customer ${customerIdToOptOut} opted out via SMS keyword "${normalized}"`);
+            } else {
+              console.error(
+                `[openphone-webhook] CRITICAL: customer ${customerIdToOptOut} (org ${organizationId}) texted ` +
+                `"${normalized}" but marketing_status was NOT updated after 3 attempts (${lastOptOutErr}) — ` +
+                `this customer can still receive marketing SMS until manually fixed.`,
+              );
+            }
           }
         } catch (optOutErr) {
           console.error('[openphone-webhook] Error processing opt-out:', optOutErr);
@@ -687,7 +718,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Trigger AI auto-reply for inbound messages if automation is enabled
-    if (direction === 'inbound') {
+    // — never for a message that was just detected as an opt-out keyword.
+    if (direction === 'inbound' && !optOutDetected) {
       try {
         const { data: aiAutomation } = await supabase
           .from('organization_automations')
