@@ -89,7 +89,15 @@ test.describe("8.4 — Loading, empty, and error states all present", () => {
   });
 
   test("BookingsPage: empty state renders when the org has no bookings", async ({ ownerPage: page }) => {
-    // Org A genuinely has zero bookings (verified live) — no mocking needed.
+    // Route-mocked to force an empty response rather than relying on Org A
+    // genuinely having zero bookings — that stopped being true once the
+    // booking-creation suite started seeding real (if cancelled)
+    // QA-TEST-DELETE bookings there. Mocking isolates this test from Org
+    // A's actual data state, matching the pattern already used by the
+    // error-state test above.
+    await page.route("**/rest/v1/bookings*", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) }),
+    );
     await page.goto("/dashboard/bookings");
     await expect(page.getByText(/No bookings found/i)).toBeVisible({ timeout: 15_000 });
   });

@@ -78,15 +78,34 @@ test.describe("1.9 — CROSS-ORG: direct API/URL access to another org's record 
 
   test("owner (org A) hitting an Org B admin URL by direct navigation never renders Org B data", async ({
     ownerPage: page,
+    request,
   }) => {
     // UI-level companion to the REST probes above — same-app confirmation
-    // that navigating straight to another org's customer list shows only
-    // (empty) own-org data, never a leaked record.
+    // that navigating to the customers list only ever shows Org A's own
+    // data. Doesn't assume Org A is empty (that stopped being true once
+    // the booking-creation suite seeded a QA-TEST-DELETE fixture customer
+    // there) — instead fetches a real Org B customer's email at runtime
+    // via the staff account (legitimately scoped to their own org) and
+    // asserts it never renders on Org A owner's page, regardless of how
+    // many rows Org A actually has. This is a more direct proof of
+    // isolation than an empty-state check ever was: the original version
+    // only proved isolation by coincidence (any row at all would have
+    // been a leak), not by actually looking for one.
+    const staffToken = await getAccessToken(request, STAFF.email, STAFF.password);
+    const orgBResp = await request.get(`${SUPABASE_URL}/rest/v1/customers?select=email&limit=1`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${staffToken}` },
+    });
+    expect(orgBResp.ok()).toBeTruthy();
+    const [orgBCustomer] = await orgBResp.json();
+    expect(orgBCustomer?.email, "Org B has no customers to use as a leak marker — can't run this check").toBeTruthy();
+
     await page.goto("/dashboard/customers");
     await expect(page).toHaveURL(/\/dashboard\/customers/);
-    // Org A genuinely has zero customers (verified live) — the page must
-    // show its real empty state, not silently render another org's rows.
-    await expect(page.getByText(/No customers yet/i)).toBeVisible({ timeout: 15_000 });
+    // Wait for the page to actually settle (real rows or the empty state)
+    // before checking for absence, so this can't pass trivially while
+    // still loading.
+    await expect(page.getByText("Loading customers...")).not.toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(orgBCustomer.email), "an Org B customer's email leaked into Org A owner's customer list").not.toBeVisible();
   });
 });
 
