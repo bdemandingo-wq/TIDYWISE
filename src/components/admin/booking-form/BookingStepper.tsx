@@ -287,6 +287,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     extrasTotal,
     calculatedPrice,
     finalPrice,
+    appliedDiscount,
     resetForm,
     staff,
     conflictOverride,
@@ -619,6 +620,13 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       ? (schedulingConfig.windows || []).find((w) => w.enabled && w.start_time === selectedTime)
       : undefined;
 
+    // NOTE: the coupon redemption itself (incrementing discounts.current_uses)
+    // is NOT reserved here — buildBookingData() also runs as a preview step
+    // for the "apply to future recurring bookings?" dialog, which the user
+    // can cancel without ever actually saving. Reserving a redemption here
+    // would burn it even when nothing gets saved. It's reserved in
+    // executeSubmit() instead, immediately before the booking is actually
+    // committed.
     return {
       customer_id: customerId || null,
       service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
@@ -628,7 +636,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       arrival_window_start: matchedWindow?.start_time ?? null,
       arrival_window_end: matchedWindow?.end_time ?? null,
       duration: selectedService?.duration || 60,
-      total_amount: totalAmount > 0 ? totalAmount : calculatedPrice,
+      total_amount: finalPrice,
+      discount_id: appliedDiscount?.id ?? null,
+      discount_amount: appliedDiscount?.discountAmount ?? 0,
       status: isDraft ? 'pending' as const : 'confirmed' as const,
       payment_status: 'pending' as const,
       notes: notes || null,
@@ -761,12 +771,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       });
     }
     
-    // Price change
-    if (totalAmount !== booking.total_amount) {
+    // Price change — compare against finalPrice (what will actually be
+    // saved, post-discount), not raw totalAmount, so this doesn't
+    // spuriously flag a "change" purely because booking.total_amount is
+    // now correctly discounted while totalAmount never was.
+    if (finalPrice !== booking.total_amount) {
       changes.push({
         field: 'Price',
         oldValue: `$${booking.total_amount?.toFixed(2) || '0.00'}`,
-        newValue: `${fmt(totalAmount)}`,
+        newValue: `${fmt(finalPrice)}`,
         key: 'total_amount'
       });
     }
@@ -842,9 +855,29 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       const bookingData = pendingBookingData?.bookingData || await buildBookingData(isDraft);
       let persistedBookingId: string | undefined = booking?.id;
 
+      // A coupon was previously validated and shown as applied on-screen
+      // (the "Grand Total" already reflects it) but was never actually
+      // persisted — total_amount was saved undiscounted, so "Charge Card"
+      // later charged the customer the full price regardless. Reserve the
+      // redemption atomically server-side (enforces max_uses, race-safe
+      // for concurrent bookings) right before actually committing —
+      // deliberately not in buildBookingData(), which also runs as a
+      // cancellable preview step for the recurring-booking dialog above.
+      if (bookingData.discount_id) {
+        const { data: reserved, error: couponErr } = await supabase.rpc('increment_coupon_use', {
+          p_discount_id: bookingData.discount_id,
+        });
+        if (couponErr || !reserved) {
+          throw new Error(
+            `This coupon is no longer valid (it may have just reached its usage limit). ` +
+            `Remove it or try a different code, then save again.`
+          );
+        }
+      }
+
       // Check for valid UUID - empty string means this is a duplicate (new booking)
       const isExistingBooking = booking?.id && booking.id.length > 10;
-      
+
       if (isExistingBooking) {
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
         persistedBookingId = booking.id;
