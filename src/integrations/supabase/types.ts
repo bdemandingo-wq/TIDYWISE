@@ -202,6 +202,65 @@ export type Database = {
           },
         ]
       }
+      ad_management_subscriptions: {
+        Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          created_at: string
+          id: string
+          monthly_amount_cents: number
+          organization_id: string
+          platform: string
+          started_at: string
+          status: string
+          stripe_customer_id: string
+          stripe_price_id: string | null
+          stripe_subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          monthly_amount_cents?: number
+          organization_id: string
+          platform: string
+          started_at?: string
+          status?: string
+          stripe_customer_id: string
+          stripe_price_id?: string | null
+          stripe_subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          id?: string
+          monthly_amount_cents?: number
+          organization_id?: string
+          platform?: string
+          started_at?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_management_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       additional_charges: {
         Row: {
           booking_id: string
@@ -858,6 +917,41 @@ export type Database = {
           },
         ]
       }
+      automation_fire_log: {
+        Row: {
+          automation_type: string
+          fired_at: string
+          id: string
+          metadata: Json
+          organization_id: string
+          target_id: string
+        }
+        Insert: {
+          automation_type: string
+          fired_at?: string
+          id?: string
+          metadata?: Json
+          organization_id: string
+          target_id: string
+        }
+        Update: {
+          automation_type?: string
+          fired_at?: string
+          id?: string
+          metadata?: Json
+          organization_id?: string
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_fire_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       automation_steps: {
         Row: {
           automation_id: string
@@ -1176,6 +1270,67 @@ export type Database = {
           word_count?: number | null
         }
         Relationships: []
+      }
+      booking_checkins: {
+        Row: {
+          address_match: boolean | null
+          booking_id: string | null
+          checkin_type: string
+          created_at: string | null
+          distance_meters: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          organization_id: string
+          staff_id: string | null
+        }
+        Insert: {
+          address_match?: boolean | null
+          booking_id?: string | null
+          checkin_type: string
+          created_at?: string | null
+          distance_meters?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          organization_id: string
+          staff_id?: string | null
+        }
+        Update: {
+          address_match?: boolean | null
+          booking_id?: string | null
+          checkin_type?: string
+          created_at?: string | null
+          distance_meters?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          organization_id?: string
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_checkins_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checkins_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_checkins_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_safe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_checklist_items: {
         Row: {
@@ -3278,6 +3433,65 @@ export type Database = {
           },
         ]
       }
+      custom_work_requests: {
+        Row: {
+          admin_notes: string | null
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string
+          declined_reason: string | null
+          details: string | null
+          fulfilled_at: string | null
+          id: string
+          organization_id: string
+          request_type: string
+          status: string
+          submitted_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          billing_period_end: string
+          billing_period_start: string
+          created_at?: string
+          declined_reason?: string | null
+          details?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          organization_id: string
+          request_type: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string
+          declined_reason?: string | null
+          details?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          organization_id?: string
+          request_type?: string
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_work_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_duplicate_ignored: {
         Row: {
           customer_a_id: string
@@ -3775,6 +3989,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      device_push_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string | null
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          platform?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string | null
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       discounts: {
         Row: {
@@ -9168,6 +9412,33 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_reminder_log: {
+        Row: {
+          email: string | null
+          id: string
+          period_end_sec: number
+          sent_at: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string
+        }
+        Insert: {
+          email?: string | null
+          id?: string
+          period_end_sec: number
+          sent_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id: string
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          period_end_sec?: number
+          sent_at?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -9628,6 +9899,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      winback_drip_log: {
+        Row: {
+          customer_id: string | null
+          id: string
+          organization_id: string
+          sent_at: string | null
+          step: number
+        }
+        Insert: {
+          customer_id?: string | null
+          id?: string
+          organization_id: string
+          sent_at?: string | null
+          step: number
+        }
+        Update: {
+          customer_id?: string | null
+          id?: string
+          organization_id?: string
+          sent_at?: string | null
+          step?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "winback_drip_log_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       winback_offers: {
         Row: {
