@@ -88,13 +88,23 @@ serve(async (req: Request): Promise<Response> => {
         }
 
         // Already nudged this quote? (target_id = quote.id)
-        const { data: prior } = await supabase
+        const { data: prior, error: dedupeErr } = await supabase
           .from("automation_fire_log")
           .select("id")
           .eq("organization_id", orgId)
           .eq("automation_type", "quote_stale_reengage")
           .eq("target_id", quote.id)
           .limit(1);
+        if (dedupeErr) {
+          // Can't confirm this wasn't already sent — fail closed rather
+          // than risk a duplicate SMS to a real customer.
+          summary.errors += 1;
+          console.error(
+            `[quote-stale-reengage] dedupe check failed org=${orgId} quote=${quote.id}, skipping to avoid a possible duplicate send:`,
+            dedupeErr,
+          );
+          continue;
+        }
         if (prior && prior.length > 0) {
           summary.skipped += 1;
           continue;
@@ -130,7 +140,7 @@ serve(async (req: Request): Promise<Response> => {
             continue;
           }
           summary.sent += 1;
-          await supabase.from("automation_fire_log").insert({
+          const { error: logErr } = await supabase.from("automation_fire_log").insert({
             organization_id: orgId,
             automation_type: "quote_stale_reengage",
             target_id: quote.id,
@@ -140,6 +150,15 @@ serve(async (req: Request): Promise<Response> => {
               sent_at: new Date().toISOString(),
             },
           });
+          if (logErr) {
+            // The SMS already went out — this only breaks dedupe for next
+            // run, not the send itself. Log loudly since a silent failure
+            // here is exactly what let this quote get re-sent forever.
+            console.error(
+              `[quote-stale-reengage] SMS sent but fire-log insert failed org=${orgId} quote=${quote.id} — dedupe will not catch this next run:`,
+              logErr,
+            );
+          }
         } catch (smsErr) {
           summary.errors += 1;
           console.error(

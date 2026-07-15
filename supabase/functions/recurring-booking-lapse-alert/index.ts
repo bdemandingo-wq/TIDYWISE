@@ -73,19 +73,27 @@ serve(async (req: Request): Promise<Response> => {
         const window = new Date(
           new Date(r.next_scheduled_at).getTime() - 86_400_000,
         ).toISOString();
-        const { data: caughtUp } = await supabase
+        const { data: caughtUp, error: caughtUpErr } = await supabase
           .from("bookings")
           .select("id")
           .eq("recurring_booking_id", r.id)
           .gte("scheduled_at", window)
           .limit(1);
+        if (caughtUpErr) {
+          summary.errors += 1;
+          console.error(
+            `[recurring-booking-lapse-alert] catch-up check failed org=${orgId} recurring=${r.id}, skipping to be safe:`,
+            caughtUpErr,
+          );
+          continue;
+        }
         if (caughtUp && caughtUp.length > 0) {
           summary.skipped += 1;
           continue;
         }
 
         // Already alerted on this lapse within DEDUPE_DAYS?
-        const { data: prior } = await supabase
+        const { data: prior, error: dedupeErr } = await supabase
           .from("automation_fire_log")
           .select("id")
           .eq("organization_id", orgId)
@@ -93,6 +101,17 @@ serve(async (req: Request): Promise<Response> => {
           .eq("target_id", r.id)
           .gte("fired_at", cutoff)
           .limit(1);
+        if (dedupeErr) {
+          // This is the exact failure mode that caused daily-repeat owner
+          // alerts for the same lapse — fail closed instead of silently
+          // treating an unreadable dedupe check as "never alerted".
+          summary.errors += 1;
+          console.error(
+            `[recurring-booking-lapse-alert] dedupe check failed org=${orgId} recurring=${r.id}, skipping to avoid a possible duplicate alert:`,
+            dedupeErr,
+          );
+          continue;
+        }
         if (prior && prior.length > 0) {
           summary.skipped += 1;
           continue;
@@ -107,7 +126,7 @@ serve(async (req: Request): Promise<Response> => {
         });
         if (sent.ok) {
           summary.alerts += 1;
-          await supabase.from("automation_fire_log").insert({
+          const { error: logErr } = await supabase.from("automation_fire_log").insert({
             organization_id: orgId,
             automation_type: "recurring_lapse_alert",
             target_id: r.id,
@@ -117,6 +136,12 @@ serve(async (req: Request): Promise<Response> => {
               frequency: r.frequency,
             },
           });
+          if (logErr) {
+            console.error(
+              `[recurring-booking-lapse-alert] alert sent but fire-log insert failed org=${orgId} recurring=${r.id} — dedupe will not catch this next run:`,
+              logErr,
+            );
+          }
         } else {
           summary.errors += 1;
           console.warn(

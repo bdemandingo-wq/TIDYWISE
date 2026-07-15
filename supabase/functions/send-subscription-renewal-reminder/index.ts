@@ -67,12 +67,19 @@ serve(async (req) => {
       // Idempotency: skip if we've already logged a reminder for this
       // (sub, period_end) tuple. Lives in its own table so the dispute
       // pipeline's payment_evidence dataset stays clean.
-      const { data: exists } = await supabase
+      const { data: exists, error: existsErr } = await supabase
         .from("subscription_reminder_log")
         .select("id")
         .eq("stripe_subscription_id", sub.id)
         .eq("period_end_sec", renewAt)
         .maybeSingle();
+      if (existsErr) {
+        // Fail closed: an unreadable dedupe check must not be treated as
+        // "never reminded" — that's how this sub would get a duplicate email.
+        console.error("[renewal-reminder] dedupe check failed, skipping to avoid a possible duplicate send", sub.id, existsErr);
+        skipped++;
+        continue;
+      }
       if (exists) { skipped++; continue; }
 
       const price = sub.items.data[0]?.price;
@@ -112,12 +119,18 @@ serve(async (req) => {
         // Log reminder so we don't double-send this cycle. Unique index
         // on (stripe_subscription_id, period_end_sec) is the hard guard
         // — the .maybeSingle() check above is a fast path.
-        await supabase.from("subscription_reminder_log").insert({
+        const { error: logErr } = await supabase.from("subscription_reminder_log").insert({
           email,
           stripe_customer_id: sub.customer as string,
           stripe_subscription_id: sub.id,
           period_end_sec: renewAt,
         });
+        if (logErr) {
+          console.error(
+            "[renewal-reminder] email sent but reminder-log insert failed — dedupe will not catch this next run",
+            sub.id, logErr,
+          );
+        }
       } else {
         console.error("[renewal-reminder] resend error", r.status, await r.text());
       }
