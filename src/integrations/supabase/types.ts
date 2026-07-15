@@ -10611,6 +10611,10 @@ export type Database = {
         Args: { p_password: string }
         Returns: string
       }
+      increment_coupon_use: {
+        Args: { p_discount_id: string }
+        Returns: boolean
+      }
       increment_org_email_daily_send: {
         Args: { _delta?: number; _method?: string; _organization_id: string }
         Returns: number
