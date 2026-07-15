@@ -203,7 +203,13 @@ export function MigrationWizard() {
       setParseResult(data);
       setFieldMapping(data.fieldMapping || {});
       setStep(3);
-      toast.success(`Parsed ${data.totalRows} rows successfully`);
+      if (data.warning) {
+        // Some rows failed to save server-side — don't report a clean
+        // success when part of the file didn't actually make it in.
+        toast.warning(data.warning, { duration: 10000 });
+      } else {
+        toast.success(`Parsed ${data.totalRows} rows successfully`);
+      }
     } catch (err: any) {
       console.error('Parse error:', err);
       toast.error(err.message || 'Failed to parse CSV');

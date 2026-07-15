@@ -201,7 +201,7 @@ Always end with asking if they have other questions.`;
         const leadKey = `${organizationId}:${clientIp}:${emailMatch[0].toLowerCase()}`;
         if (!isLeadRateLimited(leadKey)) {
           try {
-            await supabase.from('leads').insert({
+            const { error: leadInsertErr } = await supabase.from('leads').insert({
               organization_id: organizationId,
               name: (nameMatch?.[1] || 'Chatbot Lead').slice(0, 100),
               email: emailMatch[0].slice(0, 255),
@@ -211,8 +211,15 @@ Always end with asking if they have other questions.`;
               message: `Chatbot conversation:\n${message.slice(0, 1000)}`,
               service_interest: services?.[0]?.name || 'General Inquiry',
             });
-            leadCreated = true;
-            console.log('[booking-chatbot] Lead created from chat');
+            if (leadInsertErr) {
+              // A captured lead's contact info must not silently vanish —
+              // this is the only record of a visitor who gave us their
+              // email/phone through the chatbot.
+              console.error('[booking-chatbot] Lead insert failed, contact info was NOT saved:', leadInsertErr);
+            } else {
+              leadCreated = true;
+              console.log('[booking-chatbot] Lead created from chat');
+            }
           } catch (leadError) {
             console.error('[booking-chatbot] Failed to create lead:', leadError);
           }
