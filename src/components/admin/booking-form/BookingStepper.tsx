@@ -681,6 +681,31 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     const baseDate = new Date(baseBookingData.scheduled_at);
     const numBookings = 3;
 
+    // A coupon is a one-time redemption applied (and counted against
+    // max_uses) for the first booking only — baseBookingData carries the
+    // discounted total_amount/discount_id/discount_amount, but these
+    // auto-generated future occurrences must NOT inherit it, or one
+    // coupon use would silently discount 4 bookings instead of 1.
+    const undiscountedTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
+
+    // cleaner_pay_expected for a percentage-wage cleaner is a % of the
+    // price actually charged — baseBookingData's value was computed off
+    // the first booking's (possibly discounted) finalPrice, so it must
+    // be recomputed here against the undiscounted total for these
+    // occurrences, or a percentage-wage cleaner would be quietly
+    // underpaid on every future occurrence. Flat/hourly wages don't
+    // depend on price, so recomputing is a no-op for those types.
+    const undiscountedCleanerPayExpected = (() => {
+      const wage = cleanerWage ? parseFloat(cleanerWage) : null;
+      if (wage == null || wage === 0) return null;
+      if (cleanerWageType === 'flat') return wage;
+      if (cleanerWageType === 'percentage') {
+        return Math.round((wage / 100) * undiscountedTotal * 100) / 100;
+      }
+      const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : ((selectedService?.duration || 60) / 60);
+      return Math.round(wage * hours * 100) / 100;
+    })();
+
     const weekdayMap: Record<string, number> = {
       Sun: 0,
       Mon: 1,
@@ -712,6 +737,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             ...baseBookingData,
             scheduled_at: cursor.toISOString(),
             payment_intent_id: null,
+            total_amount: undiscountedTotal,
+            discount_id: null,
+            discount_amount: 0,
+            cleaner_pay_expected: undiscountedCleanerPayExpected,
           });
         }
       }
@@ -733,6 +762,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           ...baseBookingData,
           scheduled_at: nextDate.toISOString(),
           payment_intent_id: null,
+          total_amount: undiscountedTotal,
+          discount_id: null,
+          discount_amount: 0,
+          cleaner_pay_expected: undiscountedCleanerPayExpected,
         });
       }
     }
