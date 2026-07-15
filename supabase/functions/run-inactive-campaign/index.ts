@@ -251,10 +251,20 @@ const handler = async (req: Request): Promise<Response> => {
     if (campaignId || excludeAlreadyReceived) {
       const filterCampaignId = campaignId;
       if (filterCampaignId) {
-        const { data: previousSends } = await supabase
+        const { data: previousSends, error: previousSendsErr } = await supabase
           .from('campaign_sms_sends')
           .select('customer_id')
           .eq('campaign_id', filterCampaignId);
+        if (previousSendsErr) {
+          // Fail closed: an unreadable exclusion list must not be treated
+          // as "nobody was sent to yet" — that's how this campaign would
+          // re-message everyone who already got it.
+          console.error('[run-inactive-campaign] Failed to load previous sends, aborting to avoid duplicate sends:', previousSendsErr);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Could not verify prior sends for this campaign, please retry' }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         (previousSends || []).forEach(s => { if (s.customer_id) sentCustomerIds.add(s.customer_id); });
       }
     }
@@ -264,11 +274,18 @@ const handler = async (req: Request): Promise<Response> => {
     if (excludeRecentDays > 0) {
       const recentCutoff = new Date();
       recentCutoff.setDate(recentCutoff.getDate() - excludeRecentDays);
-      const { data: recentSends } = await supabase
+      const { data: recentSends, error: recentSendsErr } = await supabase
         .from('campaign_sms_sends')
         .select('customer_id')
         .eq('organization_id', organizationId)
         .gte('sent_at', recentCutoff.toISOString());
+      if (recentSendsErr) {
+        console.error('[run-inactive-campaign] Failed to load recently-sent list, aborting to avoid duplicate sends:', recentSendsErr);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Could not verify recent sends, please retry' }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
     }
 
@@ -352,9 +369,9 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (response.ok) {
           sentCount++;
-          
+
           // Record the send
-          await supabase
+          const { error: sendLogErr } = await supabase
             .from('campaign_sms_sends')
             .insert({
               campaign_id: campaignId || null,
@@ -365,6 +382,9 @@ const handler = async (req: Request): Promise<Response> => {
               status: 'sent',
               campaign_type: targetAudience,
             });
+          if (sendLogErr) {
+            console.error(`[run-inactive-campaign] SMS sent but campaign_sms_sends insert failed for customer ${customer.id} — dedupe will not catch this next run:`, sendLogErr);
+          }
 
           // Insert booking link tracking record if message contained {booking_link}
           if (messageTemplate.includes('{booking_link}')) {

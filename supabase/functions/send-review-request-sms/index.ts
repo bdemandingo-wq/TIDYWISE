@@ -227,10 +227,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Review request SMS sent successfully:", responseData);
 
     // Flag the customer so they never receive another review request
-    await supabase
+    const { error: flagCustomerErr } = await supabase
       .from('customers')
       .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() } as any)
       .eq('id', customerId);
+    if (flagCustomerErr) {
+      console.error(`Review SMS sent but customer ${customerId} was not flagged review_request_sent — they may receive another review request via a different path:`, flagCustomerErr);
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

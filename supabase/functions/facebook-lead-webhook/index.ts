@@ -128,16 +128,20 @@ serve(async (req: Request) => {
             }
 
             if (email) {
-              const { data: existing } = await supabase
+              const { data: existing, error: existingErr } = await supabase
                 .from('leads')
                 .select('id')
                 .eq('email', email.toLowerCase())
                 .eq('organization_id', organizationId)
                 .maybeSingle();
+              if (existingErr) {
+                console.error("[facebook-lead-webhook] Lead dedupe check failed, skipping to avoid a possible duplicate:", existingErr);
+                continue;
+              }
               if (existing) continue;
             }
 
-            await supabase.from('leads').insert({
+            const { error: leadInsertErr } = await supabase.from('leads').insert({
               first_name: firstName.slice(0, 100),
               last_name: lastName.slice(0, 100),
               email: email ? email.toLowerCase().slice(0, 255) : null,
@@ -147,6 +151,9 @@ serve(async (req: Request) => {
               notes: `Auto-captured from Facebook Lead Ad (leadgen_id: ${leadgenId})`,
               organization_id: organizationId,
             });
+            if (leadInsertErr) {
+              console.error("[facebook-lead-webhook] Lead insert failed:", leadInsertErr);
+            }
           }
         }
       }

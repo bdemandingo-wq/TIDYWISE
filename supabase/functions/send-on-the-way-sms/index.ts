@@ -47,12 +47,20 @@ const handler = async (req: Request): Promise<Response> => {
     // Deduplication: each staff member can send their own "on the way" once.
     // Team jobs: both cleaners can press "On The Way" (each sends one SMS to the customer).
     const staffReminderType = `on_the_way:${staffId}`;
-    const { data: existingLog } = await supabase
+    const { data: existingLog, error: existingLogErr } = await supabase
       .from('booking_reminder_log')
       .select('id')
       .eq('booking_id', bookingId)
       .eq('reminder_type', staffReminderType)
       .limit(1);
+
+    if (existingLogErr) {
+      console.error(`[send-on-the-way-sms] dedupe check failed for booking ${bookingId}, refusing to send to avoid a possible duplicate:`, existingLogErr);
+      return new Response(
+        JSON.stringify({ success: false, error: "Could not verify send status, please retry" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (existingLog && existingLog.length > 0) {
       console.log(`[send-on-the-way-sms] Already sent for booking ${bookingId} by staff ${staffId}, skipping duplicate`);
@@ -323,12 +331,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Log to prevent duplicates per cleaner. Team jobs allow each cleaner to send once.
-    await supabase.from('booking_reminder_log').insert({
+    const { error: logInsertErr } = await supabase.from('booking_reminder_log').insert({
       booking_id: bookingId,
       organization_id: booking.organization_id,
       recipient_phone: formattedCustomerPhone,
       reminder_type: staffReminderType,
     });
+    if (logInsertErr) {
+      console.error(`[send-on-the-way-sms] SMS sent but booking_reminder_log insert failed for booking ${bookingId} — dedupe will not catch this next call:`, logInsertErr);
+    }
 
     // Audit log
     logAudit({

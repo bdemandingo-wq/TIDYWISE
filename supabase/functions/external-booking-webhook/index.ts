@@ -315,15 +315,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create a lead entry for this customer automatically
     try {
-      const { data: existingLead } = await supabase
+      const { data: existingLead, error: existingLeadErr } = await supabase
         .from('leads')
         .select('id')
         .eq('email', payload.email.toLowerCase())
         .eq('organization_id', organizationId)
         .maybeSingle();
 
-      if (!existingLead) {
-        await supabase
+      if (existingLeadErr) {
+        console.error("[external-booking-webhook] Lead dedupe check failed, skipping lead creation to avoid a possible duplicate:", existingLeadErr);
+      } else if (!existingLead) {
+        const { error: leadInsertErr } = await supabase
           .from('leads')
           .insert({
             first_name: payload.first_name,
@@ -335,7 +337,11 @@ const handler = async (req: Request): Promise<Response> => {
             notes: `Auto-created from public booking form (BK-${booking.booking_number})`,
             organization_id: organizationId,
           });
-        console.log("[external-booking-webhook] Auto-created lead for customer");
+        if (leadInsertErr) {
+          console.error("[external-booking-webhook] Lead insert failed:", leadInsertErr);
+        } else {
+          console.log("[external-booking-webhook] Auto-created lead for customer");
+        }
       }
     } catch (leadErr) {
       console.error("[external-booking-webhook] Failed to create lead:", leadErr);

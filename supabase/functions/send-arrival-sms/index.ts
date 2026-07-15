@@ -28,12 +28,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Dedupe per staff per booking
     const reminderType = `arrived:${staffId}`;
-    const { data: existingLog } = await supabase
+    const { data: existingLog, error: existingLogErr } = await supabase
       .from('booking_reminder_log')
       .select('id')
       .eq('booking_id', bookingId)
       .eq('reminder_type', reminderType)
       .limit(1);
+    if (existingLogErr) {
+      console.error(`[send-arrival-sms] dedupe check failed for booking ${bookingId}, refusing to send to avoid a possible duplicate:`, existingLogErr);
+      return new Response(JSON.stringify({ success: false, error: "Could not verify send status, please retry" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     if (existingLog && existingLog.length > 0) {
       return new Response(JSON.stringify({ success: true, deduplicated: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -122,12 +127,15 @@ const handler = async (req: Request): Promise<Response> => {
       adminSent = await sendSms(formatPhoneNumber(adminPhone), msg, 'admin');
     }
 
-    await supabase.from('booking_reminder_log').insert({
+    const { error: logInsertErr } = await supabase.from('booking_reminder_log').insert({
       booking_id: bookingId,
       organization_id: booking.organization_id,
       recipient_phone: customer?.phone ?? '',
       reminder_type: reminderType,
     });
+    if (logInsertErr) {
+      console.error(`[send-arrival-sms] SMS sent but booking_reminder_log insert failed for booking ${bookingId} — dedupe will not catch this next call:`, logInsertErr);
+    }
 
     logAudit({
       action: AuditActions.SMS_GENERIC,

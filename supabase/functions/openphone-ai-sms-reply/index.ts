@@ -166,7 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Cooldown check: only block if an AI-generated reply was sent in the last 5 minutes.
     // Manual replies by the owner do NOT block the AI from responding to follow-up messages.
     const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    const { data: recentAiReply } = await supabase
+    const { data: recentAiReply, error: cooldownErr } = await supabase
       .from('sms_messages')
       .select('id')
       .eq('conversation_id', conversationId)
@@ -175,6 +175,12 @@ const handler = async (req: Request): Promise<Response> => {
       .filter('metadata->>ai_generated', 'eq', 'true')
       .limit(1)
       .maybeSingle();
+
+    if (cooldownErr) {
+      console.error(`[ai-sms-reply] Cooldown check failed, skipping to avoid a possible duplicate reply:`, cooldownErr);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown_check_failed' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (recentAiReply) {
       console.log(`[ai-sms-reply] Cooldown active — AI already replied within last 5 min, skipping`);
@@ -380,7 +386,7 @@ RULES:
     console.log(`[ai-sms-reply] Reply sent, openphoneMessageId=${openphoneMessageId}`);
 
     // Save to DB with ai_generated flag for cooldown tracking
-    await supabase.from('sms_messages').insert({
+    const { error: logMsgErr } = await supabase.from('sms_messages').insert({
       conversation_id: conversationId,
       organization_id: organizationId,
       direction: 'outbound',
@@ -390,6 +396,9 @@ RULES:
       sent_at: new Date().toISOString(),
       metadata: { ai_generated: true },
     });
+    if (logMsgErr) {
+      console.error(`[ai-sms-reply] reply sent but sms_messages log insert failed — cooldown check above will not see this reply next time:`, logMsgErr);
+    }
 
     await supabase.from('sms_conversations')
       .update({ last_message_at: new Date().toISOString() })

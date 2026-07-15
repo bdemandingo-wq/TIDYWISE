@@ -243,17 +243,23 @@ serve(async (req: Request) => {
         }
 
         // 8. Mark as sent
-        await supabase.from("recurring_offer_queue")
+        const { error: markSentErr } = await supabase.from("recurring_offer_queue")
           .update({ sent: true, sent_at: now })
           .eq("id", item.id);
+        if (markSentErr) {
+          console.error(`[process-recurring-offers] SMS sent but failed to mark queue item ${item.id} as sent — next run will re-send this offer:`, markSentErr);
+        }
 
         sentCount++;
         console.log(`[process-recurring-offers] Sent recurring offer to customer ${item.customer_id} at ${formattedPhone}`);
       } catch (itemError: any) {
         console.error(`[process-recurring-offers] Error processing item ${item.id}:`, itemError);
-        await supabase.from("recurring_offer_queue")
+        const { error: markErrorErr } = await supabase.from("recurring_offer_queue")
           .update({ sent: true, sent_at: now, error: itemError?.message || "Unknown error" })
           .eq("id", item.id);
+        if (markErrorErr) {
+          console.error(`[process-recurring-offers] Failed to record error state on queue item ${item.id} — it may be retried indefinitely:`, markErrorErr);
+        }
       }
     }
 
