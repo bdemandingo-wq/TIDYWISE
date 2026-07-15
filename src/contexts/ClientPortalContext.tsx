@@ -213,10 +213,13 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       const newSessionToken = validation.session_token;
 
 
-      // Use the security definer function to get all user data by email
-      const { data: userData, error: userDataError } = await supabase.rpc('get_client_portal_user_data' as any, {
-        p_email: email.toLowerCase().trim(),
-      });
+      // Session-validated proxy — identity comes from newSessionToken (just
+      // minted above), never from the typed-in email. invokePortal() can't
+      // be used yet since sessionToken state hasn't been set at this point.
+      const { data: userData, error: userDataError } = await supabase.functions.invoke(
+        'client-portal-api',
+        { body: { action: 'get_user_data' }, headers: { 'x-portal-session': newSessionToken } },
+      );
 
       if (userDataError) {
         console.error('Failed to load user data:', userDataError);
@@ -257,9 +260,11 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         tier: row.loyalty_tier,
       } : null;
 
-      // Update last login using security definer function
-      await supabase.rpc('update_client_portal_last_login' as any, {
-        p_user_id: row.user_id,
+      // Update last login via the session-validated proxy — identity comes
+      // from newSessionToken server-side, not a client-supplied p_user_id.
+      await supabase.functions.invoke('client-portal-api', {
+        body: { action: 'update_last_login' },
+        headers: { 'x-portal-session': newSessionToken },
       });
 
       setUser(portalUser);

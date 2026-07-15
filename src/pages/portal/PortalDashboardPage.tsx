@@ -253,7 +253,7 @@ function BottomPillNav({
 
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
-  const { user, customer, loyalty, signOut, loading, refreshData } = useClientPortal();
+  const { user, customer, loyalty, signOut, loading, refreshData, invokePortal } = useClientPortal();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -306,8 +306,9 @@ export default function PortalDashboardPage() {
         return;
       }
 
-      const { data: bookingsData } = await supabase
-        .rpc("get_client_portal_bookings", { p_customer_id: user.customer_id });
+      const { data: bookingsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_bookings" },
+      });
 
       const transformedBookings = (bookingsData || []).map((b: any) => ({
         id: b.id,
@@ -322,13 +323,15 @@ export default function PortalDashboardPage() {
 
       setBookings(transformedBookings);
 
-      const { data: requestsData } = await supabase
-        .rpc("get_client_portal_requests", { p_client_user_id: user.id });
+      const { data: requestsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_requests" },
+      });
 
       setRequests((requestsData || []) as BookingRequest[]);
 
-      const { data: notificationsData } = await supabase
-        .rpc("get_client_portal_notifications", { p_client_user_id: user.id });
+      const { data: notificationsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_notifications" },
+      });
 
       setNotifications((notificationsData || []) as Notification[]);
 
@@ -493,14 +496,13 @@ export default function PortalDashboardPage() {
     }
     setSendingInvite(true);
     try {
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        'create_client_portal_referral' as any,
-        {
-          p_portal_user_id: user.id,
+      const { data: rpcResult, error: rpcError } = await invokePortal("client-portal-api", {
+        body: {
+          action: "create_referral",
           p_referred_email: trimmed,
           p_referred_name: inviteName.trim() || null,
-        }
-      );
+        },
+      });
       if (rpcError) throw new Error(rpcError.message);
       const result = rpcResult as { error?: string; referral_id?: string };
       if (result?.error) throw new Error(result.error);
