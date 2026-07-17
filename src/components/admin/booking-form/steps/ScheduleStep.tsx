@@ -96,34 +96,10 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   const isArrivalWindow = schedulingConfig?.mode === 'arrival_window';
   const enabledWindows = (schedulingConfig?.windows ?? []).filter((w) => w.enabled);
 
-  // Business rule: no same-day or next-day bookings from the admin form.
-  // TEMPORARY (2026-07-14): scoped to TidyWise Cleaning's own org only,
-  // matching the same scoping on the server-side enforce_booking_notice_period
-  // DB trigger. This was briefly applied to every org and incorrectly
-  // blocked 81 other paying customers from same-day/next-day bookings they
-  // never opted into. A real per-org opt-in (business_settings.minimum_notice_hours,
-  // plus the Settings UI for it, which doesn't exist yet) is tracked as
-  // separate follow-up work — when that ships, this hardcoded org check
-  // and the matching one in the DB trigger should both be replaced by it.
-  //
-  // `day` here is react-day-picker's own calendar-day Date (midnight
-  // local, same convention selectedDateTimeToUTCISO already treats as the
-  // "intended" org-local date elsewhere in this form) — compare its own
-  // Y/M/D directly against "today"/"tomorrow" as they currently are in the
-  // ORG's timezone, not the browser's, so this doesn't drift for staff
-  // traveling or an org based in a different timezone than the browser.
-  const TIDYWISE_CLEANING_ORG_ID = 'e95b92d0-7099-408e-a773-e4407b34f8b4';
-  const orgTimezone = useOrgTimezone();
-  const isWithinBookingBlackout = useCallback(
-    (day: Date) => {
-      if (organizationId !== TIDYWISE_CLEANING_ORG_ID) return false;
-      const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
-      const todayStr = getDateInTimezone(new Date(), orgTimezone);
-      const tomorrowStr = getDateInTimezone(addDays(new Date(), 1), orgTimezone);
-      return dayStr === todayStr || dayStr === tomorrowStr;
-    },
-    [orgTimezone, organizationId],
-  );
+  // No hardcoded same-day/next-day blackout — per-org minimum-notice
+  // enforcement will be reintroduced via business_settings when that
+  // Settings UI ships.
+
 
   // State for job location coordinates (geocoded from address)
   const [jobCoordinates, setJobCoordinates] = useState<{ lat: number; lng: number } | null>(null);
