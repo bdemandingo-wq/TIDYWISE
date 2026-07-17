@@ -17,8 +17,6 @@ import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
 import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
 import { useOrgId } from '@/hooks/useOrgId';
-import { useOrgTimezone } from '@/hooks/useOrgTimezone';
-import { getDateInTimezone } from '@/lib/timezoneUtils';
 
 type Coordinates = { lat: number; lng: number };
 
