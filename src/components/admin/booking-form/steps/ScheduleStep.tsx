@@ -421,7 +421,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
                   mode="single"
                   selected={selectedDate}
                   onSelect={handleDateSelect}
-                  disabled={isWithinBookingBlackout}
+                  disabled={undefined}
                   initialFocus
                   className="pointer-events-auto"
                 />
