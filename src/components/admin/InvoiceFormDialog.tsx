@@ -103,11 +103,13 @@ export function InvoiceFormDialog({
     is_recurring: false,
     recurring_interval: 'monthly',
     email_copy: true,
+    cc_emails: [] as string[],
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showTax, setShowTax] = useState(false);
+  const [ccInput, setCcInput] = useState('');
 
   // Fetch payment settings for display
   const { data: paymentSettings } = useQuery({
