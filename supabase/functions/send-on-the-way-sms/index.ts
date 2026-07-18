@@ -80,8 +80,10 @@ const handler = async (req: Request): Promise<Response> => {
         scheduled_at,
         organization_id,
         address,
+        apt_suite,
         city,
         state,
+        zip_code,
         customer:customers(
           first_name,
           last_name,
