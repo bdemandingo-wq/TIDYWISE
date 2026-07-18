@@ -964,7 +964,8 @@ export function AIAnalysisCenter() {
               <button
                 key={i}
                 onClick={() => sendChat(q)}
-                className="max-w-full break-words bg-muted border border-border rounded-full px-4 py-2 text-sm text-muted-foreground hover:bg-muted/80 transition-colors min-h-[44px]"
+                disabled={chatLoading}
+                className="max-w-full break-words bg-muted border border-border rounded-full px-4 py-2 text-sm text-muted-foreground hover:bg-muted/80 transition-colors min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {q}
               </button>
