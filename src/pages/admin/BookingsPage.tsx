@@ -167,6 +167,25 @@ export default function BookingsPage() {
   const isMobile = useIsMobile();
   const orgTz = useOrgTimezone();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle deep-links like /dashboard/bookings?newBooking=true&customerId=<id>
+  // (e.g. the "Book" button on a customer profile) by opening the New Booking
+  // dialog with the customer already selected.
+  useEffect(() => {
+    if (searchParams.get('newBooking') === 'true') {
+      const cid = searchParams.get('customerId');
+      setPrefillCustomerId(cid || null);
+      setEditingBooking(null);
+      setAddDialogOpen(true);
+      // Strip the params so re-opening/closing doesn't retrigger.
+      const next = new URLSearchParams(searchParams);
+      next.delete('newBooking');
+      next.delete('customerId');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
