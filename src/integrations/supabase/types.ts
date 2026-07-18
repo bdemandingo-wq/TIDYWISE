@@ -10274,6 +10274,14 @@ export type Database = {
         }
         Returns: string
       }
+      create_client_portal_referral: {
+        Args: {
+          p_portal_user_id: string
+          p_referred_email: string
+          p_referred_name?: string
+        }
+        Returns: Json
+      }
       create_client_portal_user: {
         Args: {
           p_customer_id: string
