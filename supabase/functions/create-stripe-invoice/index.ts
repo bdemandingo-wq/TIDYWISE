@@ -24,6 +24,7 @@ interface CreateInvoiceRequest {
   taxAmount: number;
   dueDate?: string;
   notes?: string;
+  ccEmails?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
