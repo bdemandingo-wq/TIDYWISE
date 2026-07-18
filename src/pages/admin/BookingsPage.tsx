@@ -282,11 +282,14 @@ export default function BookingsPage() {
     });
   }, [bookings, isMobile, isFullyDone, orgTz]);
 
-  // Filter for drafts (pending status with is_draft flag or pending payment)
-  const draftBookings = sortedBookings.filter((booking) => 
-    (booking as any).is_draft === true || 
-    (booking.status === 'pending' && booking.payment_status === 'pending')
-  );
+  // Draft bookings: true is_draft rows fetched separately (useBookings excludes them),
+  // plus non-draft rows with pending status + pending payment (legacy "draft" behavior).
+  const draftBookings = useMemo(() => {
+    const pendingPending = sortedBookings.filter((b) =>
+      b.status === 'pending' && b.payment_status === 'pending' && !(b as any).is_draft
+    );
+    return [...(draftsFromDb as BookingWithDetails[]), ...pendingPending];
+  }, [sortedBookings, draftsFromDb]);
 
   const filteredBookings = sortedBookings.filter((booking) => {
     const customerName = booking.customer 
