@@ -4849,6 +4849,7 @@ export type Database = {
       invoices: {
         Row: {
           address: string | null
+          cc_emails: string[]
           created_at: string
           customer_id: string | null
           discount_amount: number | null
@@ -4877,6 +4878,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          cc_emails?: string[]
           created_at?: string
           customer_id?: string | null
           discount_amount?: number | null
@@ -4905,6 +4907,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          cc_emails?: string[]
           created_at?: string
           customer_id?: string | null
           discount_amount?: number | null
