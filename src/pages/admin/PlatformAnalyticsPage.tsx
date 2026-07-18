@@ -449,47 +449,46 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-9 mb-4">
-            <TabsTrigger value="subscribers" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
-              <span className="sm:hidden">{analytics?.subscribers?.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="signups" className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Signups ({analytics?.signups.total || 0})</span>
-              <span className="sm:hidden">{analytics?.signups.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="organizations" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Orgs ({analytics?.organizations.total || 0})</span>
-              <span className="sm:hidden">{analytics?.organizations.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="churn" className="flex items-center gap-2">
-              <TrendingDown className="w-4 h-4" />
-              <span className="hidden sm:inline">Churn</span>
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Activity</span>
-            </TabsTrigger>
-            <TabsTrigger value="evidence" className="flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Evidence</span>
-            </TabsTrigger>
-            <TabsTrigger value="demos" className="flex items-center gap-2">
-              <CalendarCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Demos</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              <span className="hidden sm:inline">Feed</span>
-            </TabsTrigger>
-            <TabsTrigger value="errors" className="flex items-center gap-2">
-              <Bug className="w-4 h-4" />
-              <span className="hidden sm:inline">Errors</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="mb-4 -mx-4 md:mx-0 overflow-x-auto scrollbar-none">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-9 h-auto gap-1 px-4 md:px-1">
+              <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <CreditCard className="w-4 h-4" />
+                <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="signups" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <UserPlus className="w-4 h-4" />
+                <span>Signups ({analytics?.signups.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="organizations" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Building2 className="w-4 h-4" />
+                <span>Orgs ({analytics?.organizations.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <TrendingDown className="w-4 h-4" />
+                <span>Churn</span>
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Activity className="w-4 h-4" />
+                <span>Activity</span>
+              </TabsTrigger>
+              <TabsTrigger value="evidence" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Search className="w-4 h-4" />
+                <span>Evidence</span>
+              </TabsTrigger>
+              <TabsTrigger value="demos" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <CalendarCheck className="w-4 h-4" />
+                <span>Demos</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Bell className="w-4 h-4" />
+                <span>Feed</span>
+              </TabsTrigger>
+              <TabsTrigger value="errors" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Bug className="w-4 h-4" />
+                <span>Errors</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="churn">
             <div className="space-y-6">
