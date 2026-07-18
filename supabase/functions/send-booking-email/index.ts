@@ -4,6 +4,7 @@ import { getOrgEmailSettings } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 import { loadOrgBrand, renderBrandedEmail } from "../_shared/org-email-renderer.ts";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
