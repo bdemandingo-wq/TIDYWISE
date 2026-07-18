@@ -34,6 +34,7 @@ interface InvoiceEmailRequest {
   dueDate?: string;
   notes?: string;
   organizationId: string;
+  ccEmails?: string[];
 }
 
 const ACCENT = "#0ea5e9";
