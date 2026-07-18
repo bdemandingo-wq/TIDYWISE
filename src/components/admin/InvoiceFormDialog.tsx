@@ -670,6 +670,51 @@ export function InvoiceFormDialog({
                     {formData.notes.length}/250
                   </div>
                 </div>
+                <div className="px-4 py-3 border-b">
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                    CC recipients (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      value={ccInput}
+                      onChange={(e) => setCcInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          addCcEmail();
+                        }
+                      }}
+                      placeholder="name@example.com"
+                    />
+                    <Button type="button" variant="outline" onClick={addCcEmail}>
+                      Add
+                    </Button>
+                  </div>
+                  {formData.cc_emails.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.cc_emails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removeCcEmail(email)}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label={`Remove ${email}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These addresses will be CC'd when the invoice is emailed.
+                  </p>
+                </div>
               </CollapsibleContent>
             </Collapsible>
 
