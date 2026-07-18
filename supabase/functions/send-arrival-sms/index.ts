@@ -47,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, booking_number, organization_id, address, city, state, customer:customers(first_name, last_name, phone)')
+      .select('id, booking_number, organization_id, address, apt_suite, city, state, zip_code, customer:customers(first_name, last_name, phone)')
       .eq('id', bookingId)
       .single();
     if (!booking?.organization_id) {
