@@ -25,7 +25,8 @@ export function AddBookingDialog({
   onOpenChange,
   defaultDate,
   booking,
-  onDuplicate
+  onDuplicate,
+  defaultCustomerId,
 }: AddBookingDialogProps) {
   // This dialog is opened from 5+ different call sites (BookingsPage,
   // SchedulerCalendar, UpcomingBookings, AdminHeader, MobileBottomNav),
