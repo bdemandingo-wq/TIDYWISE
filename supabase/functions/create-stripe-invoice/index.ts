@@ -24,6 +24,7 @@ interface CreateInvoiceRequest {
   taxAmount: number;
   dueDate?: string;
   notes?: string;
+  ccEmails?: string[];
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -323,6 +324,7 @@ const handler = async (req: Request): Promise<Response> => {
             invoiceDate: invoiceRow?.created_at || new Date().toISOString(),
             dueDate: data.dueDate || invoiceRow?.due_date || undefined,
             notes: data.notes || invoiceRow?.notes || undefined,
+            ccEmails: Array.isArray(data.ccEmails) ? data.ccEmails : [],
           },
         });
         if (emailError) {
