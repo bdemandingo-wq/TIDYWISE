@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,7 +92,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
-import { useBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
+import { useBookings, useDraftBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, addDays } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
@@ -167,11 +167,31 @@ export default function BookingsPage() {
   const isMobile = useIsMobile();
   const orgTz = useOrgTimezone();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle deep-links like /dashboard/bookings?newBooking=true&customerId=<id>
+  // (e.g. the "Book" button on a customer profile) by opening the New Booking
+  // dialog with the customer already selected.
+  useEffect(() => {
+    if (searchParams.get('newBooking') === 'true') {
+      const cid = searchParams.get('customerId');
+      setPrefillCustomerId(cid || null);
+      setEditingBooking(null);
+      setAddDialogOpen(true);
+      // Strip the params so re-opening/closing doesn't retrigger.
+      const next = new URLSearchParams(searchParams);
+      next.delete('newBooking');
+      next.delete('customerId');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [prefillCustomerId, setPrefillCustomerId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [adjustPaymentOpen, setAdjustPaymentOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
@@ -225,6 +245,7 @@ export default function BookingsPage() {
   const [cancelBookingTarget, setCancelBookingTarget] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
+  const { data: draftsFromDb = [] } = useDraftBookings();
   const { data: staffList = [] } = useStaff();
   const { data: servicesList = [] } = useServices();
   const queryClient = useQueryClient();
@@ -281,11 +302,14 @@ export default function BookingsPage() {
     });
   }, [bookings, isMobile, isFullyDone, orgTz]);
 
-  // Filter for drafts (pending status with is_draft flag or pending payment)
-  const draftBookings = sortedBookings.filter((booking) => 
-    (booking as any).is_draft === true || 
-    (booking.status === 'pending' && booking.payment_status === 'pending')
-  );
+  // Draft bookings: true is_draft rows fetched separately (useBookings excludes them),
+  // plus non-draft rows with pending status + pending payment (legacy "draft" behavior).
+  const draftBookings = useMemo(() => {
+    const pendingPending = sortedBookings.filter((b) =>
+      b.status === 'pending' && b.payment_status === 'pending' && !(b as any).is_draft
+    );
+    return [...(draftsFromDb as BookingWithDetails[]), ...pendingPending];
+  }, [sortedBookings, draftsFromDb]);
 
   const filteredBookings = sortedBookings.filter((booking) => {
     const customerName = booking.customer 
@@ -1916,6 +1940,7 @@ export default function BookingsPage() {
               const paymentInfo = getPaymentStatusInfo(booking);
               const scheduledDate = new Date(booking.scheduled_at);
               const isCleaned = booking.status === 'completed';
+              const isCancelled = booking.status === 'cancelled';
               const isPaid = booking.payment_status === 'paid';
               
               return (
@@ -1967,11 +1992,18 @@ export default function BookingsPage() {
                     {/* Clean status badge */}
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                      isCleaned
-                        ? "bg-success/10 text-success"
-                        : "bg-destructive/10 text-destructive"
+                      isCancelled
+                        ? "bg-destructive/15 text-destructive"
+                        : isCleaned
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
                     )}>
-                      {isCleaned ? (
+                      {isCancelled ? (
+                        <>
+                          <XCircle className="w-3 h-3" />
+                          cancelled
+                        </>
+                      ) : isCleaned ? (
                         <>
                           <CheckCircle className="w-3 h-3" />
                           clean completed
@@ -2686,9 +2718,13 @@ export default function BookingsPage() {
 
       <AddBookingDialog
         open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (!open) setPrefillCustomerId(null);
+        }}
         booking={editingBooking}
         onDuplicate={handleDuplicate}
+        defaultCustomerId={prefillCustomerId}
       />
       
       <BookingDetailsDialog

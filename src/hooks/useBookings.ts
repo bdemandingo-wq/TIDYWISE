@@ -245,6 +245,39 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
   });
 }
 
+/**
+ * Fetch draft bookings only. Kept separate from `useBookings()` so drafts
+ * do not leak into the scheduler, reports, dashboard, or calendar views —
+ * they should only appear inside the Drafts tab on BookingsPage.
+ */
+export function useDraftBookings() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
+  return useQuery({
+    queryKey: ['bookings', 'drafts', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers(id, first_name, last_name, email, phone),
+          service:services(id, name, description, price, duration),
+          staff:staff(id, name, email, phone),
+          booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
+        `)
+        .eq('organization_id', organizationId)
+        .eq('is_draft', true)
+        .order('scheduled_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as BookingWithDetails[];
+    },
+    enabled: !!organizationId,
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();

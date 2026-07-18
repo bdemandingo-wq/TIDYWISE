@@ -198,11 +198,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-md w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:w-auto rounded-none sm:rounded-lg flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 sm:p-6 pb-2 flex-shrink-0 border-b">
           <DialogTitle>Add Staff Member</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Full Name *</Label>
             <Input
@@ -324,7 +325,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
             <p className="text-xs text-muted-foreground">Used for pay calculations when not using check-in/out times</p>
           </div>
 
-          <DialogFooter>
+          </div>
+
+          <DialogFooter
+            className="flex-shrink-0 border-t p-4 sm:p-6 sticky bottom-0 bg-background gap-2"
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+          >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

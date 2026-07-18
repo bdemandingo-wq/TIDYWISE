@@ -167,7 +167,7 @@ export function LeadPipelineBoard({
                   maskName={maskName}
                   maskEmail={maskEmail}
                   maskPhone={maskPhone}
-                  showDelete={!isMobile}
+                  showDelete={true}
                 />
               ))}
             </div>

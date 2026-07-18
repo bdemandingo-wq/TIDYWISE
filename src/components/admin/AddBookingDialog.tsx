@@ -17,6 +17,7 @@ interface AddBookingDialogProps {
   defaultDate?: Date;
   booking?: BookingWithDetails | null;
   onDuplicate?: (booking: BookingWithDetails) => void;
+  defaultCustomerId?: string | null;
 }
 
 export function AddBookingDialog({
@@ -24,7 +25,8 @@ export function AddBookingDialog({
   onOpenChange,
   defaultDate,
   booking,
-  onDuplicate
+  onDuplicate,
+  defaultCustomerId,
 }: AddBookingDialogProps) {
   // This dialog is opened from 5+ different call sites (BookingsPage,
   // SchedulerCalendar, UpcomingBookings, AdminHeader, MobileBottomNav),
@@ -86,7 +88,7 @@ export function AddBookingDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto mt-4">
-          <BookingFormProvider defaultDate={defaultDate} booking={booking}>
+          <BookingFormProvider defaultDate={defaultDate} booking={booking} defaultCustomerId={defaultCustomerId}>
             <BookingStepper 
               booking={booking} 
               onClose={() => onOpenChange(false)}

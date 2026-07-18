@@ -203,11 +203,13 @@ const initialNewCustomer = {
 export function BookingFormProvider({ 
   children, 
   defaultDate,
-  booking 
+  booking,
+  defaultCustomerId,
 }: { 
   children: ReactNode;
   defaultDate?: Date;
   booking?: BookingWithDetails | null;
+  defaultCustomerId?: string | null;
 }) {
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
@@ -227,7 +229,7 @@ export function BookingFormProvider({
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(defaultCustomerId || '');
   const [newCustomer, setNewCustomer] = useState(initialNewCustomer);
   
   // Property state
