@@ -325,7 +325,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
             <p className="text-xs text-muted-foreground">Used for pay calculations when not using check-in/out times</p>
           </div>
 
-          <DialogFooter>
+          </div>
+
+          <DialogFooter
+            className="flex-shrink-0 border-t p-4 sm:p-6 sticky bottom-0 bg-background gap-2"
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+          >
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
