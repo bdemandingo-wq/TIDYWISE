@@ -212,6 +212,7 @@ export function InvoiceFormDialog({
           is_recurring: false,
           recurring_interval: 'monthly',
           email_copy: true,
+          cc_emails: [],
         });
         setLineItems([]);
         setShowDiscount(false);
