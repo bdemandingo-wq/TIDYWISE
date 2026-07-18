@@ -874,35 +874,40 @@ export default function PlatformAnalyticsPage() {
           <TabsContent value="activity">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
                     <Activity className="w-5 h-5 text-primary" />
                     User Activity Tracking
                     <Badge variant="secondary">Live</Badge>
                   </CardTitle>
-                  {/* Filter buttons */}
-                  <div className="flex gap-1">
-                    <Button 
-                      variant={activityFilter === 'all' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('all')}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activityFilter === 'admin' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('admin')}
-                    >
-                      Admin ({sessionStats?.adminStats?.userCount || 0})
-                    </Button>
-                    <Button 
-                      variant={activityFilter === 'client_portal' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('client_portal')}
-                    >
-                      Client Portal ({sessionStats?.clientPortalStats?.userCount || 0})
-                    </Button>
+                  {/* Filter buttons — horizontally scroll on narrow screens */}
+                  <div className="-mx-1 px-1 overflow-x-auto scrollbar-none">
+                    <div className="flex gap-1 w-max sm:w-auto">
+                      <Button
+                        variant={activityFilter === 'all' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('all')}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={activityFilter === 'admin' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('admin')}
+                      >
+                        Admin ({sessionStats?.adminStats?.userCount || 0})
+                      </Button>
+                      <Button
+                        variant={activityFilter === 'client_portal' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('client_portal')}
+                      >
+                        Client Portal ({sessionStats?.clientPortalStats?.userCount || 0})
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
