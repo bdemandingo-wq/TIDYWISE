@@ -290,9 +290,10 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings.unassigned, 'bookings.unassigned'), filter: 'status=unassigned' });
     push(bookingReasons, { key: 'payment', label: 'failed payment', count: g(bookings.payment, 'bookings.payment'), filter: 'payment=failed' });
 
-    // Scheduler shares unassigned
+    // Scheduler intentionally has no badge — unassigned jobs surface on the
+    // Bookings item, and duplicating the count here produced a "phantom"
+    // count that never cleared from the Scheduler screen itself.
     const schedulerReasons: BadgeReason[] = [];
-    push(schedulerReasons, { key: 'unassigned', label: 'unassigned job', count: g(bookings.unassigned, 'scheduler.overlaps') });
 
     // Client portal
     const portalReasons: BadgeReason[] = [];
