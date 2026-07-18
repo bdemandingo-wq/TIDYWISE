@@ -398,6 +398,7 @@ export function InvoiceFormDialog({
             taxAmount: showTax ? taxAmount : 0,
             dueDate: formData.due_label === 'Upon receipt' ? null : formData.due_date,
             notes: formData.notes || null,
+            ccEmails: wantsEmail ? formData.cc_emails : [],
           },
         });
 
