@@ -118,6 +118,7 @@ import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialo
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
+import { formatFullAddress } from '@/lib/formatAddress';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-warning/10', text: 'text-warning', dot: 'bg-warning' },
