@@ -225,6 +225,7 @@ export default function BookingsPage() {
   const [cancelBookingTarget, setCancelBookingTarget] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
+  const { data: draftsFromDb = [] } = useDraftBookings();
   const { data: staffList = [] } = useStaff();
   const { data: servicesList = [] } = useServices();
   const queryClient = useQueryClient();
