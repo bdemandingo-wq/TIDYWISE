@@ -179,6 +179,7 @@ export function InvoiceFormDialog({
           is_recurring: invoice.is_recurring || false,
           recurring_interval: invoice.recurring_interval || 'monthly',
           email_copy: invoice.send_copy_to_self ?? true,
+          cc_emails: Array.isArray(invoice.cc_emails) ? invoice.cc_emails : [],
         });
         if (invoice.invoice_items?.length > 0) {
           setLineItems(invoice.invoice_items.map((item: any) => ({
