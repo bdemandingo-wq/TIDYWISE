@@ -667,11 +667,12 @@ export function NotificationPreferencesCard() {
       {/* ── Sticky action bar ───────────────────────────────────── */}
       <div
         className={cn(
-          'fixed bottom-0 inset-x-0 z-40 border-t bg-background/95 backdrop-blur',
+          'fixed bottom-0 inset-x-0 z-[60] border-t bg-background/95 backdrop-blur',
           'px-4 py-3 md:px-6',
           'flex items-center justify-between gap-3',
-          // safe-area for iOS
-          'pb-[calc(env(safe-area-inset-bottom)+12px)]'
+          // safe-area + clear the mobile bottom nav (~64px) on small screens
+          'pb-[calc(env(safe-area-inset-bottom)+12px)]',
+          'mb-[calc(64px+env(safe-area-inset-bottom))] md:mb-0'
         )}
       >
         <div className="text-sm min-w-0">
