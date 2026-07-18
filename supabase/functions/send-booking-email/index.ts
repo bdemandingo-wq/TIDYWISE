@@ -190,8 +190,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("[send-booking-email] using org", booking.organizationId, "sender:", senderEmail);
 
-    const fullAddress = [booking.address, booking.city, booking.state, booking.zipCode]
-      .filter(Boolean).join(", ");
+    const fullAddress = formatFullAddress({
+      address: booking.address,
+      apt_suite: booking.aptSuite,
+      city: booking.city,
+      state: booking.state,
+      zip_code: booking.zipCode,
+    });
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
 
