@@ -534,7 +534,33 @@ export function BookingFormProvider({
     const timeStr = getTimeInTimezone(booking.scheduled_at, orgTimezone);
     setSelectedTime(timeStr);
     setNotes(booking.notes || '');
-    setTotalAmount(booking.total_amount || 0);
+    // booking.total_amount is stored post-discount. Restore the pre-discount
+    // subtotal so re-applying/removing a coupon during edit doesn't stack on
+    // top of an already-discounted total.
+    const bookingDiscountAmount = Number((booking as unknown as { discount_amount?: number | null })?.discount_amount ?? 0) || 0;
+    const bookingDiscountId = (booking as unknown as { discount_id?: string | null })?.discount_id ?? null;
+    setTotalAmount((booking.total_amount || 0) + bookingDiscountAmount);
+    if (bookingDiscountId && bookingDiscountAmount > 0 && organizationId) {
+      supabase
+        .from('discounts')
+        .select('id, code, discount_type, discount_value')
+        .eq('id', bookingDiscountId)
+        .eq('organization_id', organizationId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            setAppliedDiscount({
+              id: data.id,
+              code: data.code,
+              discount_type: data.discount_type as 'percentage' | 'flat',
+              discount_value: Number(data.discount_value) || 0,
+              discountAmount: bookingDiscountAmount,
+            });
+          }
+        });
+    } else {
+      setAppliedDiscount(null);
+    }
     setAddress(booking.address || '');
     setAptSuite(booking.apt_suite || '');
     setCity(booking.city || '');

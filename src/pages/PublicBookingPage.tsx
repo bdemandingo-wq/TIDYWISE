@@ -1485,7 +1485,18 @@ export default function PublicBookingPage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Time</p>
-                      <p className="font-medium">{selectedTime ? formatTime24to12(selectedTime) : ''}</p>
+                      <p className="font-medium">
+                        {(() => {
+                          if (!selectedTime) return '';
+                          if (schedulingMode === 'arrival_window') {
+                            const w = arrivalWindows.find((x) => x.enabled && x.start_time === selectedTime);
+                            if (w) {
+                              return w.label || `${formatTime24to12(w.start_time)} - ${formatTime24to12(w.end_time)}`;
+                            }
+                          }
+                          return formatTime24to12(selectedTime);
+                        })()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Customer</p>
