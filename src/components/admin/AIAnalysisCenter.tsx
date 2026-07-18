@@ -20,7 +20,8 @@ import ReactMarkdown from 'react-markdown';
 import { useQuery as useRQ } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { handlePossibleAiCreditError } from '@/components/ai-credits/AiCreditLimitModal';
+import { handlePossibleAiCreditError, openAiCreditLimitModal } from '@/components/ai-credits/AiCreditLimitModal';
+import { parseEdgeFunctionError } from '@/lib/errorHandling';
 
 /** Wraps supabase.functions.invoke and shows the credit-limit modal when a 402 comes back. */
 async function invokeAi(fn: string, body: unknown) {
@@ -536,6 +537,10 @@ export function AIAnalysisCenter() {
 
   const sendChat = useCallback(async (input: string) => {
     if (!input.trim() || !orgId) return;
+    // Item 6: hard-guard against re-entry while a request is in flight so
+    // repeated taps on a suggested chip / Enter / Send button can't fire
+    // the same message multiple times.
+    if (chatLoading) return;
     const userMsg = { role: 'user' as const, content: input };
     setChatMessages(prev => [...prev, userMsg]);
     setChatInput('');
@@ -567,8 +572,39 @@ export function AIAnalysisCenter() {
         }),
       });
 
-      if (resp.status === 429) { toast.error('Rate limit exceeded. Try again later.'); setChatLoading(false); return; }
-      if (resp.status === 402) { toast.error('AI is temporarily unavailable. Please try again shortly.'); setChatLoading(false); return; }
+      // Item 7 + 16: parse structured 402 credit-limit payload and open the
+      // branded "Buy more credits" modal instead of a raw toast. Fall back
+      // gracefully if the body isn't the expected shape.
+      if (resp.status === 402) {
+        try {
+          const parsed = await resp.json();
+          if (parsed?.code === 'daily_limit_reached') {
+            openAiCreditLimitModal({
+              used: parsed.used,
+              limit: parsed.limit,
+              purchasedBalance: parsed.purchasedBalance ?? 0,
+              resetsAt: parsed.resetsAt,
+              message: parsed.message,
+            });
+          } else {
+            toast.error("You're out of AI credits. Tap to buy more.", {
+              action: { label: 'Get credits', onClick: () => openAiCreditLimitModal({ used: 0, limit: 0, purchasedBalance: 0, resetsAt: new Date().toISOString() }) },
+            });
+          }
+        } catch {
+          toast.error("You're out of AI credits. Tap to buy more.", {
+            action: { label: 'Get credits', onClick: () => openAiCreditLimitModal({ used: 0, limit: 0, purchasedBalance: 0, resetsAt: new Date().toISOString() }) },
+          });
+        }
+        // Remove the optimistic user message so they can retry cleanly.
+        setChatMessages(prev => prev.slice(0, -1));
+        return;
+      }
+      if (resp.status === 429) {
+        toast.error("You're sending messages a bit too fast. Give it a few seconds and try again.");
+        setChatMessages(prev => prev.slice(0, -1));
+        return;
+      }
       if (!resp.ok || !resp.body) {
         const errorText = await resp.text().catch(() => '');
         console.error('AI chat error:', resp.status, errorText);
@@ -616,11 +652,15 @@ export function AIAnalysisCenter() {
       }
     } catch (e) {
       console.error('Chat error:', e);
-      toast.error(e instanceof Error ? e.message : 'Chat error');
+      // Item 16: never surface raw "Edge Function returned a non-2xx..." to users.
+      toast.error(parseEdgeFunctionError(e));
     } finally {
       setChatLoading(false);
+      // Item 8: refresh the credit meter immediately after every request so
+      // the "X free AI credits left" chip reflects reality.
+      queryClient.invalidateQueries({ queryKey: ['ai-credit-status', orgId] });
     }
-  }, [orgId, businessSnapshot]);
+  }, [orgId, businessSnapshot, chatLoading, queryClient]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
