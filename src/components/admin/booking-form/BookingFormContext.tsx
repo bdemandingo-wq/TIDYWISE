@@ -229,7 +229,7 @@ export function BookingFormProvider({
   
   // Customer state
   const [customerTab, setCustomerTab] = useState<'existing' | 'new'>('existing');
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState(defaultCustomerId || '');
   const [newCustomer, setNewCustomer] = useState(initialNewCustomer);
   
   // Property state
