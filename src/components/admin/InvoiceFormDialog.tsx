@@ -317,6 +317,7 @@ export function InvoiceFormDialog({
         recurring_interval: formData.is_recurring ? formData.recurring_interval : null,
         scheduled_send_at: formData.send_immediately ? null : formData.scheduled_send_at,
         send_copy_to_self: formData.email_copy,
+        cc_emails: formData.cc_emails,
       };
 
       let invoiceId: string;
