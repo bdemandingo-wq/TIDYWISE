@@ -88,7 +88,7 @@ export function AddBookingDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto mt-4">
-          <BookingFormProvider defaultDate={defaultDate} booking={booking}>
+          <BookingFormProvider defaultDate={defaultDate} booking={booking} defaultCustomerId={defaultCustomerId}>
             <BookingStepper 
               booking={booking} 
               onClose={() => onOpenChange(false)}
