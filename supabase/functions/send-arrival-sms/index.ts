@@ -124,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (notifyAdmin && adminPhone) {
       const msg = `📍 ${staff.name} has arrived at Job #${booking.booking_number}\n\n` +
         `Customer: ${customer?.first_name ?? ''} ${customer?.last_name ?? ''}\n` +
-        `Address: ${booking.address || 'N/A'}${booking.city ? `, ${booking.city}` : ''}`;
+        `Address: ${formatFullAddress(booking as any) || 'N/A'}`;
       adminSent = await sendSms(formatPhoneNumber(adminPhone), msg, 'admin');
     }
 
