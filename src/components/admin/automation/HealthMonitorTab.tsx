@@ -124,7 +124,7 @@ export function HealthMonitorTab() {
         ? `Active${openphoneStatus.lastMessage ? ` • Last message ${format(new Date(openphoneStatus.lastMessage), 'MMM d, h:mm a')}` : ''}`
         : 'Not configured — SMS automations will not work',
       lastChecked: new Date().toISOString(),
-      fixAction: !openphoneStatus?.connected ? { label: 'Configure SMS', href: '/dashboard/settings' } : undefined,
+      fixAction: !openphoneStatus?.connected ? { label: 'Configure SMS', href: '/dashboard/settings?tab=sms' } : undefined,
     },
     {
       name: 'Stripe Connected',
