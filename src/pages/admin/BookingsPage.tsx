@@ -172,6 +172,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [prefillCustomerId, setPrefillCustomerId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [adjustPaymentOpen, setAdjustPaymentOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
