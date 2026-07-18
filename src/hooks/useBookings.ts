@@ -189,7 +189,7 @@ export function useBookings() {
             booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
           `)
           .eq('organization_id', organizationId)
-          .or('is_draft.is.null,is_draft.eq.false')
+          // Include drafts so the "Drafts" tab in BookingsPage can filter them client-side.
           .order('scheduled_at', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 
