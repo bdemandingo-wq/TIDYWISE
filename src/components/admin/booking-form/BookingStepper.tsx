@@ -428,6 +428,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
           appointmentTime: format(scheduledDate, 'h:mm a'),
           address: address || '',
+          aptSuite: aptSuite || '',
           city: city || '',
           state: state || '',
           zipCode: zipCode || '',

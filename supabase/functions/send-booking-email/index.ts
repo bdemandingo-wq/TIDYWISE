@@ -4,6 +4,7 @@ import { getOrgEmailSettings } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 import { loadOrgBrand, renderBrandedEmail } from "../_shared/org-email-renderer.ts";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -24,6 +25,7 @@ interface BookingEmailRequest {
   appointmentDate: string;
   appointmentTime: string;
   address: string;
+  aptSuite?: string;
   city?: string;
   state?: string;
   zipCode?: string;
@@ -188,8 +190,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("[send-booking-email] using org", booking.organizationId, "sender:", senderEmail);
 
-    const fullAddress = [booking.address, booking.city, booking.state, booking.zipCode]
-      .filter(Boolean).join(", ");
+    const fullAddress = formatFullAddress({
+      address: booking.address,
+      apt_suite: booking.aptSuite,
+      city: booking.city,
+      state: booking.state,
+      zip_code: booking.zipCode,
+    });
     const safeExtras = Array.isArray(booking.extras) ? booking.extras : [];
     const extrasText = safeExtras.length > 0 ? safeExtras.join(", ") : "None";
 

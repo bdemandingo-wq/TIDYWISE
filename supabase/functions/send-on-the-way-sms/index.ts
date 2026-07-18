@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,8 +80,10 @@ const handler = async (req: Request): Promise<Response> => {
         scheduled_at,
         organization_id,
         address,
+        apt_suite,
         city,
         state,
+        zip_code,
         customer:customers(
           first_name,
           last_name,
@@ -223,16 +226,17 @@ const handler = async (req: Request): Promise<Response> => {
     
     customerMessage += `\n\nBooking #${booking.booking_number}`;
     
-    if (booking.address) {
-      customerMessage += `\n📍 ${booking.address}${booking.city ? `, ${booking.city}` : ''}`;
+    const formattedAddress = formatFullAddress(booking as any);
+    if (formattedAddress) {
+      customerMessage += `\n📍 ${formattedAddress}`;
     }
-    
+
     customerMessage += `\n\nQuestions? Reply to this message.`;
 
     // Build admin notification message
     const adminMessage = `📍 ${staff.name} is on the way to Job #${booking.booking_number}\n\n` +
       `Customer: ${typedCustomer.first_name} ${typedCustomer.last_name}\n` +
-      `Address: ${booking.address || 'N/A'}${booking.city ? `, ${booking.city}` : ''}\n` +
+      `Address: ${formattedAddress || 'N/A'}\n` +
       (etaMinutes ? `ETA: ~${etaMinutes} min` : '');
 
     // Helper function to format phone numbers

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: booking } = await supabase
       .from('bookings')
-      .select('id, booking_number, organization_id, address, city, state, customer:customers(first_name, last_name, phone)')
+      .select('id, booking_number, organization_id, address, apt_suite, city, state, zip_code, customer:customers(first_name, last_name, phone)')
       .eq('id', bookingId)
       .single();
     if (!booking?.organization_id) {
@@ -123,7 +124,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (notifyAdmin && adminPhone) {
       const msg = `📍 ${staff.name} has arrived at Job #${booking.booking_number}\n\n` +
         `Customer: ${customer?.first_name ?? ''} ${customer?.last_name ?? ''}\n` +
-        `Address: ${booking.address || 'N/A'}${booking.city ? `, ${booking.city}` : ''}`;
+        `Address: ${formatFullAddress(booking as any) || 'N/A'}`;
       adminSent = await sendSms(formatPhoneNumber(adminPhone), msg, 'admin');
     }
 

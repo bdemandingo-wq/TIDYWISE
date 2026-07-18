@@ -118,6 +118,7 @@ import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialo
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
+import { formatFullAddress } from '@/lib/formatAddress';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-warning/10', text: 'text-warning', dot: 'bg-warning' },
@@ -1066,9 +1067,7 @@ export default function BookingsPage() {
     
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
@@ -1169,9 +1168,7 @@ export default function BookingsPage() {
       for (const booking of bookingsWithCleaners) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1237,9 +1234,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
@@ -1371,9 +1366,7 @@ export default function BookingsPage() {
       for (const booking of upcomingWeekBookings) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
