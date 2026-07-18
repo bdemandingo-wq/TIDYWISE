@@ -360,7 +360,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       const customerName = payload?.customerName || "there";
       const serviceName = payload?.serviceName || "cleaning";
-      const address = payload?.address || "";
+      // Always prefer a DB-sourced full address (includes apt/suite/state/zip)
+      // over the raw street the caller passed in.
+      let address = "";
+      if (payload?.bookingId) {
+        const { data: addrBooking } = await supabase
+          .from("bookings")
+          .select("address, apt_suite, city, state, zip_code")
+          .eq("id", payload.bookingId)
+          .maybeSingle();
+        if (addrBooking) address = formatFullAddress(addrBooking as any);
+      }
+      if (!address) address = payload?.address || "";
 
       const isConfirmation = payload?.messageType === "confirmation";
       const message = isConfirmation
