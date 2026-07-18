@@ -931,10 +931,18 @@ export function InvoiceFormDialog({
                     className="flex-1"
                     disabled={saveMutation.isPending || lineItems.length === 0 || !selectedCustomer}
                   >
-                    {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Send
-                    <ChevronDown className="w-4 h-4 ml-2" />
+                    {saveMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Send
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      </>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
