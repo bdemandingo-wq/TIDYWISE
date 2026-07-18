@@ -896,7 +896,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       // for concurrent bookings) right before actually committing —
       // deliberately not in buildBookingData(), which also runs as a
       // cancellable preview step for the recurring-booking dialog above.
-      if (bookingData.discount_id) {
+      // Only reserve a redemption when the coupon on this booking is new
+      // (either this is a brand-new booking, or the admin swapped in a
+      // different coupon while editing). Editing an existing booking that
+      // already had this same coupon must NOT re-burn a use.
+      const previousDiscountId = (booking as unknown as { discount_id?: string | null })?.discount_id ?? null;
+      const isNewCouponReservation =
+        bookingData.discount_id &&
+        bookingData.discount_id !== previousDiscountId;
+      if (isNewCouponReservation) {
         const { data: reserved, error: couponErr } = await supabase.rpc('increment_coupon_use', {
           p_discount_id: bookingData.discount_id,
         });
