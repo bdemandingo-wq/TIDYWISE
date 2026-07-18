@@ -25,6 +25,7 @@ interface BookingEmailRequest {
   appointmentDate: string;
   appointmentTime: string;
   address: string;
+  aptSuite?: string;
   city?: string;
   state?: string;
   zipCode?: string;
