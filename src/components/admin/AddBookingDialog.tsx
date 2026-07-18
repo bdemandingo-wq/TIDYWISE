@@ -17,6 +17,7 @@ interface AddBookingDialogProps {
   defaultDate?: Date;
   booking?: BookingWithDetails | null;
   onDuplicate?: (booking: BookingWithDetails) => void;
+  defaultCustomerId?: string | null;
 }
 
 export function AddBookingDialog({
