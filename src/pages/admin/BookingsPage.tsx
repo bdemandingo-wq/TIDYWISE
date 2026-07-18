@@ -1067,9 +1067,7 @@ export default function BookingsPage() {
     
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
@@ -1170,9 +1168,7 @@ export default function BookingsPage() {
       for (const booking of bookingsWithCleaners) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1238,9 +1234,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
@@ -1372,9 +1366,7 @@ export default function BookingsPage() {
       for (const booking of upcomingWeekBookings) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
