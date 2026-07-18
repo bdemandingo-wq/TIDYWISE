@@ -221,8 +221,12 @@ export function InvoiceFormDialog({
     }
   }, [open, invoice, defaultTaxPercent]);
 
-  // Calculate totals
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  // Calculate totals (coerce for numeric safety)
+  const subtotal = lineItems.reduce((sum, item) => {
+    const q = Number(item.quantity) || 0;
+    const p = Number(item.unit_price) || 0;
+    return sum + q * p;
+  }, 0);
   const discountPercent = parseFloat(formData.discount_percent) || 0;
   const discountAmount = subtotal * (discountPercent / 100);
   const subtotalAfterDiscount = subtotal - discountAmount;
@@ -231,7 +235,7 @@ export function InvoiceFormDialog({
   const totalAmount = subtotalAfterDiscount + taxAmount;
 
   const addLineItem = () => {
-    const defaultHours = (paymentSettings as any)?.default_billable_hours ?? 5;
+    const defaultHours = Number((paymentSettings as any)?.default_billable_hours) || 1;
     setLineItems([...lineItems, { service_id: '__custom__', description: '', quantity: defaultHours, unit_price: 0, total: 0 }]);
   };
 
@@ -242,21 +246,40 @@ export function InvoiceFormDialog({
   const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
-    
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[index].total = updated[index].quantity * updated[index].unit_price;
-    }
-    
+
     if (field === 'service_id' && value && value !== '__custom__') {
       const service = services.find(s => s.id === value);
       if (service) {
         updated[index].description = service.name;
-        updated[index].unit_price = service.price || 0;
-        updated[index].total = updated[index].quantity * updated[index].unit_price;
+        updated[index].unit_price = Number(service.price) || 0;
       }
     }
-    
+
+    // Always recompute total to avoid stale $0.00 displays
+    const q = Number(updated[index].quantity) || 0;
+    const p = Number(updated[index].unit_price) || 0;
+    updated[index].total = q * p;
+
     setLineItems(updated);
+  };
+
+  const addCcEmail = () => {
+    const email = ccInput.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    if (formData.cc_emails.includes(email)) {
+      setCcInput('');
+      return;
+    }
+    setFormData({ ...formData, cc_emails: [...formData.cc_emails, email] });
+    setCcInput('');
+  };
+
+  const removeCcEmail = (email: string) => {
+    setFormData({ ...formData, cc_emails: formData.cc_emails.filter(e => e !== email) });
   };
 
   // Get selected customer/lead info
