@@ -203,11 +203,13 @@ const initialNewCustomer = {
 export function BookingFormProvider({ 
   children, 
   defaultDate,
-  booking 
+  booking,
+  defaultCustomerId,
 }: { 
   children: ReactNode;
   defaultDate?: Date;
   booking?: BookingWithDetails | null;
+  defaultCustomerId?: string | null;
 }) {
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
