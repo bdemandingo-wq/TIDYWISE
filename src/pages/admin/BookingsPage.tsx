@@ -1920,6 +1920,7 @@ export default function BookingsPage() {
               const paymentInfo = getPaymentStatusInfo(booking);
               const scheduledDate = new Date(booking.scheduled_at);
               const isCleaned = booking.status === 'completed';
+              const isCancelled = booking.status === 'cancelled';
               const isPaid = booking.payment_status === 'paid';
               
               return (
