@@ -2718,9 +2718,13 @@ export default function BookingsPage() {
 
       <AddBookingDialog
         open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (!open) setPrefillCustomerId(null);
+        }}
         booking={editingBooking}
         onDuplicate={handleDuplicate}
+        defaultCustomerId={prefillCustomerId}
       />
       
       <BookingDetailsDialog
