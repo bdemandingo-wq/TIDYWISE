@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
