@@ -315,8 +315,9 @@ export default function TrackingPage() {
 
   useEffect(() => {
     fetchActive();
+    fetchHistory();
     fetchSettings();
-  }, [fetchActive, fetchSettings]);
+  }, [fetchActive, fetchHistory, fetchSettings]);
 
   // Poll every 30s
   useEffect(() => {
