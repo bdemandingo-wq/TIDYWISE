@@ -181,21 +181,45 @@ export function parseEdgeFunctionErrorDetailed(error: unknown): ParsedError {
   }
 
   // ── Network Errors ──
-  if (lowerMsg.includes('network') || lowerMsg.includes('fetch')) {
+  if (lowerMsg.includes('network') || lowerMsg.includes('failed to fetch')) {
     return {
       message: 'Network error. Please check your connection and try again.',
       severity: 'error',
     };
   }
-  if (lowerMsg.includes('rate limit')) {
+  if (lowerMsg.includes('rate limit') || lowerMsg.includes('too many requests') || lowerMsg.includes('429')) {
     return {
-      message: 'Too many requests. Please wait a moment and try again.',
+      message: "You're going a bit too fast. Give it a few seconds and try again.",
+      severity: 'error',
+    };
+  }
+
+  // ── AI credits / daily limit ──
+  if (
+    lowerMsg.includes('daily_limit_reached') ||
+    lowerMsg.includes('out of ai credits') ||
+    lowerMsg.includes('ai credits')
+  ) {
+    return {
+      message: "You're out of AI credits for today. Buy more to keep going.",
       severity: 'error',
     };
   }
 
   // ── Database Errors ──
-  if (lowerMsg.includes('pgrst') || lowerMsg.includes('postgresql')) {
+  if (lowerMsg.includes('leads_status_check') || (lowerMsg.includes('leads') && lowerMsg.includes('check constraint'))) {
+    return {
+      message: "That lead status isn't recognized. Try one of the standard statuses (new, contacted, qualified, won, lost).",
+      severity: 'error',
+    };
+  }
+  if (lowerMsg.includes('check constraint') || lowerMsg.includes('violates')) {
+    return {
+      message: "That value isn't allowed here. Please check your entry and try again.",
+      severity: 'error',
+    };
+  }
+  if (lowerMsg.includes('pgrst') || lowerMsg.includes('postgresql') || lowerMsg.includes('duplicate key')) {
     return {
       message: 'Something went wrong saving your data. Please try again.',
       severity: 'error',
