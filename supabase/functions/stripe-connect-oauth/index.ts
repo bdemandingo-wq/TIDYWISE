@@ -134,7 +134,10 @@ serve(async (req) => {
         (oauthDisplayName.toLowerCase().includes("tidywise") ||
          oauthDisplayName.toLowerCase() === "tidy wise");
 
-      // Non-sensitive metadata in org_stripe_settings; secrets in org_stripe_secrets.
+      // Secrets and metadata both live in org_stripe_settings — the
+      // org_stripe_secrets split table was never actually created, which
+      // meant every connect attempt reported failure here even though
+      // the (secret-less) settings row had already been saved.
       const { error: settingsUpsertError } = await supabase
         .from("org_stripe_settings")
         .upsert({
@@ -147,19 +150,6 @@ serve(async (req) => {
           stripe_default_currency: account.default_currency || "usd",
           is_connected: true,
           connected_at: new Date().toISOString(),
-        }, {
-          onConflict: "organization_id",
-        });
-
-      if (settingsUpsertError) {
-        console.error("[stripe-connect-oauth] Settings upsert error:", settingsUpsertError);
-        return jsonResponse({ error: "Failed to save connection" }, 500);
-      }
-
-      const { error: secretsUpsertError } = await supabase
-        .from("org_stripe_secrets")
-        .upsert({
-          organization_id,
           stripe_access_token: response.access_token,
           stripe_refresh_token: response.refresh_token,
           stripe_secret_key: response.access_token || null,
@@ -167,9 +157,9 @@ serve(async (req) => {
           onConflict: "organization_id",
         });
 
-      if (secretsUpsertError) {
-        console.error("[stripe-connect-oauth] Secrets upsert error:", secretsUpsertError);
-        return jsonResponse({ error: "Failed to save credentials" }, 500);
+      if (settingsUpsertError) {
+        console.error("[stripe-connect-oauth] Settings upsert error:", settingsUpsertError);
+        return jsonResponse({ error: "Failed to save connection" }, 500);
       }
 
       return jsonResponse({
@@ -290,14 +280,14 @@ serve(async (req) => {
         }
       }
 
-      // Wipe both the metadata row and the secret row.
-      const [{ error: settingsDelErr }, { error: secretsDelErr }] = await Promise.all([
-        supabase.from("org_stripe_settings").delete().eq("organization_id", organization_id),
-        supabase.from("org_stripe_secrets").delete().eq("organization_id", organization_id),
-      ]);
+      // Secrets and metadata are the same row now — one delete wipes both.
+      const { error: settingsDelErr } = await supabase
+        .from("org_stripe_settings")
+        .delete()
+        .eq("organization_id", organization_id);
 
-      if (settingsDelErr || secretsDelErr) {
-        console.error("[stripe-connect-oauth] Disconnect delete error:", settingsDelErr || secretsDelErr);
+      if (settingsDelErr) {
+        console.error("[stripe-connect-oauth] Disconnect delete error:", settingsDelErr);
         return jsonResponse({ error: "Failed to disconnect" }, 500);
       }
 
@@ -401,25 +391,14 @@ serve(async (req) => {
             is_connected: true,
             connected_at: new Date().toISOString(),
             stripe_account_id: null,
-          }, { onConflict: "organization_id" });
-
-        if (settingsUpsertError) {
-          console.error("[stripe-connect-oauth] Manual keys settings upsert error:", settingsUpsertError);
-          return jsonResponse({ error: "Failed to save keys" }, 500);
-        }
-
-        const { error: secretsUpsertError } = await supabase
-          .from("org_stripe_secrets")
-          .upsert({
-            organization_id,
             stripe_secret_key: secret_key,
             stripe_access_token: null,
             stripe_refresh_token: null,
           }, { onConflict: "organization_id" });
 
-        if (secretsUpsertError) {
-          console.error("[stripe-connect-oauth] Manual keys secrets upsert error:", secretsUpsertError);
-          return jsonResponse({ error: "Failed to save credentials" }, 500);
+        if (settingsUpsertError) {
+          console.error("[stripe-connect-oauth] Manual keys settings upsert error:", settingsUpsertError);
+          return jsonResponse({ error: "Failed to save keys" }, 500);
         }
 
         return jsonResponse({
