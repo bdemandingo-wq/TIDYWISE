@@ -91,7 +91,7 @@ export function CRMSuggestionsPanel() {
       title: 'Set Up SMS Messaging',
       description: 'SMS automations and campaigns require OpenPhone to be configured. Set it up to unlock automated reviews, reminders, and marketing.',
       action: 'Configure SMS',
-      href: '/dashboard/settings',
+      href: '/dashboard/settings?tab=sms',
       icon: MessageSquare,
       priority: 'high',
     });
