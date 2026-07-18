@@ -1972,11 +1972,18 @@ export default function BookingsPage() {
                     {/* Clean status badge */}
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                      isCleaned
-                        ? "bg-success/10 text-success"
-                        : "bg-destructive/10 text-destructive"
+                      isCancelled
+                        ? "bg-destructive/15 text-destructive"
+                        : isCleaned
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
                     )}>
-                      {isCleaned ? (
+                      {isCancelled ? (
+                        <>
+                          <XCircle className="w-3 h-3" />
+                          cancelled
+                        </>
+                      ) : isCleaned ? (
                         <>
                           <CheckCircle className="w-3 h-3" />
                           clean completed
