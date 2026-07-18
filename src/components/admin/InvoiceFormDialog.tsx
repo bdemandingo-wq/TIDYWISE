@@ -738,7 +738,7 @@ export function InvoiceFormDialog({
                         <div className="flex-1">
                           <label className="text-xs text-muted-foreground">Total</label>
                           <div className="h-10 flex items-center font-medium">
-                            ${item.total.toFixed(2)}
+                            ${((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)}
                           </div>
                         </div>
                       </div>
