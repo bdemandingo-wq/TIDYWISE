@@ -316,6 +316,32 @@ export function useCreateBooking() {
         });
       }
 
+      // Unassigned booking → notify every active cleaner that a job is open to claim
+      if (!(data as any).staff_id && booking && !(booking as any).is_draft) {
+        const { data: activeStaff } = await supabase
+          .from('staff')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .eq('is_active', true);
+        if (activeStaff?.length) {
+          const when = booking.scheduled_at
+            ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+              })
+            : '';
+          await supabase.from('cleaner_notifications').insert(
+            activeStaff.map((s) => ({
+              staff_id: s.id,
+              organization_id: organization.id,
+              booking_id: booking.id,
+              type: 'job_available',
+              title: 'New job available',
+              message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} is open to claim.`,
+            }))
+          );
+        }
+      }
+
       buildBookingZapierPayload(booking as any).then((payload) =>
         dispatchZapier('booking.created', organization.id, payload),
       );
