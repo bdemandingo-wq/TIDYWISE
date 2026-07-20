@@ -31,7 +31,8 @@ export default function LoginPage() {
   const claimSlug = searchParams.get('claim');
   const isNative = Capacitor.isNativePlatform();
   // Flip to false if App Review ever objects to the external signup link
-  const SHOW_NATIVE_SIGNUP_LINK = true;
+  // Jul 20 2026: App Review objected (Guideline 3.1.1) — keep false
+  const SHOW_NATIVE_SIGNUP_LINK = false;
   const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
