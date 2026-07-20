@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { useEffect, useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { z } from "zod";
@@ -163,6 +164,7 @@ export default function PortalLoginPage() {
       </section>
       </div>
 
+      {!Capacitor.isNativePlatform() && (
       <section aria-labelledby="portal-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="portal-info-heading" className="text-2xl font-bold text-foreground">
@@ -237,6 +239,7 @@ export default function PortalLoginPage() {
           </div>
         </div>
       </section>
+      )}
     </main>
   );
 }

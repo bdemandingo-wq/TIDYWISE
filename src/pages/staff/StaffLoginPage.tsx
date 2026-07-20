@@ -283,6 +283,7 @@ export default function StaffLoginPage() {
       </section>
       </div>
 
+      {!Capacitor.isNativePlatform() && (
       <section aria-labelledby="staff-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="staff-info-heading" className="text-2xl font-bold text-foreground">
@@ -357,6 +358,7 @@ export default function StaffLoginPage() {
           </div>
         </div>
       </section>
+      )}
 
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent>

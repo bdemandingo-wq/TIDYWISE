@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple, HardHat, Users } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, HardHat, Users } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -33,7 +33,7 @@ export default function LoginPage() {
   // Flip to false if App Review ever objects to the external signup link
   // Jul 20 2026: App Review objected (Guideline 3.1.1) — keep false
   const SHOW_NATIVE_SIGNUP_LINK = false;
-  const { user, loading: authLoading, initialCleanupDone, signIn, signInWithApple } = useAuthNoSession();
+  const { user, loading: authLoading, initialCleanupDone, signIn } = useAuthNoSession();
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
   // keeping the canonical pointed at /login so search engines consolidate ranking.
@@ -317,36 +317,6 @@ export default function LoginPage() {
               <Button type="submit" className="w-full" disabled={loading} style={{ touchAction: 'manipulation' }}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign In
-              </Button>
-
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">or</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                disabled={loading}
-                onClick={async () => {
-                  setLoading(true);
-                  try {
-                    const { error } = await signInWithApple();
-                    if (error) {
-                      toast.error(error.message || 'Apple sign in failed');
-                    }
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-              >
-                <Apple className="mr-2 h-4 w-4" />
-                Sign in with Apple
               </Button>
 
             </form>
