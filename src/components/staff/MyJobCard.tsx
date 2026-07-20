@@ -74,6 +74,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
+  const [isMarkingArrived, setIsMarkingArrived] = useState(false);
   const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
   const [photoCount, setPhotoCount] = useState<number>(0);
   const [photoReqs, setPhotoReqs] = useState<{ required: boolean; min: number }>({ required: true, min: 2 });
@@ -126,7 +127,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       .then(({ data }: any) => { if (data) setPropertyNote(data as PropertyNote); });
   }, [booking.id, booking.organization_id]);
 
-  const { startTracking, stopTracking, isTracking } = useCleanerTracking({
+  const { startTracking, stopTracking, isTracking, hasArrived, markArrived } = useCleanerTracking({
     bookingId: booking.id,
     staffId: staffInfo.id || '',
     organizationId: booking.organization_id || '',
@@ -158,6 +159,18 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     })();
     return () => { cancelled = true; };
   }, [booking.id, staffInfo.id]);
+
+  const handleArrivedClick = async () => {
+    setIsMarkingArrived(true);
+    try {
+      await markArrived();
+      toast.success('Arrival sent — client and admin notified!');
+    } catch {
+      toast.error('Could not send arrival notification. Please try again.');
+    } finally {
+      setIsMarkingArrived(false);
+    }
+  };
 
   const handleOnTheWayClick = async () => {
     if (!staffInfo.id || !booking.customer?.phone) {
@@ -495,10 +508,29 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               {onTheWaySent ? 'Sent!' : 'On The Way'}
             </Button>
           )}
+
+          {/* I've Arrived - manual arrival (no background GPS on iOS, so the
+              cleaner confirms; also fires if geofence already detected it) */}
+          {onTheWaySent && booking.status === 'confirmed' && (
+            <Button
+              variant={hasArrived ? "secondary" : "default"}
+              size="sm"
+              className="gap-2 bg-success hover:bg-success/90"
+              onClick={handleArrivedClick}
+              disabled={isMarkingArrived || hasArrived}
+            >
+              {isMarkingArrived ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              {hasArrived ? 'Arrived ✓' : "I've Arrived"}
+            </Button>
+          )}
           {hasAddress && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="gap-2"
               onClick={handleDirectionsClick}
             >

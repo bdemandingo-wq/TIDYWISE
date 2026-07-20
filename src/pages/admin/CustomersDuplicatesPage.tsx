@@ -222,32 +222,40 @@ export default function CustomersDuplicatesPage() {
   // Per-customer booking counts + revenue for the side-by-side comparison
   // cards. Same shape as the customers list page so users see consistent
   // numbers when they jump between the two surfaces.
-  const { data: stats = new Map<string, CustomerStats>() } = useQuery({
-    queryKey: ['customer-stats-for-dedupe', orgId],
+  // NOTE: query data must be JSON-serializable — the app persists the
+  // react-query cache, and a Map rehydrates as a plain object (crash:
+  // "stats.get is not a function"). Return a record, derive the Map below.
+  const { data: statsRecord = {} } = useQuery({
+    queryKey: ['customer-stats-for-dedupe-v2', orgId],
     queryFn: async () => {
-      if (!orgId) return new Map();
+      if (!orgId) return {};
       const { data, error } = await supabase
         .from('bookings')
         .select('customer_id, total_amount')
         .eq('organization_id', orgId)
         .neq('status', 'cancelled');
       if (error) throw error;
-      const map = new Map<string, CustomerStats>();
+      const rec: Record<string, CustomerStats> = {};
       for (const b of (data ?? []) as Array<{
         customer_id: string | null;
         total_amount: number | null;
       }>) {
         if (!b.customer_id) continue;
-        const cur = map.get(b.customer_id) ?? { total_bookings: 0, total_revenue: 0 };
+        const cur = rec[b.customer_id] ?? { total_bookings: 0, total_revenue: 0 };
         cur.total_bookings += 1;
         cur.total_revenue += Number(b.total_amount) || 0;
-        map.set(b.customer_id, cur);
+        rec[b.customer_id] = cur;
       }
-      return map;
+      return rec;
     },
     enabled: !!orgId && isAdmin,
     staleTime: 1000 * 60,
   });
+
+  const stats = useMemo(
+    () => new Map<string, CustomerStats>(Object.entries(statsRecord)),
+    [statsRecord],
+  );
 
   const ignoredKeys = useMemo(() => {
     const s = new Set<string>();

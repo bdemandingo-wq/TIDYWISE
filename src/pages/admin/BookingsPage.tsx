@@ -2571,7 +2571,7 @@ export default function BookingsPage() {
                 </div>
                 {draftBookings.map((booking) => (
                   <div key={booking.id} className={cn(
-                    "flex items-center gap-3 p-4 rounded-lg border border-border/50 transition-colors",
+                    "flex items-start sm:items-center gap-3 p-4 rounded-lg border border-border/50 transition-colors",
                     selectedDrafts.has(booking.id) ? "bg-primary/5 border-primary/30" : "bg-secondary/30"
                   )}>
                     <Checkbox
@@ -2584,16 +2584,16 @@ export default function BookingsPage() {
                         });
                       }}
                     />
-                    <div className="flex-1 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">
+                    <div className="flex-1 min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
                           #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {booking.service?.name} • {formatInTimezone(booking.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className="bg-warning/10 text-warning">
                           ${booking.total_amount?.toFixed(2)} unpaid
                         </Badge>

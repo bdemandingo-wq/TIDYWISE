@@ -201,6 +201,9 @@ const App = () => (
       persistOptions={{
         persister: offlinePersister,
         maxAge: 1000 * 60 * 60 * 24,
+        // Bump to discard previously-persisted caches (2026-07-20: old
+        // caches contain Map data serialized to plain objects).
+        buster: 'v2-no-maps',
         dehydrateOptions: {
           // Persist only successful reads; never persist mutations or
           // huge/ephemeral queries. Also exclude 'service-pricing': its
@@ -216,6 +219,12 @@ const App = () => (
           // a customer.
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
+            // Never persist Map/Set data — it rehydrates as a plain object
+            // and crashes on the next .get()/.has() (same class of bug as
+            // service-pricing above; also hit customer-stats-for-dedupe,
+            // teamPaysByBooking, enrollmentsByCustomer on 2026-07-20).
+            !(q.state.data instanceof Map) &&
+            !(q.state.data instanceof Set) &&
             !JSON.stringify(q.queryKey).includes('signed') &&
             !JSON.stringify(q.queryKey).includes('service-pricing'),
         },

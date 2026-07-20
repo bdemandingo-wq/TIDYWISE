@@ -329,6 +329,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const updateBooking = useUpdateBooking();
   const deleteBooking = useDeleteBooking();
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const pendingDeleteTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Clear any pending delete timers on unmount
@@ -1181,11 +1182,51 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       Notify Cleaner
                     </Button>
                   )}
+                  <Button
+                    variant="outline"
+                    className="flex-col gap-1 h-auto py-2 text-xs text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmDeleteId(selectedBooking.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Delete confirmation (tap path — drag-to-trash doesn't work on touch) */}
+        <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this booking?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently removes the booking. This can't be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  const id = confirmDeleteId!;
+                  setConfirmDeleteId(null);
+                  setSelectedBooking(null);
+                  try {
+                    await deleteBooking.mutateAsync(id);
+                    toast.success('Booking deleted');
+                  } catch (err) {
+                    console.error('Delete failed:', err);
+                    toast.error('Failed to delete booking');
+                  }
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Add/Edit Booking Dialog */}
         <AddBookingDialog

@@ -664,6 +664,22 @@ export function AIAnalysisCenter() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chatMessages]);
 
+  // iOS keyboard: 100dvh doesn't recompute when the keyboard opens with
+  // Capacitor resize:"native", leaving a dead gap. Track the live visual
+  // viewport height instead and keep the chat pinned to the bottom.
+  const [viewportH, setViewportH] = useState<number | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      setViewportH(vv.height);
+      requestAnimationFrame(() => chatEndRef.current?.scrollIntoView({ block: 'end' }));
+    };
+    vv.addEventListener('resize', onResize);
+    onResize();
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+
   const maxBookings = Math.max(...Object.values(weeklyData), 1);
 
   return (
@@ -957,7 +973,7 @@ export function AIAnalysisCenter() {
         </TabsContent>
 
         {/* ─── Tab 6: Ask AI ─── */}
-        <TabsContent value="ask-ai" className="max-w-full" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100dvh - env(safe-area-inset-top) - 7rem - env(safe-area-inset-bottom))' }}>
+        <TabsContent value="ask-ai" className="max-w-full" style={{ display: 'flex', flexDirection: 'column', height: viewportH ? `calc(${viewportH}px - env(safe-area-inset-top) - 7rem)` : 'calc(100dvh - env(safe-area-inset-top) - 7rem - env(safe-area-inset-bottom))' }}>
           <h3 className="text-base font-semibold mb-3 shrink-0">Ask TidyWise AI</h3>
           <div className="flex max-w-full flex-wrap gap-2 mb-3 shrink-0" style={{ overflowX: 'hidden' }}>
             {dynamicChips.map((q, i) => (

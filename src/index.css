@@ -1395,3 +1395,13 @@ body {
     background: hsl(222 16% 12% / 0.78);
   }
 }
+
+/* iOS input auto-zoom guard: WKWebView zooms the whole viewport when a
+   focused input's font-size is under 16px, and the page stays zoomed
+   after blur (looks like "everything is huge" — reported on Platform
+   Analytics after using its search box, 2026-07-20). 16px on iOS only. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
