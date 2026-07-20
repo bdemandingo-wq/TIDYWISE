@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { SEOHead } from '@/components/SEOHead';
@@ -39,12 +40,14 @@ function FeatureGuideTab() {
 }
 
 export default function AutomationCenterPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'automations';
   return (
     <AdminLayout title="Automation Center">
 <div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Automation Center" description="Manage automated workflows, view logs, and get smart suggestions." noIndex />
       <PlanFeatureGate feature="automation_center">
-        <Tabs defaultValue="automations" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={(v) => setSearchParams({ tab: v }, { replace: true })} className="space-y-6">
           <TabsList className="w-full justify-start">
             <TabsTrigger value="automations" className="gap-1.5">
               <Zap className="w-3.5 h-3.5" />

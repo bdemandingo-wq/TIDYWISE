@@ -306,7 +306,7 @@ export default function PlatformAnalyticsPage() {
   if (user?.email !== 'support@tidywisecleaning.com') {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
-<div className="portal-v2 portal-v2-scroll">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
       <SEOHead title="Platform Analytics | TidyWise" description="View platform usage and engagement analytics" noIndex />
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="py-12 text-center">
@@ -321,7 +321,7 @@ export default function PlatformAnalyticsPage() {
   if (loading) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Loading...">
-<div className="portal-v2 portal-v2-scroll">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -336,7 +336,7 @@ export default function PlatformAnalyticsPage() {
   if (error) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Error loading data">
-<div className="portal-v2 portal-v2-scroll">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
         <Card className="border-destructive/20">
           <CardContent className="py-12 text-center">
             <p className="text-destructive mb-4">{error}</p>
@@ -358,7 +358,7 @@ export default function PlatformAnalyticsPage() {
       title="Platform Analytics"
       subtitle="Monitor signups, organizations, and subscriptions"
     >
-<div className="portal-v2 portal-v2-scroll">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex items-center justify-between">
@@ -550,16 +550,16 @@ export default function PlatformAnalyticsPage() {
                           return (
                             <div
                               key={subscriber.id}
-                              className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                              className="group flex items-center justify-between gap-2 p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
                                   <span className="text-sm font-medium text-primary">
                                     {subscriber.email?.charAt(0).toUpperCase() || '?'}
                                   </span>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-sm">{subscriber.email}</p>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{subscriber.email}</p>
                                   {subscriber.name && (
                                     <p className="text-xs text-muted-foreground">{subscriber.name}</p>
                                   )}
@@ -571,7 +571,7 @@ export default function PlatformAnalyticsPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <Badge
                                   variant={subscriber.subscriptionStatus === 'active' ? 'default' :
                                            subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}

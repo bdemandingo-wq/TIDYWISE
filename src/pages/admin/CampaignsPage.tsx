@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,6 +144,21 @@ export default function CampaignsPage() {
 
   // Campaign creation
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Deep link from Smart Suggestions: /dashboard/campaigns?audience=...&days=...&create=1
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const audience = searchParams.get('audience');
+    if (!audience) return;
+    const days = parseInt(searchParams.get('days') || '', 10);
+    setCampaignForm(prev => ({
+      ...prev,
+      audience: audience as any,
+      ...(Number.isFinite(days) ? { days_inactive: days } : {}),
+    }));
+    if (searchParams.get('create') === '1') setCreateOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [createStep, setCreateStep] = useState(1);
   const [campaignForm, setCampaignForm] = useState({
     name: "",

@@ -69,16 +69,6 @@ export default function PortalLoginPage() {
 
   return (
     <main className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col relative">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 left-4 z-10"
-        onClick={() => navigate("/")}
-        aria-label="Go back"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </Button>
-
       <SEOHead
         title="Client Portal Sign In | TidyWise"
         description="Sign in to your TidyWise client portal to view upcoming cleanings, request new appointments, leave tips, and manage your service preferences."
@@ -87,6 +77,15 @@ export default function PortalLoginPage() {
 
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <section className="w-full max-w-md">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4 gap-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate("/")}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
         <Card className="shadow-xl border-primary/10">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">

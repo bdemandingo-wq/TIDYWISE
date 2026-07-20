@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,7 @@ Jane,Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001`;
 
 type SortField = 'name' | 'status' | 'created_at' | 'revenue' | 'last_booking';
 type SortDir = 'asc' | 'desc';
-type TabFilter = 'all' | 'customers' | 'leads';
+type TabFilter = 'all' | 'customers' | 'leads' | 'non_recurring';
 
 interface BookingStats {
   customer_id: string;
@@ -84,7 +84,10 @@ interface BookingStats {
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [tabFilter, setTabFilter] = useState<TabFilter>('all');
+  const [searchParams] = useSearchParams();
+  const [tabFilter, setTabFilter] = useState<TabFilter>(
+    searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all'
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -395,6 +398,7 @@ export default function CustomersPage() {
       let matchesTab = true;
       if (tabFilter === 'customers') matchesTab = effectiveStatus === 'active';
       else if (tabFilter === 'leads') matchesTab = effectiveStatus === 'lead';
+      else if (tabFilter === 'non_recurring') matchesTab = (enrollmentsByCustomer.get(customer.id) || []).length === 0;
 
       return matchesSearch && matchesTab;
     });
@@ -423,7 +427,7 @@ export default function CustomersPage() {
     });
 
     return list;
-  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap]);
+  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap, enrollmentsByCustomer]);
 
   const getInitials = (firstName: string, lastName: string) =>
     `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
