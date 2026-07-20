@@ -97,13 +97,21 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
 
   // Build steps
   const isW2 = taxClassification === 'w2';
-  const requiredDocTypes = isW2 ? ['government_id'] : ['w9', 'government_id'];
-  const uploadedApprovedDocs = documents.filter(
-    d => requiredDocTypes.includes(d.document_type) && d.status === 'approved'
+  // Upload UI saves Government ID as document_type 'id'; older data may use
+  // 'government_id'. Match either so the step can actually complete.
+  const requiredDocGroups: string[][] = isW2
+    ? [['id', 'government_id']]
+    : [['w9'], ['id', 'government_id']];
+  const groupsWithApproved = requiredDocGroups.filter(group =>
+    documents.some(d => group.includes(d.document_type) && d.status === 'approved')
   );
-  const uploadedDocs = documents.filter(d => requiredDocTypes.includes(d.document_type));
-  const docsComplete = uploadedApprovedDocs.length >= requiredDocTypes.length;
-  const docsPending = uploadedDocs.length > 0 && !docsComplete;
+  const groupsWithUpload = requiredDocGroups.filter(group =>
+    documents.some(d => group.includes(d.document_type))
+  );
+  const docsComplete = groupsWithApproved.length >= requiredDocGroups.length;
+  const docsPending = groupsWithUpload.length > 0 && !docsComplete;
+  const uploadedDocs = groupsWithUpload;
+  const requiredDocTypes = requiredDocGroups;
 
   const sigData = signatures as { required: number; signed: number } | any[];
   const sigsRequired = Array.isArray(sigData) ? 0 : sigData?.required || 0;
