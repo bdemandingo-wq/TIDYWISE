@@ -299,6 +299,23 @@ export function useCreateBooking() {
         throw error;
       }
 
+      // Notify the assigned cleaner's bell (skip drafts)
+      if ((data as any).staff_id && booking && !(booking as any).is_draft) {
+        const when = booking.scheduled_at
+          ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            })
+          : '';
+        await supabase.from('cleaner_notifications').insert({
+          staff_id: (data as any).staff_id,
+          organization_id: organization.id,
+          booking_id: booking.id,
+          type: 'job_assigned',
+          title: 'New job assigned',
+          message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
+      }
+
       buildBookingZapierPayload(booking as any).then((payload) =>
         dispatchZapier('booking.created', organization.id, payload),
       );
@@ -321,6 +338,18 @@ export function useUpdateBooking() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: UpdateBookingData) => {
+      // Detect a new assignment so we can notify the cleaner (only when
+      // staff_id actually changes — edit dialogs resend unchanged fields)
+      let previousStaffId: string | null | undefined;
+      if (data.staff_id !== undefined) {
+        const { data: prev } = await supabase
+          .from('bookings')
+          .select('staff_id')
+          .eq('id', id)
+          .single();
+        previousStaffId = prev?.staff_id ?? null;
+      }
+
       const { data: booking, error } = await supabase
         .from('bookings')
         .update(data)
@@ -331,6 +360,27 @@ export function useUpdateBooking() {
       if (error) {
         console.error('Error updating booking:', error);
         throw error;
+      }
+
+      if (
+        data.staff_id &&
+        data.staff_id !== previousStaffId &&
+        booking &&
+        !(booking as any).is_draft
+      ) {
+        const when = booking.scheduled_at
+          ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            })
+          : '';
+        await supabase.from('cleaner_notifications').insert({
+          staff_id: data.staff_id,
+          organization_id: booking.organization_id,
+          booking_id: booking.id,
+          type: 'job_assigned',
+          title: 'New job assigned',
+          message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
       }
 
       if (data.status === 'completed' && booking?.organization_id) {

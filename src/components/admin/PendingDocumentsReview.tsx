@@ -67,6 +67,26 @@ export function PendingDocumentsReview() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Notify the cleaner (bell in the staff portal reads cleaner_notifications).
+      // Fetch the row directly — the optimistic update already removed it from cache.
+      const { data: doc } = await supabase
+        .from('staff_documents')
+        .select('staff_id, document_type')
+        .eq('id', docId)
+        .single();
+      if (doc?.staff_id) {
+        const docLabel = DOCUMENT_TYPES[doc.document_type] || doc.document_type;
+        await supabase.from('cleaner_notifications').insert({
+          staff_id: doc.staff_id,
+          organization_id: organizationId,
+          type: 'document_review',
+          title: status === 'approved' ? 'Document approved' : 'Document rejected',
+          message: status === 'approved'
+            ? `Your ${docLabel} was approved.`
+            : `Your ${docLabel} was rejected.${note ? ` Note: ${note}` : ' Please re-upload.'}`,
+        });
+      }
     },
     onMutate: async ({ docId }) => {
       await queryClient.cancelQueries({ queryKey });

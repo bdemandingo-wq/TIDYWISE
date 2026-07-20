@@ -109,6 +109,7 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['working-hours', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-avail', staffId] });
       toast.success('Availability saved!');
       setHasChanges(false);
       onSaved?.();

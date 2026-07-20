@@ -67,6 +67,26 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
         })
         .eq('id', docId);
       if (error) throw error;
+
+      // Notify the cleaner's portal bell
+      if (status === 'approved' || status === 'rejected') {
+        const { data: doc } = await supabase
+          .from('staff_documents')
+          .select('staff_id, document_type, organization_id')
+          .eq('id', docId)
+          .single();
+        if (doc?.staff_id) {
+          await supabase.from('cleaner_notifications').insert({
+            staff_id: doc.staff_id,
+            organization_id: doc.organization_id,
+            type: 'document_review',
+            title: status === 'approved' ? 'Document approved' : 'Document rejected',
+            message: status === 'approved'
+              ? `Your ${doc.document_type} was approved.`
+              : `Your ${doc.document_type} was rejected.${note ? ` Note: ${note}` : ' Please re-upload.'}`,
+          });
+        }
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['admin-staff-documents', staffId] });

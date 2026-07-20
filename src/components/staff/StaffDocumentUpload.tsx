@@ -64,7 +64,7 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
       .channel(`staff-docs-${staffId}`)
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'staff_documents', filter: `staff_id=eq.${staffId}` },
-        () => queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] }))
+        () => { queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] }); queryClient.invalidateQueries({ queryKey: ['onboarding-docs', staffId, organizationId] }); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [staffId, organizationId, queryClient]);
@@ -93,6 +93,7 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-docs', staffId, organizationId] });
       toast.success('Document deleted');
     },
     onError: () => toast.error('Failed to delete document'),
@@ -144,6 +145,7 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
       }
 
       queryClient.invalidateQueries({ queryKey: ['staff-documents', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-docs', staffId, organizationId] });
       toast.success(`${uploaded} document(s) uploaded successfully`);
     } catch (err: any) {
       console.error('Upload error:', err);

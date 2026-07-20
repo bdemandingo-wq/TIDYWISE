@@ -32,6 +32,7 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: staffInfo.name,
     phone: staffInfo.phone || '',
@@ -140,18 +141,22 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get public URL — cache-bust so the new image shows immediately
+      // (same storage path every upload means the old URL stays cached)
       const { data: { publicUrl } } = supabase.storage
         .from('staff-avatars')
         .getPublicUrl(filePath);
+      const freshUrl = `${publicUrl}?v=${Date.now()}`;
 
       // Update staff record with new avatar URL
       const { error: updateError } = await supabase
         .from('staff')
-        .update({ avatar_url: publicUrl })
+        .update({ avatar_url: freshUrl })
         .eq('id', staffInfo.id);
 
       if (updateError) throw updateError;
+
+      setLocalAvatarUrl(freshUrl);
 
       queryClient.invalidateQueries({ queryKey: ['staff-profile'] });
       toast.success('Photo updated!');
@@ -188,7 +193,7 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
         <CardContent className="flex flex-col items-center gap-4">
           <div className="relative group">
             <Avatar className="h-32 w-32 border-4 border-primary/20">
-              <AvatarImage src={staffInfo.avatar_url || undefined} alt={staffInfo.name} />
+              <AvatarImage src={localAvatarUrl || staffInfo.avatar_url || undefined} alt={staffInfo.name} />
               <AvatarFallback className="text-2xl bg-primary/10 text-primary">
                 {getInitials(staffInfo.name)}
               </AvatarFallback>

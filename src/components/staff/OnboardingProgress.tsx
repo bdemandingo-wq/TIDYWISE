@@ -28,6 +28,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check documents status
   const { data: documents = [] } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('staff_documents')
@@ -41,6 +43,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check signatures status
   const { data: signatures = [] } = useQuery({
     queryKey: ['onboarding-sigs', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data: docs } = await supabase
         .from('staff_signable_documents')
@@ -63,6 +67,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check payout status
   const { data: payoutStatus } = useQuery({
     queryKey: ['onboarding-payout', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('staff_payout_accounts')
@@ -77,6 +83,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check availability
   const { data: hasAvailability } = useQuery({
     queryKey: ['onboarding-avail', staffId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('working_hours')

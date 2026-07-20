@@ -15,6 +15,8 @@ import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
 import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
@@ -96,6 +98,9 @@ export default function StaffPortal() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
+    await queryClient.invalidateQueries();
+  });
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
   const payoutSetupRequired = useCleanerPayoutSetupRequired(staffInfo?.organization_id);
   const [newJobAlert, setNewJobAlert] = useState(false);
@@ -237,6 +242,7 @@ export default function StaffPortal() {
         `)
         .eq('staff_id', staffInfo.id)
         .in('status', ['pending', 'confirmed', 'in_progress'])
+        .or('is_draft.is.null,is_draft.eq.false')
         .order('scheduled_at', { ascending: true });
 
       if (directError) throw directError;
@@ -340,6 +346,7 @@ export default function StaffPortal() {
         .eq('organization_id', staffInfo.organization_id)
         .is('staff_id', null)
         .in('status', ['pending', 'confirmed'])
+        .or('is_draft.is.null,is_draft.eq.false')
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true });
 
@@ -381,6 +388,9 @@ export default function StaffPortal() {
   const assignToSelf = useMutation({
     mutationFn: async (bookingId: string) => {
       if (!staffInfo?.id) throw new Error('Staff ID not found');
+      if (!hasSetAvailability) {
+        throw new Error('Set your working hours before claiming jobs');
+      }
       setClaimingBookingId(bookingId);
 
       const { data, error } = await supabase
@@ -613,7 +623,8 @@ export default function StaffPortal() {
       {staffInfo?.id && (
         <StaffLocationPrompt staffId={staffInfo.id} onResolved={() => { /* unmounts itself */ }} />
       )}
-      <div className="portal-v2 min-h-screen">
+      <div className="portal-v2 min-h-screen" {...pullHandlers}>
+      <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
       {/* Header — sticky glass */}
       <header
         className="sticky top-0 z-10 portal-v2-header-safe"
