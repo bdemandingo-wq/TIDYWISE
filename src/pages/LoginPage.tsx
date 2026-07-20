@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple } from 'lucide-react';
+import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, Apple, HardHat, Users } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
@@ -378,23 +378,28 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Staff & Client Portal links - HIDDEN on native */}
-            {!isNative && (
-              <div className="mt-4 pt-4 border-t border-border space-y-2">
-                <Link
-                  to="/staff/login"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                >
-                  Staff Portal Login
-                </Link>
-                <Link
-                  to="/portal/login"
-                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                >
-                  Client Portal Login
-                </Link>
+            {/* Staff & Client Portal links */}
+            <div className="mt-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-xs tracking-widest text-muted-foreground">OTHER LOGINS</span>
+                <div className="h-px flex-1 bg-border" />
               </div>
-            )}
+              <Link
+                to="/staff/login"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <HardHat className="w-4 h-4" />
+                Staff Portal Login
+              </Link>
+              <Link
+                to="/portal/login"
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                Client Portal Login
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
@@ -418,6 +423,7 @@ export default function LoginPage() {
       </div>
       </div>
 
+      {!isNative && (
       <section aria-labelledby="login-info-heading" className="bg-muted/30 border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="login-info-heading" className="text-2xl font-bold text-foreground">
@@ -469,6 +475,7 @@ export default function LoginPage() {
           </p>
         </div>
       </section>
+      )}
     </div>
   );
 }
