@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -306,13 +307,21 @@ export function useCreateBooking() {
               month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
             })
           : '';
-        await supabase.from('cleaner_notifications').insert({
+        const { error: notifErr1 } = await supabase.from('cleaner_notifications').insert({
           staff_id: (data as any).staff_id,
           organization_id: organization.id,
           booking_id: booking.id,
           type: 'job_assigned',
           title: 'New job assigned',
           message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
+        if (notifErr1) console.error('[cleaner-notify] insert failed:', notifErr1);
+        sendPushBestEffort({
+          organizationId: organization.id,
+          staffId: (data as any).staff_id,
+          title: 'New job assigned',
+          body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+          data: { bookingId: booking.id },
         });
       }
 
@@ -329,7 +338,7 @@ export function useCreateBooking() {
                 month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
               })
             : '';
-          await supabase.from('cleaner_notifications').insert(
+          const { error: notifErr2 } = await supabase.from('cleaner_notifications').insert(
             activeStaff.map((s) => ({
               staff_id: s.id,
               organization_id: organization.id,
@@ -339,6 +348,13 @@ export function useCreateBooking() {
               message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} is open to claim.`,
             }))
           );
+          if (notifErr2) console.error('[cleaner-notify] insert failed:', notifErr2);
+          sendPushBestEffort({
+            organizationId: organization.id,
+            title: 'New job available',
+            body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} is open to claim.`,
+            data: { bookingId: booking.id },
+          });
         }
       }
 
@@ -399,13 +415,21 @@ export function useUpdateBooking() {
               month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
             })
           : '';
-        await supabase.from('cleaner_notifications').insert({
+        const { error: notifErr3 } = await supabase.from('cleaner_notifications').insert({
           staff_id: data.staff_id,
           organization_id: booking.organization_id,
           booking_id: booking.id,
           type: 'job_assigned',
           title: 'New job assigned',
           message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
+        if (notifErr3) console.error('[cleaner-notify] insert failed:', notifErr3);
+        sendPushBestEffort({
+          organizationId: booking.organization_id,
+          staffId: data.staff_id,
+          title: 'New job assigned',
+          body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+          data: { bookingId: booking.id },
         });
       }
 

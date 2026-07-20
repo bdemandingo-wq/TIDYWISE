@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -76,7 +77,7 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
           .eq('id', docId)
           .single();
         if (doc?.staff_id) {
-          await supabase.from('cleaner_notifications').insert({
+          const { error: notifErr1 } = await supabase.from('cleaner_notifications').insert({
             staff_id: doc.staff_id,
             organization_id: doc.organization_id,
             type: 'document_review',
@@ -84,6 +85,13 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
             message: status === 'approved'
               ? `Your ${doc.document_type} was approved.`
               : `Your ${doc.document_type} was rejected.${note ? ` Note: ${note}` : ' Please re-upload.'}`,
+          });
+          if (notifErr1) console.error('[cleaner-notify] insert failed:', notifErr1);
+          sendPushBestEffort({
+            organizationId: doc.organization_id,
+            staffId: doc.staff_id,
+            title: status === 'approved' ? 'Document approved' : 'Document rejected',
+            body: status === 'approved' ? 'Your document was approved.' : 'Your document was rejected. Please re-upload.',
           });
         }
       }

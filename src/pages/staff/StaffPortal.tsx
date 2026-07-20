@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -16,6 +16,8 @@ import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Capacitor } from '@capacitor/core';
 import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
@@ -102,6 +104,19 @@ export default function StaffPortal() {
     await queryClient.invalidateQueries();
   });
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
+
+  // Push notifications: register this cleaner's device so job alerts can
+  // ring even when the app is closed. Prompt once per install after login.
+  const { isSupported: pushSupported, isRegistered: pushRegistered, requestPermission: requestPushPermission } = usePushNotifications(staffInfo?.id);
+  const pushPromptedRef = useRef(false);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!staffInfo?.id || !pushSupported || pushRegistered || pushPromptedRef.current) return;
+    pushPromptedRef.current = true;
+    // Small delay so the permission prompt doesn't collide with login/location prompts
+    const t = setTimeout(() => { void requestPushPermission(); }, 3000);
+    return () => clearTimeout(t);
+  }, [staffInfo?.id, pushSupported, pushRegistered, requestPushPermission]);
   const payoutSetupRequired = useCleanerPayoutSetupRequired(staffInfo?.organization_id);
   const [newJobAlert, setNewJobAlert] = useState(false);
   const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
