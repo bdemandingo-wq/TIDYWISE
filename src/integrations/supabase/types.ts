@@ -3689,6 +3689,7 @@ export type Database = {
           opted_out_method: string | null
           organization_id: string | null
           phone: string | null
+          referral_code: string
           review_request_sent: boolean
           review_request_sent_at: string | null
           state: string | null
@@ -3715,6 +3716,7 @@ export type Database = {
           opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
+          referral_code?: string
           review_request_sent?: boolean
           review_request_sent_at?: string | null
           state?: string | null
@@ -3741,6 +3743,7 @@ export type Database = {
           opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
+          referral_code?: string
           review_request_sent?: boolean
           review_request_sent_at?: string | null
           state?: string | null
@@ -9986,6 +9989,7 @@ export type Database = {
           end_time: string
           id: string
           is_available: boolean
+          organization_id: string
           staff_id: string | null
           start_time: string
         }
@@ -9994,6 +9998,7 @@ export type Database = {
           end_time: string
           id?: string
           is_available?: boolean
+          organization_id: string
           staff_id?: string | null
           start_time: string
         }
@@ -10002,10 +10007,18 @@ export type Database = {
           end_time?: string
           id?: string
           is_available?: boolean
+          organization_id?: string
           staff_id?: string | null
           start_time?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "working_hours_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "working_hours_staff_id_fkey"
             columns: ["staff_id"]
