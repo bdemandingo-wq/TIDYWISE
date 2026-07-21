@@ -73,9 +73,11 @@ async function sendApns(deviceToken: string, title: string, body: string, data?:
     ...data,
   };
 
-  // Use sandbox for development builds (aps-environment: development in entitlements)
-  // Change to api.push.apple.com when releasing to App Store
-  const apnsHost = "api.sandbox.push.apple.com";
+  // Use APNS_ENV secret to switch between sandbox and production APNs.
+  // "production" -> api.push.apple.com, anything else (or unset) -> sandbox.
+  const apnsHost = Deno.env.get("APNS_ENV") === "production"
+    ? "api.push.apple.com"
+    : "api.sandbox.push.apple.com";
   const url = `https://${apnsHost}/3/device/${deviceToken}`;
   const res = await fetch(url, {
     method: "POST",
