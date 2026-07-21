@@ -68,7 +68,7 @@ serve(async (req) => {
       .upsert(
         {
           user_id: user.id,
-          organization_id: membership?.organization_id ?? null,
+          organization_id: organizationId,
           token,
           platform,
           updated_at: new Date().toISOString(),
