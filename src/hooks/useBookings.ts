@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -245,6 +246,39 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
   });
 }
 
+/**
+ * Fetch draft bookings only. Kept separate from `useBookings()` so drafts
+ * do not leak into the scheduler, reports, dashboard, or calendar views —
+ * they should only appear inside the Drafts tab on BookingsPage.
+ */
+export function useDraftBookings() {
+  const { organization } = useOrganization();
+  const organizationId = organization?.id;
+
+  return useQuery({
+    queryKey: ['bookings', 'drafts', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          customer:customers(id, first_name, last_name, email, phone),
+          service:services(id, name, description, price, duration),
+          staff:staff(id, name, email, phone),
+          booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
+        `)
+        .eq('organization_id', organizationId)
+        .eq('is_draft', true)
+        .order('scheduled_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as BookingWithDetails[];
+    },
+    enabled: !!organizationId,
+    staleTime: 1000 * 30,
+  });
+}
+
 export function useCreateBooking() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
@@ -264,6 +298,64 @@ export function useCreateBooking() {
       if (error) {
         console.error('Error creating booking:', error);
         throw error;
+      }
+
+      // Notify the assigned cleaner's bell (skip drafts)
+      if ((data as any).staff_id && booking && !(booking as any).is_draft) {
+        const when = booking.scheduled_at
+          ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            })
+          : '';
+        const { error: notifErr1 } = await supabase.from('cleaner_notifications').insert({
+          staff_id: (data as any).staff_id,
+          organization_id: organization.id,
+          booking_id: booking.id,
+          type: 'job_assigned',
+          title: 'New job assigned',
+          message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
+        if (notifErr1) console.error('[cleaner-notify] insert failed:', notifErr1);
+        sendPushBestEffort({
+          organizationId: organization.id,
+          staffId: (data as any).staff_id,
+          title: 'New job assigned',
+          body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+          data: { bookingId: booking.id },
+        });
+      }
+
+      // Unassigned booking → notify every active cleaner that a job is open to claim
+      if (!(data as any).staff_id && booking && !(booking as any).is_draft) {
+        const { data: activeStaff } = await supabase
+          .from('staff')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .eq('is_active', true);
+        if (activeStaff?.length) {
+          const when = booking.scheduled_at
+            ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+              })
+            : '';
+          const { error: notifErr2 } = await supabase.from('cleaner_notifications').insert(
+            activeStaff.map((s) => ({
+              staff_id: s.id,
+              organization_id: organization.id,
+              booking_id: booking.id,
+              type: 'job_available',
+              title: 'New job available',
+              message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} is open to claim.`,
+            }))
+          );
+          if (notifErr2) console.error('[cleaner-notify] insert failed:', notifErr2);
+          sendPushBestEffort({
+            organizationId: organization.id,
+            title: 'New job available',
+            body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} is open to claim.`,
+            data: { bookingId: booking.id },
+          });
+        }
       }
 
       buildBookingZapierPayload(booking as any).then((payload) =>
@@ -288,6 +380,18 @@ export function useUpdateBooking() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: UpdateBookingData) => {
+      // Detect a new assignment so we can notify the cleaner (only when
+      // staff_id actually changes — edit dialogs resend unchanged fields)
+      let previousStaffId: string | null | undefined;
+      if (data.staff_id !== undefined) {
+        const { data: prev } = await supabase
+          .from('bookings')
+          .select('staff_id')
+          .eq('id', id)
+          .single();
+        previousStaffId = prev?.staff_id ?? null;
+      }
+
       const { data: booking, error } = await supabase
         .from('bookings')
         .update(data)
@@ -298,6 +402,35 @@ export function useUpdateBooking() {
       if (error) {
         console.error('Error updating booking:', error);
         throw error;
+      }
+
+      if (
+        data.staff_id &&
+        data.staff_id !== previousStaffId &&
+        booking &&
+        !(booking as any).is_draft
+      ) {
+        const when = booking.scheduled_at
+          ? new Date(booking.scheduled_at).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+            })
+          : '';
+        const { error: notifErr3 } = await supabase.from('cleaner_notifications').insert({
+          staff_id: data.staff_id,
+          organization_id: booking.organization_id,
+          booking_id: booking.id,
+          type: 'job_assigned',
+          title: 'New job assigned',
+          message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+        });
+        if (notifErr3) console.error('[cleaner-notify] insert failed:', notifErr3);
+        sendPushBestEffort({
+          organizationId: booking.organization_id,
+          staffId: data.staff_id,
+          title: 'New job assigned',
+          body: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
+          data: { bookingId: booking.id },
+        });
       }
 
       if (data.status === 'completed' && booking?.organization_id) {

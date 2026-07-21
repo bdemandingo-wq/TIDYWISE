@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,7 @@ Jane,Smith,jane@example.com,555-5678,456 Oak Ave,Los Angeles,CA,90001`;
 
 type SortField = 'name' | 'status' | 'created_at' | 'revenue' | 'last_booking';
 type SortDir = 'asc' | 'desc';
-type TabFilter = 'all' | 'customers' | 'leads';
+type TabFilter = 'all' | 'customers' | 'leads' | 'non_recurring';
 
 interface BookingStats {
   customer_id: string;
@@ -84,7 +84,10 @@ interface BookingStats {
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [tabFilter, setTabFilter] = useState<TabFilter>('all');
+  const [searchParams] = useSearchParams();
+  const [tabFilter, setTabFilter] = useState<TabFilter>(
+    searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all'
+  );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -395,6 +398,7 @@ export default function CustomersPage() {
       let matchesTab = true;
       if (tabFilter === 'customers') matchesTab = effectiveStatus === 'active';
       else if (tabFilter === 'leads') matchesTab = effectiveStatus === 'lead';
+      else if (tabFilter === 'non_recurring') matchesTab = (enrollmentsByCustomer.get(customer.id) || []).length === 0;
 
       return matchesSearch && matchesTab;
     });
@@ -423,15 +427,15 @@ export default function CustomersPage() {
     });
 
     return list;
-  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap]);
+  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap, enrollmentsByCustomer]);
 
   const getInitials = (firstName: string, lastName: string) =>
     `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
 
   const getStatusBadge = (status: string) => {
-    if (status === 'active') return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-xs">Customer</Badge>;
+    if (status === 'active') return <Badge className="bg-success/15 text-success border-success/30 text-xs">Customer</Badge>;
     if (status === 'inactive') return <Badge variant="secondary" className="text-xs">Inactive</Badge>;
-    return <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 text-xs">Lead</Badge>;
+    return <Badge className="bg-warning/15 text-warning border-warning/30 text-xs">Lead</Badge>;
   };
 
   const handleChangeStatus = useCallback(async (customer: any, newStatus: 'active' | 'lead' | 'inactive') => {
@@ -463,10 +467,10 @@ export default function CustomersPage() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-40">
           <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'active')}>
-            <Users className="w-3.5 h-3.5 mr-2 text-emerald-600" /> Customer
+            <Users className="w-3.5 h-3.5 mr-2 text-success" /> Customer
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'lead')}>
-            <UserPlus className="w-3.5 h-3.5 mr-2 text-amber-600" /> Lead
+            <UserPlus className="w-3.5 h-3.5 mr-2 text-warning" /> Lead
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => handleChangeStatus(customer, 'inactive')}>
             <UserX className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> Inactive
@@ -754,6 +758,7 @@ export default function CustomersPage() {
         </div>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       {atCustomerLimit && (
         <div className="mb-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5 flex items-center justify-between gap-3">
           <p className="text-sm text-destructive">
@@ -912,13 +917,13 @@ export default function CustomersPage() {
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-1.5">
                                     <p className="font-medium text-sm truncate">{maskName(`${customer.first_name} ${customer.last_name}`)}</p>
-                                    {isDupe && <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                                    {isDupe && <AlertTriangle className="w-3.5 h-3.5 text-warning flex-shrink-0" />}
                                   </div>
                                   <p className="text-xs text-muted-foreground truncate">{maskPhone(customer.phone || '')}</p>
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5 shrink-0">
                                   <StatusBadgeMenu customer={customer} />
-                                  {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Possible Duplicate</Badge>}
+                                  {isDupe && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">Possible Duplicate</Badge>}
                                 </div>
                               </div>
                               {cStats && (
@@ -1041,7 +1046,7 @@ export default function CustomersPage() {
                                     <p className="font-medium text-sm truncate">{maskName(`${customer.first_name} ${customer.last_name}`)}</p>
                                     {isDupe && (
                                       <Tooltip>
-                                        <TooltipTrigger><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></TooltipTrigger>
+                                        <TooltipTrigger><AlertTriangle className="w-3.5 h-3.5 text-warning" /></TooltipTrigger>
                                         <TooltipContent>Possible duplicate (shared email or phone)</TooltipContent>
                                       </Tooltip>
                                     )}
@@ -1055,7 +1060,7 @@ export default function CustomersPage() {
                             <TableCell>
                               <div className="flex flex-col gap-1">
                                 <StatusBadgeMenu customer={customer} />
-                                {isDupe && <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600">Duplicate</Badge>}
+                                {isDupe && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">Duplicate</Badge>}
                                 {(() => {
                                   const enrolled = enrollmentsByCustomer.get(customer.id) || [];
                                   if (enrolled.length === 0) return null;
@@ -1336,7 +1341,8 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

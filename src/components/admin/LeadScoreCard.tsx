@@ -32,9 +32,9 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
-    if (score >= 40) return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
-    return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+    if (score >= 70) return 'text-success bg-success/10';
+    if (score >= 40) return 'text-warning bg-warning/10';
+    return 'text-destructive bg-destructive/10';
   };
 
   const getContactIcon = (method: string) => {
@@ -52,7 +52,7 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
           {intelligence.is_hot_lead && (
             <Tooltip>
               <TooltipTrigger>
-                <Badge className="bg-orange-500 gap-1 px-1.5">
+                <Badge className="bg-warning gap-1 px-1.5">
                   <Flame className="h-3 w-3" />
                 </Badge>
               </TooltipTrigger>
@@ -77,7 +77,7 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
           {intelligence.recommended_followup_time && new Date(intelligence.recommended_followup_time) <= new Date() && (
             <Tooltip>
               <TooltipTrigger>
-                <Badge variant="outline" className="gap-1 text-xs border-blue-300 text-blue-600">
+                <Badge variant="outline" className="gap-1 text-xs border-info/30 text-info">
                   <Clock className="h-3 w-3" />
                   Now
                 </Badge>
@@ -98,7 +98,7 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">AI Lead Score</span>
           {intelligence.is_hot_lead && (
-            <Badge className="bg-orange-500 gap-1">
+            <Badge className="bg-warning gap-1">
               <Flame className="h-3 w-3" />
               Hot
             </Badge>
@@ -125,12 +125,12 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
       </div>
 
       {intelligence.recommended_followup_time && (
-        <div className="flex items-center justify-between p-2 rounded bg-blue-50 dark:bg-blue-950/30 text-sm">
-          <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+        <div className="flex items-center justify-between p-2 rounded bg-info/10 text-sm">
+          <div className="flex items-center gap-2 text-info">
             <Clock className="h-4 w-4" />
             <span>Follow up {formatDistanceToNow(new Date(intelligence.recommended_followup_time), { addSuffix: true })}</span>
           </div>
-          <div className="flex items-center gap-1 text-blue-600">
+          <div className="flex items-center gap-1 text-info">
             {getContactIcon(intelligence.preferred_contact_method)}
             <span className="capitalize text-xs">{intelligence.preferred_contact_method}</span>
           </div>

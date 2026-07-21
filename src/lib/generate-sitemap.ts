@@ -20,6 +20,7 @@ import * as t from "@babel/types";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { COMPETITORS, NICHES } from "../data/compareNicheData";
 
 // @babel/traverse ships as CJS; under ESM the default export lives on `.default`.
 const traverse =
@@ -244,6 +245,22 @@ export async function generateSitemap(): Promise<{ count: number; outputPath: st
   for (const slug of scoreCitySlugs) {
     const p = `/score/city/${slug}`;
     entryMap.set(p, { path: p });
+  }
+
+  // Add the 36 /compare/:competitorSlug/for/:nicheSlug pages. This route is
+  // registered dynamically in App.tsx (a single `:competitorSlug/:nicheSlug`
+  // Route), so extractRoutePaths()'s AST walk correctly excludes it as a
+  // template (shouldExclude() drops any path containing ":") — same as
+  // /blog/post/:slug or /score/c/:slug. Unlike those, though, nothing was
+  // ever expanding it into its concrete URLs the way blog/score entries
+  // are added above, so all 36 pages were silently absent from the sitemap
+  // even though they render correctly (see src/lib/prerender-routes.ts,
+  // which does enumerate these from the same COMPETITORS x NICHES data).
+  for (const compSlug of Object.keys(COMPETITORS)) {
+    for (const nicheSlug of Object.keys(NICHES)) {
+      const p = `/compare/${compSlug}/for/${nicheSlug}`;
+      entryMap.set(p, { path: p });
+    }
   }
 
   const xml = buildSitemap([...entryMap.values()]);

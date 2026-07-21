@@ -141,13 +141,18 @@ serve(async (req) => {
           if (!include) continue;
 
           // De-duplicate: skip if already emailed for this campaign in last 30 days
-          const { data: recentEmail } = await supabase
+          const { data: recentEmail, error: recentEmailErr } = await supabase
             .from("campaign_emails")
             .select("id")
             .eq("campaign_id", campaignId)
             .eq("customer_id", customer.id)
             .gte("sent_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
             .maybeSingle();
+
+          if (recentEmailErr) {
+            console.error(`[send-followup-campaign] dedupe check failed for customer ${customer.id}, skipping to avoid a possible duplicate send:`, recentEmailErr);
+            continue;
+          }
 
           if (!recentEmail) {
             recipients.push(customer);
@@ -225,12 +230,15 @@ serve(async (req) => {
           html,
         });
         if (sendResult.success) {
-          await supabase.from("campaign_emails").insert({
+          const { error: logErr } = await supabase.from("campaign_emails").insert({
             campaign_id: campaignId,
             customer_id: customer.id,
             email: customer.email,
             status: "sent",
           });
+          if (logErr) {
+            console.error(`[send-followup-campaign] email sent but campaign_emails insert failed for customer ${customer.id} — dedupe will not catch this next run:`, logErr);
+          }
           emailsSent.push(customer.email);
         } else {
           console.error(`[send-followup-campaign] send failed for ${customer.email}:`, sendResult.error);

@@ -123,6 +123,7 @@ export default function EstimatesPage() {
 
   return (
     <AdminLayout title="Estimates">
+<div className="portal-v2 portal-v2-scroll">
       <div className="space-y-4 p-4 md:p-6">
         {/* Header */}
         <div className="flex items-center justify-between gap-2">
@@ -191,6 +192,7 @@ export default function EstimatesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

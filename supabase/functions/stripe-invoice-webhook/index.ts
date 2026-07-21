@@ -155,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
           const monthlyAmount =
             subscription.items.data[0]?.price?.unit_amount ?? 40000;
 
-          await supabase.from("ad_management_subscriptions").upsert(
+          const { error: adSubErr } = await supabase.from("ad_management_subscriptions").upsert(
             {
               organization_id: subMeta.organization_id,
               user_id: userId,
@@ -169,17 +169,39 @@ const handler = async (req: Request): Promise<Response> => {
             { onConflict: "stripe_subscription_id", ignoreDuplicates: false },
           );
 
-          console.log(
-            "[stripe-invoice-webhook] Ad mgmt sub recorded:",
-            subscription.id,
-            platform,
-          );
+          if (adSubErr) {
+            // The customer HAS been charged by Stripe at this point — this
+            // is a real, paid subscription with no local record, meaning
+            // the cascade-cancel-on-plan-churn safety net silently won't
+            // find it either. Alert loudly rather than log-and-forget so
+            // a human reconciles it, since a retry won't fix a schema
+            // problem and Stripe will eventually stop retrying anyway.
+            console.error(
+              "[stripe-invoice-webhook] CRITICAL: ad-management subscription charged but NOT recorded (upsert failed):",
+              { stripeSubscriptionId: subscription.id, platform, organizationId: subMeta.organization_id, error: adSubErr },
+            );
+            await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+              organizationName: "Ad Management — RECORDING FAILED",
+              ownerEmail: subMeta.email || "unknown",
+              subscriptionType: `ALERT: customer charged for ${platform} ($${(monthlyAmount / 100).toFixed(0)}/mo, stripe_subscription_id=${subscription.id}) but ad_management_subscriptions upsert failed — needs manual reconciliation.`,
+            }).catch((notifyErr) => {
+              console.error("[stripe-invoice-webhook] admin failure-alert itself failed to send:", notifyErr);
+            });
+          } else {
+            console.log(
+              "[stripe-invoice-webhook] Ad mgmt sub recorded:",
+              subscription.id,
+              platform,
+            );
 
-          await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
-            organizationName: "Ad Management",
-            ownerEmail: subMeta.email || "unknown",
-            subscriptionType: `New ad-mgmt subscription: ${platform} ($${(monthlyAmount / 100).toFixed(0)}/mo)`,
-          }).catch(() => {});
+            await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+              organizationName: "Ad Management",
+              ownerEmail: subMeta.email || "unknown",
+              subscriptionType: `New ad-mgmt subscription: ${platform} ($${(monthlyAmount / 100).toFixed(0)}/mo)`,
+            }).catch((notifyErr) => {
+              console.error("[stripe-invoice-webhook] admin notification failed to send:", notifyErr);
+            });
+          }
         } catch (e) {
           console.error("[stripe-invoice-webhook] ad mgmt record failed:", e);
         }
@@ -1100,7 +1122,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Branch 1: ad-management retainer cancelled (its own Stripe sub).
         // Just mark the row inactive; no cascade or plan-type change.
         if (subMeta.purpose === "tidywise_ad_management") {
-          await supabase
+          const { error: cancelErr } = await supabase
             .from("ad_management_subscriptions")
             .update({
               status: "cancelled",
@@ -1108,10 +1130,17 @@ const handler = async (req: Request): Promise<Response> => {
               cancellation_reason: "stripe_subscription_deleted",
             })
             .eq("stripe_subscription_id", sub.id);
-          console.log(
-            "[stripe-invoice-webhook] Ad-management subscription cancelled:",
-            sub.id,
-          );
+          if (cancelErr) {
+            console.error(
+              "[stripe-invoice-webhook] failed to mark ad-management subscription cancelled locally (Stripe side is already cancelled):",
+              { stripeSubscriptionId: sub.id, error: cancelErr },
+            );
+          } else {
+            console.log(
+              "[stripe-invoice-webhook] Ad-management subscription cancelled:",
+              sub.id,
+            );
+          }
           return new Response(JSON.stringify({ received: true }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -1165,11 +1194,22 @@ const handler = async (req: Request): Promise<Response> => {
               // marks them cancelled in our table) then mark them
               // cancelled locally as a defensive write in case the
               // Stripe-side cancel webhook is delayed.
-              const { data: adSubs } = await supabase
+              const { data: adSubs, error: adSubsErr } = await supabase
                 .from("ad_management_subscriptions")
                 .select("stripe_subscription_id, platform")
                 .eq("organization_id", membership.organization_id)
                 .eq("status", "active");
+
+              if (adSubsErr) {
+                // If this lookup silently returns nothing, the cascade
+                // below runs zero iterations and any active ad-management
+                // subs keep billing after the parent plan is cancelled —
+                // exactly the safety net this cascade exists to prevent.
+                console.error(
+                  "[stripe-invoice-webhook] CRITICAL: could not look up ad-management subs to cascade-cancel — any active ones will keep billing:",
+                  { organizationId: membership.organization_id, error: adSubsErr },
+                );
+              }
 
               for (const ad of adSubs ?? []) {
                 try {
@@ -1187,7 +1227,7 @@ const handler = async (req: Request): Promise<Response> => {
                 }
               }
               if (adSubs && adSubs.length > 0) {
-                await supabase
+                const { error: markCancelledErr } = await supabase
                   .from("ad_management_subscriptions")
                   .update({
                     status: "cancelled",
@@ -1196,12 +1236,20 @@ const handler = async (req: Request): Promise<Response> => {
                   })
                   .eq("organization_id", membership.organization_id)
                   .eq("status", "active");
+                if (markCancelledErr) {
+                  console.error(
+                    "[stripe-invoice-webhook] cascade-cancelled in Stripe but failed to mark cancelled locally:",
+                    { organizationId: membership.organization_id, error: markCancelledErr },
+                  );
+                }
 
                 await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
                   organizationName: "Ad Mgmt Cascade-Cancelled",
                   ownerEmail: email,
                   subscriptionType: `${adSubs.length} ad-mgmt sub(s) cancelled along with TidyWise sub`,
-                }).catch(() => {});
+                }).catch((notifyErr) => {
+                  console.error("[stripe-invoice-webhook] cascade-cancel admin notification failed to send:", notifyErr);
+                });
               }
             }
           }

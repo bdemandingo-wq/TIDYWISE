@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
+import { formatFullAddress } from "../_shared/format-address.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -252,12 +253,17 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Check if already sent (dedup)
       if (!options?.skipDedup) {
-        const { data: existing } = await supabase
+        const { data: existing, error: existingErr } = await supabase
           .from("booking_reminder_log")
           .select("id")
           .eq("booking_id", bookingId)
           .eq("reminder_type", reminderType)
           .maybeSingle();
+
+        if (existingErr) {
+          console.error(`[send-booking-reminder] dedupe check failed for booking ${bookingId} (${reminderType}), skipping to avoid a possible duplicate:`, existingErr);
+          return { success: false, error: "Could not verify send status" };
+        }
 
         if (existing) {
           console.log(`[send-booking-reminder] Already sent ${reminderType} for booking ${bookingId}`);
@@ -283,12 +289,15 @@ const handler = async (req: Request): Promise<Response> => {
       const result = await response.json();
 
       // Log to booking_reminder_log (dedup)
-      await supabase.from("booking_reminder_log").insert({
+      const { error: logInsertErr } = await supabase.from("booking_reminder_log").insert({
         booking_id: bookingId,
         organization_id: organizationId,
         reminder_type: reminderType,
         recipient_phone: formattedPhone,
       });
+      if (logInsertErr) {
+        console.error(`[send-booking-reminder] SMS sent but booking_reminder_log insert failed for booking ${bookingId} (${reminderType}) — dedupe will not catch this next run:`, logInsertErr);
+      }
 
       // Log to conversation history
       try {
@@ -351,7 +360,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       const customerName = payload?.customerName || "there";
       const serviceName = payload?.serviceName || "cleaning";
-      const address = payload?.address || "";
+      // Always prefer a DB-sourced full address (includes apt/suite/state/zip)
+      // over the raw street the caller passed in.
+      let address = "";
+      if (payload?.bookingId) {
+        const { data: addrBooking } = await supabase
+          .from("bookings")
+          .select("address, apt_suite, city, state, zip_code")
+          .eq("id", payload.bookingId)
+          .maybeSingle();
+        if (addrBooking) address = formatFullAddress(addrBooking as any);
+      }
+      if (!address) address = payload?.address || "";
 
       const isConfirmation = payload?.messageType === "confirmation";
       const message = isConfirmation
@@ -441,10 +461,7 @@ const handler = async (req: Request): Promise<Response> => {
         const scheduledDate = new Date(booking.scheduled_at);
         const formattedDate = formatLocalDate(scheduledDate);
         const formattedTime = formatLocalTime(scheduledDate);
-        const streetWithUnit = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null]
-          .filter(Boolean)
-          .join(" ");
-        const address = [streetWithUnit, booking.city].filter(Boolean).join(", ");
+        const address = formatFullAddress(booking as any);
         const serviceName = booking.service?.name || "cleaning";
 
         // --- CLIENT REMINDER ---

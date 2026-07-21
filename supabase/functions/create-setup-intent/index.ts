@@ -148,10 +148,34 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error in create-setup-intent function:", error);
+    // Surface Stripe error details in logs so we can diagnose 500s (bad key,
+    // revoked account, invalid email, etc.) instead of just "Error: ...".
+    const stripeType = error?.type || error?.raw?.type;
+    const stripeCode = error?.code || error?.raw?.code;
+    const stripeStatus = typeof error?.statusCode === 'number' ? error.statusCode : undefined;
+    console.error("Error in create-setup-intent function:", {
+      message: error?.message,
+      stripeType,
+      stripeCode,
+      stripeStatus,
+      requestId: error?.requestId,
+    });
+
+    // Auth/config problems with the org's Stripe account should be 400 (client-visible),
+    // not 500, so the UI can show a helpful message rather than a generic failure.
+    const isAuthError =
+      stripeType === 'StripeAuthenticationError' ||
+      stripeType === 'StripePermissionError' ||
+      stripeStatus === 401 ||
+      stripeStatus === 403;
+    const status = isAuthError ? 400 : 500;
+    const message = isAuthError
+      ? "This organization's Stripe connection is invalid or revoked. Please reconnect Stripe in Settings → Payments."
+      : (error?.message || "Failed to create SetupIntent");
+
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      JSON.stringify({ error: message, code: stripeCode ?? null }),
+      { status, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   }
 };

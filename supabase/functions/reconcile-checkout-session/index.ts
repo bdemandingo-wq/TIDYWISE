@@ -31,6 +31,39 @@ const corsHeaders = {
 const log = (msg: string, extra?: unknown) =>
   console.log(`[reconcile-checkout-session] ${msg}`, extra ?? "");
 
+// Platform admin phone numbers (same list notify-platform-admin-subscription
+// uses) — a direct SMS here, not a shared helper, since sendAdminNotification
+// in stripe-invoice-webhook is also function-local rather than in _shared/.
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
+
+async function alertAdmin(reason: string, details: Record<string, unknown>): Promise<void> {
+  try {
+    const apiKey = Deno.env.get("OPENPHONE_API_KEY");
+    const numberId = Deno.env.get("OPENPHONE_PHONE_NUMBER_ID");
+    if (!apiKey || !numberId) {
+      console.error("[reconcile-checkout-session] alertAdmin: OpenPhone not configured, alert not sent:", reason, details);
+      return;
+    }
+    const message =
+      `⚠️ CHECKOUT RECONCILE FAILED\n\n${reason}\n\n` +
+      Object.entries(details).map(([k, v]) => `${k}: ${v}`).join("\n") +
+      `\n\nCustomer may be paid but not provisioned — needs manual check.`;
+    const res = await fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: {
+        Authorization: apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: numberId, to: ADMIN_PHONES, content: message }),
+    });
+    if (!res.ok) {
+      console.error("[reconcile-checkout-session] alertAdmin: OpenPhone send failed:", res.status, await res.text());
+    }
+  } catch (e) {
+    console.error("[reconcile-checkout-session] alertAdmin threw:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -105,6 +138,10 @@ serve(async (req) => {
     // doubles as the "set your password" link.
     const fullName = session.customer_details?.name ?? null;
     let isNewAccount = false;
+    // Set when a write in the critical paid-access chain fails so the
+    // final response can honestly report provisioned:false instead of
+    // claiming success for a customer who actually can't get in.
+    let provisioningError: string | null = null;
     const ensureAccount = async (planTypeForNewOrg: string) => {
       if (userId || !email) return;
       try {
@@ -137,24 +174,57 @@ serve(async (req) => {
         } else if (!inviteErr && invited?.user?.id) {
           userId = invited.user.id;
           isNewAccount = true;
-          await supabase.from("profiles").insert({
+          const { error: profileErr } = await supabase.from("profiles").insert({
             id: userId,
             email,
             full_name: fullName,
           });
+          if (profileErr) {
+            console.error("[reconcile] profiles insert failed for a paid new account:", profileErr);
+            provisioningError = "profile_insert_failed";
+            await alertAdmin("profiles insert failed for a paid new account", {
+              email, userId, sessionId: session.id, error: profileErr.message,
+            });
+          }
           const orgName = fullName ? `${fullName}'s Business` : "My Cleaning Business";
-          const { data: newOrg } = await supabase
+          const { data: newOrg, error: orgErr } = await supabase
             .from("organizations")
             .insert({ name: orgName, plan_type: planTypeForNewOrg })
             .select("id")
             .single();
-          if (newOrg?.id) {
-            await supabase.from("org_memberships").insert({
-              organization_id: newOrg.id,
-              user_id: userId,
-              role: "owner",
+          if (orgErr || !newOrg?.id) {
+            console.error("[reconcile] organizations insert failed for a paid new account:", orgErr);
+            provisioningError = "organization_insert_failed";
+            await alertAdmin("organizations insert failed for a paid new account", {
+              email, userId, sessionId: session.id, error: orgErr?.message ?? "no row returned",
             });
-            log("provisioned new account", { userId, orgId: newOrg.id, plan: planTypeForNewOrg });
+          } else {
+            // org_memberships is the actual access gate — retry once
+            // before giving up, since the webhook does not repair a
+            // missing membership row for an org that already exists.
+            let membershipOk = false;
+            let lastMemErr: string | undefined;
+            for (let attempt = 1; attempt <= 2 && !membershipOk; attempt++) {
+              const { error: memErr } = await supabase.from("org_memberships").insert({
+                organization_id: newOrg.id,
+                user_id: userId,
+                role: "owner",
+              });
+              if (!memErr) {
+                membershipOk = true;
+              } else {
+                lastMemErr = memErr.message;
+                console.error(`[reconcile] org_memberships insert failed (attempt ${attempt}/2):`, memErr);
+              }
+            }
+            if (membershipOk) {
+              log("provisioned new account", { userId, orgId: newOrg.id, plan: planTypeForNewOrg });
+            } else {
+              provisioningError = "org_membership_insert_failed";
+              await alertAdmin("org_memberships insert failed twice — customer paid but cannot access their org", {
+                email, userId, orgId: newOrg.id, sessionId: session.id, error: lastMemErr,
+              });
+            }
           }
           // Fire-and-forget welcome email (with "Book a demo" CTA) for
           // every brand-new account provisioned via Stripe checkout.
@@ -196,7 +266,7 @@ serve(async (req) => {
 
       await ensureAccount("lifetime");
 
-      await supabase
+      const { error: purchaseErr } = await supabase
         .from("lifetime_access_purchases")
         .upsert(
           {
@@ -208,20 +278,40 @@ serve(async (req) => {
           },
           { onConflict: "stripe_session_id", ignoreDuplicates: true },
         );
+      if (purchaseErr) {
+        console.error("[reconcile] lifetime_access_purchases upsert failed:", purchaseErr);
+        provisioningError = provisioningError ?? "lifetime_purchase_record_failed";
+        await alertAdmin("lifetime_access_purchases upsert failed — payment record not saved", {
+          email, userId, sessionId: session.id, error: purchaseErr.message,
+        });
+      }
 
       const orgId = await getOrgId();
       if (orgId) {
         // NOTE: do NOT set grandfathered_lifetime here. That flag is
         // reserved for original launch/founder users.
-        await supabase
+        const { error: planErr } = await supabase
           .from("organizations")
           .update({ plan_type: "lifetime" })
           .eq("id", orgId);
-        await supabase
+        if (planErr) {
+          console.error("[reconcile] organizations.plan_type update failed (lifetime):", planErr);
+          provisioningError = "plan_type_update_failed";
+          await alertAdmin("organizations.plan_type update to lifetime failed — customer paid but paywall still up", {
+            email, userId, orgId, sessionId: session.id, error: planErr.message,
+          });
+        }
+        const { error: linkErr } = await supabase
           .from("lifetime_access_purchases")
           .update({ organization_id: orgId })
           .eq("stripe_session_id", session.id);
-        await supabase.from("stripe_subscriptions").upsert(
+        if (linkErr) {
+          console.error("[reconcile] lifetime_access_purchases org link update failed:", linkErr);
+          await alertAdmin("lifetime_access_purchases org link update failed", {
+            email, userId, orgId, sessionId: session.id, error: linkErr.message,
+          });
+        }
+        const { error: subErr } = await supabase.from("stripe_subscriptions").upsert(
           {
             organization_id: orgId,
             stripe_subscription_id: `lifetime_${session.id}`,
@@ -232,19 +322,34 @@ serve(async (req) => {
           },
           { onConflict: "stripe_subscription_id", ignoreDuplicates: true },
         );
+        if (subErr) {
+          console.error("[reconcile] stripe_subscriptions upsert failed (lifetime):", subErr);
+          await alertAdmin("stripe_subscriptions upsert failed (lifetime)", {
+            email, userId, orgId, sessionId: session.id, error: subErr.message,
+          });
+        }
+      } else if (!provisioningError) {
+        // ensureAccount reported no error but we still couldn't resolve
+        // an org — treat as a provisioning failure rather than silently
+        // returning provisioned:true with no org actually set up.
+        provisioningError = "no_org_resolved";
+        await alertAdmin("lifetime checkout reconciled with no resolvable org", {
+          email, userId, sessionId: session.id,
+        });
       }
 
       try { await supabase.rpc("claim_lifetime_spot"); } catch (_) { /* ignored */ }
 
-      log("lifetime reconciled", { email, userId, isNewAccount });
+      log("lifetime reconciled", { email, userId, isNewAccount, provisioningError });
       return new Response(
         JSON.stringify({
-          ok: true,
-          provisioned: true,
+          ok: !provisioningError,
+          provisioned: !provisioningError,
           plan: "lifetime",
           email,
           hasAccount: !!userId,
           isNewAccount,
+          ...(provisioningError ? { error: provisioningError } : {}),
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -272,10 +377,17 @@ serve(async (req) => {
       if (orgId) {
         // Always set the org's plan_type so feature gates open
         // immediately — even if the org already existed.
-        await supabase
+        const { error: planErr } = await supabase
           .from("organizations")
           .update({ plan_type: targetPlanType })
           .eq("id", orgId);
+        if (planErr) {
+          console.error("[reconcile] organizations.plan_type update failed (subscription):", planErr);
+          provisioningError = "plan_type_update_failed";
+          await alertAdmin("organizations.plan_type update failed — customer paid but paywall still up", {
+            email, userId, orgId, sessionId: session.id, plan: targetPlanType, error: planErr.message,
+          });
+        }
 
         // Mirror the live Stripe subscription into stripe_subscriptions
         // so the paywall opens before the webhook arrives.
@@ -288,7 +400,7 @@ serve(async (req) => {
             const currentPeriodEnd = fullSub.current_period_end
               ? new Date(fullSub.current_period_end * 1000).toISOString()
               : null;
-            await supabase.from("stripe_subscriptions").upsert(
+            const { error: subErr } = await supabase.from("stripe_subscriptions").upsert(
               {
                 organization_id: orgId,
                 stripe_subscription_id: fullSub.id,
@@ -299,21 +411,37 @@ serve(async (req) => {
               },
               { onConflict: "stripe_subscription_id", ignoreDuplicates: false },
             );
+            if (subErr) {
+              console.error("[reconcile] stripe_subscriptions upsert failed (subscription):", subErr);
+              await alertAdmin("stripe_subscriptions upsert failed (subscription)", {
+                email, userId, orgId, sessionId: session.id, error: subErr.message,
+              });
+            }
           }
         } catch (mirrorErr) {
           console.error("[reconcile] mirror sub failed:", mirrorErr);
+          await alertAdmin("stripe subscription mirror threw", {
+            email, userId, orgId, sessionId: session.id,
+            error: mirrorErr instanceof Error ? mirrorErr.message : String(mirrorErr),
+          });
         }
+      } else if (!provisioningError) {
+        provisioningError = "no_org_resolved";
+        await alertAdmin("subscription checkout reconciled with no resolvable org", {
+          email, userId, sessionId: session.id, plan: targetPlanType,
+        });
       }
 
-      log("subscription reconciled", { email, userId, plan: targetPlanType, isNewAccount });
+      log("subscription reconciled", { email, userId, plan: targetPlanType, isNewAccount, provisioningError });
       return new Response(
         JSON.stringify({
-          ok: true,
-          provisioned: true,
+          ok: !provisioningError,
+          provisioned: !provisioningError,
           plan: targetPlanType,
           email,
           hasAccount: !!userId,
           isNewAccount,
+          ...(provisioningError ? { error: provisioningError } : {}),
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );

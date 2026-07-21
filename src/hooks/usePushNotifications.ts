@@ -177,6 +177,12 @@ export function usePushNotifications(staffId?: string) {
       setToken(nativeToken);
       setIsRegistered(true);
 
+      // The device itself is registered with APNs/FCM at this point — that
+      // part genuinely succeeded. But if the token never reaches our
+      // server, send-push-notification has nothing to send to, so this
+      // device won't actually receive anything despite the OS-level
+      // registration. Track that distinctly rather than reporting success.
+      let tokenSaved = false;
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
@@ -184,8 +190,12 @@ export function usePushNotifications(staffId?: string) {
             body: { token: nativeToken, platform: 'ios' },
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
-          if (saveError) console.error('[PUSH] Failed to save token', saveError);
-          else console.log('[PUSH] Token saved to Supabase');
+          if (saveError) {
+            console.error('[PUSH] Failed to save token', saveError);
+          } else {
+            tokenSaved = true;
+            console.log('[PUSH] Token saved to Supabase');
+          }
         }
       } catch (err) {
         console.error('[PUSH] Error saving token', err);
@@ -195,6 +205,11 @@ export function usePushNotifications(staffId?: string) {
         // Dev placeholder until staff-token persistence is wired up. Never log
         // the actual token alongside the staff id — that's a deanonymizing pair.
         console.log('Push token ready for staff registration');
+      }
+
+      if (!tokenSaved) {
+        toast.error("Your device registered, but we couldn't save your notification settings. Please try again.");
+        return false;
       }
 
       return true;

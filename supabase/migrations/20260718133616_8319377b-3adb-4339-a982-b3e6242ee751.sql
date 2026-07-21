@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Owners and admins can view their org Stripe settings" ON public.org_stripe_settings;

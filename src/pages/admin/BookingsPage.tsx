@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,7 +92,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
-import { useBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
+import { useBookings, useDraftBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, addDays } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
@@ -116,17 +116,17 @@ import { BookingActionSheet } from '@/components/admin/BookingActionSheet';
 import { CancelBookingDialog, type CancellationCategory } from '@/components/admin/CancelBookingDialog';
 import { BulkEditBookingsDialog } from '@/components/admin/BulkEditBookingsDialog';
 import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
-import { SEOHead } from '@/components/SEOHead';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
+import { formatFullAddress } from '@/lib/formatAddress';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  confirmed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  in_progress: { bg: 'bg-purple-50', text: 'text-purple-700', dot: 'bg-purple-500' },
-  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
-  no_show: { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' },
+  pending: { bg: 'bg-warning/10', text: 'text-warning', dot: 'bg-warning' },
+  confirmed: { bg: 'bg-info/10', text: 'text-info', dot: 'bg-info' },
+  in_progress: { bg: 'bg-info/10', text: 'text-info', dot: 'bg-info' },
+  completed: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
+  cancelled: { bg: 'bg-destructive/10', text: 'text-destructive', dot: 'bg-destructive' },
+  no_show: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
 };
 
 const statusLabels: Record<string, string> = {
@@ -142,22 +142,22 @@ const getPaymentStatusInfo = (booking: BookingWithDetails) => {
   const hasPaymentIntent = !!(booking as any).payment_intent_id;
 
   if (booking.payment_status === 'paid') {
-    return { label: 'Paid', bg: 'bg-emerald-50', text: 'text-emerald-700', icon: '✓' };
+    return { label: 'Paid', bg: 'bg-success/10', text: 'text-success', icon: '✓' };
   }
 
   if (booking.payment_status === 'refunded') {
-    return { label: 'Refunded', bg: 'bg-slate-100', text: 'text-slate-600', icon: '↩' };
+    return { label: 'Refunded', bg: 'bg-muted', text: 'text-muted-foreground', icon: '↩' };
   }
 
   if (booking.payment_status === 'partial') {
-    return { label: 'Partially Refunded', bg: 'bg-slate-100', text: 'text-slate-700', icon: '↩' };
+    return { label: 'Partially Refunded', bg: 'bg-muted', text: 'text-foreground', icon: '↩' };
   }
 
   if (hasPaymentIntent) {
-    return { label: 'Hold', bg: 'bg-amber-50', text: 'text-amber-700', icon: '◐' };
+    return { label: 'Hold', bg: 'bg-warning/10', text: 'text-warning', icon: '◐' };
   }
 
-  return { label: 'Unpaid', bg: 'bg-rose-50', text: 'text-rose-700', icon: '○' };
+  return { label: 'Unpaid', bg: 'bg-destructive/10', text: 'text-destructive', icon: '○' };
 };
 
 export default function BookingsPage() {
@@ -167,11 +167,31 @@ export default function BookingsPage() {
   const isMobile = useIsMobile();
   const orgTz = useOrgTimezone();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle deep-links like /dashboard/bookings?newBooking=true&customerId=<id>
+  // (e.g. the "Book" button on a customer profile) by opening the New Booking
+  // dialog with the customer already selected.
+  useEffect(() => {
+    if (searchParams.get('newBooking') === 'true') {
+      const cid = searchParams.get('customerId');
+      setPrefillCustomerId(cid || null);
+      setEditingBooking(null);
+      setAddDialogOpen(true);
+      // Strip the params so re-opening/closing doesn't retrigger.
+      const next = new URLSearchParams(searchParams);
+      next.delete('newBooking');
+      next.delete('customerId');
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [prefillCustomerId, setPrefillCustomerId] = useState<string | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [adjustPaymentOpen, setAdjustPaymentOpen] = useState(false);
   const [activeBooking, setActiveBooking] = useState<BookingWithDetails | null>(null);
@@ -225,6 +245,7 @@ export default function BookingsPage() {
   const [cancelBookingTarget, setCancelBookingTarget] = useState<BookingWithDetails | null>(null);
 
   const { data: bookings = [], isLoading, error } = useBookings();
+  const { data: draftsFromDb = [] } = useDraftBookings();
   const { data: staffList = [] } = useStaff();
   const { data: servicesList = [] } = useServices();
   const queryClient = useQueryClient();
@@ -281,11 +302,14 @@ export default function BookingsPage() {
     });
   }, [bookings, isMobile, isFullyDone, orgTz]);
 
-  // Filter for drafts (pending status with is_draft flag or pending payment)
-  const draftBookings = sortedBookings.filter((booking) => 
-    (booking as any).is_draft === true || 
-    (booking.status === 'pending' && booking.payment_status === 'pending')
-  );
+  // Draft bookings: true is_draft rows fetched separately (useBookings excludes them),
+  // plus non-draft rows with pending status + pending payment (legacy "draft" behavior).
+  const draftBookings = useMemo(() => {
+    const pendingPending = sortedBookings.filter((b) =>
+      b.status === 'pending' && b.payment_status === 'pending' && !(b as any).is_draft
+    );
+    return [...(draftsFromDb as BookingWithDetails[]), ...pendingPending];
+  }, [sortedBookings, draftsFromDb]);
 
   const filteredBookings = sortedBookings.filter((booking) => {
     const customerName = booking.customer 
@@ -1067,9 +1091,7 @@ export default function BookingsPage() {
     
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
@@ -1170,9 +1192,7 @@ export default function BookingsPage() {
       for (const booking of bookingsWithCleaners) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1238,9 +1258,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = [booking.address, booking.apt_suite ? `Unit ${booking.apt_suite}` : null, booking.city, booking.state, booking.zip_code]
-        .filter(Boolean)
-        .join(', ');
+      const fullAddress = formatFullAddress(booking as any);
 
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
@@ -1372,9 +1390,7 @@ export default function BookingsPage() {
       for (const booking of upcomingWeekBookings) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = [booking.address, booking.apt_suite, booking.city, booking.state, booking.zip_code]
-            .filter(Boolean)
-            .join(', ');
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1630,16 +1646,14 @@ export default function BookingsPage() {
     }
   };
 
-  if (error) {
-    return (
-      <AdminLayout title="Bookings" subtitle="Error loading bookings">
-      <SEOHead title="Bookings | TidyWise" description="Manage all your cleaning bookings in one place" noIndex />
-        <div className="flex items-center justify-center h-64">
-          <p className="text-destructive">Failed to load bookings. Please try again.</p>
-        </div>
-      </AdminLayout>
-    );
-  }
+  // NOTE: there used to be an early `if (error) return (...)` here showing
+  // a bare "Failed to load bookings" message with no way to recover. It
+  // unconditionally pre-empted the fuller error state below (heading +
+  // Retry button, wired to queryClient.invalidateQueries), making that
+  // Retry button permanently unreachable dead code. Removed so the real
+  // error UI (rendered inside the tab content below) actually gets a
+  // chance to run, and so the rest of the page (tabs, stats) doesn't go
+  // fully blank on a fetch error.
 
   return (
     <AdminLayout
@@ -1689,12 +1703,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-amber-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-warning/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-amber-100 rounded-xl">
-                    <Clock className="w-5 h-5 text-amber-600" />
+                  <div className="p-2 bg-warning/10 rounded-xl">
+                    <Clock className="w-5 h-5 text-warning" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Pending Payment</span>
                 </div>
@@ -1702,12 +1716,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-blue-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-info/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-info/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-blue-100 rounded-xl">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <div className="p-2 bg-info/10 rounded-xl">
+                    <User className="w-5 h-5 text-info" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Uncleaned</span>
                 </div>
@@ -1715,12 +1729,12 @@ export default function BookingsPage() {
               </div>
             </div>
             
-            <div className="group relative bg-gradient-to-br from-card to-emerald-50/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="group relative bg-gradient-to-br from-card to-success/10 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-success/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-2 bg-emerald-100 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                  <div className="p-2 bg-success/10 rounded-xl">
+                    <DollarSign className="w-5 h-5 text-success" />
                   </div>
                   <span className="text-sm font-medium text-muted-foreground">Clean Completed</span>
                 </div>
@@ -1796,7 +1810,7 @@ export default function BookingsPage() {
           </Select>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50"
+            className="h-11 gap-2 rounded-xl text-info border-info/20 hover:bg-info/10"
             onClick={handleBulkNotifyWeekCleaners}
             disabled={bulkNotifyingWeek}
           >
@@ -1805,7 +1819,7 @@ export default function BookingsPage() {
           </Button>
           <Button 
             variant="outline" 
-            className="h-11 gap-2 rounded-xl text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            className="h-11 gap-2 rounded-xl text-success border-success/20 hover:bg-success/10"
             onClick={handlePrepareWeeklyReminders}
           >
             <Phone className="w-4 h-4" />
@@ -1855,7 +1869,7 @@ export default function BookingsPage() {
               </Button>
               <Button 
                 variant="outline" 
-                className="h-11 gap-2 rounded-xl text-purple-600 border-purple-200 hover:bg-purple-50"
+                className="h-11 gap-2 rounded-xl text-info border-info/20 hover:bg-info/10"
                 onClick={handleBulkNotifyCleaners}
                 disabled={bulkNotifyingCleaners}
               >
@@ -1926,6 +1940,7 @@ export default function BookingsPage() {
               const paymentInfo = getPaymentStatusInfo(booking);
               const scheduledDate = new Date(booking.scheduled_at);
               const isCleaned = booking.status === 'completed';
+              const isCancelled = booking.status === 'cancelled';
               const isPaid = booking.payment_status === 'paid';
               
               return (
@@ -1977,18 +1992,25 @@ export default function BookingsPage() {
                     {/* Clean status badge */}
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                      isCleaned
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-red-50 text-red-700"
+                      isCancelled
+                        ? "bg-destructive/15 text-destructive"
+                        : isCleaned
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
                     )}>
-                      {isCleaned ? (
+                      {isCancelled ? (
+                        <>
+                          <XCircle className="w-3 h-3" />
+                          cancelled
+                        </>
+                      ) : isCleaned ? (
                         <>
                           <CheckCircle className="w-3 h-3" />
                           clean completed
                         </>
                       ) : (
                         <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
                           uncleaned
                         </>
                       )}
@@ -1997,8 +2019,8 @@ export default function BookingsPage() {
                     <div className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
                       isPaid
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-orange-50 text-orange-700"
+                        ? "bg-success/10 text-success"
+                        : "bg-warning/10 text-warning"
                     )}>
                       {isPaid ? (
                         <>
@@ -2116,9 +2138,9 @@ export default function BookingsPage() {
                               size="icon"
                               className={cn(
                                 "h-7 w-7 rounded-full",
-                                urgentReminder 
-                                  ? "bg-amber-100 text-amber-600 hover:bg-amber-200" 
-                                  : "bg-blue-50 text-blue-500 hover:bg-blue-100"
+                                urgentReminder
+                                  ? "bg-warning/15 text-warning hover:bg-warning/25"
+                                  : "bg-info/10 text-info hover:bg-info/20"
                               )}
                               onClick={() => handleSendReminder(booking)}
                               disabled={sendingReminder === booking.id}
@@ -2549,7 +2571,7 @@ export default function BookingsPage() {
                 </div>
                 {draftBookings.map((booking) => (
                   <div key={booking.id} className={cn(
-                    "flex items-center gap-3 p-4 rounded-lg border border-border/50 transition-colors",
+                    "flex items-start sm:items-center gap-3 p-4 rounded-lg border border-border/50 transition-colors",
                     selectedDrafts.has(booking.id) ? "bg-primary/5 border-primary/30" : "bg-secondary/30"
                   )}>
                     <Checkbox
@@ -2562,17 +2584,17 @@ export default function BookingsPage() {
                         });
                       }}
                     />
-                    <div className="flex-1 flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">
+                    <div className="flex-1 min-w-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
                           #{booking.booking_number} - {booking.customer?.first_name} {booking.customer?.last_name}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           {booking.service?.name} • {formatInTimezone(booking.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="bg-warning/10 text-warning">
                           ${booking.total_amount?.toFixed(2)} unpaid
                         </Badge>
                         <Button
@@ -2696,9 +2718,13 @@ export default function BookingsPage() {
 
       <AddBookingDialog
         open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
+        onOpenChange={(open) => {
+          setAddDialogOpen(open);
+          if (!open) setPrefillCustomerId(null);
+        }}
         booking={editingBooking}
         onDuplicate={handleDuplicate}
+        defaultCustomerId={prefillCustomerId}
       />
       
       <BookingDetailsDialog
@@ -2728,7 +2754,7 @@ export default function BookingsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-amber-600 hover:bg-amber-700"
+              className="bg-warning text-warning-foreground hover:bg-warning/90"
               onClick={() => {
                 if (chargeConfirmBooking) {
                   handleChargeCard(chargeConfirmBooking);
@@ -2820,7 +2846,7 @@ export default function BookingsPage() {
           </AlertDialogHeader>
           <div className="py-4 space-y-4">
             {!(refundDialogBooking as any)?.payment_intent_id && (
-              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <div className="rounded-md bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
                 ⚠️ No Stripe payment found for this booking. This will be a <strong>manual record-only</strong> update — no money will be returned via Stripe. To process an actual Stripe refund, the booking must have been charged through the app first.
               </div>
             )}

@@ -1,3 +1,14 @@
+// SECURITY REVIEW (2026-07-14): intentionally public/unauthenticated.
+// Its only caller is src/pages/DeleteAccountPage.tsx (/delete-account), a
+// standalone public page with no login gate — by design, since someone
+// requesting account deletion may be locked out, have forgotten their
+// password, or simply not want to log back in just to ask to be deleted.
+// Requiring a JWT here would break that flow for exactly the users who
+// most need it. Already had rate limiting (1/request per email per day,
+// 5/hour per IP) before this review; the email body is plain `text` (not
+// `html`), so there's no HTML-injection surface from the free-text
+// fields. Added a length cap on those fields below as light additional
+// hardening against oversized-payload abuse.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logToSystem } from "../_shared/system-logger.ts";
@@ -9,13 +20,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_FIELD_LEN = 500;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { name, email, organizationName, reason, organizationId } = await req.json();
+    const body = await req.json();
+    const { email, organizationId } = body;
+    const name = typeof body.name === "string" ? body.name.slice(0, MAX_FIELD_LEN) : body.name;
+    const organizationName = typeof body.organizationName === "string" ? body.organizationName.slice(0, MAX_FIELD_LEN) : body.organizationName;
+    const reason = typeof body.reason === "string" ? body.reason.slice(0, MAX_FIELD_LEN) : body.reason;
 
     if (!name || !email) {
       return new Response(JSON.stringify({ error: "Name and email are required" }), {

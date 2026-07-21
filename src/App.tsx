@@ -143,6 +143,7 @@ const BookingSoftware = lazy(() => import("./pages/features/BookingSoftware"));
 const CRMSoftware = lazy(() => import("./pages/features/CRMSoftware"));
 const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
+const CompareNichePage = lazy(() => import("./pages/compare/CompareNichePage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
 const ChoosePlanPage = lazy(() => import("./pages/ChoosePlanPage"));
 const CheckoutSuccessPage = lazy(() => import("./pages/CheckoutSuccessPage"));
@@ -200,12 +201,32 @@ const App = () => (
       persistOptions={{
         persister: offlinePersister,
         maxAge: 1000 * 60 * 60 * 24,
+        // Bump to discard previously-persisted caches (2026-07-20: old
+        // caches contain Map data serialized to plain objects).
+        buster: 'v2-no-maps',
         dehydrateOptions: {
           // Persist only successful reads; never persist mutations or
-          // huge/ephemeral queries.
+          // huge/ephemeral queries. Also exclude 'service-pricing': its
+          // query data is a Map (see useServicePricing.ts), and Map
+          // instances don't survive a JSON.stringify/parse round-trip —
+          // they rehydrate as plain objects, so a later .get() call
+          // throws "TypeError: [x].get is not a function" wherever
+          // pricing is looked up (New/Edit Booking's Service step,
+          // ServicePricingEditor, ExtrasPricingManager). Confirmed live
+          // 2026-07-14. Excluding it also means pricing is never served
+          // stale from an offline cache, which matters more here than
+          // for bookings/customers since a stale price could mis-charge
+          // a customer.
           shouldDehydrateQuery: (q) =>
             q.state.status === 'success' &&
-            !JSON.stringify(q.queryKey).includes('signed'),
+            // Never persist Map/Set data — it rehydrates as a plain object
+            // and crashes on the next .get()/.has() (same class of bug as
+            // service-pricing above; also hit customer-stats-for-dedupe,
+            // teamPaysByBooking, enrollmentsByCustomer on 2026-07-20).
+            !(q.state.data instanceof Map) &&
+            !(q.state.data instanceof Set) &&
+            !JSON.stringify(q.queryKey).includes('signed') &&
+            !JSON.stringify(q.queryKey).includes('service-pricing'),
         },
       }}
     >
@@ -404,6 +425,7 @@ const App = () => (
                     <Route path="/compare/zenmaid" element={<CompareZenMaid />} />
                     <Route path="/compare/servicetitan" element={<CompareServiceTitan />} />
                     <Route path="/compare/launch27" element={<CompareLaunch27 />} />
+                    <Route path="/compare/:competitorSlug/for/:nicheSlug" element={<CompareNichePage />} />
                     
                     {/* Feature Pages */}
                     <Route path="/features/automated-dispatching" element={<AutomatedDispatching />} />

@@ -45,20 +45,46 @@ Deno.serve(async (req) => {
 
   const email = tok.email.toLowerCase();
 
-  await supabase
+  // Both writes below are the actual opt-out — one is safe to be
+  // non-authoritative, but neither can be allowed to fail silently.
+  // TCPA/CAN-SPAM carry per-message statutory damages, so continuing to
+  // email someone whose opt-out write failed is not an acceptable
+  // "best effort" outcome. If either write fails, we do NOT mark the
+  // token used_at, so the same link remains valid — the user re-clicking
+  // it (or clicking "try again" below) is the retry.
+  const { error: profileError } = await supabase
     .from("profiles")
     .update({ email_unsubscribed: true, email_unsubscribed_at: new Date().toISOString() })
     .ilike("email", email);
 
-  await supabase
+  const { error: suppressError } = await supabase
     .from("suppressed_emails")
-    .upsert({ email, reason: "user_unsubscribed" }, { onConflict: "email" })
-    .then(() => {}, () => {});
+    .upsert({ email, reason: "user_unsubscribed" }, { onConflict: "email" });
 
-  await supabase
+  if (profileError || suppressError) {
+    console.error("[handle-email-unsubscribe] CRITICAL: opt-out write failed, NOT marking token used:", {
+      email, token, profileError, suppressError,
+    });
+    return new Response(
+      page(
+        "Something went wrong",
+        `We couldn't process your unsubscribe request for <strong>${email}</strong>. ` +
+        `Please <a href="${req.url}">try this link again</a>, or contact support@tidywisecleaning.com if it keeps failing.`,
+      ),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "text/html" } }
+    );
+  }
+
+  const { error: tokenUpdateError } = await supabase
     .from("email_unsubscribe_tokens")
     .update({ used_at: new Date().toISOString() })
     .eq("token", token);
+  if (tokenUpdateError) {
+    // The actual opt-out already succeeded above — this is just token
+    // housekeeping, so log but don't show a failure page for it (worst
+    // case the token can be reused, which is a harmless no-op re-upsert).
+    console.error("[handle-email-unsubscribe] token used_at update failed (opt-out itself already succeeded):", { token, error: tokenUpdateError });
+  }
 
   return new Response(
     page("You're unsubscribed", `<strong>${email}</strong> will no longer receive Morning Briefs, End of Day Reports, or marketing emails from TidyWise. You'll still receive essential account and transactional emails.`),

@@ -264,6 +264,8 @@ serve(async (req) => {
     if (importError) throw importError;
 
     const batchSize = 100;
+    let rowsFailedToSave = 0;
+    const failedBatchRanges: string[] = [];
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize).map((row, batchIndex) => {
         const rowIndex = i + batchIndex;
@@ -285,13 +287,29 @@ serve(async (req) => {
           status: duplicates.has(rowIndex) ? "duplicate" : "valid",
         };
       });
-      await adminClient.from("migration_import_rows").insert(batch);
+      const { error: batchInsertErr } = await adminClient.from("migration_import_rows").insert(batch);
+      if (batchInsertErr) {
+        // Don't let a mid-import batch failure pass as a clean import —
+        // the customer's CSV would silently be missing rows with no
+        // visible sign anything went wrong.
+        rowsFailedToSave += batch.length;
+        failedBatchRanges.push(`${i + 1}-${i + batch.length}`);
+        console.error(`[parse-migration-csv] Batch insert failed for rows ${i + 1}-${i + batch.length} (import ${importRecord.id}):`, batchInsertErr);
+      }
+    }
+
+    if (rowsFailedToSave > 0) {
+      console.error(`[parse-migration-csv] Import ${importRecord.id}: ${rowsFailedToSave} of ${rows.length} rows failed to save (row ranges: ${failedBatchRanges.join(", ")})`);
     }
 
     return new Response(JSON.stringify({
       importId: importRecord.id,
       totalRows: rows.length,
       duplicateRows: duplicates.size,
+      rowsFailedToSave,
+      ...(rowsFailedToSave > 0 ? {
+        warning: `${rowsFailedToSave} of ${rows.length} rows could not be saved and are missing from this import — please re-upload or contact support.`,
+      } : {}),
       headers, fieldMapping,
       preview: rows.slice(0, 5),
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -127,13 +127,24 @@ serve(async (req) => {
     }
 
     // Already have an active sub for this platform?
-    const { data: existing } = await admin
+    const { data: existing, error: existingErr } = await admin
       .from("ad_management_subscriptions")
       .select("id, stripe_subscription_id")
       .eq("organization_id", orgId)
       .eq("platform", platform)
       .eq("status", "active")
       .maybeSingle();
+    if (existingErr) {
+      // Can't confirm there isn't already an active sub — refuse rather
+      // than risk letting a customer buy a second one for the same
+      // platform (the DB's own unique index is a second guard, but it's
+      // better to fail here with a clear message than rely on that alone).
+      console.error("[buy-ad-management] duplicate-check failed, refusing to proceed:", existingErr);
+      return new Response(
+        JSON.stringify({ error: "Could not verify your subscription status. Please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     if (existing) {
       return new Response(
         JSON.stringify({

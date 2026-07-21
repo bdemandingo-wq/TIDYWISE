@@ -106,7 +106,7 @@ export default function DepositPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -115,7 +115,7 @@ export default function DepositPage() {
   // Success state after payment
   if (paymentStatus === 'success' || depositDetails?.status === 'paid') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
         <TrackingPixels metaPixelId={depositDetails?.metaPixelId} googleAnalyticsId={depositDetails?.googleAnalyticsId} />
         <SEOHead
           title="Deposit Paid | TidyWise"
@@ -143,7 +143,7 @@ export default function DepositPage() {
 
   if (error || !depositDetails) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 p-4">
         <SEOHead
           title="Deposit Link Invalid | TidyWise"
           description="This deposit link is no longer valid or has expired. Contact your cleaning company to request a new payment link."
@@ -160,7 +160,7 @@ export default function DepositPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+    <div className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
       <TrackingPixels metaPixelId={depositDetails.metaPixelId} googleAnalyticsId={depositDetails.googleAnalyticsId} />
       <SEOHead
         title={`Pay Deposit · ${depositDetails.companyName}`}

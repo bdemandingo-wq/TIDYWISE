@@ -28,10 +28,10 @@ interface Referral {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-700',
-  signed_up: 'bg-blue-100 text-blue-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  expired: 'bg-red-100 text-red-700',
+  pending: 'bg-muted text-muted-foreground',
+  signed_up: 'bg-info/10 text-info',
+  completed: 'bg-success/10 text-success',
+  expired: 'bg-destructive/10 text-destructive',
 };
 
 export function ReferralDashboard() {
@@ -72,10 +72,10 @@ export function ReferralDashboard() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Users className="w-8 min-h-[44px] text-blue-500 bg-blue-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{totalReferrals}</p><p className="text-xs text-muted-foreground">Total Referrals</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><TrendingUp className="w-8 min-h-[44px] text-emerald-500 bg-emerald-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{converted}</p><p className="text-xs text-muted-foreground">Converted</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><DollarSign className="w-8 min-h-[44px] text-amber-500 bg-amber-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{fmt(totalCreditAwarded)}</p><p className="text-xs text-muted-foreground">Credits Issued</p></div></div></CardContent></Card>
-        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Gift className="w-8 min-h-[44px] text-purple-500 bg-purple-50 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{conversionRate}%</p><p className="text-xs text-muted-foreground">Conversion Rate</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Users className="w-8 min-h-[44px] text-info bg-info/10 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{totalReferrals}</p><p className="text-xs text-muted-foreground">Total Referrals</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><TrendingUp className="w-8 min-h-[44px] text-success bg-success/10 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{converted}</p><p className="text-xs text-muted-foreground">Converted</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><DollarSign className="w-8 min-h-[44px] text-warning bg-warning/10 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{fmt(totalCreditAwarded)}</p><p className="text-xs text-muted-foreground">Credits Issued</p></div></div></CardContent></Card>
+        <Card><CardContent className="pt-5"><div className="flex items-center gap-3"><Gift className="w-8 min-h-[44px] text-primary bg-primary/10 rounded-lg p-1.5" /><div><p className="text-2xl font-bold">{conversionRate}%</p><p className="text-xs text-muted-foreground">Conversion Rate</p></div></div></CardContent></Card>
       </div>
 
       {/* Table */}
@@ -126,13 +126,13 @@ export function ReferralDashboard() {
                         </button>
                       </TableCell>
                       <TableCell>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[r.status] || 'bg-gray-100'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[r.status] || 'bg-muted'}`}>
                           {r.status}
                         </span>
                       </TableCell>
                       <TableCell>
                         {r.credit_awarded
-                          ? <span className="text-xs text-emerald-600 font-medium">${r.credit_amount} issued</span>
+                          ? <span className="text-xs text-success font-medium">${r.credit_amount} issued</span>
                           : <span className="text-xs text-muted-foreground">${r.credit_amount} pending</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">

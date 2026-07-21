@@ -185,20 +185,35 @@ serve(async (req: Request) => {
           continue;
         }
 
-        // Create in-app notification (bell icon) if not already done
-        if (!existingNotif?.in_app_notified) {
+        // Create in-app notification (bell icon) if not already done.
+        // inAppNotifiedOk tracks whether the bell notification is
+        // actually in place — it feeds the in_app_notified value written
+        // below, instead of that being hard-coded true regardless of
+        // whether this insert succeeded (which previously meant a failed
+        // insert still permanently suppressed all future retries via the
+        // `if (!existingNotif?.in_app_notified)` guard above).
+        let inAppNotifiedOk = existingNotif?.in_app_notified ?? false;
+        if (!inAppNotifiedOk) {
           const notifMessage = requirementType === "pending_verification"
             ? "Your bank is verifying your account — this usually takes 2-3 business days."
             : "Your payout setup needs attention — tap to fix.";
 
-          await supabase.from("cleaner_notifications").insert({
+          const { error: cleanerNotifError } = await supabase.from("cleaner_notifications").insert({
             staff_id: account.staff_id,
             organization_id: account.organization_id,
             title: requirementType === "pending_verification" ? "Bank Verification In Progress" : "Payout Setup Needs Attention",
             message: notifMessage,
             type: "payout_requirement",
           });
-          notificationsCreated++;
+          if (cleanerNotifError) {
+            errors++;
+            console.error("[check-stripe-requirements] cleaner_notifications insert failed, will retry next run:", {
+              staffId: account.staff_id, organizationId: account.organization_id, requirementType, error: cleanerNotifError,
+            });
+          } else {
+            notificationsCreated++;
+            inAppNotifiedOk = true;
+          }
         }
 
         // Low-priority email: only if cleaner hasn't logged in 72+ hours
@@ -296,7 +311,7 @@ serve(async (req: Request) => {
         const needsManualFollowup = newCount >= 3;
 
         if (existingNotif) {
-          await supabase
+          const { error: updateNotifError } = await supabase
             .from("stripe_requirement_notifications")
             .update({
               email_sent_count: newCount,
@@ -306,11 +321,17 @@ serve(async (req: Request) => {
               email_status: shouldSendEmail ? "sent" : existingNotif.id ? undefined : "pending",
               needs_manual_followup: needsManualFollowup,
               stripe_requirement_codes: requirementCodes,
-              in_app_notified: true,
+              in_app_notified: inAppNotifiedOk,
             })
             .eq("id", existingNotif.id);
+          if (updateNotifError) {
+            errors++;
+            console.error("[check-stripe-requirements] stripe_requirement_notifications update failed:", {
+              staffId: account.staff_id, notifId: existingNotif.id, error: updateNotifError,
+            });
+          }
         } else {
-          await supabase
+          const { error: insertNotifError } = await supabase
             .from("stripe_requirement_notifications")
             .insert({
               staff_id: account.staff_id,
@@ -323,9 +344,15 @@ serve(async (req: Request) => {
               link_expires_at: linkExpiresAt,
               email_status: shouldSendEmail ? "sent" : "pending",
               needs_manual_followup: false,
-              in_app_notified: true,
+              in_app_notified: inAppNotifiedOk,
               detected_at: new Date().toISOString(),
             });
+          if (insertNotifError) {
+            errors++;
+            console.error("[check-stripe-requirements] stripe_requirement_notifications insert failed — dedupe/tracking for this staff member will not work next run:", {
+              staffId: account.staff_id, organizationId: account.organization_id, requirementType, error: insertNotifError,
+            });
+          }
         }
       } catch (err: any) {
         console.error(`[check-stripe-requirements] Error processing account ${account.stripe_account_id}:`, err.message);

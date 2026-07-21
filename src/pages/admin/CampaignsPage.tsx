@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -143,6 +144,21 @@ export default function CampaignsPage() {
 
   // Campaign creation
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Deep link from Smart Suggestions: /dashboard/campaigns?audience=...&days=...&create=1
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const audience = searchParams.get('audience');
+    if (!audience) return;
+    const days = parseInt(searchParams.get('days') || '', 10);
+    setCampaignForm(prev => ({
+      ...prev,
+      audience: audience as any,
+      ...(Number.isFinite(days) ? { days_inactive: days } : {}),
+    }));
+    if (searchParams.get('create') === '1') setCreateOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [createStep, setCreateStep] = useState(1);
   const [campaignForm, setCampaignForm] = useState({
     name: "",
@@ -613,11 +629,13 @@ export default function CampaignsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Campaigns" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Campaigns | TidyWise" description="Create and manage marketing campaigns" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 min-h-[44px] animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -632,6 +650,7 @@ export default function CampaignsPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="campaigns">
         <div className="space-y-6">
           {/* Channel Toggle */}
@@ -1585,7 +1604,8 @@ export default function CampaignsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
 

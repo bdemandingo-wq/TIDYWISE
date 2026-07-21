@@ -99,7 +99,7 @@ export default function StaffResetPasswordPage() {
 
   if (checkingSession) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background">
         <SEOHead title="Reset Staff Password | TidyWise" description="Reset your staff portal password" canonical={canonicalPath} noIndex />
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
@@ -108,7 +108,7 @@ export default function StaffResetPasswordPage() {
 
   if (success) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <SEOHead title="Password Updated | TidyWise" description="Your password was updated" canonical={canonicalPath} noIndex />
         <Card className="w-full max-w-md shadow-xl border-primary/10">
           <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -126,7 +126,7 @@ export default function StaffResetPasswordPage() {
 
   if (!isValidSession) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <SEOHead title="Reset Link Expired | TidyWise" description="Password reset link expired" canonical={canonicalPath} noIndex />
         <Card className="w-full max-w-md shadow-xl border-destructive/20">
           <CardHeader className="text-center">
@@ -144,7 +144,7 @@ export default function StaffResetPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+    <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <SEOHead title="Set Staff Password | TidyWise" description="Create a new staff portal password" canonical={canonicalPath} noIndex />
 
       <section className="w-full max-w-md">

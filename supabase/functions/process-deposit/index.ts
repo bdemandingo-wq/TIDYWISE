@@ -102,12 +102,26 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Update deposit with checkout session ID
-    await supabase
+    const { error: depositUpdateError } = await supabase
       .from('deposit_requests')
       .update({
         payment_intent_id: session.id,
       })
       .eq('id', deposit.id);
+
+    if (depositUpdateError) {
+      // If this doesn't land, confirm-deposit-payment can never find this
+      // session by token (it looks up payment_intent_id), so a customer
+      // who pays at Stripe would have no way for us to confirm it. Fail
+      // now, before they're sent to pay, rather than after.
+      console.error("[process-deposit] Failed to save checkout session id, refusing to send customer to pay:", {
+        depositId: deposit.id, organizationId: deposit.organization_id, stripeSessionId: session.id, error: depositUpdateError,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: "Could not start deposit checkout — please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     logAudit({
       action: 'payment.deposit',

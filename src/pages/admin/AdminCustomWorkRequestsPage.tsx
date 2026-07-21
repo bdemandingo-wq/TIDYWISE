@@ -118,6 +118,7 @@ export default function AdminCustomWorkRequestsPage() {
 
   return (
     <AdminLayout title="Custom work requests">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead
         title="Custom work requests | Admin"
         description="Triage and fulfill Custom-plan done-for-you requests."
@@ -238,6 +239,7 @@ export default function AdminCustomWorkRequestsPage() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

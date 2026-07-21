@@ -129,6 +129,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-signatures', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-sigs', staffId, organizationId] });
       toast.success('Document signed successfully! A signed PDF has been generated.');
       setSigningDocId(null);
     },
@@ -196,6 +197,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-signatures', staffId, organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['onboarding-sigs', staffId, organizationId] });
       toast.success('Signed PDF regenerated successfully!');
     },
     onError: () => {

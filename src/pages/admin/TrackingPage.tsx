@@ -266,21 +266,34 @@ export default function TrackingPage() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    // Include *all* tracking records from today, not just is_active=false.
+    // Some rows never flip to inactive (native app in background never calls
+    // stopTracking), so filtering purely on is_active hides completed routes.
+    // Rows that are still en-route are already shown in `activeJobs`; we
+    // filter them out client-side by id.
     const { data } = await supabase
       .from('cleaner_location_tracking')
       .select(`
-        id, created_at, recorded_at, booking_id,
+        id, created_at, recorded_at, booking_id, is_active,
         staff:staff_id(name),
-        booking:booking_id(booking_number)
+        booking:booking_id(booking_number, status)
       `)
       .eq('organization_id', orgId)
-      .eq('is_active', false)
       .gte('recorded_at', todayStart.toISOString())
       .order('recorded_at', { ascending: false })
-      .limit(50);
+      .limit(100);
 
-    if (data) setHistoricalJobs(data as any);
-  }, [orgId]);
+    if (data) {
+      const activeIds = new Set(activeJobs.map((j) => j.id));
+      const completed = data.filter((row: any) => {
+        if (activeIds.has(row.id)) return false;
+        // Treat as completed if tracking marked inactive OR the booking itself is completed/cancelled.
+        const bookingStatus = Array.isArray(row.booking) ? row.booking[0]?.status : row.booking?.status;
+        return row.is_active === false || bookingStatus === 'completed' || bookingStatus === 'cancelled';
+      });
+      setHistoricalJobs(completed as any);
+    }
+  }, [orgId, activeJobs]);
 
   const fetchSettings = useCallback(async () => {
     if (!orgId) return;
@@ -302,8 +315,9 @@ export default function TrackingPage() {
 
   useEffect(() => {
     fetchActive();
+    fetchHistory();
     fetchSettings();
-  }, [fetchActive, fetchSettings]);
+  }, [fetchActive, fetchHistory, fetchSettings]);
 
   // Poll every 30s
   useEffect(() => {

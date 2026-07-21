@@ -34,6 +34,7 @@ interface InvoiceEmailRequest {
   dueDate?: string;
   notes?: string;
   organizationId: string;
+  ccEmails?: string[];
 }
 
 const ACCENT = "#0ea5e9";
@@ -320,6 +321,7 @@ const handler = async (req: Request): Promise<Response> => {
     const sendResult = await sendOrgEmail({
       organizationId: data.organizationId,
       to: customerEmail,
+      cc: Array.isArray(data.ccEmails) && data.ccEmails.length > 0 ? data.ccEmails : undefined,
       subject: `${invoiceNumber} from ${companyName} — Pay Online`,
       html: emailHtml,
     });

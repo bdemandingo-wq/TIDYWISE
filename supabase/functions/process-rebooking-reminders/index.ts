@@ -264,17 +264,23 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // 9. Mark as sent
-        await supabase.from("rebooking_reminder_queue")
+        const { error: markSentErr } = await supabase.from("rebooking_reminder_queue")
           .update({ sent: true, sent_at: now })
           .eq("id", item.id);
+        if (markSentErr) {
+          console.error(`[process-rebooking-reminders] SMS sent but failed to mark queue item ${item.id} as sent — next run will re-send this reminder:`, markSentErr);
+        }
 
         sentCount++;
         console.log(`[process-rebooking-reminders] Sent rebooking reminder for booking ${item.booking_id} to ${formattedPhone}`);
       } catch (itemError: any) {
         console.error(`[process-rebooking-reminders] Error processing item ${item.id}:`, itemError);
-        await supabase.from("rebooking_reminder_queue")
+        const { error: markErrorErr } = await supabase.from("rebooking_reminder_queue")
           .update({ sent: true, sent_at: now, error: itemError?.message || "Unknown error" })
           .eq("id", item.id);
+        if (markErrorErr) {
+          console.error(`[process-rebooking-reminders] Failed to record error state on queue item ${item.id} — it may be retried indefinitely:`, markErrorErr);
+        }
       }
     }
 

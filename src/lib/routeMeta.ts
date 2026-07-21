@@ -354,6 +354,25 @@ export function homepageMeta(): RouteMeta {
 }
 
 /**
+ * Metadata for a programmatic /compare/:competitorSlug/for/:nicheSlug page.
+ * Data passed in from compareNicheData (imported lazily by the prerender
+ * script, same pattern as locationRouteMeta).
+ */
+export function compareNicheRouteMeta(c: {
+  name: string;
+  pricing: string;
+}, n: {
+  name: string;
+  inline: string;
+}): RouteMeta {
+  const title = `TidyWise vs ${c.name} for ${n.name}`.slice(0, 60);
+  const description =
+    `${c.name} vs TidyWise for ${n.inline}: pricing, features, payroll, and what each is best at. Flat $49/mo vs ${c.pricing}.`.slice(0, 160);
+  const h1 = `TidyWise vs ${c.name} for ${n.name}`;
+  return { title, description, h1 };
+}
+
+/**
  * Per-route metadata for a /score/c/:slug company page. Includes
  * LocalBusiness + AggregateRating JSON-LD so the rating can show in SERPs.
  */

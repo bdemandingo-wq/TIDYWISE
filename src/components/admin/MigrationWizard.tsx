@@ -203,7 +203,13 @@ export function MigrationWizard() {
       setParseResult(data);
       setFieldMapping(data.fieldMapping || {});
       setStep(3);
-      toast.success(`Parsed ${data.totalRows} rows successfully`);
+      if (data.warning) {
+        // Some rows failed to save server-side — don't report a clean
+        // success when part of the file didn't actually make it in.
+        toast.warning(data.warning, { duration: 10000 });
+      } else {
+        toast.success(`Parsed ${data.totalRows} rows successfully`);
+      }
     } catch (err: any) {
       console.error('Parse error:', err);
       toast.error(err.message || 'Failed to parse CSV');
@@ -421,7 +427,7 @@ export function MigrationWizard() {
             </Card>
             <Card>
               <CardContent className="pt-4 text-center">
-                <p className="text-2xl font-bold text-amber-500">{parseResult.duplicateRows}</p>
+                <p className="text-2xl font-bold text-warning">{parseResult.duplicateRows}</p>
                 <p className="text-xs text-muted-foreground">Duplicates</p>
               </CardContent>
             </Card>
@@ -524,47 +530,47 @@ export function MigrationWizard() {
       {step === 4 && importResult && (
         <div className="space-y-6">
           <div className="text-center py-8">
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
             <h2 className="text-2xl font-bold mb-2">Migration Complete!</h2>
             <p className="text-muted-foreground">Your data has been successfully imported</p>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+            <Card className="border-success/20 bg-success/10">
               <CardContent className="pt-4 text-center">
-                <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-green-700">{importResult.imported}</p>
-                <p className="text-xs text-green-600">Imported</p>
+                <CheckCircle2 className="w-5 h-5 text-success mx-auto mb-1" />
+                <p className="text-2xl font-bold text-success">{importResult.imported}</p>
+                <p className="text-xs text-success">Imported</p>
               </CardContent>
             </Card>
-            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+            <Card className="border-warning/20 bg-warning/10">
               <CardContent className="pt-4 text-center">
-                <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-amber-700">{importResult.skipped}</p>
-                <p className="text-xs text-amber-600">Skipped (Duplicates)</p>
+                <AlertCircle className="w-5 h-5 text-warning mx-auto mb-1" />
+                <p className="text-2xl font-bold text-warning">{importResult.skipped}</p>
+                <p className="text-xs text-warning">Skipped (Duplicates)</p>
               </CardContent>
             </Card>
             <Card className={cn(
-              importResult.errors > 0 ? "border-red-200 bg-red-50 dark:bg-red-950/20" : "border-green-200 bg-green-50 dark:bg-green-950/20"
+              importResult.errors > 0 ? "border-destructive/20 bg-destructive/10" : "border-success/20 bg-success/10"
             )}>
               <CardContent className="pt-4 text-center">
                 {importResult.errors > 0 ? (
-                  <X className="w-5 h-5 text-red-600 mx-auto mb-1" />
+                  <X className="w-5 h-5 text-destructive mx-auto mb-1" />
                 ) : (
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mx-auto mb-1" />
+                  <CheckCircle2 className="w-5 h-5 text-success mx-auto mb-1" />
                 )}
-                <p className={cn("text-2xl font-bold", importResult.errors > 0 ? "text-red-700" : "text-green-700")}>
+                <p className={cn("text-2xl font-bold", importResult.errors > 0 ? "text-destructive" : "text-success")}>
                   {importResult.errors}
                 </p>
-                <p className={cn("text-xs", importResult.errors > 0 ? "text-red-600" : "text-green-600")}>Errors</p>
+                <p className={cn("text-xs", importResult.errors > 0 ? "text-destructive" : "text-success")}>Errors</p>
               </CardContent>
             </Card>
           </div>
 
           {importResult.errorLog.length > 0 && (
-            <Card className="border-red-200">
+            <Card className="border-destructive/20">
               <CardHeader>
-                <CardTitle className="text-base text-red-700">Error Details</CardTitle>
+                <CardTitle className="text-base text-destructive">Error Details</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-40 overflow-y-auto">

@@ -41,7 +41,6 @@ type ResetValues = z.infer<typeof resetSchema>;
 
 export default function StaffLoginPage() {
   const navigate = useNavigate();
-  const isNative = Capacitor.isNativePlatform();
   const { user, loading: authLoading } = useAuth();
   const { 
     isAvailable: biometricAvailable, 
@@ -140,7 +139,7 @@ export default function StaffLoginPage() {
 
   if (authLoading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background">
         <SEOHead title="Staff Portal Sign In | TidyWise" description="Sign in to the TidyWise staff portal to view your jobs, log start and finish times, capture before-and-after photos, and track your earnings." canonical="/staff/login" noIndex />
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
@@ -149,7 +148,7 @@ export default function StaffLoginPage() {
 
   return (
     <main
-      className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col"
+      className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col"
       // Respect the iPhone notch so the Back button is never clipped on native
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
@@ -269,15 +268,15 @@ export default function StaffLoginPage() {
               Need access? Contact your administrator to get invited.
             </p>
 
-            <p className="mt-4 px-2 text-center text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-4 text-center text-xs text-muted-foreground">
               By continuing you agree to our{" "}
               <TermsOfServiceDialog>
-                <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap">Terms of Service</button>
+                <button type="button" className="underline underline-offset-4 hover:text-foreground transition-colors">Terms</button>
               </TermsOfServiceDialog>
-              {" "}and{" "}
+              {" "}and acknowledge our{" "}
               <Link
                 to="/privacy-policy"
-                className="underline underline-offset-4 hover:text-foreground transition-colors whitespace-nowrap"
+                className="underline underline-offset-4 hover:text-foreground transition-colors"
               >
                 Privacy Policy
               </Link>
@@ -288,8 +287,7 @@ export default function StaffLoginPage() {
       </section>
       </div>
 
-      {/* SEO/marketing copy - web only; hidden in the native app */}
-      {!isNative && (
+      {!Capacitor.isNativePlatform() && (
       <section aria-labelledby="staff-info-heading" className="bg-background/60 backdrop-blur-sm border-t border-border py-12 px-4">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 id="staff-info-heading" className="text-2xl font-bold text-foreground">

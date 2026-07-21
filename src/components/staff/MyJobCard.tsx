@@ -74,6 +74,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(false);
+  const [isMarkingArrived, setIsMarkingArrived] = useState(false);
   const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
   const [photoCount, setPhotoCount] = useState<number>(0);
   const [photoReqs, setPhotoReqs] = useState<{ required: boolean; min: number }>({ required: true, min: 2 });
@@ -126,7 +127,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       .then(({ data }: any) => { if (data) setPropertyNote(data as PropertyNote); });
   }, [booking.id, booking.organization_id]);
 
-  const { startTracking, stopTracking, isTracking } = useCleanerTracking({
+  const { startTracking, stopTracking, isTracking, hasArrived, markArrived } = useCleanerTracking({
     bookingId: booking.id,
     staffId: staffInfo.id || '',
     organizationId: booking.organization_id || '',
@@ -158,6 +159,18 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
     })();
     return () => { cancelled = true; };
   }, [booking.id, staffInfo.id]);
+
+  const handleArrivedClick = async () => {
+    setIsMarkingArrived(true);
+    try {
+      await markArrived();
+      toast.success('Arrival sent — client and admin notified!');
+    } catch {
+      toast.error('Could not send arrival notification. Please try again.');
+    } finally {
+      setIsMarkingArrived(false);
+    }
+  };
 
   const handleOnTheWayClick = async () => {
     if (!staffInfo.id || !booking.customer?.phone) {
@@ -357,23 +370,23 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
           <div className={`p-3 rounded-lg border ${
             pay.isExact 
               ? 'bg-primary/10 border-primary/20' 
-              : 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800'
+              : 'bg-info/10 border-info/20'
           }`}>
             <div className="flex items-center justify-between">
               <div className={`flex items-center gap-2 text-sm ${
-                pay.isExact ? 'text-primary' : 'text-blue-700 dark:text-blue-300'
+                pay.isExact ? 'text-primary' : 'text-info'
               }`}>
                 <DollarSign className="w-4 h-4" />
                 <span>{pay.isExact ? 'Your Pay' : 'Estimated Pay'}</span>
               </div>
               <span className={`font-bold text-lg ${
-                pay.isExact ? 'text-primary' : 'text-blue-700 dark:text-blue-300'
+                pay.isExact ? 'text-primary' : 'text-info'
               }`}>
                 ${pay.amount.toFixed(2)}
               </span>
             </div>
             <p className={`text-xs mt-1 ${
-              pay.isExact ? 'text-primary/70' : 'text-blue-600 dark:text-blue-400'
+              pay.isExact ? 'text-primary/70' : 'text-info/70'
             }`}>
               {pay.type}
             </p>
@@ -415,12 +428,12 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
         {/* Notes section */}
         {booking.notes && (
-          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+          <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
             <div className="flex items-start gap-2">
-              <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+              <FileText className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">Special Instructions</p>
-                <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{booking.notes}</p>
+                <p className="text-xs font-medium text-warning mb-1">Special Instructions</p>
+                <p className="text-sm text-warning whitespace-pre-wrap">{booking.notes}</p>
               </div>
             </div>
           </div>
@@ -428,35 +441,35 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
         {/* Property Notes */}
         {propertyNote && (propertyNote.access_instructions || propertyNote.gate_code || propertyNote.alarm_code || propertyNote.has_pets || propertyNote.parking_notes || propertyNote.notes) && (
-          <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 space-y-1.5">
-            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Property Notes</p>
-            {propertyNote.notes && <p className="text-sm text-blue-800 dark:text-blue-200">{propertyNote.notes}</p>}
+          <div className="p-3 rounded-lg bg-info/10 border border-info/20 space-y-1.5">
+            <p className="text-xs font-semibold text-info flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Property Notes</p>
+            {propertyNote.notes && <p className="text-sm text-info">{propertyNote.notes}</p>}
             {propertyNote.access_instructions && (
-              <p className="text-xs text-blue-700 dark:text-blue-300"><span className="font-medium">Access:</span> {propertyNote.access_instructions}</p>
+              <p className="text-xs text-info"><span className="font-medium">Access:</span> {propertyNote.access_instructions}</p>
             )}
             {propertyNote.gate_code && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><KeyRound className="w-3 h-3" /><span className="font-medium">Gate:</span> {propertyNote.gate_code}</p>
+              <p className="text-xs text-info flex items-center gap-1"><KeyRound className="w-3 h-3" /><span className="font-medium">Gate:</span> {propertyNote.gate_code}</p>
             )}
             {propertyNote.alarm_code && (
-              <p className="text-xs text-blue-700 dark:text-blue-300"><span className="font-medium">Alarm:</span> {propertyNote.alarm_code}</p>
+              <p className="text-xs text-info"><span className="font-medium">Alarm:</span> {propertyNote.alarm_code}</p>
             )}
             {propertyNote.has_pets && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><PawPrint className="w-3 h-3" /><span className="font-medium">Pets:</span> {propertyNote.pet_notes || 'Pets on premises'}</p>
+              <p className="text-xs text-info flex items-center gap-1"><PawPrint className="w-3 h-3" /><span className="font-medium">Pets:</span> {propertyNote.pet_notes || 'Pets on premises'}</p>
             )}
             {propertyNote.parking_notes && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1"><ParkingCircle className="w-3 h-3" /><span className="font-medium">Parking:</span> {propertyNote.parking_notes}</p>
+              <p className="text-xs text-info flex items-center gap-1"><ParkingCircle className="w-3 h-3" /><span className="font-medium">Parking:</span> {propertyNote.parking_notes}</p>
             )}
           </div>
         )}
 
         {/* Team Members */}
         {booking.team_members && booking.team_members.length > 0 && (
-          <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+          <div className="p-3 rounded-lg bg-info/10 border border-info/20">
             <div className="flex items-start gap-2">
-              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+              <Users className="w-4 h-4 text-info mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-1">Team Clean ({booking.team_members.length} members)</p>
-                <p className="text-sm text-indigo-800 dark:text-indigo-200">
+                <p className="text-xs font-medium text-info mb-1">Team Clean ({booking.team_members.length} members)</p>
+                <p className="text-sm text-info">
                   {booking.team_members.join(' • ')}
                 </p>
               </div>
@@ -465,13 +478,13 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
         )}
 
         {isTracking && (
-          <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs text-blue-800 dark:text-blue-200">
+          <div className="p-2.5 rounded-lg bg-info/10 border border-info/20 text-xs text-info">
             📍 Sharing your live location — keep this screen open so the client can see you on the way.
           </div>
         )}
 
         {booking.status === 'in_progress' && (
-          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200">
+          <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/20 text-xs text-warning">
             ⚠️ Heads up: your location will stop recording once you mark this job complete.
           </div>
         )}
@@ -483,7 +496,7 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
             <Button
               variant={onTheWaySent ? "secondary" : "default"}
               size="sm"
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
+              className="gap-2 bg-info hover:bg-info/90"
               onClick={handleOnTheWayClick}
               disabled={isSendingOnTheWay || onTheWaySent}
             >
@@ -495,10 +508,29 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               {onTheWaySent ? 'Sent!' : 'On The Way'}
             </Button>
           )}
+
+          {/* I've Arrived - manual arrival (no background GPS on iOS, so the
+              cleaner confirms; also fires if geofence already detected it) */}
+          {onTheWaySent && booking.status === 'confirmed' && (
+            <Button
+              variant={hasArrived ? "secondary" : "default"}
+              size="sm"
+              className="gap-2 bg-success hover:bg-success/90"
+              onClick={handleArrivedClick}
+              disabled={isMarkingArrived || hasArrived}
+            >
+              {isMarkingArrived ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              {hasArrived ? 'Arrived ✓' : "I've Arrived"}
+            </Button>
+          )}
           {hasAddress && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="gap-2"
               onClick={handleDirectionsClick}
             >

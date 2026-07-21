@@ -184,9 +184,9 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
                   <div 
                     className={cn(
                       "h-full transition-all",
-                      cleaner.utilizationRate >= 80 ? "bg-emerald-500" :
-                      cleaner.utilizationRate >= 50 ? "bg-blue-500" :
-                      cleaner.utilizationRate >= 25 ? "bg-amber-500" : "bg-rose-500"
+                      cleaner.utilizationRate >= 80 ? "bg-success" :
+                      cleaner.utilizationRate >= 50 ? "bg-info" :
+                      cleaner.utilizationRate >= 25 ? "bg-warning" : "bg-destructive"
                     )}
                     style={{ width: `${Math.min(cleaner.utilizationRate, 100)}%` }}
                   />
@@ -252,8 +252,8 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
                           "p-2 rounded-lg text-center text-sm",
                           isPast && "opacity-50",
                           !availability.isWorkingDay && "bg-muted/50",
-                          availability.isWorkingDay && availability.bookings.length === 0 && "bg-emerald-50 dark:bg-emerald-900/20",
-                          availability.isWorkingDay && availability.bookings.length > 0 && "bg-blue-50 dark:bg-blue-900/20"
+                          availability.isWorkingDay && availability.bookings.length === 0 && "bg-success/10",
+                          availability.isWorkingDay && availability.bookings.length > 0 && "bg-info/10"
                         )}
                       >
                         {!availability.isWorkingDay ? (
@@ -269,8 +269,8 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
                           </div>
                         ) : (
                           <div className="flex flex-col items-center">
-                            <Check className="w-4 h-4 text-emerald-600 mb-1" />
-                            <span className="text-xs text-emerald-600">Available</span>
+                            <Check className="w-4 h-4 text-success mb-1" />
+                            <span className="text-xs text-success">Available</span>
                           </div>
                         )}
                       </div>

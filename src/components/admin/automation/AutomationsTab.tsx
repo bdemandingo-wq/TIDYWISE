@@ -625,7 +625,7 @@ export function AutomationsTab() {
               return (
                 <Card key={auto.id} className="overflow-hidden">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div className={`p-2.5 rounded-xl bg-muted ${meta?.color ?? 'text-primary'} flex-shrink-0`}>
                           <Icon className="w-5 h-5" />
@@ -636,7 +636,7 @@ export function AutomationsTab() {
                             <h3 className="font-semibold text-foreground">{formatName(auto.automation_type)}</h3>
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">{meta?.description ?? 'Automation enabled'}</p>
-                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
                             {counts?.lastFired && (
                               <span>Last fired: {format(new Date(counts.lastFired), 'MMM d, yyyy')}</span>
                             )}
@@ -644,7 +644,7 @@ export function AutomationsTab() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0 justify-end sm:self-start">
                         <Button
                           size="sm"
                           variant="outline"

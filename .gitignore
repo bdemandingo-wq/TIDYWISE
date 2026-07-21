@@ -39,3 +39,16 @@ supabase/.temp/
 # Not committed because we ship iOS-first; regenerate when an Android
 # build is actually needed.
 android/
+
+# Playwright output
+/test-results/
+/playwright-report/
+/qa-report/
+/tests/.auth/
+
+# Scratch DB dumps dropped at repo root during investigation/debugging
+# (e.g. DDL extracts pasted from Lovable's SQL runner) — not source,
+# never meant to be committed. Root-only so this doesn't catch real
+# migration files under supabase/migrations/.
+/*.sql
+/*.txt

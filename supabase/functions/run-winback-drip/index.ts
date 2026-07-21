@@ -75,7 +75,7 @@ serve(async (req) => {
           if (!customer.email) { results.skipped++; continue; }
 
           // Check if this step was already sent
-          const { data: existing } = await supabase
+          const { data: existing, error: existingErr } = await supabase
             .from("winback_drip_log")
             .select("id")
             .eq("organization_id", org.id)
@@ -83,6 +83,17 @@ serve(async (req) => {
             .eq("step", step)
             .maybeSingle();
 
+          if (existingErr) {
+            // Fail closed: an unreadable dedupe check must not be treated as
+            // "step never sent" — that's how a customer gets the same
+            // winback offer emailed to them repeatedly.
+            console.error(
+              `[run-winback-drip] dedupe check failed org=${org.id} customer=${customer.id} step=${step}, skipping to avoid a possible duplicate send:`,
+              existingErr,
+            );
+            results.skipped++;
+            continue;
+          }
           if (existing) { results.skipped++; continue; }
 
           // Send the email
@@ -103,11 +114,17 @@ serve(async (req) => {
           });
 
           if (sendResult.success) {
-            await supabase.from("winback_drip_log").insert({
+            const { error: logErr } = await supabase.from("winback_drip_log").insert({
               organization_id: org.id,
               customer_id: customer.id,
               step,
             });
+            if (logErr) {
+              console.error(
+                `[run-winback-drip] email sent but drip-log insert failed org=${org.id} customer=${customer.id} step=${step} — dedupe will not catch this next run:`,
+                logErr,
+              );
+            }
             results[`step${step}`]++;
           }
 

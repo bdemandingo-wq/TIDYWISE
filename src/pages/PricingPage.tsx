@@ -119,6 +119,8 @@ export default function PricingPage() {
   // doesn't shadow the global timer function. Renaming because the prior
   // setState shadowing was a footgun for any future code in this file.
   const [billingInterval, setBillingInterval] = useState<Interval>('monthly');
+  const monthlyRadioRef = useRef<HTMLButtonElement>(null);
+  const yearlyRadioRef = useRef<HTMLButtonElement>(null);
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
   const lifetime = useLifetimeCounter();
   const [waitlistEmail, setWaitlistEmail] = useState('');
@@ -583,11 +585,27 @@ export default function PricingPage() {
             role="group"
             aria-label="Billing interval"
             className="mt-8 inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 p-1"
+            onKeyDown={(e) => {
+              // WAI-ARIA radio-group pattern: arrow keys move both focus and
+              // selection between options (Home/End jump to the ends — with
+              // only two options here, that's equivalent to toggling).
+              // Previously these were just two independently-tabbable
+              // buttons with no roving tabindex and no arrow-key handling
+              // at all, which isn't a real radiogroup from a keyboard
+              // user's perspective.
+              if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+              e.preventDefault();
+              const next: Interval = billingInterval === 'monthly' ? 'yearly' : 'monthly';
+              setBillingInterval(next);
+              (next === 'monthly' ? monthlyRadioRef : yearlyRadioRef).current?.focus();
+            }}
           >
             <button
+              ref={monthlyRadioRef}
               type="button"
               role="radio"
               aria-checked={billingInterval === 'monthly'}
+              tabIndex={billingInterval === 'monthly' ? 0 : -1}
               onClick={() => setBillingInterval('monthly')}
               className={`px-5 py-2 rounded-full text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 billingInterval === 'monthly'
@@ -598,10 +616,12 @@ export default function PricingPage() {
               Monthly
             </button>
             <button
+              ref={yearlyRadioRef}
               type="button"
               role="radio"
               aria-checked={billingInterval === 'yearly'}
               aria-label="Yearly billing, two months free"
+              tabIndex={billingInterval === 'yearly' ? 0 : -1}
               onClick={() => setBillingInterval('yearly')}
               className={`px-5 py-2 rounded-full text-sm font-medium transition flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                 billingInterval === 'yearly'

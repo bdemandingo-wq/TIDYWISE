@@ -154,8 +154,13 @@ export default function ResetPasswordPage() {
       }
 
       toast.success('Password updated. Please sign in with your new password.');
-      // Force a clean session — don't leave the user logged in via the OTP session.
-      await supabase.auth.signOut();
+      // Force a clean session on THIS device — don't leave the user logged
+      // in via the OTP session. scope: 'local' matches what this page's
+      // own FAQ copy (ForgotPasswordPage.tsx) promises: "All other active
+      // sessions on other devices stay signed in unless you sign them out
+      // from settings" — the SDK default (global) would silently break
+      // that promise by signing out every other device too.
+      await supabase.auth.signOut({ scope: 'local' });
       navigate('/login', { replace: true });
     } catch (err) {
       console.error('Reset password unexpected error:', err);

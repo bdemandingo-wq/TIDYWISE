@@ -293,12 +293,12 @@ export function AutomationEditorDialog({ open, onOpenChange, organizationId, aut
 
               {/* Steps */}
               <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 basis-56">
                     <h3 className="font-semibold text-sm">Steps</h3>
-                    <p className="text-xs text-muted-foreground">Each step is one send. Merge tokens: {'{{customer_name}}, {{company_name}}, {{booking_date}}, {{cleaner_name}}, {{review_link}}, {{booking_link}}'}.</p>
+                    <p className="text-xs text-muted-foreground break-words">Each step is one send. Merge tokens: {'{{customer_name}}, {{company_name}}, {{booking_date}}, {{cleaner_name}}, {{review_link}}, {{booking_link}}'}.</p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={addStep}><Plus className="w-3.5 h-3.5 mr-1" />Add Interval</Button>
+                  <Button size="sm" variant="outline" className="shrink-0" onClick={addStep}><Plus className="w-3.5 h-3.5 mr-1" />Add Interval</Button>
                 </div>
 
                 {steps.map((s, idx) => (

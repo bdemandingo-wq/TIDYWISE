@@ -13,7 +13,8 @@ export function usePullToRefresh(onRefresh: () => Promise<void>) {
   const threshold = 64;
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
-    scrollTop.current = (e.currentTarget as HTMLElement).scrollTop;
+    // Support both inner scroll containers and body-scrolled pages
+    scrollTop.current = (e.currentTarget as HTMLElement).scrollTop || window.scrollY;
     if (scrollTop.current <= 0) {
       startY.current = e.touches[0].clientY;
     }

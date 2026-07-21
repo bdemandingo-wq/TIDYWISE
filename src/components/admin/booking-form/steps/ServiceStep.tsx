@@ -201,7 +201,7 @@ export function ServiceStep() {
                 setTotalAmount(0);
               }
             }}>
-              <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+              <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Service type">
                 <SelectValue placeholder="Select a service" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
@@ -219,9 +219,9 @@ export function ServiceStep() {
 
           {/* Calculated Price Display */}
           {selectedServiceId && (
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-              <p className="text-xs text-emerald-700 dark:text-emerald-300">Calculated Price (from pricing sheet)</p>
-              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+            <div className="p-4 bg-success/10 rounded-xl border border-success/20">
+              <p className="text-xs text-success">Calculated Price (from pricing sheet)</p>
+              <p className="text-2xl font-bold text-success">
                 ${calculatedPrice.toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -252,7 +252,7 @@ export function ServiceStep() {
                   <div>
                     <Label className="text-sm font-medium">Square Footage</Label>
                     <Select value={squareFootage} onValueChange={setSquareFootage}>
-                      <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                      <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Square footage range">
                         <SelectValue placeholder="Select sq ft range" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover border-border">
@@ -272,7 +272,7 @@ export function ServiceStep() {
                       <div>
                         <Label className="text-sm font-medium">Bedrooms</Label>
                         <Select value={bedrooms} onValueChange={setBedrooms}>
-                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bedrooms">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border-border">
@@ -285,7 +285,7 @@ export function ServiceStep() {
                       <div>
                         <Label className="text-sm font-medium">Bathrooms</Label>
                         <Select value={bathrooms} onValueChange={setBathrooms}>
-                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                          <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bathrooms">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border-border">
@@ -309,7 +309,7 @@ export function ServiceStep() {
               <div>
                 <Label className="text-sm font-medium">Bedrooms</Label>
                 <Select value={bedrooms} onValueChange={setBedrooms}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bedrooms">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -322,7 +322,7 @@ export function ServiceStep() {
               <div>
                 <Label className="text-sm font-medium">Bathrooms</Label>
                 <Select value={bathrooms} onValueChange={setBathrooms}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bathrooms">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -341,7 +341,7 @@ export function ServiceStep() {
               <div>
                 <Label className="text-sm font-medium">Bedrooms</Label>
                 <Select value={bedrooms} onValueChange={setBedrooms}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bedrooms">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -354,7 +354,7 @@ export function ServiceStep() {
               <div>
                 <Label className="text-sm font-medium">Bathrooms</Label>
                 <Select value={bathrooms} onValueChange={setBathrooms}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Bathrooms">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -417,7 +417,7 @@ export function ServiceStep() {
                   }
                 }}
               >
-                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Frequency">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-popover border-border">
@@ -493,7 +493,7 @@ export function ServiceStep() {
                   </span>
                   <div className="flex items-center gap-2">
                     {reductionsTotal > 0 && (
-                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300">
+                      <Badge className="bg-success/10 text-success border-success/20">
                         -${reductionsTotal}
                       </Badge>
                     )}
@@ -518,7 +518,7 @@ export function ServiceStep() {
                           setRoomReductions({ ...roomReductions, [r.key]: parseInt(v) || 0 })
                         }
                       >
-                        <SelectTrigger className="w-24 h-9 bg-secondary/30 border-border/50">
+                        <SelectTrigger className="w-24 h-9 bg-secondary/30 border-border/50" aria-label={`Number of ${r.label} to skip`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="bg-popover border-border">
@@ -549,7 +549,7 @@ export function ServiceStep() {
                 <p className="text-xs text-muted-foreground mt-1">Additional charges may apply</p>
               </div>
               {(conditionTotal > 0 || petTotal > 0) && (
-                <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
+                <Badge className="bg-warning/10 text-warning border-warning/20">
                   +${conditionTotal + petTotal}
                 </Badge>
               )}
@@ -558,7 +558,7 @@ export function ServiceStep() {
             {showCondition && (
               <div>
                 <Select value={homeCondition.toString()} onValueChange={(v) => setHomeCondition(parseInt(v))}>
-                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50">
+                  <SelectTrigger className="mt-2 h-11 bg-secondary/30 border-border/50" aria-label="Home condition">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
@@ -567,7 +567,7 @@ export function ServiceStep() {
                         <div className="flex items-center justify-between w-full gap-4">
                           <span>{opt.label}</span>
                           {opt.price > 0 && (
-                            <span className="text-amber-600 font-medium">+${opt.price}</span>
+                            <span className="text-warning font-medium">+${opt.price}</span>
                           )}
                         </div>
                       </SelectItem>
@@ -607,7 +607,7 @@ export function ServiceStep() {
             <div className="flex items-center justify-between mb-4">
               <Label className="text-sm font-medium">Add-On Services</Label>
               {totalAddOns > 0 && (
-                <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300">
+                <Badge className="bg-warning/10 text-warning border-warning/20">
                   +${totalAddOns} total
                 </Badge>
               )}
@@ -665,7 +665,7 @@ export function ServiceStep() {
               value={selectedChecklistId || 'none'} 
               onValueChange={(value) => setSelectedChecklistId(value === 'none' ? null : value)}
             >
-              <SelectTrigger className="h-11 bg-secondary/30 border-border/50">
+              <SelectTrigger className="h-11 bg-secondary/30 border-border/50" aria-label="Cleaning checklist">
                 <SelectValue placeholder="No checklist" />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">

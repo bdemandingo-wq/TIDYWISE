@@ -416,11 +416,13 @@ export default function ChecklistsPage() {
   if (isLoading) {
     return (
       <AdminLayout title="Cleaning Checklists" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Checklists | TidyWise" description="Create and manage cleaning checklists for your team" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -435,6 +437,7 @@ export default function ChecklistsPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       {/* Dialog for Create/Edit */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -745,6 +748,7 @@ export default function ChecklistsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

@@ -178,7 +178,7 @@ serve(async (req: Request): Promise<Response> => {
         if (sentForThisOrg >= PER_ORG_CAP) break;
 
         // Dedupe by (org, customer, holiday key) within DEDUPE_DAYS.
-        const { data: prior } = await supabase
+        const { data: prior, error: dedupeErr } = await supabase
           .from("automation_fire_log")
           .select("id")
           .eq("organization_id", orgId)
@@ -187,6 +187,14 @@ serve(async (req: Request): Promise<Response> => {
           .eq("metadata->>holiday", holiday.key)
           .gte("fired_at", cutoff)
           .limit(1);
+        if (dedupeErr) {
+          summary.errors += 1;
+          console.error(
+            `[seasonal-promo-sender] dedupe check failed org=${orgId} customer=${c.id}, skipping to avoid a possible duplicate send:`,
+            dedupeErr,
+          );
+          continue;
+        }
         if (prior && prior.length > 0) {
           summary.skipped += 1;
           continue;
@@ -221,7 +229,7 @@ serve(async (req: Request): Promise<Response> => {
           sentForThisOrg += 1;
           summary.sent += 1;
 
-          await supabase.from("automation_fire_log").insert({
+          const { error: logErr } = await supabase.from("automation_fire_log").insert({
             organization_id: orgId,
             automation_type: "seasonal_promo",
             target_id: c.id,
@@ -231,6 +239,12 @@ serve(async (req: Request): Promise<Response> => {
               sent_at: new Date().toISOString(),
             },
           });
+          if (logErr) {
+            console.error(
+              `[seasonal-promo-sender] SMS sent but fire-log insert failed org=${orgId} customer=${c.id} — dedupe will not catch this next run:`,
+              logErr,
+            );
+          }
         } catch (smsErr) {
           summary.errors += 1;
           console.error(

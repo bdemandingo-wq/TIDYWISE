@@ -1,8 +1,20 @@
 // weekly-blog-digest
 // Sends a Monday morning email summary of new draft blog posts from the past week.
+//
+// SECURITY (2026-07-14): had zero caller check. Confirmed via a src/ +
+// supabase/functions/ call-site trace that this has NO frontend caller at
+// all — it's cron-only (Supabase's scheduled-function trigger). Locked to
+// requireCronSecret (x-cron-secret header), matching the established
+// convention for this exact category of function — weekly-business-report,
+// weekly-payroll-summary, and generate-daily-blogs (the function that
+// actually produces the drafts this digests) all use requireCronSecret,
+// not a service-role Authorization header, so this now matches them
+// rather than guessing at a different pattern that could break the real
+// cron trigger.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +34,8 @@ function scoreColor(score: number | null): string {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const cronGate = requireCronSecret(req);
+  if (cronGate) return cronGate;
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

@@ -184,13 +184,29 @@ serve(async (req: Request) => {
       console.log("[create-staff-connect-account] Created Stripe account:", stripeAccountId);
 
       // Save to database
-      await supabase.from("staff_payout_accounts").upsert({
+      const { error: payoutAccountError } = await supabase.from("staff_payout_accounts").upsert({
         staff_id: staffId,
         organization_id: organizationId,
         stripe_account_id: stripeAccountId,
         account_status: "onboarding",
         account_holder_name: staffRecord.name,
       }, { onConflict: "staff_id,organization_id" });
+
+      if (payoutAccountError) {
+        // The Stripe account exists but isn't linked — sending them an
+        // onboarding link now would let them finish setup at Stripe for
+        // an account our system can never find again (no webhook match,
+        // no payout routing). Fail here instead; a retry creates a new
+        // account attempt rather than silently orphaning this one.
+        console.error(
+          "[create-staff-connect-account] CRITICAL: Stripe Connect account created but staff_payout_accounts save failed:",
+          { staffId, organizationId, stripeAccountId, error: payoutAccountError },
+        );
+        return new Response(
+          JSON.stringify({ error: "Could not save your payout account — please try again." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
     } else {
       console.log("[create-staff-connect-account] Reusing existing Stripe account:", stripeAccountId);
     }

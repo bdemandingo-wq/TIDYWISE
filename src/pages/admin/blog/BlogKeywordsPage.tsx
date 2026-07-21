@@ -34,15 +34,15 @@ interface KeywordRow {
 }
 
 const statusVariant: Record<string, string> = {
-  queued: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  in_progress: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-  completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-  failed: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300",
+  queued: "bg-info/10 text-info",
+  in_progress: "bg-warning/10 text-warning",
+  completed: "bg-success/10 text-success",
+  failed: "bg-destructive/10 text-destructive",
 };
 
 const opportunityVariant: Record<string, string> = {
-  High: "bg-emerald-100 text-emerald-800",
-  Medium: "bg-amber-100 text-amber-800",
+  High: "bg-success/10 text-success",
+  Medium: "bg-warning/10 text-warning",
   Low: "bg-muted text-muted-foreground",
 };
 
@@ -269,7 +269,7 @@ export default function BlogKeywordsPage() {
                       <td className="p-3">
                         <div className="font-medium text-foreground line-clamp-2 max-w-md">{r.keyword}</div>
                         {r.error_message && (
-                          <div className="text-xs text-rose-600 mt-1 line-clamp-1">{r.error_message}</div>
+                          <div className="text-xs text-destructive mt-1 line-clamp-1">{r.error_message}</div>
                         )}
                         {r.generated_post_id && (
                           <Link

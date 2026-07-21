@@ -113,13 +113,27 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Update tip with amount and checkout session ID (not yet paid - awaiting Stripe checkout)
-    await supabase
+    const { error: tipUpdateError } = await supabase
       .from('tips')
       .update({
         amount: amountNum,
         payment_intent_id: session.id,
       })
       .eq('id', tip.id);
+
+    if (tipUpdateError) {
+      // If this doesn't land, confirm-tip-payment can never find this
+      // session by token (it looks up payment_intent_id), so a customer
+      // who pays at Stripe would have no way for us to confirm it. Fail
+      // now, before they're sent to pay, rather than after.
+      console.error("[process-tip] Failed to save checkout session id, refusing to send customer to pay:", {
+        tipId: tip.id, organizationId: tip.organization_id, stripeSessionId: session.id, error: tipUpdateError,
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: "Could not start tip checkout — please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     logAudit({
       action: 'payment.tip',

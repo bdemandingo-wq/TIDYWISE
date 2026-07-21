@@ -71,9 +71,20 @@ serve(async (req: Request) => {
     }
 
     // Check which reminders already sent
-    const { data: sentReminders } = await supabase
+    const { data: sentReminders, error: sentRemindersErr } = await supabase
       .from("demo_reminder_log")
       .select("demo_booking_id, reminder_type");
+
+    if (sentRemindersErr) {
+      // Fail closed: if we can't read what's already been sent, don't
+      // guess it's empty — that would re-send every reminder to every
+      // demo in the window on this run.
+      console.error("[demo-reminders] Failed to load sent-reminder log, aborting run to avoid duplicate sends:", sentRemindersErr);
+      return new Response(JSON.stringify({ success: false, error: sentRemindersErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const sentSet = new Set(
       (sentReminders || []).map((r: any) => `${r.demo_booking_id}:${r.reminder_type}`)
@@ -109,10 +120,13 @@ serve(async (req: Request) => {
             }),
           });
 
-          await supabase.from("demo_reminder_log").insert({
+          const { error: logErr } = await supabase.from("demo_reminder_log").insert({
             demo_booking_id: demo.id,
             reminder_type: "24h_client",
           });
+          if (logErr) {
+            console.error(`[demo-reminders] 24h reminder sent but log insert failed for demo ${demo.id} — dedupe will not catch this next run:`, logErr);
+          }
 
           console.log(`[demo-reminders] 24h client reminder sent to ${demo.phone}`);
           sentCount++;
@@ -141,10 +155,13 @@ serve(async (req: Request) => {
             });
           }
 
-          await supabase.from("demo_reminder_log").insert({
+          const { error: logErr } = await supabase.from("demo_reminder_log").insert({
             demo_booking_id: demo.id,
             reminder_type: "1h_admin",
           });
+          if (logErr) {
+            console.error(`[demo-reminders] 1h admin reminder sent but log insert failed for demo ${demo.id} — dedupe will not catch this next run:`, logErr);
+          }
 
           console.log(`[demo-reminders] 1h admin reminder sent for ${demo.full_name}`);
           sentCount++;

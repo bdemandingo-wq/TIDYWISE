@@ -71,26 +71,60 @@ serve(async (req) => {
 
     if (updateErr) throw updateErr;
 
-    // Log transaction
-    await supabase.from("loyalty_transactions").insert({
+    // Points are now spent. Everything past this point must either fully
+    // succeed or roll the deduction back — a customer paying points for
+    // credit that never lands is money lost with no recovery path.
+    const rollbackPoints = async (reason: string, cause: unknown) => {
+      console.error(`[redeem-loyalty-points] CRITICAL: ${reason}, rolling back point deduction:`, cause);
+      const { error: rollbackErr } = await supabase
+        .from("customer_loyalty")
+        .update({ points: loyalty.points, updated_at: new Date().toISOString() })
+        .eq("customer_id", customerId);
+      if (rollbackErr) {
+        // Worst case: could not deduct AND could not roll back. Points are
+        // now in a genuinely inconsistent state — this must be loud.
+        console.error("[redeem-loyalty-points] CRITICAL: rollback itself failed, points balance is now inconsistent:", {
+          customerId, organizationId, pointsToRedeem, rollbackErr,
+        });
+      }
+    };
+
+    // Log transaction (audit trail only — doesn't gate money movement,
+    // so a failure here is logged but not fatal to the redemption).
+    const { error: txnErr } = await supabase.from("loyalty_transactions").insert({
       customer_id: customerId,
       points: -pointsToRedeem,
       transaction_type: "redeemed",
       description: `Redeemed ${pointsToRedeem} points for $${creditAmount.toFixed(2)} credit`,
     });
+    if (txnErr) {
+      console.error("[redeem-loyalty-points] loyalty_transactions insert failed (non-fatal, audit trail only):", txnErr);
+    }
 
     // Add credit to customer credits column
-    const { data: customer } = await supabase
+    const { data: customer, error: customerReadErr } = await supabase
       .from("customers")
       .select("credits")
       .eq("id", customerId)
       .maybeSingle();
 
+    if (customerReadErr) {
+      // Do NOT default to 0 here — that would let the update below wipe
+      // out any credit balance the customer already had.
+      await rollbackPoints("could not read current credit balance", customerReadErr);
+      return err("Redemption failed. Your points were not spent — please try again.", 500);
+    }
+
     const currentCredits = customer?.credits ?? 0;
-    await supabase
+    const { error: creditErr } = await supabase
       .from("customers")
       .update({ credits: currentCredits + creditAmount })
       .eq("id", customerId);
+
+    if (creditErr) {
+      await rollbackPoints("credit update failed after points were deducted", creditErr);
+      return err("Redemption failed. Your points were not spent — please try again.", 500);
+    }
 
     return new Response(JSON.stringify({
       success: true,

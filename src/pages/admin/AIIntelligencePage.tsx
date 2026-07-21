@@ -10,6 +10,7 @@ export default function AIIntelligencePage() {
       title="AI Intelligence"
       subtitle="Predictive insights powered by machine learning"
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="AI Intelligence | TidyWise" description="Predictive insights powered by machine learning" noIndex />
       <PlanFeatureGate feature="ai_intelligence">
         <div className="flex justify-end mb-3">
@@ -17,6 +18,7 @@ export default function AIIntelligencePage() {
         </div>
         <AIAnalysisCenter />
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

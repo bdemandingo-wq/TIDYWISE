@@ -117,11 +117,11 @@ export function StripeConnectHealthPanel() {
   const getStatusBadge = (account: any) => {
     switch (account.account_status) {
       case 'active':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30"><CheckCircle2 className="w-3 h-3 mr-1" />Active</Badge>;
+        return <Badge className="bg-success/20 text-success border-success/30"><CheckCircle2 className="w-3 h-3 mr-1" />Active</Badge>;
       case 'pending_verification':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge className="bg-warning/20 text-warning border-warning/30"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
       case 'onboarding':
-        return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30"><Clock className="w-3 h-3 mr-1" />Incomplete</Badge>;
+        return <Badge className="bg-info/20 text-info border-info/30"><Clock className="w-3 h-3 mr-1" />Incomplete</Badge>;
       default:
         return <Badge variant="outline"><AlertCircle className="w-3 h-3 mr-1" />Unknown</Badge>;
     }
@@ -178,15 +178,15 @@ export function StripeConnectHealthPanel() {
           {/* Summary stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             <div className="p-3 rounded-lg border bg-card text-center">
-              <p className="text-2xl font-bold text-green-400">{activeCount}</p>
+              <p className="text-2xl font-bold text-success">{activeCount}</p>
               <p className="text-xs text-muted-foreground">Active</p>
             </div>
             <div className="p-3 rounded-lg border bg-card text-center">
-              <p className="text-2xl font-bold text-yellow-400">{pendingCount}</p>
+              <p className="text-2xl font-bold text-warning">{pendingCount}</p>
               <p className="text-xs text-muted-foreground">Pending</p>
             </div>
             <div className="p-3 rounded-lg border bg-card text-center">
-              <p className="text-2xl font-bold text-blue-400">{onboardingCount}</p>
+              <p className="text-2xl font-bold text-info">{onboardingCount}</p>
               <p className="text-xs text-muted-foreground">Incomplete</p>
             </div>
             <div className="p-3 rounded-lg border bg-card text-center">
@@ -240,7 +240,7 @@ export function StripeConnectHealthPanel() {
                                       </Badge>
                                     )}
                                     {pending.length > 0 && (
-                                      <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[10px] px-1.5 py-0">
+                                      <Badge className="bg-warning/20 text-warning border-warning/30 text-[10px] px-1.5 py-0">
                                         <Clock className="w-2.5 h-2.5 mr-0.5" />
                                         {pending.length} verifying
                                       </Badge>

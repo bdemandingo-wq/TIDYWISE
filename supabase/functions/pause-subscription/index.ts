@@ -83,15 +83,37 @@ serve(async (req) => {
     });
     log("Paused", { sub: active.id, months, resumes_at: resumesAtSec });
 
-    await supabase.from("subscription_pauses").insert({
-      organization_id: organizationId,
-      user_id: userId,
-      stripe_customer_id: customerId,
-      stripe_subscription_id: active.id,
-      resume_date: resumeDate.toISOString(),
-      pause_months: months,
-      status: "active",
-    });
+    // Stripe already paused billing above — don't report failure to the
+    // customer for a purely local mirroring issue, but a missing row
+    // here breaks the resume flow (nothing to mark "resumed") and any
+    // UI/analytics that depend on subscription_pauses to know this
+    // customer is currently paused.
+    let pauseRowCreated = false;
+    let lastPauseInsertErr: string | undefined;
+    for (let attempt = 1; attempt <= 2 && !pauseRowCreated; attempt++) {
+      const { error: pauseInsertErr } = await supabase.from("subscription_pauses").insert({
+        organization_id: organizationId,
+        user_id: userId,
+        stripe_customer_id: customerId,
+        stripe_subscription_id: active.id,
+        resume_date: resumeDate.toISOString(),
+        pause_months: months,
+        status: "active",
+      });
+      if (!pauseInsertErr) {
+        pauseRowCreated = true;
+      } else {
+        lastPauseInsertErr = pauseInsertErr.message;
+        console.error(`[PAUSE-SUB] subscription_pauses insert failed (attempt ${attempt}/2):`, pauseInsertErr);
+      }
+    }
+    if (!pauseRowCreated) {
+      console.error(
+        `[PAUSE-SUB] CRITICAL: Stripe subscription ${active.id} paused (resumes ${resumeDate.toISOString()}) but no ` +
+        `subscription_pauses row was created for user ${userId} after 2 attempts (${lastPauseInsertErr}) — ` +
+        `resume flow and pause-state UI won't know about this pause until manually reconciled.`,
+      );
+    }
 
     return new Response(
       JSON.stringify({

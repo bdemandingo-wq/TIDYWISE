@@ -217,7 +217,20 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     try {
-      await supabaseNoSession.auth.signOut();
+      // scope: 'local' — end only this device's session. The SDK default
+      // (scope: 'global', i.e. no scope argument) revokes EVERY active
+      // session for the account everywhere, which meant clicking Logout
+      // on one device silently signed the user out of their phone and
+      // any other open tab/browser too (confirmed live, 2026-07-14 — see
+      // tests/logout-check.spec.ts). No evidence this was intentional:
+      // there's no separate "sign out everywhere" feature anywhere in the
+      // app, and ForgotPasswordPage's own copy states the opposite
+      // expectation ("All other active sessions on other devices stay
+      // signed in unless you sign them out from settings" — a settings
+      // feature that doesn't actually exist yet). If a deliberate
+      // "sign out everywhere" action is ever added, give IT the global
+      // scope explicitly rather than making it Logout's default.
+      await supabaseNoSession.auth.signOut({ scope: "local" });
     } catch {
       // Always continue; we still want to wipe local state.
     }

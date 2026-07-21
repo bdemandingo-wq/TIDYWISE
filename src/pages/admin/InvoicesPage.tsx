@@ -309,6 +309,7 @@ export default function InvoicesPage() {
         </Button>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Invoices | TidyWise" description="Create and manage invoices" noIndex />
       <SubscriptionGate feature="Invoices">
         <div className="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4 lg:grid-cols-6">
@@ -468,6 +469,7 @@ export default function InvoicesPage() {
 
         <InvoiceViewDialog open={viewDialogOpen} onOpenChange={setViewDialogOpen} invoice={viewingInvoice} />
       </SubscriptionGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

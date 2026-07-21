@@ -1656,6 +1656,7 @@ export default function MessagesPage() {
         </>
       }
     >
+<div className="portal-v2 portal-v2-scroll">
       <SubscriptionGate feature="Messages">
         {!isMobile && <MessagesHealthBanner />}
         {isMobile ? (
@@ -1934,6 +1935,7 @@ export default function MessagesPage() {
           </>
         )}
       </SubscriptionGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

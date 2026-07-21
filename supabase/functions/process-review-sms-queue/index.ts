@@ -225,21 +225,30 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Mark as sent + flag customer so they never get another review request
-        await supabase.from("automated_review_sms_queue")
+        const { error: markSentErr } = await supabase.from("automated_review_sms_queue")
           .update({ sent: true, sent_at: new Date().toISOString() })
           .eq("id", item.id);
+        if (markSentErr) {
+          console.error(`Review SMS sent but failed to mark queue item ${item.id} as sent — next run will re-send this review request:`, markSentErr);
+        }
 
-        await supabase.from("customers")
+        const { error: flagCustomerErr } = await supabase.from("customers")
           .update({ review_request_sent: true, review_request_sent_at: new Date().toISOString() } as any)
           .eq("id", item.customer_id);
+        if (flagCustomerErr) {
+          console.error(`Review SMS sent but customer ${item.customer_id} was not flagged review_request_sent — they may receive another review request via a different path:`, flagCustomerErr);
+        }
 
         successCount++;
         console.log(`Review SMS sent for booking ${item.booking_id} to ${formattedPhone}`);
       } catch (itemError: any) {
         console.error(`Error processing item ${item.id}:`, itemError);
-        await supabase.from("automated_review_sms_queue")
+        const { error: markErrorErr } = await supabase.from("automated_review_sms_queue")
           .update({ sent: true, sent_at: new Date().toISOString(), error: itemError?.message || "Unknown error" })
           .eq("id", item.id);
+        if (markErrorErr) {
+          console.error(`Failed to record error state on queue item ${item.id} — it may be retried indefinitely:`, markErrorErr);
+        }
       }
     }
 

@@ -11,7 +11,7 @@ export default function CardSavedPage() {
   return (
     <>
       <SEOHead title="Card Saved | TidyWise" description="Your payment card has been securely saved." noIndex />
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="portal-v2 portal-v2-scroll min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
           {success ? (

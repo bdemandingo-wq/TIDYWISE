@@ -25,10 +25,10 @@ interface PropertyInspectionUploadProps {
 }
 
 const CATEGORY_CONFIG = {
-  broken: { label: 'Broken', icon: AlertTriangle, color: 'bg-red-100 text-red-700 border-red-200' },
-  missing: { label: 'Missing', icon: Package, color: 'bg-orange-100 text-orange-700 border-orange-200' },
-  low_inventory: { label: 'Low Inventory', icon: BarChart2, color: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
-  general: { label: 'General Note', icon: Camera, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  broken: { label: 'Broken', icon: AlertTriangle, color: 'bg-destructive/10 text-destructive border-destructive/20' },
+  missing: { label: 'Missing', icon: Package, color: 'bg-warning/10 text-warning border-warning/20' },
+  low_inventory: { label: 'Low Inventory', icon: BarChart2, color: 'bg-warning/10 text-warning border-warning/20' },
+  general: { label: 'General Note', icon: Camera, color: 'bg-info/10 text-info border-info/20' },
 } as const;
 
 const PICKER_CLASS = 'absolute left-0 top-0 h-px w-px opacity-0 pointer-events-none';

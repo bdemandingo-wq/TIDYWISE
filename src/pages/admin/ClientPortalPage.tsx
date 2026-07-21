@@ -35,6 +35,7 @@ export default function ClientPortalPage() {
       title="Client Portal"
       subtitle="Manage customer portal access and booking requests"
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Client Portal | TidyWise" description="Manage your client portal settings and users" noIndex />
       <PlanFeatureGate feature="client_portal">
       <Tabs defaultValue="requests" className="w-full">
@@ -71,6 +72,7 @@ export default function ClientPortalPage() {
         </TabsContent>
       </Tabs>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }

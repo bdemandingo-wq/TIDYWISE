@@ -157,8 +157,13 @@ serve(async (req: Request) => {
 
     console.log("[reset-stripe-connect] New account created:", newAccount.id, "replacing:", previousAccountId);
 
-    // Update payout account record with new account (archive old one)
-    await supabase
+    // Update payout account record with new account (archive old one).
+    // If this fails, the DB keeps pointing at previousAccountId while
+    // the customer completes onboarding for newAccount.id below —
+    // payouts would keep silently routing to the reset-away-from
+    // account. Fail here rather than send them an onboarding link for
+    // an account our system doesn't actually have linked.
+    const { error: payoutUpdateError } = await supabase
       .from("staff_payout_accounts")
       .update({
         stripe_account_id: newAccount.id,
@@ -179,8 +184,19 @@ serve(async (req: Request) => {
       .eq("staff_id", staffId)
       .eq("organization_id", organizationId);
 
-    // Log the reset
-    await supabase.from("stripe_reset_history").insert({
+    if (payoutUpdateError) {
+      console.error(
+        "[reset-stripe-connect] CRITICAL: new Stripe Connect account created but staff_payout_accounts still points at the old account:",
+        { staffId, organizationId, previousAccountId, newAccountId: newAccount.id, error: payoutUpdateError },
+      );
+      return new Response(
+        JSON.stringify({ error: "Could not complete the payout reset — please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Log the reset (audit trail — non-fatal if it fails, the reset itself already succeeded)
+    const { error: resetHistoryError } = await supabase.from("stripe_reset_history").insert({
       staff_id: staffId,
       organization_id: organizationId,
       previous_stripe_account_id: previousAccountId,
@@ -189,6 +205,9 @@ serve(async (req: Request) => {
       initiated_by: initiator,
       initiated_by_user_id: userData.user.id,
     });
+    if (resetHistoryError) {
+      console.error("[reset-stripe-connect] stripe_reset_history insert failed (non-fatal):", resetHistoryError);
+    }
 
     // Create account link for the new account
     const baseReturnUrl = "https://jointidywise.com";
@@ -201,22 +220,28 @@ serve(async (req: Request) => {
 
     // If admin-initiated, create notification for the cleaner
     if (initiator === "admin") {
-      await supabase.from("cleaner_notifications").insert({
+      const { error: notifyError } = await supabase.from("cleaner_notifications").insert({
         staff_id: staffId,
         organization_id: organizationId,
         type: "payout_reset",
         title: "Payout Setup Reset",
         message: "Your payout setup has been reset by support. Please log in and reconnect your bank account.",
       });
+      if (notifyError) {
+        console.error("[reset-stripe-connect] cleaner_notifications insert failed (non-fatal):", notifyError);
+      }
     }
 
     // Resolve any open stripe_requirement_notifications for the old account
-    await supabase
+    const { error: resolveNotifError } = await supabase
       .from("stripe_requirement_notifications")
       .update({ resolved_at: new Date().toISOString() })
       .eq("staff_id", staffId)
       .eq("organization_id", organizationId)
       .is("resolved_at", null);
+    if (resolveNotifError) {
+      console.error("[reset-stripe-connect] stripe_requirement_notifications resolve failed (non-fatal):", resolveNotifError);
+    }
 
     return new Response(JSON.stringify({
       success: true,

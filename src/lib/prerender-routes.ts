@@ -22,12 +22,14 @@ import {
   scoreCompanyRouteMeta,
   blogPostRouteMeta,
   scoreCityRouteMeta,
+  compareNicheRouteMeta,
   type RouteMeta,
   type ScoreCompanyForMeta,
   type BlogPostForMeta,
   type ScoreCityForMeta,
 } from "./routeMeta";
 import { locationData } from "../data/locationData";
+import { COMPETITORS, NICHES } from "../data/compareNicheData";
 
 const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";
 const SUPABASE_ANON_KEY =
@@ -220,6 +222,11 @@ function allRoutes(
   for (const c of scoreCities) {
     if (c.city_slug) routes.add(`/score/city/${c.city_slug}`);
   }
+  for (const compSlug of Object.keys(COMPETITORS)) {
+    for (const nicheSlug of Object.keys(NICHES)) {
+      routes.add(`/compare/${compSlug}/for/${nicheSlug}`);
+    }
+  }
   return [...routes];
 }
 
@@ -250,6 +257,12 @@ function metaFor(
   if (cityMatch) {
     const c = cityBySlug.get(cityMatch[1]);
     if (c) return scoreCityRouteMeta(c);
+  }
+  const nicheMatch = route.match(/^\/compare\/([a-z0-9-]+)\/for\/([a-z0-9-]+)$/i);
+  if (nicheMatch) {
+    const comp = COMPETITORS[nicheMatch[1]];
+    const niche = NICHES[nicheMatch[2]];
+    if (comp && niche) return compareNicheRouteMeta(comp, niche);
   }
   return STATIC_ROUTE_META["/"];
 }

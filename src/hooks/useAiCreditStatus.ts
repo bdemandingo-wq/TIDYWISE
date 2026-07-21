@@ -18,7 +18,8 @@ export function useAiCreditStatus(organizationId: string | null | undefined) {
   return useQuery<AiCreditStatus | null>({
     queryKey: ["ai-credit-status", organizationId],
     enabled: !!organizationId,
-    staleTime: 30_000,
+    // Item 8: keep the "credits left today" chip fresh — every AI call invalidates this key.
+    staleTime: 0,
     refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!organizationId) return null;

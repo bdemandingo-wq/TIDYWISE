@@ -28,11 +28,11 @@ interface DemoRequest {
 }
 
 const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-  contacted: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  booked: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-  converted: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  not_interested: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+  pending: 'bg-warning/10 text-warning',
+  contacted: 'bg-info/10 text-info',
+  booked: 'bg-info/10 text-info',
+  converted: 'bg-success/10 text-success',
+  not_interested: 'bg-destructive/10 text-destructive',
 };
 
 export function DemoRequestsTab() {
@@ -84,13 +84,13 @@ export function DemoRequestsTab() {
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{pending.length}</p>
+              <p className="text-2xl font-bold text-warning">{pending.length}</p>
               <p className="text-xs text-muted-foreground">Pending Follow-ups</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{conversionRate}%</p>
+              <p className="text-2xl font-bold text-success">{conversionRate}%</p>
               <p className="text-xs text-muted-foreground">Conversion Rate</p>
             </CardContent>
           </Card>

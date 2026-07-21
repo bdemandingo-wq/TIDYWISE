@@ -34,13 +34,10 @@
 	<string>TidyWise saves job photos you capture to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>TidyWise lets you attach photos from your library to jobs, profiles, and messages.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>TidyWise needs your location to keep tracking your route even when you switch to a navigation app.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>TidyWise uses your location to show your ETA and route to the cleaning appointment.</string>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>location</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>

@@ -130,7 +130,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
       <SEOHead
         title="Contact TidyWise CRM | Cleaning Business Software Support"
         description="Reach the TidyWise team for sales, support, or partnership questions. We reply to most messages within one business day."

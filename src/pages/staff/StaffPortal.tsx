@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -15,6 +15,10 @@ import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { NotificationBell } from '@/components/staff/NotificationBell';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { Capacitor } from '@capacitor/core';
+import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicator';
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
 import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
@@ -96,7 +100,23 @@ export default function StaffPortal() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
+    await queryClient.invalidateQueries();
+  });
   const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
+
+  // Push notifications: register this cleaner's device so job alerts can
+  // ring even when the app is closed. Prompt once per install after login.
+  const { isSupported: pushSupported, isRegistered: pushRegistered, requestPermission: requestPushPermission } = usePushNotifications(staffInfo?.id);
+  const pushPromptedRef = useRef(false);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!staffInfo?.id || !pushSupported || pushRegistered || pushPromptedRef.current) return;
+    pushPromptedRef.current = true;
+    // Small delay so the permission prompt doesn't collide with login/location prompts
+    const t = setTimeout(() => { void requestPushPermission(); }, 3000);
+    return () => clearTimeout(t);
+  }, [staffInfo?.id, pushSupported, pushRegistered, requestPushPermission]);
   const payoutSetupRequired = useCleanerPayoutSetupRequired(staffInfo?.organization_id);
   const [newJobAlert, setNewJobAlert] = useState(false);
   const [claimingBookingId, setClaimingBookingId] = useState<string | null>(null);
@@ -237,6 +257,7 @@ export default function StaffPortal() {
         `)
         .eq('staff_id', staffInfo.id)
         .in('status', ['pending', 'confirmed', 'in_progress'])
+        .or('is_draft.is.null,is_draft.eq.false')
         .order('scheduled_at', { ascending: true });
 
       if (directError) throw directError;
@@ -340,6 +361,7 @@ export default function StaffPortal() {
         .eq('organization_id', staffInfo.organization_id)
         .is('staff_id', null)
         .in('status', ['pending', 'confirmed'])
+        .or('is_draft.is.null,is_draft.eq.false')
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true });
 
@@ -381,6 +403,9 @@ export default function StaffPortal() {
   const assignToSelf = useMutation({
     mutationFn: async (bookingId: string) => {
       if (!staffInfo?.id) throw new Error('Staff ID not found');
+      if (!hasSetAvailability) {
+        throw new Error('Set your working hours before claiming jobs');
+      }
       setClaimingBookingId(bookingId);
 
       const { data, error } = await supabase
@@ -613,7 +638,8 @@ export default function StaffPortal() {
       {staffInfo?.id && (
         <StaffLocationPrompt staffId={staffInfo.id} onResolved={() => { /* unmounts itself */ }} />
       )}
-      <div className="portal-v2 min-h-screen">
+      <div className="portal-v2 min-h-screen" {...pullHandlers}>
+      <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
       {/* Header — sticky glass */}
       <header
         className="sticky top-0 z-10 portal-v2-header-safe"
@@ -624,14 +650,14 @@ export default function StaffPortal() {
           borderBottom: '1px solid hsl(var(--pv-border))',
         }}
       >
-        <div className="container mx-auto px-4 sm:px-6 pb-3 flex items-end justify-between gap-3">
-          <div className="min-w-0">
+        <div className="container mx-auto px-3 sm:px-6 pb-3 pt-2 flex items-end justify-between gap-2">
+          <div className="min-w-0 flex-1">
             <p className="pv-eyebrow">Cleaner Portal</p>
-            <h1 className="pv-display text-[26px] sm:text-[30px] truncate mt-0.5">
+            <h1 className="pv-display text-[22px] sm:text-[30px] truncate mt-0.5">
               {staffInfo?.name ? `Hi, ${staffInfo.name.split(' ')[0]}` : 'Welcome'}
             </h1>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {staffInfo && (
               <>
               <NotificationBell 
@@ -645,21 +671,22 @@ export default function StaffPortal() {
                     }
                   }}
                 />
-                <Badge variant="outline" className="hidden sm:flex pv-chip-neutral">
+                <Badge variant="outline" className="hidden md:flex pv-chip-neutral">
                   {staffInfo.tax_classification === 'w2' ? 'W-2 Employee' : '1099 Contractor'}
                 </Badge>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px]">
+            <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px] px-2.5 sm:px-3">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>
         </div>
+
       </header>
 
       {/* Main Content */}
-      <main className="portal-v2-scroll container mx-auto px-4 sm:px-6 py-6">
+      <main className="portal-v2-scroll container mx-auto px-3 sm:px-6 py-5 sm:py-6">
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress

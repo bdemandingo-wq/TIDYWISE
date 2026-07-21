@@ -36,6 +36,9 @@ const BookingSchema = z.object({
     bathroom: z.number().int().min(0).max(50).optional(),
     full_bath: z.number().int().min(0).max(50).optional(),
   }).partial().optional().nullable(),
+  is_arrival_window: z.boolean().optional().nullable(),
+  arrival_window_start: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  arrival_window_end: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -290,6 +293,9 @@ const handler = async (req: Request): Promise<Response> => {
         extras: payload.extras || null,
         has_pets: payload.has_pets ?? false,
         room_reductions: payload.room_reductions ?? null,
+        is_arrival_window: payload.is_arrival_window ?? false,
+        arrival_window_start: payload.arrival_window_start ?? null,
+        arrival_window_end: payload.arrival_window_end ?? null,
         status: 'pending',
         payment_status: 'pending',
       })
@@ -309,15 +315,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create a lead entry for this customer automatically
     try {
-      const { data: existingLead } = await supabase
+      const { data: existingLead, error: existingLeadErr } = await supabase
         .from('leads')
         .select('id')
         .eq('email', payload.email.toLowerCase())
         .eq('organization_id', organizationId)
         .maybeSingle();
 
-      if (!existingLead) {
-        await supabase
+      if (existingLeadErr) {
+        console.error("[external-booking-webhook] Lead dedupe check failed, skipping lead creation to avoid a possible duplicate:", existingLeadErr);
+      } else if (!existingLead) {
+        const { error: leadInsertErr } = await supabase
           .from('leads')
           .insert({
             first_name: payload.first_name,
@@ -329,7 +337,11 @@ const handler = async (req: Request): Promise<Response> => {
             notes: `Auto-created from public booking form (BK-${booking.booking_number})`,
             organization_id: organizationId,
           });
-        console.log("[external-booking-webhook] Auto-created lead for customer");
+        if (leadInsertErr) {
+          console.error("[external-booking-webhook] Lead insert failed:", leadInsertErr);
+        } else {
+          console.log("[external-booking-webhook] Auto-created lead for customer");
+        }
       }
     } catch (leadErr) {
       console.error("[external-booking-webhook] Failed to create lead:", leadErr);

@@ -83,7 +83,7 @@ serve(async (req: Request) => {
     // 2. Cooldown check — skip if any outbound message sent within last 5 minutes
     const cooldownCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-    const { data: recentOutbound } = await supabase
+    const { data: recentOutbound, error: outboundErr } = await supabase
       .from('sms_messages')
       .select('id')
       .eq('conversation_id', conversationId)
@@ -92,6 +92,12 @@ serve(async (req: Request) => {
       .limit(1)
       .maybeSingle();
 
+    if (outboundErr) {
+      console.error(`[ai-sms-reply] Cooldown check (outbound) failed, skipping to avoid a possible duplicate reply:`, outboundErr);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown_check_failed' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (recentOutbound) {
       console.log(`[ai-sms-reply] Cooldown active — outbound message sent within last 5 min, skipping`);
       return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown' }),
@@ -99,7 +105,7 @@ serve(async (req: Request) => {
     }
 
     // 3. Also check outgoing direction (some messages use 'outgoing' instead of 'outbound')
-    const { data: recentOutgoing } = await supabase
+    const { data: recentOutgoing, error: outgoingErr } = await supabase
       .from('sms_messages')
       .select('id')
       .eq('conversation_id', conversationId)
@@ -107,6 +113,12 @@ serve(async (req: Request) => {
       .gte('sent_at', cooldownCutoff)
       .limit(1)
       .maybeSingle();
+
+    if (outgoingErr) {
+      console.error(`[ai-sms-reply] Cooldown check (outgoing) failed, skipping to avoid a possible duplicate reply:`, outgoingErr);
+      return new Response(JSON.stringify({ success: true, skipped: true, reason: 'cooldown_check_failed' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
 
     if (recentOutgoing) {
       console.log(`[ai-sms-reply] Cooldown active — outgoing message sent within last 5 min, skipping`);
@@ -308,7 +320,7 @@ ${historyText}`;
     console.log(`[ai-sms-reply] AI reply sent successfully`);
 
     // 12. Log the outbound message to conversation
-    await supabase.from('sms_messages').insert({
+    const { error: logMsgErr } = await supabase.from('sms_messages').insert({
       conversation_id: conversationId,
       organization_id: organizationId,
       direction: 'outbound',
@@ -317,6 +329,9 @@ ${historyText}`;
       openphone_message_id: smsResult?.data?.id || null,
       sent_at: new Date().toISOString(),
     });
+    if (logMsgErr) {
+      console.error(`[ai-sms-reply] reply sent but sms_messages log insert failed — cooldown check above will not see this reply next time:`, logMsgErr);
+    }
 
     // Update conversation timestamp
     await supabase

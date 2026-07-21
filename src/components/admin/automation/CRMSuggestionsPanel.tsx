@@ -91,7 +91,7 @@ export function CRMSuggestionsPanel() {
       title: 'Set Up SMS Messaging',
       description: 'SMS automations and campaigns require OpenPhone to be configured. Set it up to unlock automated reviews, reminders, and marketing.',
       action: 'Configure SMS',
-      href: '/dashboard/settings',
+      href: '/dashboard/settings?tab=sms',
       icon: MessageSquare,
       priority: 'high',
     });
@@ -106,7 +106,7 @@ export function CRMSuggestionsPanel() {
       title: `Enable ${disabledAutomations.length} Disabled Automation${disabledAutomations.length > 1 ? 's' : ''}`,
       description: `You have disabled: ${names}. Enabling them can help retain customers and grow revenue automatically.`,
       action: 'Review Automations',
-      href: '/dashboard/automation-center',
+      href: '/dashboard/automation-center?tab=automations',
       icon: Zap,
       priority: 'high',
     });
@@ -118,7 +118,7 @@ export function CRMSuggestionsPanel() {
       title: `Follow Up with ${inactiveCustomerCount} Inactive Clients`,
       description: 'These customers haven\'t booked in 60+ days. Send a win-back campaign to bring them back.',
       action: 'Create Campaign',
-      href: '/dashboard/campaigns',
+      href: '/dashboard/campaigns?audience=inactive_clients&days=60&create=1',
       icon: Users,
       priority: 'medium',
     });
@@ -130,7 +130,7 @@ export function CRMSuggestionsPanel() {
       title: `${nonRecurringCount} Customers Without Recurring Service`,
       description: 'Offer recurring cleaning plans to convert one-time customers into predictable recurring revenue.',
       action: 'View Customers',
-      href: '/dashboard/customers',
+      href: '/dashboard/customers?filter=non_recurring',
       icon: Repeat,
       priority: 'medium',
     });

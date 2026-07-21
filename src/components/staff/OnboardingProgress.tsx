@@ -28,6 +28,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check documents status
   const { data: documents = [] } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('staff_documents')
@@ -41,6 +43,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check signatures status
   const { data: signatures = [] } = useQuery({
     queryKey: ['onboarding-sigs', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data: docs } = await supabase
         .from('staff_signable_documents')
@@ -63,6 +67,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check payout status
   const { data: payoutStatus } = useQuery({
     queryKey: ['onboarding-payout', staffId, organizationId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('staff_payout_accounts')
@@ -77,6 +83,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   // Check availability
   const { data: hasAvailability } = useQuery({
     queryKey: ['onboarding-avail', staffId],
+    staleTime: 0,
+    refetchOnMount: 'always',
     queryFn: async () => {
       const { data } = await supabase
         .from('working_hours')
@@ -89,13 +97,21 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
 
   // Build steps
   const isW2 = taxClassification === 'w2';
-  const requiredDocTypes = isW2 ? ['government_id'] : ['w9', 'government_id'];
-  const uploadedApprovedDocs = documents.filter(
-    d => requiredDocTypes.includes(d.document_type) && d.status === 'approved'
+  // Upload UI saves Government ID as document_type 'id'; older data may use
+  // 'government_id'. Match either so the step can actually complete.
+  const requiredDocGroups: string[][] = isW2
+    ? [['id', 'government_id']]
+    : [['w9'], ['id', 'government_id']];
+  const groupsWithApproved = requiredDocGroups.filter(group =>
+    documents.some(d => group.includes(d.document_type) && d.status === 'approved')
   );
-  const uploadedDocs = documents.filter(d => requiredDocTypes.includes(d.document_type));
-  const docsComplete = uploadedApprovedDocs.length >= requiredDocTypes.length;
-  const docsPending = uploadedDocs.length > 0 && !docsComplete;
+  const groupsWithUpload = requiredDocGroups.filter(group =>
+    documents.some(d => group.includes(d.document_type))
+  );
+  const docsComplete = groupsWithApproved.length >= requiredDocGroups.length;
+  const docsPending = groupsWithUpload.length > 0 && !docsComplete;
+  const uploadedDocs = groupsWithUpload;
+  const requiredDocTypes = requiredDocGroups;
 
   const sigData = signatures as { required: number; signed: number } | any[];
   const sigsRequired = Array.isArray(sigData) ? 0 : sigData?.required || 0;
@@ -173,9 +189,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
             className={cn(
               'text-xs font-medium',
               progressPercent >= 75
-                ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                ? 'bg-success/10 text-success border-success/30'
                 : progressPercent >= 50
-                ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'
+                ? 'bg-warning/10 text-warning border-warning/30'
                 : 'bg-muted text-muted-foreground'
             )}
           >
@@ -195,14 +211,14 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
               className={cn(
                 'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors',
                 step.completed
-                  ? 'bg-green-500/5 hover:bg-green-500/10'
+                  ? 'bg-success/5 hover:bg-success/10'
                   : 'bg-muted/50 hover:bg-muted'
               )}
             >
               <div
                 className={cn(
                   'flex-shrink-0',
-                  step.completed ? 'text-green-500' : step.status === 'pending' ? 'text-yellow-500' : 'text-muted-foreground'
+                  step.completed ? 'text-success' : step.status === 'pending' ? 'text-warning' : 'text-muted-foreground'
                 )}
               >
                 {step.completed ? (
@@ -225,9 +241,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
                   className={cn(
                     'text-[10px] px-1.5 py-0',
                     step.status === 'complete'
-                      ? 'bg-green-500/10 text-green-500 border-green-500/30'
+                      ? 'bg-success/10 text-success border-success/30'
                       : step.status === 'pending'
-                      ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30'
+                      ? 'bg-warning/10 text-warning border-warning/30'
                       : 'text-muted-foreground'
                   )}
                 >

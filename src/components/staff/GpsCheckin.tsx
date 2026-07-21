@@ -51,7 +51,7 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
         }
       }
 
-      await (supabase.from('booking_checkins' as any) as any).insert({
+      const { error: checkinErr } = await (supabase.from('booking_checkins' as any) as any).insert({
         booking_id: bookingId,
         staff_id: staffId,
         organization_id: organizationId,
@@ -61,6 +61,14 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
         address_match: addressMatch,
         distance_meters: distanceMeters,
       });
+
+      if (checkinErr) {
+        // Don't show a false success — this used to insert-and-forget,
+        // so a failed write looked identical to a working one.
+        console.error('[GpsCheckin] failed to save check-in:', checkinErr);
+        toast.error('Could not save check-in. Please try again or notify your admin.');
+        return;
+      }
 
       if (addressMatch === false && distanceMeters !== null) {
         toast.warning(`Checked in ${distanceMeters > 1000 ? `${(distanceMeters / 1000).toFixed(1)}km` : `${distanceMeters}m`} from the property address`, { duration: 5000 });
@@ -75,13 +83,18 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
         toast.error('Location access denied. Enable location in your device settings.');
       } else {
         // Still log without coordinates
-        await (supabase.from('booking_checkins' as any) as any).insert({
+        const { error: fallbackErr } = await (supabase.from('booking_checkins' as any) as any).insert({
           booking_id: bookingId,
           staff_id: staffId,
           organization_id: organizationId,
           checkin_type: type,
           address_match: null,
         });
+        if (fallbackErr) {
+          console.error('[GpsCheckin] failed to save no-GPS check-in:', fallbackErr);
+          toast.error('Could not save check-in. Please try again or notify your admin.');
+          return;
+        }
         setDone(true);
         onSuccess?.();
         toast.info(type === 'check_in' ? 'Checked in (no GPS)' : 'Checked out (no GPS)');

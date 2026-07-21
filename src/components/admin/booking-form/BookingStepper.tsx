@@ -42,6 +42,7 @@ import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails, useBookings } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';
 import { useBookingForm } from './BookingFormContext';
+import { useSchedulingMode } from '@/hooks/useSchedulingMode';
 import { CustomerStep } from './steps/CustomerStep';
 import { PropertyStep } from './steps/PropertyStep';
 import { ServiceStep } from './steps/ServiceStep';
@@ -237,6 +238,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   };
 
   const { organizationId } = useOrgId();
+  const { data: schedulingConfig } = useSchedulingMode(organizationId);
 
   const createBooking = useCreateBooking();
   const updateBooking = useUpdateBooking();
@@ -285,6 +287,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     extrasTotal,
     calculatedPrice,
     finalPrice,
+    appliedDiscount,
     resetForm,
     staff,
     conflictOverride,
@@ -425,6 +428,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           appointmentDate: format(scheduledDate, 'MMMM d, yyyy'),
           appointmentTime: format(scheduledDate, 'h:mm a'),
           address: address || '',
+          aptSuite: aptSuite || '',
           city: city || '',
           state: state || '',
           zipCode: zipCode || '',
@@ -611,14 +615,31 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
     // Handle "reclean" special case - it's not a real service UUID
     const isReclean = selectedServiceId === 'reclean';
-    
+
+    // If org is in arrival-window mode, find the window matching selectedTime and persist bounds
+    const matchedWindow = schedulingConfig?.mode === 'arrival_window'
+      ? (schedulingConfig.windows || []).find((w) => w.enabled && w.start_time === selectedTime)
+      : undefined;
+
+    // NOTE: the coupon redemption itself (incrementing discounts.current_uses)
+    // is NOT reserved here — buildBookingData() also runs as a preview step
+    // for the "apply to future recurring bookings?" dialog, which the user
+    // can cancel without ever actually saving. Reserving a redemption here
+    // would burn it even when nothing gets saved. It's reserved in
+    // executeSubmit() instead, immediately before the booking is actually
+    // committed.
     return {
       customer_id: customerId || null,
       service_id: isReclean ? null : (selectedServiceId && selectedServiceId.length > 0 ? selectedServiceId : null),
       staff_id: selectedStaffId && selectedStaffId.length > 0 ? selectedStaffId : null,
       scheduled_at: scheduledAtISO,
+      is_arrival_window: !!matchedWindow,
+      arrival_window_start: matchedWindow?.start_time ?? null,
+      arrival_window_end: matchedWindow?.end_time ?? null,
       duration: selectedService?.duration || 60,
-      total_amount: totalAmount > 0 ? totalAmount : calculatedPrice,
+      total_amount: finalPrice,
+      discount_id: appliedDiscount?.id ?? null,
+      discount_amount: appliedDiscount?.discountAmount ?? 0,
       status: isDraft ? 'pending' as const : 'confirmed' as const,
       payment_status: 'pending' as const,
       notes: notes || null,
@@ -661,6 +682,31 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     const baseDate = new Date(baseBookingData.scheduled_at);
     const numBookings = 3;
 
+    // A coupon is a one-time redemption applied (and counted against
+    // max_uses) for the first booking only — baseBookingData carries the
+    // discounted total_amount/discount_id/discount_amount, but these
+    // auto-generated future occurrences must NOT inherit it, or one
+    // coupon use would silently discount 4 bookings instead of 1.
+    const undiscountedTotal = totalAmount > 0 ? totalAmount : calculatedPrice;
+
+    // cleaner_pay_expected for a percentage-wage cleaner is a % of the
+    // price actually charged — baseBookingData's value was computed off
+    // the first booking's (possibly discounted) finalPrice, so it must
+    // be recomputed here against the undiscounted total for these
+    // occurrences, or a percentage-wage cleaner would be quietly
+    // underpaid on every future occurrence. Flat/hourly wages don't
+    // depend on price, so recomputing is a no-op for those types.
+    const undiscountedCleanerPayExpected = (() => {
+      const wage = cleanerWage ? parseFloat(cleanerWage) : null;
+      if (wage == null || wage === 0) return null;
+      if (cleanerWageType === 'flat') return wage;
+      if (cleanerWageType === 'percentage') {
+        return Math.round((wage / 100) * undiscountedTotal * 100) / 100;
+      }
+      const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : ((selectedService?.duration || 60) / 60);
+      return Math.round(wage * hours * 100) / 100;
+    })();
+
     const weekdayMap: Record<string, number> = {
       Sun: 0,
       Mon: 1,
@@ -692,6 +738,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             ...baseBookingData,
             scheduled_at: cursor.toISOString(),
             payment_intent_id: null,
+            total_amount: undiscountedTotal,
+            discount_id: null,
+            discount_amount: 0,
+            cleaner_pay_expected: undiscountedCleanerPayExpected,
           });
         }
       }
@@ -713,6 +763,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           ...baseBookingData,
           scheduled_at: nextDate.toISOString(),
           payment_intent_id: null,
+          total_amount: undiscountedTotal,
+          discount_id: null,
+          discount_amount: 0,
+          cleaner_pay_expected: undiscountedCleanerPayExpected,
         });
       }
     }
@@ -751,12 +805,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       });
     }
     
-    // Price change
-    if (totalAmount !== booking.total_amount) {
+    // Price change — compare against finalPrice (what will actually be
+    // saved, post-discount), not raw totalAmount, so this doesn't
+    // spuriously flag a "change" purely because booking.total_amount is
+    // now correctly discounted while totalAmount never was.
+    if (finalPrice !== booking.total_amount) {
       changes.push({
         field: 'Price',
         oldValue: `$${booking.total_amount?.toFixed(2) || '0.00'}`,
-        newValue: `${fmt(totalAmount)}`,
+        newValue: `${fmt(finalPrice)}`,
         key: 'total_amount'
       });
     }
@@ -832,19 +889,56 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       const bookingData = pendingBookingData?.bookingData || await buildBookingData(isDraft);
       let persistedBookingId: string | undefined = booking?.id;
 
+      // A coupon was previously validated and shown as applied on-screen
+      // (the "Grand Total" already reflects it) but was never actually
+      // persisted — total_amount was saved undiscounted, so "Charge Card"
+      // later charged the customer the full price regardless. Reserve the
+      // redemption atomically server-side (enforces max_uses, race-safe
+      // for concurrent bookings) right before actually committing —
+      // deliberately not in buildBookingData(), which also runs as a
+      // cancellable preview step for the recurring-booking dialog above.
+      // Only reserve a redemption when the coupon on this booking is new
+      // (either this is a brand-new booking, or the admin swapped in a
+      // different coupon while editing). Editing an existing booking that
+      // already had this same coupon must NOT re-burn a use.
+      const previousDiscountId = (booking as unknown as { discount_id?: string | null })?.discount_id ?? null;
+      const isNewCouponReservation =
+        bookingData.discount_id &&
+        bookingData.discount_id !== previousDiscountId;
+      if (isNewCouponReservation) {
+        const { data: reserved, error: couponErr } = await supabase.rpc('increment_coupon_use', {
+          p_discount_id: bookingData.discount_id,
+        });
+        if (couponErr || !reserved) {
+          throw new Error(
+            `This coupon is no longer valid (it may have just reached its usage limit). ` +
+            `Remove it or try a different code, then save again.`
+          );
+        }
+      }
+
       // Check for valid UUID - empty string means this is a duplicate (new booking)
       const isExistingBooking = booking?.id && booking.id.length > 10;
-      
+
       if (isExistingBooking) {
         await updateBooking.mutateAsync({ id: booking.id, ...bookingData });
         persistedBookingId = booking.id;
 
         // ALWAYS sync team assignments on update to prevent stale/duplicate entries
-        // Delete all existing team assignments for this booking first
-        await supabase
+        // Delete all existing team assignments for this booking first.
+        // If this delete fails, we must NOT proceed to re-insert below —
+        // doing so would leave the old pay-share rows in place alongside
+        // the new ones, double-paying whoever was already assigned.
+        const { error: teamAssignmentsDeleteError } = await supabase
           .from('booking_team_assignments')
           .delete()
           .eq('booking_id', booking.id);
+        if (teamAssignmentsDeleteError) {
+          throw new Error(
+            `Could not update pay assignments for this booking (${teamAssignmentsDeleteError.message}). ` +
+            `Booking details were saved, but pay-share was NOT changed — please retry to avoid double-paying staff.`
+          );
+        }
 
         // Re-insert based on current form state
         if (isTeamMode && selectedTeamMembers.length > 1) {
@@ -852,24 +946,36 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           for (let i = 0; i < selectedTeamMembers.length; i++) {
             const staffId = selectedTeamMembers[i];
             let payShare = teamMemberPay[staffId] ?? 0;
-            await supabase.from('booking_team_assignments').insert({
+            const { error: teamAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
               booking_id: booking.id,
               staff_id: staffId,
               pay_share: payShare,
               is_primary: i === 0,
               organization_id: organizationId,
             });
+            if (teamAssignmentInsertError) {
+              throw new Error(
+                `Pay assignment failed to save for one staff member (${teamAssignmentInsertError.message}). ` +
+                `Please retry — old assignments were already cleared.`
+              );
+            }
           }
         } else if (bookingData.staff_id) {
           // Single staff → one primary assignment
           // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
-          await supabase.from('booking_team_assignments').insert({
+          const { error: singleAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
             booking_id: booking.id,
             staff_id: bookingData.staff_id,
             pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
             is_primary: true,
             organization_id: organizationId,
           });
+          if (singleAssignmentInsertError) {
+            throw new Error(
+              `Pay assignment failed to save (${singleAssignmentInsertError.message}). ` +
+              `Please retry — old assignments were already cleared.`
+            );
+          }
         }
 
         // Update checklist if a checklist template was selected during edit
@@ -1014,24 +1120,38 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 }
               }
 
-              await supabase.from('booking_team_assignments').insert({
+              // Note: unlike the update path above, we don't throw on
+              // failure here — the booking row itself was already
+              // created, and retrying the whole submit would create a
+              // SECOND duplicate booking rather than just retry this
+              // insert. Surface it instead so pay tracking gets fixed
+              // by hand rather than silently missing.
+              const { error: newTeamAssignmentError } = await supabase.from('booking_team_assignments').insert({
                 booking_id: newBooking.id,
                 staff_id: staffId,
                 pay_share: payShare,
                 is_primary: i === 0,
                 organization_id: organizationId,
               });
+              if (newTeamAssignmentError) {
+                console.error('Failed to save pay assignment for staff', staffId, newTeamAssignmentError);
+                toast.error(`Booking saved, but pay assignment failed for one staff member — please set it manually.`);
+              }
             }
           } else if (bookingData.staff_id) {
             // Single staff → one primary assignment only
             // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
-            await supabase.from('booking_team_assignments').insert({
+            const { error: newSingleAssignmentError } = await supabase.from('booking_team_assignments').insert({
               booking_id: newBooking.id,
               staff_id: bookingData.staff_id,
               pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
               is_primary: true,
               organization_id: organizationId,
             });
+            if (newSingleAssignmentError) {
+              console.error('Failed to save pay assignment', newSingleAssignmentError);
+              toast.error('Booking saved, but the pay assignment failed to save — please set it manually.');
+            }
           }
         }
 
@@ -1304,7 +1424,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full pb-24 lg:pb-0">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-full pb-32 lg:pb-0">
         {/* Main scrollable single-page form */}
         <div className="flex-1 min-w-0 space-y-3 lg:space-y-4 order-2 lg:order-1">
           <DndContext

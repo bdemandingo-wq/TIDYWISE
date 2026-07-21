@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,33 @@ export function PendingDocumentsReview() {
         .eq('id', docId);
 
       if (error) throw error;
+
+      // Notify the cleaner (bell in the staff portal reads cleaner_notifications).
+      // Fetch the row directly — the optimistic update already removed it from cache.
+      const { data: doc } = await supabase
+        .from('staff_documents')
+        .select('staff_id, document_type')
+        .eq('id', docId)
+        .single();
+      if (doc?.staff_id) {
+        const docLabel = DOCUMENT_TYPES[doc.document_type] || doc.document_type;
+        const { error: notifErr1 } = await supabase.from('cleaner_notifications').insert({
+          staff_id: doc.staff_id,
+          organization_id: organizationId,
+          type: 'document_review',
+          title: status === 'approved' ? 'Document approved' : 'Document rejected',
+          message: status === 'approved'
+            ? `Your ${docLabel} was approved.`
+            : `Your ${docLabel} was rejected.${note ? ` Note: ${note}` : ' Please re-upload.'}`,
+        });
+        if (notifErr1) console.error('[cleaner-notify] insert failed:', notifErr1);
+        sendPushBestEffort({
+          organizationId: organizationId,
+          staffId: doc.staff_id,
+          title: status === 'approved' ? 'Document approved' : 'Document rejected',
+          body: status === 'approved' ? 'Your document was approved.' : 'Your document was rejected. Please re-upload.',
+        });
+      }
     },
     onMutate: async ({ docId }) => {
       await queryClient.cancelQueries({ queryKey });

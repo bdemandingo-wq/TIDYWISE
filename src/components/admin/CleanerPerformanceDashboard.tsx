@@ -117,17 +117,17 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
     : 0;
 
   const getCompletionColor = (rate: number) => {
-    if (rate >= 90) return 'text-emerald-600 dark:text-emerald-400';
-    if (rate >= 75) return 'text-blue-600 dark:text-blue-400';
-    if (rate >= 60) return 'text-amber-600 dark:text-amber-400';
-    return 'text-rose-600 dark:text-rose-400';
+    if (rate >= 90) return 'text-success';
+    if (rate >= 75) return 'text-info';
+    if (rate >= 60) return 'text-warning';
+    return 'text-destructive';
   };
 
   const getProgressColor = (rate: number) => {
-    if (rate >= 90) return 'bg-emerald-500';
-    if (rate >= 75) return 'bg-blue-500';
-    if (rate >= 60) return 'bg-amber-500';
-    return 'bg-rose-500';
+    if (rate >= 90) return 'bg-success';
+    if (rate >= 75) return 'bg-info';
+    if (rate >= 60) return 'bg-warning';
+    return 'bg-destructive';
   };
 
   const exportToCSV = () => {
@@ -202,8 +202,8 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 <p className="text-sm text-muted-foreground">Active Cleaners</p>
                 <p className="text-2xl font-bold text-foreground">{cleanerStats.length}</p>
               </div>
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <Star className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2 rounded-lg bg-info/10">
+                <Star className="w-5 h-5 text-info" />
               </div>
             </div>
           </CardContent>
@@ -216,8 +216,8 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 <p className="text-sm text-muted-foreground">Team Revenue</p>
                 <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(totalTeamRevenue)}`}</p>
               </div>
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2 rounded-lg bg-success/10">
+                <TrendingUp className="w-5 h-5 text-success" />
               </div>
             </div>
           </CardContent>
@@ -230,8 +230,8 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 <p className="text-sm text-muted-foreground">Total Paid Out</p>
                 <p className="text-2xl font-bold text-foreground">{isTestMode ? '$XXX' : `${fmt(totalTeamEarnings)}`}</p>
               </div>
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                <DollarSign className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <DollarSign className="w-5 h-5 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -246,8 +246,8 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                   {avgCompletionRate.toFixed(1)}%
                 </p>
               </div>
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <CheckCircle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <div className="p-2 rounded-lg bg-warning/10">
+                <CheckCircle className="w-5 h-5 text-warning" />
               </div>
             </div>
           </CardContent>
@@ -256,10 +256,10 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
 
       {/* Top Performer */}
       {topPerformer && topPerformer.totalEarnings > 0 && (
-        <Card className="border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-900/10">
+        <Card className="border-warning/20 bg-gradient-to-br from-warning/5 to-transparent">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Star className="w-4 h-4 text-amber-500" />
+              <Star className="w-4 h-4 text-warning" />
               Top Performer This Period
             </CardTitle>
           </CardHeader>
@@ -267,7 +267,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
             <div className="flex items-center gap-4">
               <Avatar className="h-12 w-12">
                 <AvatarImage src={topPerformer.avatarUrl || undefined} />
-                <AvatarFallback className="bg-amber-100 text-amber-700">
+                <AvatarFallback className="bg-warning/10 text-warning">
                   {maskName(topPerformer.name).split(' ').map(n => n[0]).join('')}
                 </AvatarFallback>
               </Avatar>
@@ -275,10 +275,10 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 <p className="font-semibold text-lg">{maskName(topPerformer.name)}</p>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{topPerformer.completedBookings} jobs completed</span>
-                  <span className="text-amber-600 font-semibold">{maskAmount(topPerformer.totalEarnings)}</span>
+                  <span className="text-warning font-semibold">{maskAmount(topPerformer.totalEarnings)}</span>
                 </div>
               </div>
-              <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800">
+              <Badge className="bg-warning/10 text-warning border-warning/20">
                 {topPerformer.completionRate.toFixed(0)}% completion
               </Badge>
             </div>
@@ -306,10 +306,10 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                 </div>
                 <Badge className={cn(
                   "shrink-0",
-                  cleaner.completionRate >= 90 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" :
-                  cleaner.completionRate >= 75 ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
-                  cleaner.completionRate >= 60 ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" :
-                  "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                  cleaner.completionRate >= 90 ? "bg-success/10 text-success" :
+                  cleaner.completionRate >= 75 ? "bg-info/10 text-info" :
+                  cleaner.completionRate >= 60 ? "bg-warning/10 text-warning" :
+                  "bg-destructive/10 text-destructive"
                 )}>
                   {cleaner.completionRate.toFixed(0)}%
                 </Badge>
@@ -350,7 +350,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
                     <DollarSign className="w-3 h-3" />
                     Total Earned
                   </div>
-                  <p className="font-semibold text-emerald-600">{maskAmount(cleaner.totalEarnings)}</p>
+                  <p className="font-semibold text-success">{maskAmount(cleaner.totalEarnings)}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -365,12 +365,12 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
               {(cleaner.cancelledBookings > 0 || cleaner.noShowBookings > 0) && (
                 <div className="mt-3 pt-3 border-t border-border/50 flex gap-2">
                   {cleaner.cancelledBookings > 0 && (
-                    <Badge variant="outline" className="text-xs text-rose-600 border-rose-200">
+                    <Badge variant="outline" className="text-xs text-destructive border-destructive/20">
                       {cleaner.cancelledBookings} cancelled
                     </Badge>
                   )}
                   {cleaner.noShowBookings > 0 && (
-                    <Badge variant="outline" className="text-xs text-slate-600 border-slate-200">
+                    <Badge variant="outline" className="text-xs text-muted-foreground border-border">
                       {cleaner.noShowBookings} no-show
                     </Badge>
                   )}

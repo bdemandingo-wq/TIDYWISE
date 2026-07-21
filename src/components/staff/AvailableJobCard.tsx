@@ -119,34 +119,34 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
 
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow border-2 border-dashed border-green-200 dark:border-green-900">
+      <Card className="hover:shadow-md transition-shadow border-2 border-dashed border-success/20">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
               <p className="text-sm text-muted-foreground">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</p>
             </div>
-            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
+            <Badge variant="outline" className="bg-success/10 text-success">
               Open
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* Potential Earnings - Highlighted */}
-          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+          <div className="p-3 rounded-lg bg-success/10 border border-success/20">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+              <div className="flex items-center gap-2 text-sm text-success">
                 <DollarSign className="w-4 h-4" />
                 <span>Potential Earnings</span>
               </div>
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-600" />
-                <span className="font-bold text-lg text-green-700 dark:text-green-300">
+                <TrendingUp className="w-4 h-4 text-success" />
+                <span className="font-bold text-lg text-success">
                   ${earnings.amount.toFixed(2)}
                 </span>
               </div>
             </div>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-1">{earnings.type}</p>
+            <p className="text-xs text-success mt-1">{earnings.type}</p>
           </div>
 
           {/* Property Details */}
@@ -198,18 +198,18 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
           )}
           {/* Notes section */}
           {booking.notes && (
-            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
               <div className="flex items-start gap-2">
-                <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <FileText className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1">Special Instructions</p>
-                  <p className="text-sm text-amber-800 dark:text-amber-200 whitespace-pre-wrap">{booking.notes}</p>
+                  <p className="text-xs font-medium text-warning mb-1">Special Instructions</p>
+                  <p className="text-sm text-warning whitespace-pre-wrap">{booking.notes}</p>
                 </div>
               </div>
             </div>
           )}
           <Button
-            className="w-full mt-2 gap-2 bg-green-600 hover:bg-green-700"
+            className="w-full mt-2 gap-2 bg-success hover:bg-success/90"
             onClick={handleClaimClick}
             disabled={isClaimingThisJob}
           >
@@ -234,10 +234,10 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
             <AlertDialogTitle>Confirm Job Claim</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>You are about to claim job #{booking.booking_number}.</p>
-              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/50 border border-green-200 dark:border-green-800">
+              <div className="p-4 rounded-lg bg-success/10 border border-success/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-700 dark:text-green-300">Potential Pay</span>
-                  <span className="font-bold text-xl text-green-700 dark:text-green-300">
+                  <span className="text-sm text-success">Potential Pay</span>
+                  <span className="font-bold text-xl text-success">
                     ${earnings.amount.toFixed(2)}
                   </span>
                 </div>
@@ -256,7 +256,7 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmClaim}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-success hover:bg-success/90"
             >
               Confirm & Claim Job
             </AlertDialogAction>

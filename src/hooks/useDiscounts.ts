@@ -161,17 +161,28 @@ export function useDiscounts() {
     return Math.min(discount.discount_value, subtotal);
   };
 
-  const incrementCouponUse = async (discountId: string) => {
+  // NOTE: as of writing this has no callers anywhere in the app — coupon
+  // max_uses is therefore unenforced regardless of this function's error
+  // handling below, since current_uses never actually increments. Fixing
+  // that requires wiring a call to this into wherever a coupon is
+  // actually redeemed; out of scope here, flagging so it isn't mistaken
+  // for "fixed" by the error-check alone.
+  const incrementCouponUse = async (discountId: string): Promise<boolean> => {
     try {
       const discount = discounts.find(d => d.id === discountId);
-      if (discount) {
-        await supabase
-          .from('discounts')
-          .update({ current_uses: discount.current_uses + 1 })
-          .eq('id', discountId);
+      if (!discount) return false;
+      const { error } = await supabase
+        .from('discounts')
+        .update({ current_uses: discount.current_uses + 1 })
+        .eq('id', discountId);
+      if (error) {
+        console.error('Error incrementing coupon use:', error);
+        return false;
       }
+      return true;
     } catch (error) {
       console.error('Error incrementing coupon use:', error);
+      return false;
     }
   };
 

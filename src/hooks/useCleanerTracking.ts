@@ -87,6 +87,31 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
   const watchIdRef       = useRef<string | null>(null);   // Capacitor watchId (string)
   const browserWatchRef  = useRef<number | null>(null);   // browser watchId (number)
   const [isTracking, setIsTracking] = useState(false);
+  const [hasArrived, setHasArrived] = useState(false);
+
+  // ── arrival firing (shared by geofence, resume-check, and manual button) ──
+
+  const fireArrival = useCallback(async (source: string) => {
+    if (arrivedRef.current) return;
+    arrivedRef.current = true;
+    setHasArrived(true);
+    console.log(`[GPS] Arrival fired (${source})`);
+    try {
+      if (trackingIdRef.current) {
+        await supabase
+          .from('cleaner_location_tracking')
+          .update({ arrived_at: new Date().toISOString() } as any)
+          .eq('id', trackingIdRef.current);
+      }
+      await supabase.functions.invoke('send-arrival-sms', { body: { bookingId, staffId } });
+    } catch (err) {
+      console.warn('[GPS] Arrival notification failed:', err);
+    }
+  }, [bookingId, staffId]);
+
+  /** Manual "I've Arrived" — works even if GPS tracking never started.
+   *  The send-arrival-sms function dedupes per staff+booking server-side. */
+  const markArrived = useCallback(() => fireArrival('manual'), [fireArrival]);
 
   // ── wake lock ─────────────────────────────────────────────────────────────
 
@@ -105,22 +130,9 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     if (arrivedRef.current || !destCoordsRef.current) return;
     const meters = haversineMeters(lat, lng, destCoordsRef.current.lat, destCoordsRef.current.lng);
     if (meters > ARRIVAL_THRESHOLD_METERS) return;
-
-    arrivedRef.current = true;
     console.log('[GPS] Arrival detected —', Math.round(meters), 'm from destination');
-
-    try {
-      if (trackingIdRef.current) {
-        await supabase
-          .from('cleaner_location_tracking')
-          .update({ arrived_at: new Date().toISOString() } as any)
-          .eq('id', trackingIdRef.current);
-      }
-      await supabase.functions.invoke('send-arrival-sms', { body: { bookingId, staffId } });
-    } catch (err) {
-      console.warn('[GPS] Arrival notification failed:', err);
-    }
-  }, [bookingId, staffId]);
+    await fireArrival('geofence');
+  }, [fireArrival]);
 
   // ── write position to DB ──────────────────────────────────────────────────
 
@@ -168,9 +180,47 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       trackingIdRef.current = null;
     }
     arrivedRef.current = false;
+    setHasArrived(false);
     setIsTracking(false);
     console.log('[GPS] Tracking stopped');
   }, []);
+
+  // ── resume check ──────────────────────────────────────────────────────────
+  // Without background location (removed for App Store 2.5.4), tracking
+  // suspends the moment the cleaner switches to Maps or locks the phone.
+  // When they come back, immediately grab a position and re-run the
+  // arrival check so the "arrived" texts still fire automatically.
+
+  useEffect(() => {
+    if (!isTracking) return;
+
+    const checkNow = async () => {
+      if (arrivedRef.current) return;
+      try {
+        const { latitude, longitude } = await getCurrentPosition(10000);
+        void checkArrival(latitude, longitude);
+      } catch { /* position unavailable — geofence watch will retry */ }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void checkNow();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    let appSub: { remove: () => void } | undefined;
+    if (Capacitor.isNativePlatform()) {
+      import('@capacitor/app').then(({ App }) => {
+        App.addListener('appStateChange', (state) => {
+          if (state.isActive) void checkNow();
+        }).then((h) => { appSub = h; });
+      }).catch(() => {});
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      appSub?.remove();
+    };
+  }, [isTracking, checkArrival]);
 
   // ── start position watch ──────────────────────────────────────────────────
 
@@ -309,5 +359,5 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
     return () => { void stopTracking(); };
   }, [stopTracking]);
 
-  return { startTracking, stopTracking, isTracking };
+  return { startTracking, stopTracking, isTracking, hasArrived, markArrived };
 }

@@ -67,7 +67,7 @@ export default function DeleteAccountPage() {
         canonical="/delete-account"
       />
 
-      <div className="min-h-screen bg-background">
+      <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">
         {/* Header */}
         <header className="border-b bg-card">
           <div className="container max-w-3xl mx-auto px-4 py-6">

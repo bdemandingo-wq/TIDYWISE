@@ -137,6 +137,7 @@ export function CustomerSearchInput({
             type="button"
             onClick={handleClearSelection}
             className="p-1 hover:bg-background rounded-full transition-colors"
+            aria-label="Clear selected customer"
           >
             <X className="h-4 w-4 text-muted-foreground" />
           </button>

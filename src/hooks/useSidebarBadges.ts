@@ -94,7 +94,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
       const [pending, unassigned, failed] = await Promise.all([
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'pending').gte('scheduled_at', now),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).is('staff_id', null).neq('status', 'cancelled').gte('scheduled_at', now),
-        (supabase as any).from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('payment_status', 'failed'),
+        (supabase as any).from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('payment_status', 'pending').lt('scheduled_at', now),
       ]);
       return { pending: pending.count || 0, unassigned: unassigned.count || 0, payment: failed.count || 0 };
     },
@@ -212,8 +212,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
       if (!orgId) return 0;
       const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
       const [sms, emails] = await Promise.all([
-        supabase.from('campaign_sms_sends').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('created_at', since),
-        supabase.from('campaign_emails').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('created_at', since),
+        supabase.from('campaign_sms_sends').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('sent_at', since),
+        supabase.from('campaign_emails').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed').gte('sent_at', since),
       ]);
       return (sms.count || 0) + (emails.count || 0);
     },
@@ -290,9 +290,10 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings.unassigned, 'bookings.unassigned'), filter: 'status=unassigned' });
     push(bookingReasons, { key: 'payment', label: 'failed payment', count: g(bookings.payment, 'bookings.payment'), filter: 'payment=failed' });
 
-    // Scheduler shares unassigned
+    // Scheduler intentionally has no badge — unassigned jobs surface on the
+    // Bookings item, and duplicating the count here produced a "phantom"
+    // count that never cleared from the Scheduler screen itself.
     const schedulerReasons: BadgeReason[] = [];
-    push(schedulerReasons, { key: 'unassigned', label: 'unassigned job', count: g(bookings.unassigned, 'scheduler.overlaps') });
 
     // Client portal
     const portalReasons: BadgeReason[] = [];

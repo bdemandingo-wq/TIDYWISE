@@ -1023,6 +1023,17 @@ body {
   --pv-danger:        352 72% 50%;
   --pv-danger-soft:   352 85% 96%;
 
+  /* shadcn semantic aliases inside .portal-v2 */
+  --surface-raised:   var(--pv-raised);
+  --success:          var(--pv-success);
+  --warning:          var(--pv-warn);
+  --info:             var(--pv-brand);
+  --destructive:      var(--pv-danger);
+  --success-soft:     var(--pv-success-soft);
+  --warning-soft:     var(--pv-warn-soft);
+  --info-soft:        var(--pv-brand-soft);
+  --destructive-soft: var(--pv-danger-soft);
+
   /* Radii — soft, not pill */
   --pv-r-sm: 8px;
   --pv-r-md: 12px;
@@ -1135,27 +1146,29 @@ body {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
   z-index: 60;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px;
+  gap: 2px;
+  padding: 5px;
   border-radius: 999px;
   background: hsl(0 0% 100% / 0.85);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid hsl(var(--pv-border));
   box-shadow: var(--pv-shadow-lg);
-  max-width: calc(100vw - 24px);
+  max-width: calc(100vw - 16px);
+  overflow: hidden;
 }
 .portal-v2-nav button {
   min-height: 44px;
-  min-width: 44px;
-  padding: 0 14px;
+  min-width: 40px;
+  padding: 0 8px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   font-size: 12.5px;
   font-weight: 500;
@@ -1165,6 +1178,7 @@ body {
   cursor: pointer;
   transition: background .16s ease, color .16s ease;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 .portal-v2-nav button:hover { color: hsl(var(--pv-ink)); }
 .portal-v2-nav button[data-active="true"] {
@@ -1174,7 +1188,9 @@ body {
 .portal-v2-nav .pv-nav-label {
   display: none;
 }
-@media (min-width: 480px) {
+@media (min-width: 560px) {
+  .portal-v2-nav { gap: 4px; padding: 6px; }
+  .portal-v2-nav button { padding: 0 14px; }
   .portal-v2-nav .pv-nav-label { display: inline; }
 }
 
@@ -1182,6 +1198,22 @@ body {
 .portal-v2-scroll {
   padding-bottom: calc(var(--pv-nav-h) + env(safe-area-inset-bottom, 0px) + 32px);
 }
+
+/* Fade-edge indicator for horizontally scrollable tab strips in portal */
+.portal-v2-tabs-scroller {
+  position: relative;
+}
+.portal-v2-tabs-scroller::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  pointer-events: none;
+  background: linear-gradient(to right, hsl(var(--pv-bg) / 0), hsl(var(--pv-bg)));
+}
+
 
 /* Meta / muted text helpers */
 .portal-v2 .pv-meta { color: hsl(var(--pv-ink-3)); font-size: 13px; }
@@ -1197,10 +1229,32 @@ body {
 .portal-v2 .pv-chip-brand   { background: hsl(var(--pv-brand-soft));   color: hsl(var(--pv-brand));   border-color: transparent; }
 .portal-v2 .pv-chip-neutral { background: hsl(var(--pv-sunken));       color: hsl(var(--pv-ink-2));   border-color: transparent; }
 
+/* Raised surface and soft-tint helpers used on the AI Intelligence page */
+.portal-v2 .pv-surface-raised {
+  background: hsl(var(--surface-raised));
+  border: 1px solid hsl(var(--pv-border));
+  border-radius: var(--pv-r-lg);
+  box-shadow: var(--pv-shadow-xs);
+}
+.portal-v2 .pv-surface-raised:hover {
+  border-color: hsl(var(--pv-border-strong));
+}
+.portal-v2 .pv-soft-success { background: hsl(var(--success-soft)); color: hsl(var(--success)); }
+.portal-v2 .pv-soft-warning { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
+.portal-v2 .pv-soft-info    { background: hsl(var(--info-soft));    color: hsl(var(--info));    }
+.portal-v2 .pv-soft-destructive { background: hsl(var(--destructive-soft)); color: hsl(var(--destructive)); }
+
+
 /* Native safe area helpers */
 .portal-v2-header-safe {
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
 }
+
+/* Compact density — for dense surfaces like Scheduler.
+   Slightly tighter type; existing button sizing preserved so grid cells
+   and icon buttons don't inflate. Tabs get the 44px minimum for thumbs. */
+.portal-v2.pv-compact { font-size: 13px; }
+.portal-v2.pv-compact [role="tab"] { min-height: 44px; }
 
 /* ─── Density / quiet helpers (visual simplification) ─── */
 
@@ -1339,5 +1393,15 @@ body {
   }
   html:not(.light) .portal-v2-nav {
     background: hsl(222 16% 12% / 0.78);
+  }
+}
+
+/* iOS input auto-zoom guard: WKWebView zooms the whole viewport when a
+   focused input's font-size is under 16px, and the page stays zoomed
+   after blur (looks like "everything is huge" — reported on Platform
+   Analytics after using its search box, 2026-07-20). 16px on iOS only. */
+@supports (-webkit-touch-callout: none) {
+  input, select, textarea {
+    font-size: 16px !important;
   }
 }

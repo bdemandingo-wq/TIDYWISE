@@ -104,17 +104,30 @@ export default function CheckoutSuccessPage() {
   // Safe to call repeatedly (idempotent on the server).
   const [buyerEmail, setBuyerEmail] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
+  // Set when reconcile-checkout-session reports (or fails to report at
+  // all) that provisioning didn't complete — surfaced below so a paid
+  // customer isn't just shown "You're in" with no way to get help.
+  const [provisioningIssue, setProvisioningIssue] = useState(false);
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await supabase.functions.invoke('reconcile-checkout-session', {
+        const { data, error } = await supabase.functions.invoke('reconcile-checkout-session', {
           body: { session_id: sessionId },
         });
-        if (!cancelled && data?.email) setBuyerEmail(data.email as string);
+        if (error) {
+          console.error('[checkout-success] reconcile-checkout-session call failed:', error);
+          if (!cancelled) setProvisioningIssue(true);
+        } else if (data?.error) {
+          console.error('[checkout-success] reconcile-checkout-session reported a provisioning error:', data.error);
+          if (!cancelled) setProvisioningIssue(true);
+        } else if (!cancelled && data?.email) {
+          setBuyerEmail(data.email as string);
+        }
       } catch (err) {
-        console.warn('[checkout-success] reconcile failed (webhook will retry)', err);
+        console.error('[checkout-success] reconcile threw:', err);
+        if (!cancelled) setProvisioningIssue(true);
       }
       if (!cancelled) {
         try { await checkSubscription(); } catch { /* polling loop covers it */ }
@@ -176,7 +189,7 @@ export default function CheckoutSuccessPage() {
         noIndex
       />
       <main
-        className="min-h-screen bg-background flex items-center justify-center p-4"
+        className="portal-v2 portal-v2-scroll min-h-screen bg-background flex items-center justify-center p-4"
         aria-labelledby={headingId}
       >
         <Card
@@ -216,6 +229,26 @@ export default function CheckoutSuccessPage() {
                   }`
                 : 'Your TidyWise subscription is active. Welcome aboard.'}
           </p>
+
+          {provisioningIssue && (
+            <div className="rounded-lg border-2 border-dashed border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 p-4 mb-6 text-left text-sm">
+              <p className="font-medium mb-0.5">Payment received — finishing setup</p>
+              <p className="text-muted-foreground">
+                We're still wrapping up your account. This can take a minute. If it's
+                not resolved shortly,{' '}
+                <a
+                  href={`mailto:support@tidywisecleaning.com?subject=${encodeURIComponent(
+                    `Checkout session ${sessionId ?? ''} not provisioned`,
+                  )}`}
+                  className="underline hover:text-foreground"
+                >
+                  contact support
+                </a>{' '}
+                and mention session <span className="font-mono">{sessionId}</span> — we've
+                already been notified and can fix it manually.
+              </p>
+            </div>
+          )}
 
           {isAnonymousCheckout && (
             <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 p-4 mb-6 flex items-start gap-3 text-left">

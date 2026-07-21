@@ -306,39 +306,45 @@ export default function PlatformAnalyticsPage() {
   if (user?.email !== 'support@tidywisecleaning.com') {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
       <SEOHead title="Platform Analytics | TidyWise" description="View platform usage and engagement analytics" noIndex />
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">This page is only accessible to platform administrators.</p>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
   if (loading) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Loading...">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">Loading platform data...</p>
           </div>
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
   if (error) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Error loading data">
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
         <Card className="border-destructive/20">
           <CardContent className="py-12 text-center">
             <p className="text-destructive mb-4">{error}</p>
             <Button onClick={fetchAnalytics}>Try Again</Button>
           </CardContent>
         </Card>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -352,6 +358,7 @@ export default function PlatformAnalyticsPage() {
       title="Platform Analytics"
       subtitle="Monitor signups, organizations, and subscriptions"
     >
+<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex items-center justify-between">
@@ -380,55 +387,55 @@ export default function PlatformAnalyticsPage() {
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.signups.total || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <ArrowUpRight className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">+{analytics?.signups.last30Days || 0}</span>
+                <ArrowUpRight className="w-3 h-3 text-success" />
+                <span className="text-xs text-success font-medium">+{analytics?.signups.last30Days || 0}</span>
                 <span className="text-xs text-muted-foreground">last 30 days</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-blue-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-info/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Organizations</CardTitle>
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Building2 className="h-4 w-4 text-blue-500" />
+              <div className="p-2 bg-info/10 rounded-lg">
+                <Building2 className="h-4 w-4 text-info" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.organizations.total || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <ArrowUpRight className="w-3 h-3 text-green-500" />
-                <span className="text-xs text-green-500 font-medium">+{analytics?.organizations.last30Days || 0}</span>
+                <ArrowUpRight className="w-3 h-3 text-success" />
+                <span className="text-xs text-success font-medium">+{analytics?.organizations.last30Days || 0}</span>
                 <span className="text-xs text-muted-foreground">last 30 days</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-green-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-success/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Active Subscriptions</CardTitle>
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <CreditCard className="h-4 w-4 text-green-500" />
+              <div className="p-2 bg-success/10 rounded-lg">
+                <CreditCard className="h-4 w-4 text-success" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{analytics?.subscriptions.active || 0}</div>
               <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs text-blue-500 font-medium">{analytics?.subscriptions.trialing || 0} trialing</span>
+                <span className="text-xs text-info font-medium">{analytics?.subscriptions.trialing || 0} trialing</span>
                 <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-red-500">{analytics?.subscriptions.canceled || 0} canceled</span>
+                <span className="text-xs text-destructive">{analytics?.subscriptions.canceled || 0} canceled</span>
               </div>
             </CardContent>
           </Card>
 
           <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-amber-500/10 to-transparent rounded-bl-full" />
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-warning/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Conversion Rate</CardTitle>
-              <div className="p-2 bg-amber-500/10 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-amber-500" />
+              <div className="p-2 bg-warning/10 rounded-lg">
+                <TrendingUp className="h-4 w-4 text-warning" />
               </div>
             </CardHeader>
             <CardContent>
@@ -442,47 +449,46 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <TabsList className="grid w-full grid-cols-9 mb-4">
-            <TabsTrigger value="subscribers" className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              <span className="hidden sm:inline">Subscribers ({analytics?.subscribers?.total || 0})</span>
-              <span className="sm:hidden">{analytics?.subscribers?.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="signups" className="flex items-center gap-2">
-              <UserPlus className="w-4 h-4" />
-              <span className="hidden sm:inline">Signups ({analytics?.signups.total || 0})</span>
-              <span className="sm:hidden">{analytics?.signups.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="organizations" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Orgs ({analytics?.organizations.total || 0})</span>
-              <span className="sm:hidden">{analytics?.organizations.total || 0}</span>
-            </TabsTrigger>
-            <TabsTrigger value="churn" className="flex items-center gap-2">
-              <TrendingDown className="w-4 h-4" />
-              <span className="hidden sm:inline">Churn</span>
-            </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Activity</span>
-            </TabsTrigger>
-            <TabsTrigger value="evidence" className="flex items-center gap-2">
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline">Evidence</span>
-            </TabsTrigger>
-            <TabsTrigger value="demos" className="flex items-center gap-2">
-              <CalendarCheck className="w-4 h-4" />
-              <span className="hidden sm:inline">Demos</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              <span className="hidden sm:inline">Feed</span>
-            </TabsTrigger>
-            <TabsTrigger value="errors" className="flex items-center gap-2">
-              <Bug className="w-4 h-4" />
-              <span className="hidden sm:inline">Errors</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="mb-4 -mx-4 md:mx-0 overflow-x-auto scrollbar-none">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-9 h-auto gap-1 px-4 md:px-1">
+              <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <CreditCard className="w-4 h-4" />
+                <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="signups" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <UserPlus className="w-4 h-4" />
+                <span>Signups ({analytics?.signups.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="organizations" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Building2 className="w-4 h-4" />
+                <span>Orgs ({analytics?.organizations.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <TrendingDown className="w-4 h-4" />
+                <span>Churn</span>
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Activity className="w-4 h-4" />
+                <span>Activity</span>
+              </TabsTrigger>
+              <TabsTrigger value="evidence" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Search className="w-4 h-4" />
+                <span>Evidence</span>
+              </TabsTrigger>
+              <TabsTrigger value="demos" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <CalendarCheck className="w-4 h-4" />
+                <span>Demos</span>
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Bell className="w-4 h-4" />
+                <span>Feed</span>
+              </TabsTrigger>
+              <TabsTrigger value="errors" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Bug className="w-4 h-4" />
+                <span>Errors</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="churn">
             <div className="space-y-6">
@@ -544,16 +550,16 @@ export default function PlatformAnalyticsPage() {
                           return (
                             <div
                               key={subscriber.id}
-                              className="group flex items-center justify-between p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                              className="group flex items-center justify-between gap-2 p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                             >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
                                   <span className="text-sm font-medium text-primary">
                                     {subscriber.email?.charAt(0).toUpperCase() || '?'}
                                   </span>
                                 </div>
-                                <div>
-                                  <p className="font-medium text-sm">{subscriber.email}</p>
+                                <div className="min-w-0">
+                                  <p className="font-medium text-sm truncate">{subscriber.email}</p>
                                   {subscriber.name && (
                                     <p className="text-xs text-muted-foreground">{subscriber.name}</p>
                                   )}
@@ -565,7 +571,7 @@ export default function PlatformAnalyticsPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 shrink-0">
                                 <Badge
                                   variant={subscriber.subscriptionStatus === 'active' ? 'default' :
                                            subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
@@ -771,7 +777,7 @@ export default function PlatformAnalyticsPage() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-500" />
+                  <Building2 className="w-5 h-5 text-info" />
                   Recent Organizations
                   <Badge variant="secondary" className="ml-auto">Last 30 days</Badge>
                 </CardTitle>
@@ -825,8 +831,8 @@ export default function PlatformAnalyticsPage() {
                               onCheckedChange={() => toggleSelect(setSelectedOrgs, org.id)}
                             />
 
-                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                              <Building2 className="w-5 h-5 text-blue-500" />
+                            <div className="w-10 h-10 rounded-full bg-info/10 flex items-center justify-center">
+                              <Building2 className="w-5 h-5 text-info" />
                             </div>
                             <div>
                               <p className="font-medium text-sm">{org.name}</p>
@@ -867,35 +873,40 @@ export default function PlatformAnalyticsPage() {
           <TabsContent value="activity">
             <Card>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-purple-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <CardTitle className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
+                    <Activity className="w-5 h-5 text-primary" />
                     User Activity Tracking
                     <Badge variant="secondary">Live</Badge>
                   </CardTitle>
-                  {/* Filter buttons */}
-                  <div className="flex gap-1">
-                    <Button 
-                      variant={activityFilter === 'all' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('all')}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activityFilter === 'admin' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('admin')}
-                    >
-                      Admin ({sessionStats?.adminStats?.userCount || 0})
-                    </Button>
-                    <Button 
-                      variant={activityFilter === 'client_portal' ? 'default' : 'outline'} 
-                      size="sm"
-                      onClick={() => setActivityFilter('client_portal')}
-                    >
-                      Client Portal ({sessionStats?.clientPortalStats?.userCount || 0})
-                    </Button>
+                  {/* Filter buttons — horizontally scroll on narrow screens */}
+                  <div className="-mx-1 px-1 overflow-x-auto scrollbar-none">
+                    <div className="flex gap-1 w-max sm:w-auto">
+                      <Button
+                        variant={activityFilter === 'all' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('all')}
+                      >
+                        All
+                      </Button>
+                      <Button
+                        variant={activityFilter === 'admin' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('admin')}
+                      >
+                        Admin ({sessionStats?.adminStats?.userCount || 0})
+                      </Button>
+                      <Button
+                        variant={activityFilter === 'client_portal' ? 'default' : 'outline'}
+                        size="sm"
+                        className="whitespace-nowrap"
+                        onClick={() => setActivityFilter('client_portal')}
+                      >
+                        Client Portal ({sessionStats?.clientPortalStats?.userCount || 0})
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardHeader>
@@ -903,8 +914,8 @@ export default function PlatformAnalyticsPage() {
                 <div className="space-y-6">
                   {/* Activity Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                      <p className="text-2xl font-bold text-purple-600">
+                    <div className="text-center p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <p className="text-2xl font-bold text-primary">
                         {activityFilter === 'all' 
                           ? (sessionStats?.userList?.length || 0)
                           : activityFilter === 'admin'
@@ -916,8 +927,8 @@ export default function PlatformAnalyticsPage() {
                         {activityFilter === 'client_portal' ? 'Portal Users' : 'Active Users'} (All Time)
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                      <p className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-3 bg-info/10 rounded-lg border border-info/20">
+                      <p className="text-2xl font-bold text-info">
                         {activityFilter === 'all' 
                           ? Math.round(((sessionStats?.userList?.length || 0) / Math.max(1, analytics?.signups.total || 1)) * 100)
                           : activityFilter === 'admin'
@@ -929,10 +940,10 @@ export default function PlatformAnalyticsPage() {
                         {activityFilter === 'client_portal' ? 'Portal Engagement' : 'Engagement Rate'}
                       </p>
                     </div>
-                    <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <div className="text-center p-3 bg-success/10 rounded-lg border border-success/20">
                       <div className="flex items-center justify-center gap-1">
-                        <Timer className="w-4 h-4 text-green-600" />
-                        <p className="text-2xl font-bold text-green-600">
+                        <Timer className="w-4 h-4 text-success" />
+                        <p className="text-2xl font-bold text-success">
                           {formatDuration(
                             activityFilter === 'all' 
                               ? (sessionStats?.avgSessionDuration || 0)
@@ -944,8 +955,8 @@ export default function PlatformAnalyticsPage() {
                       </div>
                       <p className="text-xs text-muted-foreground">Avg Session Duration</p>
                     </div>
-                    <div className="text-center p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
-                      <p className="text-2xl font-bold text-amber-600">
+                    <div className="text-center p-3 bg-warning/10 rounded-lg border border-warning/20">
+                      <p className="text-2xl font-bold text-warning">
                         {activityFilter === 'all' 
                           ? (sessionStats?.totalSessions || 0)
                           : activityFilter === 'admin'
@@ -1000,7 +1011,7 @@ export default function PlatformAnalyticsPage() {
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800 flex items-center gap-1">
+                                    <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/20 flex items-center gap-1">
                                       <Clock className="w-3 h-3" />
                                       {formatDuration(userStat.total_duration_seconds)}
                                     </Badge>
@@ -1111,7 +1122,8 @@ export default function PlatformAnalyticsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </AdminLayout>
+    </div>
+</AdminLayout>
 
   );
 }

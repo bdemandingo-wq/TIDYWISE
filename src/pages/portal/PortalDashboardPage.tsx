@@ -239,11 +239,12 @@ function BottomPillNav({
         onClick={onRequest}
         aria-label="Book"
         style={{ background: 'hsl(var(--pv-brand))', color: 'hsl(var(--pv-brand-ink))' }}
-        className="!px-4"
+        className="!px-3 sm:!px-4"
       >
         <Plus className="h-[18px] w-[18px]" strokeWidth={2.4} />
         <span className="pv-nav-label">Book</span>
       </button>
+
     </nav>
   );
 }
@@ -252,7 +253,7 @@ function BottomPillNav({
 
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
-  const { user, customer, loyalty, signOut, loading, refreshData } = useClientPortal();
+  const { user, customer, loyalty, signOut, loading, refreshData, invokePortal } = useClientPortal();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -305,8 +306,9 @@ export default function PortalDashboardPage() {
         return;
       }
 
-      const { data: bookingsData } = await supabase
-        .rpc("get_client_portal_bookings", { p_customer_id: user.customer_id });
+      const { data: bookingsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_bookings" },
+      });
 
       const transformedBookings = (bookingsData || []).map((b: any) => ({
         id: b.id,
@@ -321,13 +323,15 @@ export default function PortalDashboardPage() {
 
       setBookings(transformedBookings);
 
-      const { data: requestsData } = await supabase
-        .rpc("get_client_portal_requests", { p_client_user_id: user.id });
+      const { data: requestsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_requests" },
+      });
 
       setRequests((requestsData || []) as BookingRequest[]);
 
-      const { data: notificationsData } = await supabase
-        .rpc("get_client_portal_notifications", { p_client_user_id: user.id });
+      const { data: notificationsData } = await invokePortal("client-portal-api", {
+        body: { action: "get_notifications" },
+      });
 
       setNotifications((notificationsData || []) as Notification[]);
 
@@ -492,14 +496,13 @@ export default function PortalDashboardPage() {
     }
     setSendingInvite(true);
     try {
-      const { data: rpcResult, error: rpcError } = await supabase.rpc(
-        'create_client_portal_referral' as any,
-        {
-          p_portal_user_id: user.id,
+      const { data: rpcResult, error: rpcError } = await invokePortal("client-portal-api", {
+        body: {
+          action: "create_referral",
           p_referred_email: trimmed,
           p_referred_name: inviteName.trim() || null,
-        }
-      );
+        },
+      });
       if (rpcError) throw new Error(rpcError.message);
       const result = rpcResult as { error?: string; referral_id?: string };
       if (result?.error) throw new Error(result.error);
@@ -528,14 +531,6 @@ export default function PortalDashboardPage() {
     }
   };
 
-  if (loading || !user || !customer) {
-    return (
-      <main className="portal-v2 min-h-screen flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--pv-ink-4))]" />
-      </main>
-    );
-  }
-
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const upcomingBookings = useMemo(
     () => bookings.filter((b) => new Date(b.scheduled_at) >= new Date() && b.status !== "cancelled"),
@@ -545,6 +540,14 @@ export default function PortalDashboardPage() {
     () => bookings.filter((b) => new Date(b.scheduled_at) < new Date() || b.status === "cancelled"),
     [bookings]
   );
+
+  if (loading || !user || !customer) {
+    return (
+      <main className="portal-v2 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--pv-ink-4))]" />
+      </main>
+    );
+  }
 
   const displayLoyalty = loyalty || { points: 0, lifetime_points: 0, tier: "bronze" };
 
@@ -571,16 +574,16 @@ export default function PortalDashboardPage() {
 
   const HeroCard = () => (
     <Card className="pv-hero">
-      <CardContent className="px-1 sm:px-2 py-8 sm:py-12">
+      <CardContent className="px-4 sm:px-2 py-6 sm:py-12">
         <p className="pv-eyebrow mb-3">Next appointment</p>
         {nextBooking ? (
           <>
-            <h2 className="pv-display text-[32px] sm:text-[44px] leading-[1.02] text-[hsl(var(--pv-ink))] max-w-2xl text-balance">
+            <h2 className="pv-display text-[26px] sm:text-[44px] leading-[1.05] text-[hsl(var(--pv-ink))] max-w-2xl text-balance break-words">
               {nextBooking.service?.name || "Service"}
             </h2>
-            <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] text-[hsl(var(--pv-ink-2))]">
-              <span className="inline-flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13.5px] sm:text-[14px] text-[hsl(var(--pv-ink-2))]">
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <Calendar className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
                 <span className="font-medium text-[hsl(var(--pv-ink))]">{getDateLabel(nextBooking.scheduled_at)}</span>
                 <span className="text-[hsl(var(--pv-ink-3))]">
                   · {formatInTimezone(nextBooking.scheduled_at, orgTimezone, { hour: "numeric", minute: "2-digit", hour12: true })}
@@ -594,10 +597,10 @@ export default function PortalDashboardPage() {
               )}
               <StatusChip status={nextBooking.status || 'pending'} />
             </div>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => handleReschedule(nextBooking)}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <CalendarClock className="h-4 w-4 mr-1.5" />
                 Reschedule
@@ -612,16 +615,16 @@ export default function PortalDashboardPage() {
           </>
         ) : (
           <>
-            <h2 className="pv-display text-[30px] sm:text-[40px] leading-[1.05] text-[hsl(var(--pv-ink))]">
+            <h2 className="pv-display text-[26px] sm:text-[40px] leading-[1.08] text-[hsl(var(--pv-ink))]">
               Nothing on the calendar
             </h2>
             <p className="mt-3 text-[15px] text-[hsl(var(--pv-ink-3))] max-w-md">
               When you'd like your next clean, we're a tap away.
             </p>
-            <div className="mt-8">
+            <div className="mt-6 sm:mt-8">
               <Button
                 onClick={() => navigate('/portal/request')}
-                className="h-11 rounded-full px-6 text-[14px] font-medium"
+                className="h-11 rounded-full px-5 sm:px-6 text-[14px] font-medium"
               >
                 <Plus className="h-4 w-4 mr-1.5" />
                 Request a booking
@@ -633,9 +636,10 @@ export default function PortalDashboardPage() {
     </Card>
   );
 
+
   const LoyaltyCard = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-4">
+      <CardContent className="px-4 sm:px-2 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="pv-eyebrow mb-1">Loyalty</p>
@@ -667,7 +671,7 @@ export default function PortalDashboardPage() {
 
   const QuickActions = () => (
     <Card className="pv-quiet">
-      <CardContent className="px-1 sm:px-2 py-2">
+      <CardContent className="px-2 sm:px-2 py-2">
         <p className="pv-eyebrow mb-1 px-2">Shortcuts</p>
         {[
           { icon: Gift,      label: 'Refer a friend', onClick: () => setActiveTab('referrals') },
@@ -689,6 +693,7 @@ export default function PortalDashboardPage() {
   );
 
 
+
   /* ─────────────────────────────── LAYOUT ─────────────────────────────── */
 
   return (
@@ -704,13 +709,14 @@ export default function PortalDashboardPage() {
       <header
         className={`sticky top-0 z-40 border-b border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-bg)/0.85)] backdrop-blur-md ${isNative ? 'portal-v2-header-safe' : ''}`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
-            <h1 className="pv-display text-[20px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
+        <div className="max-w-5xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-medium uppercase tracking-[0.12em] text-[hsl(var(--pv-ink-3))]">Client portal</p>
+            <h1 className="pv-display text-[18px] sm:text-[22px] leading-tight text-[hsl(var(--pv-ink))] truncate">
               Hello, {firstName}
             </h1>
           </div>
+
           <div className="flex items-center gap-1">
             <Sheet>
               <SheetTrigger asChild>
@@ -788,7 +794,7 @@ export default function PortalDashboardPage() {
       </header>
 
       {/* Content */}
-      <div className="portal-v2-scroll max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8">
+      <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8">
         <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
@@ -796,21 +802,23 @@ export default function PortalDashboardPage() {
             <HeroCard />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full overflow-x-auto no-scrollbar flex justify-start h-auto">
-                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-                <TabsTrigger value="requests">Requests</TabsTrigger>
-                <TabsTrigger value="history">History</TabsTrigger>
-                <TabsTrigger value="notifications">
-                  Alerts{unreadCount > 0 && <span className="ml-1.5 text-[hsl(var(--pv-danger))]">{unreadCount}</span>}
-                </TabsTrigger>
-                <TabsTrigger value="journal">Journal</TabsTrigger>
-                <TabsTrigger value="referrals">Referrals</TabsTrigger>
-                <TabsTrigger value="reports">
-                  Reports{inspectionReports.length > 0 && <span className="ml-1.5 text-[hsl(var(--pv-warn))]">{inspectionReports.length}</span>}
-                </TabsTrigger>
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
+              <div className="portal-v2-tabs-scroller">
+                <TabsList className="w-full overflow-x-auto no-scrollbar flex justify-start h-auto snap-x">
+                  <TabsTrigger value="upcoming" className="snap-start">Upcoming</TabsTrigger>
+                  <TabsTrigger value="requests" className="snap-start">Requests</TabsTrigger>
+                  <TabsTrigger value="history" className="snap-start">History</TabsTrigger>
+                  <TabsTrigger value="notifications" className="snap-start">
+                    Alerts{unreadCount > 0 && <span className="ml-1.5 text-[hsl(var(--pv-danger))]">{unreadCount}</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="journal" className="snap-start">Journal</TabsTrigger>
+                  <TabsTrigger value="referrals" className="snap-start">Referrals</TabsTrigger>
+                  <TabsTrigger value="reports" className="snap-start">
+                    Reports{inspectionReports.length > 0 && <span className="ml-1.5 text-[hsl(var(--pv-warn))]">{inspectionReports.length}</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="profile" className="snap-start">Profile</TabsTrigger>
+                  <TabsTrigger value="settings" className="snap-start">Settings</TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* Upcoming */}
               <TabsContent value="upcoming" className="space-y-3 mt-5">

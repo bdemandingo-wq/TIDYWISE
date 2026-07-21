@@ -52,7 +52,7 @@ interface TierInfo {
 }
 
 export function PortalProfileTab() {
-  const { user, customer, loyalty, refreshData } = useClientPortal();
+  const { user, customer, loyalty, refreshData, invokePortal } = useClientPortal();
   const [firstName, setFirstName] = useState(customer?.first_name || "");
   const [lastName, setLastName] = useState(customer?.last_name || "");
   const [phone, setPhone] = useState(customer?.phone || "");
@@ -90,8 +90,8 @@ export function PortalProfileTab() {
 
     const fetchLocations = async () => {
       setLoadingLocations(true);
-      const { data, error } = await supabase.rpc("get_client_portal_locations", {
-        p_customer_id: user.customer_id,
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: { action: "get_locations" },
       });
 
       if (!error && data) {
@@ -141,11 +141,13 @@ export function PortalProfileTab() {
     setSavingProfile(true);
 
     try {
-      const { data, error } = await supabase.rpc("update_client_portal_profile" as any, {
-        p_client_user_id: user.id,
-        p_first_name: firstName.trim(),
-        p_last_name: lastName.trim(),
-        p_phone: phone.trim() || null,
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: {
+          action: "update_profile",
+          p_first_name: firstName.trim(),
+          p_last_name: lastName.trim(),
+          p_phone: phone.trim() || null,
+        },
       });
 
       if (error) throw error;
@@ -169,15 +171,17 @@ export function PortalProfileTab() {
     setSavingLocation(true);
 
     try {
-      const { data, error } = await supabase.rpc("add_client_portal_location", {
-        p_client_user_id: user.id,
-        p_name: newLocation.name.trim(),
-        p_address: newLocation.address.trim(),
-        p_apt_suite: newLocation.apt_suite.trim() || null,
-        p_city: newLocation.city.trim() || null,
-        p_state: newLocation.state.trim() || null,
-        p_zip_code: newLocation.zip_code.trim() || null,
-        p_is_primary: newLocation.is_primary,
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: {
+          action: "add_location",
+          p_name: newLocation.name.trim(),
+          p_address: newLocation.address.trim(),
+          p_apt_suite: newLocation.apt_suite.trim() || null,
+          p_city: newLocation.city.trim() || null,
+          p_state: newLocation.state.trim() || null,
+          p_zip_code: newLocation.zip_code.trim() || null,
+          p_is_primary: newLocation.is_primary,
+        },
       });
 
       if (error) throw error;
@@ -195,8 +199,8 @@ export function PortalProfileTab() {
       setShowAddLocation(false);
 
       // Refresh locations
-      const { data: updatedLocations } = await supabase.rpc("get_client_portal_locations", {
-        p_customer_id: user.customer_id,
+      const { data: updatedLocations } = await invokePortal("client-portal-api", {
+        body: { action: "get_locations" },
       });
       if (updatedLocations) {
         setLocations(updatedLocations as Location[]);
@@ -631,6 +635,7 @@ export function PortalProfileTab() {
 
 // Tax Report Component
 function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
+  const { invokePortal } = useClientPortal();
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [downloading, setDownloading] = useState(false);
@@ -646,9 +651,8 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
     setDownloading(true);
 
     try {
-      const { data, error } = await supabase.rpc("get_client_tax_report", {
-        p_client_user_id: clientUserId,
-        p_year: parseInt(selectedYear),
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: { action: "get_tax_report", p_year: parseInt(selectedYear) },
       });
 
       if (error) throw error;

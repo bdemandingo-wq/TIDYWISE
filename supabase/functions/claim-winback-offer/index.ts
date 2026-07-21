@@ -194,16 +194,41 @@ serve(async (req) => {
       cancel_at_period_end: false,
     });
 
-    await supabase
-      .from("winback_offers")
-      .update({
-        status: "claimed",
-        claimed_at: new Date().toISOString(),
-        coupon_id: couponId,
-        stripe_customer_id: customerId,
-        stripe_subscription_id: active.id,
-      })
-      .eq("id", existing.id);
+    // The Stripe discount is already live on the subscription at this
+    // point — do not tell the customer this failed (it didn't, from
+    // their side). But if this status write doesn't land, the re-claim
+    // guard above (existing.status === "claimed") never trips, so the
+    // same coupon can be re-applied indefinitely. Retry once, then log
+    // loud enough for manual reconciliation rather than let it pass
+    // silently either way.
+    let claimRecorded = false;
+    let lastClaimErr: string | undefined;
+    for (let attempt = 1; attempt <= 2 && !claimRecorded; attempt++) {
+      const { error: claimErr } = await supabase
+        .from("winback_offers")
+        .update({
+          status: "claimed",
+          claimed_at: new Date().toISOString(),
+          coupon_id: couponId,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: active.id,
+        })
+        .eq("id", existing.id);
+      if (!claimErr) {
+        claimRecorded = true;
+      } else {
+        lastClaimErr = claimErr.message;
+        console.error(`[WINBACK] status update to 'claimed' failed (attempt ${attempt}/2):`, claimErr);
+      }
+    }
+    if (!claimRecorded) {
+      console.error(
+        `[WINBACK] CRITICAL: coupon ${couponId} applied to Stripe subscription ${active.id} ` +
+        `(customer ${customerId}, user ${userId}) but winback_offers row ${existing.id} was never ` +
+        `marked claimed after 2 attempts (${lastClaimErr}) — the re-claim guard is bypassed for this ` +
+        `user until manually reconciled.`,
+      );
+    }
 
     return new Response(JSON.stringify({ success: true, coupon_id: couponId, offer: cfg }), {
       status: 200,

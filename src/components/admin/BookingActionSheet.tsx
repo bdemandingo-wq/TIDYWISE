@@ -17,7 +17,7 @@ import {
   Heart, Banknote, UserPlus, ChevronDown, CheckCircle,
 } from 'lucide-react';
 import { BookingWithDetails } from '@/hooks/useBookings';
-import { usePlatform } from '@/hooks/usePlatform';
+
 
 interface BookingActionSheetProps {
   booking: BookingWithDetails | null;
@@ -98,7 +98,7 @@ function ActionBtn({
     return (
       <Button
         variant="ghost"
-        className={cn(base, 'text-red-500 hover:bg-red-500/10', disabled && 'opacity-40')}
+        className={cn(base, 'text-destructive hover:bg-destructive/10', disabled && 'opacity-40')}
         onClick={onClick}
         disabled={disabled}
       >
@@ -169,7 +169,9 @@ export function BookingActionSheet({
   sendingReminder, sendingCleanerNotification, notifyingOpenJob,
   sendingReviewRequest, sendingTipRequest,
 }: BookingActionSheetProps) {
-  const { canShowPaymentFlows } = usePlatform();
+  // Payment actions here charge the org's own customers via the org's Stripe for
+  // real-world cleaning services — exempt from Apple IAP, so shown on native too.
+  const canShowPaymentFlows = true;
 
   if (!booking) return null;
 
@@ -178,20 +180,20 @@ export function BookingActionSheet({
 
   // Status badge colors - bold solid pills
   const statusBadgeClass = {
-    pending: 'bg-amber-500 text-white',
-    confirmed: 'bg-blue-500 text-white',
+    pending: 'bg-warning text-white',
+    confirmed: 'bg-info text-white',
     in_progress: 'bg-purple-500 text-white',
-    completed: 'bg-emerald-500 text-white',
-    cancelled: 'bg-rose-500 text-white',
-    no_show: 'bg-slate-400 text-white',
-  }[booking.status] || 'bg-blue-500 text-white';
+    completed: 'bg-success text-white',
+    cancelled: 'bg-destructive text-white',
+    no_show: 'bg-muted-foreground text-background',
+  }[booking.status] || 'bg-info text-white';
 
   const paymentBadgeClass = {
-    paid: 'bg-emerald-500 text-white',
-    pending: 'bg-red-500 text-white',
-    refunded: 'bg-slate-400 text-white',
-    partial: 'bg-amber-500 text-white',
-  }[booking.payment_status] || 'bg-red-500 text-white';
+    paid: 'bg-success text-white',
+    pending: 'bg-destructive text-white',
+    refunded: 'bg-muted-foreground text-background',
+    partial: 'bg-warning text-white',
+  }[booking.payment_status] || 'bg-destructive text-white';
 
   const isDisabledHold = cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id;
   const isDisabledRefund = booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id);
@@ -235,7 +237,7 @@ export function BookingActionSheet({
             <Eye className="w-4 h-4" /> View Details
           </Button>
           <Button
-            className="w-full justify-start gap-2.5 h-11 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-[13px] rounded-lg shadow-sm disabled:opacity-40"
+            className="w-full justify-start gap-2.5 h-11 bg-success hover:bg-success/90 text-white font-semibold text-[13px] rounded-lg shadow-sm disabled:opacity-40"
             onClick={() => onMarkPaid(booking)}
             disabled={booking.payment_status === 'paid'}
           >

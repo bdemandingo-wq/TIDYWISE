@@ -235,8 +235,8 @@ export function MobileContactProfile({
               variant="secondary"
               className={cn(
                 'mt-1.5 text-xs',
-                customer.customer_status === 'active' && 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-                customer.customer_status === 'lead' && 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+                customer.customer_status === 'active' && 'bg-success/10 text-success',
+                customer.customer_status === 'lead' && 'bg-info/10 text-info',
                 customer.customer_status === 'inactive' && 'bg-muted text-muted-foreground',
               )}
             >
@@ -334,7 +334,7 @@ export function MobileContactProfile({
               className="min-h-[80px] border-0 bg-transparent resize-none p-0 focus-visible:ring-0 text-sm"
             />
             {notesSaved && (
-              <div className="flex items-center gap-1 mt-1 text-xs text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-1 mt-1 text-xs text-success">
                 <Check className="w-3 h-3" />
                 <span>Saved</span>
               </div>

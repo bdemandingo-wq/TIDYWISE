@@ -146,7 +146,7 @@ export function DomainVerificationCard() {
   const statusBadge = (status: string) => {
     switch (status) {
       case 'verified':
-        return <Badge variant="default" className="bg-green-600"><CheckCircle className="w-3 h-3 mr-1" /> Verified</Badge>;
+        return <Badge variant="default" className="bg-success text-success-foreground"><CheckCircle className="w-3 h-3 mr-1" /> Verified</Badge>;
       case 'pending': case 'not_started':
         return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>;
       case 'temporary_failure': case 'failed':
@@ -170,9 +170,9 @@ export function DomainVerificationCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Alert variant="default" className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-          <Globe className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800 dark:text-blue-200">
+        <Alert variant="default" className="border-info/20 bg-info/10">
+          <Globe className="h-4 w-4 text-info" />
+          <AlertDescription className="text-info">
             Add your domain, then copy the DNS records to your domain registrar (GoDaddy, Cloudflare, Namecheap, etc.). Verification can take up to 72 hours.
           </AlertDescription>
         </Alert>
@@ -289,7 +289,7 @@ export function DomainVerificationCard() {
                               <td className="p-2 font-mono max-w-[250px] truncate" title={rec.value}>{rec.value}</td>
                               <td className="p-2">
                                 {rec.status === 'verified' ? (
-                                  <CheckCircle className="w-3 h-3 text-green-600" />
+                                  <CheckCircle className="w-3 h-3 text-success" />
                                 ) : (
                                   <Clock className="w-3 h-3 text-muted-foreground" />
                                 )}
@@ -313,7 +313,7 @@ export function DomainVerificationCard() {
                 )}
 
                 {d.status === 'verified' && (
-                  <p className="text-xs text-green-600 dark:text-green-400">
+                  <p className="text-xs text-success">
                     ✓ You can now send emails from @{d.domain_name}. Set your From Email in the email settings above.
                   </p>
                 )}

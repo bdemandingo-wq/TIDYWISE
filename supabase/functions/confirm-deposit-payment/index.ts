@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (session.payment_status === 'paid') {
       // Update deposit as paid
-      await supabase
+      const { error: depositUpdateError } = await supabase
         .from('deposit_requests')
         .update({
           status: 'paid',
@@ -84,11 +84,34 @@ const handler = async (req: Request): Promise<Response> => {
         })
         .eq('id', deposit.id);
 
+      if (depositUpdateError) {
+        // Stripe already has this paid — do NOT tell the caller it
+        // succeeded. This endpoint re-checks Stripe on every call, so
+        // the caller retrying is itself the recovery path; returning
+        // success here would make the retry never happen.
+        console.error("[confirm-deposit-payment] CRITICAL: Stripe confirms paid but deposit_requests update failed:", {
+          depositId: deposit.id, organizationId: deposit.organization_id, error: depositUpdateError,
+        });
+        return new Response(
+          JSON.stringify({ success: false, error: "Payment confirmed but we couldn't save it — please retry." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Update booking deposit_paid amount
-      await supabase
+      const { error: bookingUpdateError } = await supabase
         .from('bookings')
         .update({ deposit_paid: deposit.amount })
         .eq('id', deposit.booking_id);
+
+      if (bookingUpdateError) {
+        console.error("[confirm-deposit-payment] booking.deposit_paid update failed (deposit_requests already marked paid):", {
+          depositId: deposit.id, bookingId: deposit.booking_id, error: bookingUpdateError,
+        });
+        // deposit_requests is already correctly marked paid, so we don't
+        // retry-fail the whole request — but this needs to be loud since
+        // the booking record itself won't reflect the deposit.
+      }
 
       logAudit({
         action: 'payment.deposit_confirmed',

@@ -37,6 +37,7 @@ import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDiscountSettingsCard';
 import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
 import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
+import { SchedulingModeCard } from '@/components/admin/SchedulingModeCard';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
@@ -742,6 +743,7 @@ export default function SettingsPage() {
         <TabsContent value="booking-form" className="space-y-6">
           <BookingFormShareCard organizationSlug={organization?.slug} />
           {organization?.slug && <EmbedCodeCard orgSlug={organization.slug} />}
+          <SchedulingModeCard />
           <FormDisplaySettings />
         </TabsContent>
 
@@ -916,14 +918,14 @@ export default function SettingsPage() {
               </div>
               
               {/* Feedback note */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
                 <div className="flex gap-2">
-                  <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                    <p className="text-sm font-medium text-info">
                       What happens with ratings under 4 stars?
                     </p>
-                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                    <p className="text-sm text-info mt-1">
                       Ratings of 3 stars or below will be sent to your <strong>Feedback</strong> tab instead of Google. 
                       This allows you to address customer concerns privately before they become public reviews.
                     </p>

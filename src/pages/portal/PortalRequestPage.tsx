@@ -107,8 +107,8 @@ export default function PortalRequestPage() {
 
   const refreshLocations = async () => {
     if (!user) return;
-    const { data } = await supabase.rpc("get_client_portal_locations", {
-      p_customer_id: user.customer_id,
+    const { data } = await invokePortal("client-portal-api", {
+      body: { action: "get_locations" },
     });
     const locs = (data || []) as Location[];
     setLocations(locs);
@@ -159,14 +159,16 @@ export default function PortalRequestPage() {
     }
     setSavingAddr(true);
     try {
-      const { error } = await supabase.rpc("add_client_portal_location", {
-        p_client_user_id: user.id,
-        p_name: newAddr.name.trim(),
-        p_address: newAddr.address.trim(),
-        p_city: newAddr.city.trim() || null,
-        p_state: newAddr.state.trim() || null,
-        p_zip_code: newAddr.zip_code.trim() || null,
-        p_is_primary: locations.length === 0,
+      const { error } = await invokePortal("client-portal-api", {
+        body: {
+          action: "add_location",
+          p_name: newAddr.name.trim(),
+          p_address: newAddr.address.trim(),
+          p_city: newAddr.city.trim() || null,
+          p_state: newAddr.state.trim() || null,
+          p_zip_code: newAddr.zip_code.trim() || null,
+          p_is_primary: locations.length === 0,
+        },
       });
       if (error) throw error;
 
@@ -286,14 +288,14 @@ export default function PortalRequestPage() {
 
   if (loading || !user || !customer) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-background">
+      <main className="portal-v2 portal-v2-scroll min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
+    <main className="portal-v2 portal-v2-scroll min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <SEOHead
         title="Request a Booking | Client Portal"
         description="Submit a booking request for your preferred date and service."

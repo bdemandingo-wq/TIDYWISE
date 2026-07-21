@@ -33,11 +33,11 @@ interface Lead {
 }
 
 const PIPELINE_COLUMNS = [
-  { id: 'new', label: 'New', color: 'bg-blue-500', borderColor: 'border-t-blue-500' },
-  { id: 'follow_up', label: 'Follow Up', color: 'bg-yellow-500', borderColor: 'border-t-yellow-500' },
+  { id: 'new', label: 'New', color: 'bg-info', borderColor: 'border-t-info' },
+  { id: 'follow_up', label: 'Follow Up', color: 'bg-warning', borderColor: 'border-t-warning' },
   { id: 'quoted', label: 'Quoted', color: 'bg-purple-500', borderColor: 'border-t-purple-500' },
-  { id: 'converted', label: 'Converted', color: 'bg-green-500', borderColor: 'border-t-green-500' },
-  { id: 'lost', label: 'Lost', color: 'bg-red-500', borderColor: 'border-t-red-500' },
+  { id: 'converted', label: 'Converted', color: 'bg-success', borderColor: 'border-t-success' },
+  { id: 'lost', label: 'Lost', color: 'bg-destructive', borderColor: 'border-t-destructive' },
 ];
 
 interface LeadPipelineBoardProps {
@@ -167,7 +167,7 @@ export function LeadPipelineBoard({
                   maskName={maskName}
                   maskEmail={maskEmail}
                   maskPhone={maskPhone}
-                  showDelete={!isMobile}
+                  showDelete={true}
                 />
               ))}
             </div>
@@ -284,7 +284,7 @@ function LeadCard({
 
         {/* Estimated Value */}
         {lead.estimated_value != null && lead.estimated_value > 0 && (
-          <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+          <p className="text-xs font-semibold text-success">
             ${lead.estimated_value.toLocaleString()}
           </p>
         )}

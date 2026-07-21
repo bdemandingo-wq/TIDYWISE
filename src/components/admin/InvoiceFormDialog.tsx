@@ -103,11 +103,13 @@ export function InvoiceFormDialog({
     is_recurring: false,
     recurring_interval: 'monthly',
     email_copy: true,
+    cc_emails: [] as string[],
   });
 
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showDiscount, setShowDiscount] = useState(false);
   const [showTax, setShowTax] = useState(false);
+  const [ccInput, setCcInput] = useState('');
 
   // Fetch payment settings for display
   const { data: paymentSettings } = useQuery({
@@ -177,6 +179,7 @@ export function InvoiceFormDialog({
           is_recurring: invoice.is_recurring || false,
           recurring_interval: invoice.recurring_interval || 'monthly',
           email_copy: invoice.send_copy_to_self ?? true,
+          cc_emails: Array.isArray(invoice.cc_emails) ? invoice.cc_emails : [],
         });
         if (invoice.invoice_items?.length > 0) {
           setLineItems(invoice.invoice_items.map((item: any) => ({
@@ -209,6 +212,7 @@ export function InvoiceFormDialog({
           is_recurring: false,
           recurring_interval: 'monthly',
           email_copy: true,
+          cc_emails: [],
         });
         setLineItems([]);
         setShowDiscount(false);
@@ -217,8 +221,12 @@ export function InvoiceFormDialog({
     }
   }, [open, invoice, defaultTaxPercent]);
 
-  // Calculate totals
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  // Calculate totals (coerce for numeric safety)
+  const subtotal = lineItems.reduce((sum, item) => {
+    const q = Number(item.quantity) || 0;
+    const p = Number(item.unit_price) || 0;
+    return sum + q * p;
+  }, 0);
   const discountPercent = parseFloat(formData.discount_percent) || 0;
   const discountAmount = subtotal * (discountPercent / 100);
   const subtotalAfterDiscount = subtotal - discountAmount;
@@ -227,7 +235,7 @@ export function InvoiceFormDialog({
   const totalAmount = subtotalAfterDiscount + taxAmount;
 
   const addLineItem = () => {
-    const defaultHours = (paymentSettings as any)?.default_billable_hours ?? 5;
+    const defaultHours = Number((paymentSettings as any)?.default_billable_hours) || 1;
     setLineItems([...lineItems, { service_id: '__custom__', description: '', quantity: defaultHours, unit_price: 0, total: 0 }]);
   };
 
@@ -238,21 +246,40 @@ export function InvoiceFormDialog({
   const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
-    
-    if (field === 'quantity' || field === 'unit_price') {
-      updated[index].total = updated[index].quantity * updated[index].unit_price;
-    }
-    
+
     if (field === 'service_id' && value && value !== '__custom__') {
       const service = services.find(s => s.id === value);
       if (service) {
         updated[index].description = service.name;
-        updated[index].unit_price = service.price || 0;
-        updated[index].total = updated[index].quantity * updated[index].unit_price;
+        updated[index].unit_price = Number(service.price) || 0;
       }
     }
-    
+
+    // Always recompute total to avoid stale $0.00 displays
+    const q = Number(updated[index].quantity) || 0;
+    const p = Number(updated[index].unit_price) || 0;
+    updated[index].total = q * p;
+
     setLineItems(updated);
+  };
+
+  const addCcEmail = () => {
+    const email = ccInput.trim().toLowerCase();
+    if (!email) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    if (formData.cc_emails.includes(email)) {
+      setCcInput('');
+      return;
+    }
+    setFormData({ ...formData, cc_emails: [...formData.cc_emails, email] });
+    setCcInput('');
+  };
+
+  const removeCcEmail = (email: string) => {
+    setFormData({ ...formData, cc_emails: formData.cc_emails.filter(e => e !== email) });
   };
 
   // Get selected customer/lead info
@@ -290,6 +317,7 @@ export function InvoiceFormDialog({
         recurring_interval: formData.is_recurring ? formData.recurring_interval : null,
         scheduled_send_at: formData.send_immediately ? null : formData.scheduled_send_at,
         send_copy_to_self: formData.email_copy,
+        cc_emails: formData.cc_emails,
       };
 
       let invoiceId: string;
@@ -370,6 +398,7 @@ export function InvoiceFormDialog({
             taxAmount: showTax ? taxAmount : 0,
             dueDate: formData.due_label === 'Upon receipt' ? null : formData.due_date,
             notes: formData.notes || null,
+            ccEmails: wantsEmail ? formData.cc_emails : [],
           },
         });
 
@@ -641,6 +670,51 @@ export function InvoiceFormDialog({
                     {formData.notes.length}/250
                   </div>
                 </div>
+                <div className="px-4 py-3 border-b">
+                  <label className="text-sm font-medium text-muted-foreground mb-2 block">
+                    CC recipients (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      value={ccInput}
+                      onChange={(e) => setCcInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          addCcEmail();
+                        }
+                      }}
+                      placeholder="name@example.com"
+                    />
+                    <Button type="button" variant="outline" onClick={addCcEmail}>
+                      Add
+                    </Button>
+                  </div>
+                  {formData.cc_emails.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {formData.cc_emails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removeCcEmail(email)}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label={`Remove ${email}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These addresses will be CC'd when the invoice is emailed.
+                  </p>
+                </div>
               </CollapsibleContent>
             </Collapsible>
 
@@ -709,7 +783,7 @@ export function InvoiceFormDialog({
                         <div className="flex-1">
                           <label className="text-xs text-muted-foreground">Total</label>
                           <div className="h-10 flex items-center font-medium">
-                            ${item.total.toFixed(2)}
+                            ${((Number(item.quantity) || 0) * (Number(item.unit_price) || 0)).toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -902,10 +976,18 @@ export function InvoiceFormDialog({
                     className="flex-1"
                     disabled={saveMutation.isPending || lineItems.length === 0 || !selectedCustomer}
                   >
-                    {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Send
-                    <ChevronDown className="w-4 h-4 ml-2" />
+                    {saveMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Send
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      </>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">

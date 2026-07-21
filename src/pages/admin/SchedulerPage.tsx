@@ -223,7 +223,9 @@ export default function SchedulerPage() {
         </div>
       }
     >
-      <SchedulerCalendar statusFilter={statusFilter} staffFilter={staffFilter} />
+      <div className="portal-v2 portal-v2-scroll pv-compact">
+        <SchedulerCalendar statusFilter={statusFilter} staffFilter={staffFilter} />
+      </div>
     </AdminLayout>
   );
 }

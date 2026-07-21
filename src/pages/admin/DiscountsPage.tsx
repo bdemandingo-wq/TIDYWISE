@@ -129,11 +129,13 @@ export default function DiscountsPage() {
   if (loading) {
     return (
       <AdminLayout title="Discounts & Coupons" subtitle="Manage promotional codes">
+<div className="portal-v2 portal-v2-scroll">
         <SEOHead title="Discounts | TidyWise" description="Manage promotional codes and discounts" noIndex />
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-      </AdminLayout>
+      </div>
+</AdminLayout>
     );
   }
 
@@ -142,6 +144,7 @@ export default function DiscountsPage() {
       title="Discounts & Coupons"
       subtitle="Create and manage promotional codes for your customers"
     >
+<div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Discounts | TidyWise" description="Manage promotional codes and discounts" noIndex />
       <PlanFeatureGate feature="discounts_advanced">
         {settings?.demo_mode_enabled && (
@@ -367,6 +370,7 @@ export default function DiscountsPage() {
           </CardContent>
         </Card>
       </PlanFeatureGate>
-    </AdminLayout>
+    </div>
+</AdminLayout>
   );
 }
