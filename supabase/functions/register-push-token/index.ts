@@ -42,12 +42,25 @@ serve(async (req) => {
       });
     }
 
-    // Get user's org
+    // Get user's org — try org_memberships first, then fall back to staff table
+    // (cleaner accounts have no org_memberships row).
+    let organizationId: string | null = null;
     const { data: membership } = await supabase
       .from("org_memberships")
       .select("organization_id")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+    if (membership?.organization_id) {
+      organizationId = membership.organization_id;
+    } else {
+      const { data: staffRow } = await supabase
+        .from("staff")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (staffRow?.organization_id) organizationId = staffRow.organization_id;
+    }
 
     // Upsert token (one row per user+token pair)
     const { error } = await supabase
@@ -55,7 +68,7 @@ serve(async (req) => {
       .upsert(
         {
           user_id: user.id,
-          organization_id: membership?.organization_id ?? null,
+          organization_id: organizationId,
           token,
           platform,
           updated_at: new Date().toISOString(),

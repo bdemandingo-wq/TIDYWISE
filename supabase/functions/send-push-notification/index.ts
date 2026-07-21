@@ -73,9 +73,11 @@ async function sendApns(deviceToken: string, title: string, body: string, data?:
     ...data,
   };
 
-  // Use sandbox for development builds (aps-environment: development in entitlements)
-  // Change to api.push.apple.com when releasing to App Store
-  const apnsHost = "api.sandbox.push.apple.com";
+  // Use APNS_ENV secret to switch between sandbox and production APNs.
+  // "production" -> api.push.apple.com, anything else (or unset) -> sandbox.
+  const apnsHost = Deno.env.get("APNS_ENV") === "production"
+    ? "api.push.apple.com"
+    : "api.sandbox.push.apple.com";
   const url = `https://${apnsHost}/3/device/${deviceToken}`;
   const res = await fetch(url, {
     method: "POST",
@@ -101,17 +103,6 @@ async function sendApns(deviceToken: string, title: string, body: string, data?:
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // SECURITY: internal-only — its one legitimate caller (notify-time-off-request)
-  // already invokes it with the service-role key. No frontend caller exists;
-  // an unauthenticated caller could otherwise push arbitrary title/body to
-  // every device in any org, an in-app phishing vector.
-  if (!isServiceRoleRequest(req)) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -119,11 +110,12 @@ serve(async (req) => {
   );
 
   try {
-    const { organization_id, title, body, data } = await req.json() as {
+    const { organization_id, title, body, data, staff_id } = await req.json() as {
       organization_id: string;
       title: string;
       body: string;
       data?: Record<string, string>;
+      staff_id?: string;
     };
 
     if (!organization_id || !title || !body) {
@@ -133,18 +125,80 @@ serve(async (req) => {
       });
     }
 
-    log("Sending push", { organization_id, title });
+    // SECURITY: accept service-role callers, OR an authenticated admin/owner
+    // of `organization_id`. Rejects cleaner-initiated or cross-org sends,
+    // preserving the anti-phishing gate while allowing admin app actions.
+    if (!isServiceRoleRequest(req)) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const token = authHeader.slice("Bearer ".length).trim();
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: membership } = await supabase
+        .from("org_memberships")
+        .select("role")
+        .eq("user_id", userData.user.id)
+        .eq("organization_id", organization_id)
+        .maybeSingle();
+      const role = membership?.role;
+      if (!role || !["owner", "admin", "manager"].includes(role)) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
-    // Get all device tokens for admin/owner members of this org
-    const { data: tokens, error } = await supabase
+    log("Sending push", { organization_id, title, staff_id });
+
+    // Resolve target device tokens.
+    let targetUserId: string | null = null;
+    if (staff_id) {
+      const { data: staffRow, error: staffErr } = await supabase
+        .from("staff")
+        .select("user_id, organization_id")
+        .eq("id", staff_id)
+        .maybeSingle();
+      if (staffErr || !staffRow) {
+        return new Response(JSON.stringify({ error: "staff_id not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (staffRow.organization_id !== organization_id) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!staffRow.user_id) {
+        log("Staff has no user_id — no devices", { staff_id });
+        return new Response(JSON.stringify({ sent: 0, message: "Staff has no linked user" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+        });
+      }
+      targetUserId = staffRow.user_id;
+    }
+
+    let tokenQuery = supabase
       .from("device_push_tokens")
       .select("token, user_id")
-      .eq("organization_id", organization_id)
       .eq("platform", "ios");
+    if (targetUserId) {
+      tokenQuery = tokenQuery.eq("user_id", targetUserId);
+    } else {
+      tokenQuery = tokenQuery.eq("organization_id", organization_id);
+    }
+    const { data: tokens, error } = await tokenQuery;
 
     if (error) throw error;
     if (!tokens || tokens.length === 0) {
-      log("No device tokens found for org", { organization_id });
+      log("No device tokens found", { organization_id, staff_id });
       return new Response(JSON.stringify({ sent: 0, message: "No registered devices" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
