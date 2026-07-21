@@ -3716,7 +3716,7 @@ export type Database = {
           opted_out_method?: string | null
           organization_id?: string | null
           phone?: string | null
-          referral_code: string
+          referral_code?: string
           review_request_sent?: boolean
           review_request_sent_at?: string | null
           state?: string | null
