@@ -352,24 +352,18 @@ export default function PortalDashboardPage() {
       }
 
       if (user.customer_id) {
-        const { data: customerCodeData } = await supabase
-          .from('customers')
-          .select('referral_code' as any)
-          .eq('id', user.customer_id)
-          .single();
-        if ((customerCodeData as any)?.referral_code) {
-          setReferralCode((customerCodeData as any).referral_code);
-        }
+        // Portal has no Supabase auth session, so any direct RLS-protected
+        // query returns nothing. Both the share code and the referral list
+        // come from the session-verified edge function.
+        const [{ data: userData }, { data: referralData }] = await Promise.all([
+          invokePortal("client-portal-api", { body: { action: "get_user_data" } }),
+          invokePortal("client-portal-api", { body: { action: "get_referrals" } }),
+        ]);
 
-        const { data: referralData } = await supabase
-          .from('referrals')
-          .select('id, referred_email, status, credit_amount, credit_awarded, created_at, referral_code')
-          .eq('referrer_customer_id', user.customer_id)
-          .order('created_at', { ascending: false });
+        const share = (Array.isArray(userData) ? userData[0] : userData) as { share_referral_code?: string } | null;
+        if (share?.share_referral_code) setReferralCode(share.share_referral_code);
 
-        if (referralData?.length) {
-          setReferrals(referralData);
-        }
+        if (Array.isArray(referralData)) setReferrals(referralData as any);
       }
 
       setLoadingData(false);
