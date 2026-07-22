@@ -18,7 +18,7 @@ const getPushPlugin = async () => {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     return PushNotifications;
   } catch (error) {
-    console.log('Push notifications plugin not available:', error);
+    console.log('[PUSH] Push notifications plugin not available:', error);
     return null;
   }
 };
@@ -53,7 +53,7 @@ export const showBrowserNotification = ({ title, body, tag, onClick }: Notificat
       notification.close();
     };
   } catch (error) {
-    console.error('Error showing browser notification:', error);
+    console.error('[PUSH] Error showing browser notification:', error);
   }
 };
 
@@ -173,7 +173,7 @@ export function usePushNotifications(staffId?: string) {
 
       // Don't log the raw token — it's a credential that can be used to send
       // arbitrary push notifications to this device until it rotates.
-      console.log('Push registration success');
+      console.log('[PUSH] Push registration success');
       setToken(nativeToken);
       setIsRegistered(true);
 
@@ -204,7 +204,7 @@ export function usePushNotifications(staffId?: string) {
       if (staffId) {
         // Dev placeholder until staff-token persistence is wired up. Never log
         // the actual token alongside the staff id — that's a deanonymizing pair.
-        console.log('Push token ready for staff registration');
+        console.log('[PUSH] Push token ready for staff registration');
       }
 
       if (!tokenSaved) {
@@ -214,7 +214,7 @@ export function usePushNotifications(staffId?: string) {
 
       return true;
     } catch (error) {
-      console.error('Push registration error:', error);
+      console.error('[PUSH] Push registration error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to register for push notifications');
       return false;
     } finally {
@@ -253,7 +253,7 @@ export function usePushNotifications(staffId?: string) {
       }
       return success;
     } catch (error) {
-      console.error('Error enabling notifications:', error);
+      console.error('[PUSH] Error enabling notifications:', error);
       toast.error('Failed to enable notifications');
       return false;
     } finally {

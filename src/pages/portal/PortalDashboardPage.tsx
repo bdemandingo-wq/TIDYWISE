@@ -533,7 +533,7 @@ export default function PortalDashboardPage() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const upcomingBookings = useMemo(
-    () => bookings.filter((b) => new Date(b.scheduled_at) >= new Date() && b.status !== "cancelled"),
+    () => bookings.filter((b) => new Date(b.scheduled_at) >= new Date() && b.status !== "cancelled" && b.status !== "completed"),
     [bookings]
   );
   const pastBookings = useMemo(
@@ -1176,21 +1176,23 @@ function BookingRow({
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
             <StatusChip status={booking.status} />
             <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))] tabular-nums">${booking.total_amount}</p>
-            <div className="flex gap-1">
-              <button
-                onClick={onReschedule}
-                className="h-9 px-3 rounded-full text-[12.5px] font-medium text-[hsl(var(--pv-ink-2))] hover:text-[hsl(var(--pv-ink))] hover:bg-[hsl(var(--pv-sunken))] transition-colors"
-              >
-                Reschedule
-              </button>
-              <button
-                onClick={onCancel}
-                className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
-                aria-label="Cancel"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+            {booking.status !== 'completed' && booking.status !== 'cancelled' && (
+              <div className="flex gap-1">
+                <button
+                  onClick={onReschedule}
+                  className="h-9 px-3 rounded-full text-[12.5px] font-medium text-[hsl(var(--pv-ink-2))] hover:text-[hsl(var(--pv-ink))] hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+                >
+                  Reschedule
+                </button>
+                <button
+                  onClick={onCancel}
+                  className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
+                  aria-label="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
