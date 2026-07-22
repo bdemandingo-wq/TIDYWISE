@@ -537,7 +537,7 @@ export default function PortalDashboardPage() {
     [bookings]
   );
   const pastBookings = useMemo(
-    () => bookings.filter((b) => new Date(b.scheduled_at) < new Date() || b.status === "cancelled"),
+    () => bookings.filter((b) => new Date(b.scheduled_at) < new Date() || b.status === "cancelled" || b.status === "completed"),
     [bookings]
   );
 
