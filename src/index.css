@@ -1202,6 +1202,11 @@ body {
 /* Fade-edge indicator for horizontally scrollable tab strips in portal */
 .portal-v2-tabs-scroller {
   position: relative;
+  /* Without this the scroller inherits min-width:auto from its flex/grid
+     ancestor and the tab strip pushes the whole column wide instead of
+     scrolling (client portal, 2026-07-22). */
+  min-width: 0;
+  max-width: 100%;
 }
 .portal-v2-tabs-scroller::after {
   content: "";

@@ -794,14 +794,17 @@ export default function PortalDashboardPage() {
       </header>
 
       {/* Content */}
-      <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8">
+      <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 overflow-x-clip">
         <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-5">
+          {/* min-w-0: grid/flex children default to min-width:auto, so the
+              9-tab strip below forced this column (and every card in it)
+              wider than the phone screen instead of scrolling. */}
+          <div className="lg:col-span-2 space-y-5 min-w-0">
             <HeroCard />
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
               <div className="portal-v2-tabs-scroller">
                 <TabsList className="w-full overflow-x-auto no-scrollbar flex justify-start h-auto snap-x">
                   <TabsTrigger value="upcoming" className="snap-start">Upcoming</TabsTrigger>
