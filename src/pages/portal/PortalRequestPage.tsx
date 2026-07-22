@@ -180,8 +180,10 @@ export default function PortalRequestPage() {
       toast.success("Address added!");
       setNewAddr({ name: "Home", address: "", city: "", state: "", zip_code: "" });
       setShowAddAddress(false);
-    } catch {
-      toast.error("Failed to add address");
+    } catch (err: any) {
+      console.error("Add address error:", err);
+      const msg = err?.context?.body?.error || err?.message || "Failed to add address";
+      toast.error(msg);
     } finally {
       setSavingAddr(false);
     }
