@@ -188,7 +188,7 @@ export function PortalProfileTab() {
 
       toast.success("Address added successfully!");
       setNewLocation({
-        name: "",
+        name: "Home",
         address: "",
         apt_suite: "",
         city: "",
