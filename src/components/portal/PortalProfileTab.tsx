@@ -205,9 +205,10 @@ export function PortalProfileTab() {
       if (updatedLocations) {
         setLocations(updatedLocations as Location[]);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Add location error:", err);
-      toast.error("Failed to add address");
+      const msg = err?.context?.body?.error || err?.message || "Failed to add address";
+      toast.error(msg);
     } finally {
       setSavingLocation(false);
     }
