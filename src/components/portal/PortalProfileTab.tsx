@@ -63,7 +63,7 @@ export function PortalProfileTab() {
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [newLocation, setNewLocation] = useState({
-    name: "",
+    name: "Home",
     address: "",
     apt_suite: "",
     city: "",
@@ -188,7 +188,7 @@ export function PortalProfileTab() {
 
       toast.success("Address added successfully!");
       setNewLocation({
-        name: "",
+        name: "Home",
         address: "",
         apt_suite: "",
         city: "",
