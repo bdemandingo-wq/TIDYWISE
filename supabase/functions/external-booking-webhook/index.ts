@@ -39,6 +39,7 @@ const BookingSchema = z.object({
   is_arrival_window: z.boolean().optional().nullable(),
   arrival_window_start: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
   arrival_window_end: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  referral_code: z.string().trim().min(1).max(64).optional().nullable(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -296,6 +297,7 @@ const handler = async (req: Request): Promise<Response> => {
         is_arrival_window: payload.is_arrival_window ?? false,
         arrival_window_start: payload.arrival_window_start ?? null,
         arrival_window_end: payload.arrival_window_end ?? null,
+        referral_code: payload.referral_code ? payload.referral_code.trim() : null,
         status: 'pending',
         payment_status: 'pending',
       })

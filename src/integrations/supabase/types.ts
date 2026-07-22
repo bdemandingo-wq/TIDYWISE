@@ -1761,6 +1761,8 @@ export type Database = {
           payment_status: Database["public"]["Enums"]["payment_status"]
           previous_scheduled_at: string | null
           recurring_days_of_week: number[] | null
+          referral_code: string | null
+          referral_id: string | null
           reschedule_reason: string | null
           rescheduled_at: string | null
           rescheduled_by: string | null
@@ -1827,6 +1829,8 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           previous_scheduled_at?: string | null
           recurring_days_of_week?: number[] | null
+          referral_code?: string | null
+          referral_id?: string | null
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
@@ -1893,6 +1897,8 @@ export type Database = {
           payment_status?: Database["public"]["Enums"]["payment_status"]
           previous_scheduled_at?: string | null
           recurring_days_of_week?: number[] | null
+          referral_code?: string | null
+          referral_id?: string | null
           reschedule_reason?: string | null
           rescheduled_at?: string | null
           rescheduled_by?: string | null
@@ -1936,6 +1942,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "referrals"
             referencedColumns: ["id"]
           },
           {

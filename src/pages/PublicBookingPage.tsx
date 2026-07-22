@@ -464,9 +464,10 @@ export default function PublicBookingPage() {
                         arrival_window_start: w.start_time,
                         arrival_window_end: w.end_time,
                       }
-                    : {};
-                })()
-              : {}),
+                  : {};
+              })()
+            : {}),
+            ...(trackingRef ? { referral_code: trackingRef } : {}),
           },
         });
 
