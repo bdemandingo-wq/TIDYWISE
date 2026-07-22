@@ -39,6 +39,7 @@ const BookingSchema = z.object({
   is_arrival_window: z.boolean().optional().nullable(),
   arrival_window_start: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
   arrival_window_end: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  referral_code: z.string().trim().min(1).max(64).optional().nullable(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
