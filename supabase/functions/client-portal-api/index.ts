@@ -190,7 +190,7 @@ serve(async (req) => {
             .maybeSingle(),
           supabase
             .from("customers")
-            .select("first_name, last_name, email, phone")
+            .select("first_name, last_name, email, phone, referral_code")
             .eq("id", customer_id)
             .maybeSingle(),
           supabase
@@ -214,11 +214,23 @@ serve(async (req) => {
           last_name: cust.last_name,
           email: cust.email,
           phone: cust.phone,
+          share_referral_code: (cust as any).referral_code ?? null,
           loyalty_points: loyalty?.points ?? null,
           loyalty_lifetime_points: loyalty?.lifetime_points ?? null,
           loyalty_tier: loyalty?.tier ?? null,
           property_type: null,
         }]);
+      }
+
+      case "get_referrals": {
+        const { data, error } = await supabase
+          .from("referrals")
+          .select("id, referred_email, referred_name, status, credit_amount, credit_awarded, created_at, completed_at, referral_code")
+          .eq("organization_id", organization_id)
+          .eq("referrer_customer_id", customer_id)
+          .order("created_at", { ascending: false });
+        if (error) return err(error.message, 500);
+        return ok(data ?? []);
       }
 
       default:
