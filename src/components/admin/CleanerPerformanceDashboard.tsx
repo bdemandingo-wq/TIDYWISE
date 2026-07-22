@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { saveBlob } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -149,10 +150,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `cleaner-performance-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    void saveBlob(blob, `cleaner-performance-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 
   return (

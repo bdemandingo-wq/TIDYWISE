@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
 import { geocodeAddress } from '@/lib/distanceUtils';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -282,12 +283,7 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
 
       if (error) throw error;
 
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = formData.tax_document_url.split('/').pop() || 'tax-document';
-      a.click();
-      URL.revokeObjectURL(url);
+      await saveBlob(data, formData.tax_document_url.split('/').pop() || 'tax-document');
     } catch (error) {
       console.error('Error downloading document:', error);
       toast.error('Failed to download tax document');

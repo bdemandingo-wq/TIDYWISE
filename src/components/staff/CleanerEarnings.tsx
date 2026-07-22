@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -286,10 +287,9 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     rows.push(['Average Per Hour', stats.avgPerHour.toFixed(2)]);
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `earnings-${staffName.replace(/\s+/g, '-')}-${format(dateRange?.from || new Date(), 'yyyy-MM-dd')}-to-${format(dateRange?.to || new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    const fileName = `earnings-${staffName.replace(/\s+/g, '-')}-${format(dateRange?.from || new Date(), 'yyyy-MM-dd')}-to-${format(dateRange?.to || new Date(), 'yyyy-MM-dd')}.csv`;
+    // saveBlob → share sheet on iOS; <a download> is ignored in WKWebView.
+    void saveBlob(blob, fileName);
   };
 
   const setPreset = (preset: 'month' | 'quarter' | 'ytd' | 'year') => {

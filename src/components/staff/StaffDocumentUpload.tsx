@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { previewFile, downloadFile } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -157,33 +158,13 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
     }
   };
 
-  const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from('staff-documents')
-      .download(filePath);
-    if (error || !data) {
-      toast.error('Failed to download');
-      return;
-    }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // Preview/download go through fileActions so they work in the iOS app —
+  // `<a download>` and window.open(blobUrl) are both no-ops in WKWebView.
+  const handleDownload = (filePath: string, fileName: string) =>
+    downloadFile('staff-documents', filePath, fileName);
 
-  const handlePreview = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from('staff-documents')
-      .download(filePath);
-    if (error || !data) {
-      toast.error('Failed to preview');
-      return;
-    }
-    const url = URL.createObjectURL(data);
-    window.open(url, '_blank');
-  };
+  const handlePreview = (filePath: string, _fileName: string) =>
+    previewFile('staff-documents', filePath);
 
   const typeLabel = (type: string) =>
     DOCUMENT_TYPES.find((t) => t.value === type)?.label || type;

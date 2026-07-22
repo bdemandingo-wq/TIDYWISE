@@ -21,6 +21,7 @@ import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
 import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
 import { fmt } from '@/lib/activeCurrency';
 
 interface ProfitMarginReportProps {
@@ -205,10 +206,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `profit-margin-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
-    link.click();
+    void saveBlob(blob, `profit-margin-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 
   return (

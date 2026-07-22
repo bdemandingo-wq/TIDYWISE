@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
+import { previewFile, downloadFile } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -105,33 +106,10 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
     onError: () => toast.error('Failed to update document status'),
   });
 
-  const handlePreview = async (filePath: string) => {
-    const { data, error } = await supabase.storage
-      .from('staff-documents')
-      .download(filePath);
-    if (error || !data) {
-      toast.error('Failed to preview');
-      return;
-    }
-    const url = URL.createObjectURL(data);
-    window.open(url, '_blank');
-  };
+  const handlePreview = (filePath: string) => previewFile('staff-documents', filePath);
 
-  const handleDownload = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from('staff-documents')
-      .download(filePath);
-    if (error || !data) {
-      toast.error('Failed to download');
-      return;
-    }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const handleDownload = (filePath: string, fileName: string) =>
+    downloadFile('staff-documents', filePath, fileName);
 
   const statusIcon = (status: string) => {
     if (status === 'approved') return <CheckCircle2 className="h-4 w-4 text-green-500" />;

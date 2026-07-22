@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { previewFile } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -139,27 +140,10 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
     },
   });
 
-  const handlePreview = async (filePath: string) => {
-    // Pre-open window BEFORE async call to avoid iOS Safari popup blocker
-    const newTab = window.open('about:blank', '_blank');
-
-    const { data, error } = await supabase.storage
-      .from('staff-documents')
-      .createSignedUrl(filePath, 300);
-
-    if (error || !data?.signedUrl) {
-      if (newTab) newTab.close();
-      toast.error('Failed to open document preview');
-      return;
-    }
-
-    if (newTab) {
-      newTab.location.href = data.signedUrl;
-    } else {
-      // Fallback: direct navigation if popup was still blocked
-      window.location.href = data.signedUrl;
-    }
-  };
+  // Uses fileActions: in the iOS app this opens the in-app browser. The old
+  // version fell back to window.location on native, which navigated the whole
+  // app to the PDF with no way back.
+  const handlePreview = (filePath: string) => previewFile('staff-documents', filePath);
 
   const regeneratePdfMutation = useMutation({
     mutationFn: async (sig: Signature) => {

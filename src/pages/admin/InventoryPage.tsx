@@ -39,6 +39,7 @@ import {
 import { Plus, Package, Trash2, Edit, Settings, MoreHorizontal, Download, Upload, Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
@@ -265,18 +266,13 @@ export default function InventoryPage() {
     setEditingCell(null);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const csv = [
       ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'].join(','),
       ...filteredItems.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || ''].join(','))
     ].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'inventory.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    await saveBlob(blob, 'inventory.csv');
     toast.success('Inventory exported');
   };
 
@@ -363,17 +359,14 @@ export default function InventoryPage() {
               size="sm"
               variant="outline"
               className="h-7 text-xs"
-              onClick={() => {
+              onClick={async () => {
                 const selected = items.filter(i => selectedIds.has(i.id));
                 const csv = [
                   ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'].join(','),
                   ...selected.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || ''].join(','))
                 ].join('\n');
                 const blob = new Blob([csv], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'inventory-selected.csv'; a.click();
-                URL.revokeObjectURL(url);
+                await saveBlob(blob, 'inventory-selected.csv');
               }}
             >
               Export selected

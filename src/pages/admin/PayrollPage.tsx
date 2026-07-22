@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3, CreditCard, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
@@ -723,7 +724,7 @@ export default function PayrollPage() {
   const currentWeekForecast = useMemo(() => calcWeekForecast(currentWeekBookings, forecastTeamAssignments), [currentWeekBookings, forecastTeamAssignments, staff]);
   const nextWeekForecast = useMemo(() => calcWeekForecast(nextWeekBookings, forecastTeamAssignments), [nextWeekBookings, forecastTeamAssignments, staff]);
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
     const headers = ['Name', 'Email', 'Tax Classification', 'Base Wage', 'Hours', 'Assigned Cleans', 'Period Pay', 'Revenue', 'Profit', 'Labor %', 'Avg Pay/Clean', 'YTD Earnings'];
     const rows = payrollData.map((s) => [
       s.name, s.email,
@@ -735,15 +736,10 @@ export default function PayrollPage() {
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `payroll-report-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await saveBlob(blob, `payroll-report-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
   };
 
-  const exportDetailedCSV = () => {
+  const exportDetailedCSV = async () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Labor %', 'Profit', 'Margin %'];
     const rows = filteredBookingPayrollDetails.map((b) => [
       getDateInTimezone(b.scheduled_at, orgTimezone),
@@ -755,15 +751,10 @@ export default function PayrollPage() {
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `payroll-details-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await saveBlob(blob, `payroll-details-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
   };
 
-  const exportCleanerCSV = () => {
+  const exportCleanerCSV = async () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Pay'];
     const rows = filteredBookingPayrollDetails.map((b) => [
       getDateInTimezone(b.scheduled_at, orgTimezone),
@@ -776,13 +767,8 @@ export default function PayrollPage() {
     rows.push(['', '', '', `Totals (${filteredBookingPayrollDetails.length} bookings)`, totalHours.toFixed(2), `${fmt(totalPay)}`]);
     const csv = [headers, ...rows].map((row) => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const staffSuffix = staffFilterId !== 'all' ? `-${(staff.find((s: any) => s.id === staffFilterId)?.name || 'cleaner').replace(/\s+/g, '_')}` : '';
-    a.download = `cleaner-payroll${staffSuffix}-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await saveBlob(blob, `cleaner-payroll${staffSuffix}-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
   };
 
   const getRowHighlight = (detail: BookingPayrollDetail) => {
