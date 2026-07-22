@@ -306,7 +306,7 @@ export default function PlatformAnalyticsPage() {
   if (user?.email !== 'support@tidywisecleaning.com') {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
-<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
+<div className="portal-v2 portal-v2-scroll overflow-x-clip">
       <SEOHead title="Platform Analytics | TidyWise" description="View platform usage and engagement analytics" noIndex />
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="py-12 text-center">
@@ -321,7 +321,7 @@ export default function PlatformAnalyticsPage() {
   if (loading) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Loading...">
-<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
+<div className="portal-v2 portal-v2-scroll overflow-x-clip">
         <div className="flex items-center justify-center h-64">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -336,7 +336,7 @@ export default function PlatformAnalyticsPage() {
   if (error) {
     return (
       <AdminLayout title="Platform Analytics" subtitle="Error loading data">
-<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
+<div className="portal-v2 portal-v2-scroll overflow-x-clip">
         <Card className="border-destructive/20">
           <CardContent className="py-12 text-center">
             <p className="text-destructive mb-4">{error}</p>
@@ -358,7 +358,7 @@ export default function PlatformAnalyticsPage() {
       title="Platform Analytics"
       subtitle="Monitor signups, organizations, and subscriptions"
     >
-<div className="portal-v2 portal-v2-scroll overflow-x-hidden">
+<div className="portal-v2 portal-v2-scroll overflow-x-clip">
       <div className="space-y-6">
         {/* Header Actions */}
         <div className="flex items-center justify-between">
@@ -449,7 +449,7 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <div className="mb-4 -mx-4 md:mx-0 overflow-x-auto scrollbar-none">
+          <div className="mb-4 -mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none">
             <TabsList className="inline-flex md:grid md:w-full md:grid-cols-9 h-auto gap-1 px-4 md:px-1">
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <CreditCard className="w-4 h-4" />
