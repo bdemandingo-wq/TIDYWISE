@@ -806,20 +806,20 @@ export default function PortalDashboardPage() {
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
               <div className="portal-v2-tabs-scroller">
-                <TabsList className="w-full overflow-x-auto no-scrollbar flex justify-start h-auto snap-x">
-                  <TabsTrigger value="upcoming" className="snap-start">Upcoming</TabsTrigger>
-                  <TabsTrigger value="requests" className="snap-start">Requests</TabsTrigger>
-                  <TabsTrigger value="history" className="snap-start">History</TabsTrigger>
-                  <TabsTrigger value="notifications" className="snap-start">
+                <TabsList className="w-full max-w-full overflow-x-auto no-scrollbar flex flex-nowrap justify-start h-auto snap-x">
+                  <TabsTrigger value="upcoming" className="snap-start shrink-0 whitespace-nowrap">Upcoming</TabsTrigger>
+                  <TabsTrigger value="requests" className="snap-start shrink-0 whitespace-nowrap">Requests</TabsTrigger>
+                  <TabsTrigger value="history" className="snap-start shrink-0 whitespace-nowrap">History</TabsTrigger>
+                  <TabsTrigger value="notifications" className="snap-start shrink-0 whitespace-nowrap">
                     Alerts{unreadCount > 0 && <span className="ml-1.5 text-[hsl(var(--pv-danger))]">{unreadCount}</span>}
                   </TabsTrigger>
-                  <TabsTrigger value="journal" className="snap-start">Journal</TabsTrigger>
-                  <TabsTrigger value="referrals" className="snap-start">Referrals</TabsTrigger>
-                  <TabsTrigger value="reports" className="snap-start">
+                  <TabsTrigger value="journal" className="snap-start shrink-0 whitespace-nowrap">Journal</TabsTrigger>
+                  <TabsTrigger value="referrals" className="snap-start shrink-0 whitespace-nowrap">Referrals</TabsTrigger>
+                  <TabsTrigger value="reports" className="snap-start shrink-0 whitespace-nowrap">
                     Reports{inspectionReports.length > 0 && <span className="ml-1.5 text-[hsl(var(--pv-warn))]">{inspectionReports.length}</span>}
                   </TabsTrigger>
-                  <TabsTrigger value="profile" className="snap-start">Profile</TabsTrigger>
-                  <TabsTrigger value="settings" className="snap-start">Settings</TabsTrigger>
+                  <TabsTrigger value="profile" className="snap-start shrink-0 whitespace-nowrap">Profile</TabsTrigger>
+                  <TabsTrigger value="settings" className="snap-start shrink-0 whitespace-nowrap">Settings</TabsTrigger>
                 </TabsList>
               </div>
 
