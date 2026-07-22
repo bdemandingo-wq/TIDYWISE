@@ -16,7 +16,7 @@ import {
   CalendarCheck, Phone, Mail, Briefcase, Loader2,
   ChevronLeft, ChevronRight, Ban, X, Search,
   Calendar as CalendarIcon, Clock, AlertTriangle,
-  ArrowUpDown, Eye, CheckCircle2, Trash2
+  ArrowUpDown, Eye, CheckCircle2, Trash2, Video
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -40,6 +40,47 @@ interface DemoBooking {
   original_date: string | null;
   original_time: string | null;
   created_at: string;
+}
+
+// ── Google Calendar quick-add ─────────────────────────────────────────────
+// Demo slots are defined in EST (see DemoBookingForm availability table), so
+// we send wall-clock times plus ctz and let Google do the conversion — the
+// guest's invite lands correctly in whatever timezone they're in.
+const DEMO_TZ = 'America/New_York';
+const DEMO_DURATION_MIN = 45;
+
+function buildGoogleCalendarUrl(demo: DemoBooking): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const [hh = 0, mm = 0] = demo.booked_time.split(':').map(Number);
+
+  // Pure wall-clock arithmetic: build from parts, add duration, read parts back.
+  const [y, mo, d] = demo.booked_date.split('-').map(Number);
+  const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
+  const end = new Date(start.getTime() + DEMO_DURATION_MIN * 60000);
+  const stamp = (dt: Date) =>
+    `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+
+  const details = [
+    `TidyWise demo with ${demo.full_name}${demo.business_name ? ` — ${demo.business_name}` : ''}.`,
+    '',
+    `Email: ${demo.email}`,
+    demo.phone ? `Phone: ${demo.phone}` : '',
+    demo.team_size ? `Team size: ${demo.team_size}` : '',
+    demo.biggest_challenge ? `Biggest challenge: ${demo.biggest_challenge}` : '',
+    demo.timezone ? `Their timezone: ${demo.timezone}` : '',
+    '',
+    'Click "Add Google Meet video conferencing", then Save — Google emails the guest the link.',
+  ].filter(Boolean).join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `TidyWise Demo — ${demo.full_name}${demo.business_name ? ` (${demo.business_name})` : ''}`,
+    dates: `${stamp(start)}/${stamp(end)}`,
+    ctz: DEMO_TZ,
+    details,
+    add: demo.email,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
 interface BlockedDate {
@@ -648,6 +689,17 @@ export function DemoCalendarTab() {
                                   </Button>
                                 </>
                               )}
+                              {demo.status !== 'cancelled' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="min-h-[44px] w-8 p-0 text-info hover:text-info"
+                                  title="Send Meet link — opens Google Calendar prefilled with their email and time"
+                                  onClick={() => window.open(buildGoogleCalendarUrl(demo), '_blank', 'noopener')}
+                                >
+                                  <Video className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -892,7 +944,15 @@ export function DemoCalendarTab() {
 
               {/* Actions */}
               {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled' || detailBooking.status === 'cancelled') && (
-                <div className="flex gap-2 pt-2 border-t border-border">
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  {detailBooking.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      onClick={() => window.open(buildGoogleCalendarUrl(detailBooking), '_blank', 'noopener')}
+                    >
+                      <Video className="w-4 h-4 mr-1" /> Send Meet Link
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     variant="outline"
