@@ -86,17 +86,19 @@ Deno.serve(async (req) => {
     const staffMap = new Map((staff ?? []).map((s) => [s.id, s.name]));
     const bookingMap = new Map((bookings ?? []).map((b) => [b.id, b]));
 
-    // Sign URLs in batch (1h)
-    const paths = filtered.map((p) => p.photo_url);
-    const { data: signed, error: signErr } = await supabase.storage
-      .from("booking-photos")
-      .createSignedUrls(paths, 3600);
+    // Sign URLs in batch (1h) — guard against empty paths (Storage API rejects [])
+    const paths = filtered.map((p) => p.photo_url).filter((p): p is string => !!p);
+    let signedMap = new Map<string, string>();
+    if (paths.length > 0) {
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("booking-photos")
+        .createSignedUrls(paths, 3600);
+      if (signErr) throw signErr;
+      signedMap = new Map(
+        (signed ?? []).map((s) => [s.path ?? "", s.signedUrl]),
+      );
+    }
 
-    if (signErr) throw signErr;
-
-    const signedMap = new Map(
-      (signed ?? []).map((s) => [s.path ?? "", s.signedUrl]),
-    );
 
     const result = filtered.map((p) => {
       const b = bookingMap.get(p.booking_id);
