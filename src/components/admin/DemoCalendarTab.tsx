@@ -16,7 +16,7 @@ import {
   CalendarCheck, Phone, Mail, Briefcase, Loader2,
   ChevronLeft, ChevronRight, Ban, X, Search,
   Calendar as CalendarIcon, Clock, AlertTriangle,
-  ArrowUpDown, Eye, CheckCircle2, Trash2, Video
+  ArrowUpDown, Eye, CheckCircle2, Trash2, Video, MessageSquare
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -163,6 +163,9 @@ export function DemoCalendarTab() {
 
   // Detail modal
   const [detailBooking, setDetailBooking] = useState<DemoBooking | null>(null);
+
+  // Confirmation text (per-row in-flight tracking)
+  const [confirmingTextId, setConfirmingTextId] = useState<string | null>(null);
 
   // Bulk select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -448,6 +451,26 @@ export function DemoCalendarTab() {
     toast.success('Demo marked as completed');
   };
 
+  const handleSendConfirmationText = async (demo: DemoBooking) => {
+    if (!demo.phone) return;
+    setConfirmingTextId(demo.id);
+    try {
+      const firstName = demo.full_name.split(' ')[0];
+      const dateDisplay = format(new Date(demo.booked_date + 'T00:00:00'), 'EEEE, MMMM d');
+      const timeDisplay = formatTime12h(demo.booked_time.substring(0, 5));
+      await sendSms(
+        demo.phone,
+        `Hi ${firstName}, confirming your TidyWise demo on ${dateDisplay} at ${timeDisplay} EST. You'll get a Google Meet link by email. Reply here if you need to reschedule.`
+      );
+      toast.success('✅ Confirmation text sent');
+    } catch (err) {
+      console.error('[DemoCalendarTab] Confirmation SMS failed:', err);
+      toast.error('Failed to send confirmation text');
+    } finally {
+      setConfirmingTextId(null);
+    }
+  };
+
   // Reschedule time slots
   const rescheduleSlots = rescheduleDate
     ? generateTimeSlots(new Date(rescheduleDate + 'T00:00:00').getDay())
@@ -690,15 +713,29 @@ export function DemoCalendarTab() {
                                 </>
                               )}
                               {demo.status !== 'cancelled' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="min-h-[44px] w-8 p-0 text-info hover:text-info"
-                                  title="Send Meet link — opens Google Calendar prefilled with their email and time"
-                                  onClick={() => window.open(buildGoogleCalendarUrl(demo), '_blank', 'noopener')}
-                                >
-                                  <Video className="w-4 h-4" />
-                                </Button>
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="min-h-[44px] w-8 p-0 text-info hover:text-info"
+                                    title="Send Meet link — opens Google Calendar prefilled with their email and time"
+                                    onClick={() => window.open(buildGoogleCalendarUrl(demo), '_blank', 'noopener')}
+                                  >
+                                    <Video className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="min-h-[44px] w-8 p-0 text-info hover:text-info"
+                                    title={demo.phone ? 'Send confirmation text' : 'No phone number on file'}
+                                    disabled={!demo.phone || confirmingTextId === demo.id}
+                                    onClick={() => handleSendConfirmationText(demo)}
+                                  >
+                                    {confirmingTextId === demo.id
+                                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                                      : <MessageSquare className="w-4 h-4" />}
+                                  </Button>
+                                </>
                               )}
                               <Button
                                 size="sm"
@@ -946,12 +983,26 @@ export function DemoCalendarTab() {
               {(detailBooking.status === 'confirmed' || detailBooking.status === 'rescheduled' || detailBooking.status === 'cancelled') && (
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
                   {detailBooking.status !== 'cancelled' && (
-                    <Button
-                      size="sm"
-                      onClick={() => window.open(buildGoogleCalendarUrl(detailBooking), '_blank', 'noopener')}
-                    >
-                      <Video className="w-4 h-4 mr-1" /> Send Meet Link
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => window.open(buildGoogleCalendarUrl(detailBooking), '_blank', 'noopener')}
+                      >
+                        <Video className="w-4 h-4 mr-1" /> Send Meet Link
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title={detailBooking.phone ? undefined : 'No phone number on file'}
+                        disabled={!detailBooking.phone || confirmingTextId === detailBooking.id}
+                        onClick={() => handleSendConfirmationText(detailBooking)}
+                      >
+                        {confirmingTextId === detailBooking.id
+                          ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          : <MessageSquare className="w-4 h-4 mr-1" />}
+                        Send Confirmation Text
+                      </Button>
+                    </>
                   )}
                   <Button
                     size="sm"
