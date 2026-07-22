@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
+import { saveBlob } from '@/lib/fileActions';
 import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
@@ -69,20 +71,10 @@ export default function SchedulerPage() {
       if (type === 'csv') {
         const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await saveBlob(blob, `${filename}.csv`);
       } else if (type === 'json') {
         const blob = new Blob([JSON.stringify(bookings, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${filename}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        await saveBlob(blob, `${filename}.json`);
       } else if (type === 'xlsx') {
         // xlsx (SheetJS) is write-only here. The outstanding CVEs
         // (GHSA-4r6h-8v6p-xvw6 prototype pollution, GHSA-5pgg-2g8v-p4x9
@@ -95,8 +87,16 @@ export default function SchedulerPage() {
         ws['!cols'] = headers.map(() => ({ wch: 18 }));
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Bookings');
-        XLSX.writeFile(wb, `${filename}.xlsx`);
-      } else if (type === 'pdf') {
+        // writeFile() performs its own browser download, which is a no-op in
+        // WKWebView — write to an array and hand the blob to saveBlob instead.
+        const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([out], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        await saveBlob(blob, `${filename}.xlsx`);
+      } else if (type === 'pdf' || (type === 'print' && Capacitor.isNativePlatform())) {
+        // Native has no print dialog — export the PDF to the iOS share sheet,
+        // which offers Print (AirPrint) alongside Save to Files.
         const { default: jsPDF } = await import('jspdf');
         const autoTable = (await import('jspdf-autotable')).default;
         const doc = new jsPDF({ orientation: 'landscape' });
@@ -116,7 +116,8 @@ export default function SchedulerPage() {
           alternateRowStyles: { fillColor: [245, 247, 250] },
           margin: { left: 14, right: 14 },
         });
-        doc.save(`${filename}.pdf`);
+        // doc.save() is also an anchor download under the hood.
+        await saveBlob(doc.output('blob') as Blob, `${filename}.pdf`);
       } else if (type === 'print') {
         const printWin = window.open('', '_blank');
         if (!printWin) { toast.error('Popup blocked — please allow popups'); return; }
