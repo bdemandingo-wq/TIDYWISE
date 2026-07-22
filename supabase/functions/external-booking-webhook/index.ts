@@ -297,6 +297,7 @@ const handler = async (req: Request): Promise<Response> => {
         is_arrival_window: payload.is_arrival_window ?? false,
         arrival_window_start: payload.arrival_window_start ?? null,
         arrival_window_end: payload.arrival_window_end ?? null,
+        referral_code: payload.referral_code ? payload.referral_code.trim() : null,
         status: 'pending',
         payment_status: 'pending',
       })
