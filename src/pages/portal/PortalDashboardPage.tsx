@@ -511,12 +511,10 @@ export default function PortalDashboardPage() {
       setInviteName('');
 
       if (user.customer_id) {
-        const { data: referralData } = await supabase
-          .from('referrals')
-          .select('id, referred_email, status, credit_amount, credit_awarded, created_at')
-          .eq('referrer_customer_id', user.customer_id)
-          .order('created_at', { ascending: false });
-        if (referralData) setReferrals(referralData);
+        const { data: referralData } = await invokePortal("client-portal-api", {
+          body: { action: "get_referrals" },
+        });
+        if (Array.isArray(referralData)) setReferrals(referralData as any);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to send invite');
