@@ -71,9 +71,17 @@ serve(async (req) => {
           return json(400, { error: "duration_days must be > 0" });
         }
         const code = (body.code as string | undefined)?.trim().toUpperCase() || randomCode(10);
-        const max_uses = body.max_uses == null ? null : Number(body.max_uses);
+        // Default max_uses = 1 (one-per-person). Explicit null = unlimited.
+        let max_uses: number | null = 1;
+        if (body.max_uses === null) {
+          max_uses = null;
+        } else if (body.max_uses !== undefined && body.max_uses !== "") {
+          max_uses = Number(body.max_uses);
+        }
         const expires_at = body.expires_at ?? null;
         const reason = (body.reason as string | undefined) ?? null;
+        const rawLock = (body.email_lock as string | undefined)?.trim().toLowerCase();
+        const email_lock = rawLock ? rawLock : null;
 
         const { data, error } = await supabaseAdmin
           .from("access_codes")
@@ -83,6 +91,7 @@ serve(async (req) => {
             max_uses,
             expires_at,
             reason,
+            email_lock,
             active: true,
             created_by: user.id,
           })
@@ -90,6 +99,19 @@ serve(async (req) => {
           .single();
         if (error) throw error;
         return json(200, { code: data });
+      }
+
+      case "list_redemptions": {
+        const access_code_id = body.access_code_id as string | undefined;
+        let q = supabaseAdmin
+          .from("access_code_redemptions")
+          .select("id, access_code_id, user_id, organization_id, email, redeemed_at, organizations:organization_id(id,name)")
+          .order("redeemed_at", { ascending: false })
+          .limit(500);
+        if (access_code_id) q = q.eq("access_code_id", access_code_id);
+        const { data, error } = await q;
+        if (error) throw error;
+        return json(200, { redemptions: data });
       }
 
       case "deactivate_code":
