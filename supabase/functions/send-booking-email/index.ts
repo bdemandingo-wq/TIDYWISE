@@ -119,8 +119,20 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 
+  let bookingBody: Partial<BookingEmailRequest> = {};
   try {
-    const booking = (await req.json()) as Partial<BookingEmailRequest>;
+    bookingBody = (await req.json()) as Partial<BookingEmailRequest>;
+  } catch (parseErr) {
+    console.error("[send-booking-email] Failed to parse request body:", parseErr);
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  try {
+    const booking = bookingBody;
+
 
     const customerEmail = (booking.customerEmail || "").trim();
     const customerName = (booking.customerName || "").trim();
