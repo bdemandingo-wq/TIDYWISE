@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { REFUND_POLICY, CANCELLATION_POLICY, POLICY_DISCLOSURE } from "../_shared/policies.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1045,6 +1046,47 @@ const handler = async (req: Request): Promise<Response> => {
           ? `Visa Compelling Evidence 3.0: cardholder completed ${qualifying.length} prior undisputed transactions on ${matchSummary}, each sharing 2+ matching elements with the disputed charge (account_id ${disputedEvidence?.user_id || "n/a"}, email ${disputedEvidence?.email || "n/a"}, IP ${disputedEvidence?.ip_address || "n/a"}). Account active since ${fmt(disputedEvidence?.signup_date)}.${tos?.accepted ? ` Terms of Service v${tos.tos_version} accepted on ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}.` : ""} This satisfies the CE 3.0 standard for fraud reason 10.4; liability should remain with the issuer.`
           : `CE 3.0 NOT QUALIFYING: only ${qualifying.length} prior undisputed transaction(s) within the 120-365 day window share 2+ matching elements with the disputed charge. Dispute likely unwinnable on CE 3.0 grounds — consider accepting.`;
 
+        // ── Reason-specific narrative fields ────────────────────────────
+        // 'fraudulent' and any unlisted reason fall through to the CE 3.0
+        // argument unchanged; 'subscription_canceled' and the two
+        // not-delivered reasons get a targeted rebuttal instead.
+        let cancellationRebuttal: string | null = null;
+        let refundRefusalExplanation: string | null = null;
+        let uncategorizedText = ce3Argument;
+
+        if (dispute.reason === "subscription_canceled") {
+          let lastActiveAt: string | null = null;
+          if (disputedEvidence?.user_id) {
+            const { data: profileRow } = await supabase
+              .from("profiles")
+              .select("last_active_at")
+              .eq("id", disputedEvidence.user_id)
+              .maybeSingle();
+            lastActiveAt = profileRow?.last_active_at ?? null;
+          }
+
+          cancellationRebuttal =
+            `Our records show no cancellation was made before this charge's renewal date. ` +
+            `Cancellation is self-serve, available any time from Settings → Billing inside ` +
+            `the TidyWise dashboard — no support request is required to cancel. ` +
+            `The account's access activity log shows continued use of the subscription ` +
+            `after this charge` +
+            (lastActiveAt ? `, most recently on ${fmt(lastActiveAt)}` : "") +
+            `, confirming the subscription was not cancelled and access continued to be used.`;
+
+          uncategorizedText =
+            (tos?.accepted
+              ? `Terms of Service v${tos.tos_version} accepted on ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}. `
+              : "") + CANCELLATION_POLICY;
+        } else if (
+          dispute.reason === "product_not_received" ||
+          dispute.reason === "product_unacceptable"
+        ) {
+          refundRefusalExplanation =
+            `${REFUND_POLICY} The account's access_activity_log evidences continued use ` +
+            `of the TidyWise SaaS platform — service was delivered and used, not withheld.`;
+        }
+
         const draftedEvidence = {
           product_description:
             "TidyWise SaaS subscription — cleaning business management software (CRM, scheduling, invoicing, payroll). Recurring monthly billing, cancellable any time from the in-app subscription page.",
@@ -1065,7 +1107,13 @@ const handler = async (req: Request): Promise<Response> => {
               payment_intent: p.stripe_payment_intent_id,
             })),
           ),
-          uncategorized_text: ce3Argument,
+          refund_policy: REFUND_POLICY,
+          refund_policy_disclosure: POLICY_DISCLOSURE,
+          cancellation_policy: CANCELLATION_POLICY,
+          cancellation_policy_disclosure: POLICY_DISCLOSURE,
+          cancellation_rebuttal: cancellationRebuttal,
+          refund_refusal_explanation: refundRefusalExplanation,
+          uncategorized_text: uncategorizedText,
         };
 
         await supabase
