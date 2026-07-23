@@ -556,6 +556,91 @@ export default function PlatformAnalyticsPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="comped">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-pink-500" />
+                  Comped Access ({analytics?.compedAccess?.activeCount || 0} active)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Orgs on time-limited comps do <b>not</b> appear in Subscribers / revenue metrics.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Active</h4>
+                  {(analytics?.compedAccess?.active?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active comps.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-muted-foreground">
+                          <tr className="border-b">
+                            <th className="text-left py-2 pr-3">Organization</th>
+                            <th className="text-left py-2 pr-3">Owner</th>
+                            <th className="text-left py-2 pr-3">Code</th>
+                            <th className="text-left py-2 pr-3">Granted</th>
+                            <th className="text-left py-2 pr-3">Expires</th>
+                            <th className="text-left py-2 pr-3">Days left</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics!.compedAccess!.active.map((c) => (
+                            <tr key={c.id} className="border-b last:border-0">
+                              <td className="py-2 pr-3 font-medium">{c.organization_name ?? c.organization_id}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
+                              <td className="py-2 pr-3"><code className="text-xs">{c.code ?? (c.source === 'direct' ? 'DIRECT' : '—')}</code></td>
+                              <td className="py-2 pr-3 text-muted-foreground">{new Date(c.granted_at).toLocaleDateString()}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{new Date(c.expires_at).toLocaleDateString()}</td>
+                              <td className="py-2 pr-3 font-medium">{c.days_remaining}d</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Recently expired / revoked (last 30 days)</h4>
+                  {(analytics?.compedAccess?.recentlyExpired?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground">None.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-muted-foreground">
+                          <tr className="border-b">
+                            <th className="text-left py-2 pr-3">Organization</th>
+                            <th className="text-left py-2 pr-3">Owner</th>
+                            <th className="text-left py-2 pr-3">Code</th>
+                            <th className="text-left py-2 pr-3">Ended</th>
+                            <th className="text-left py-2 pr-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics!.compedAccess!.recentlyExpired.map((c) => (
+                            <tr key={c.id} className="border-b last:border-0">
+                              <td className="py-2 pr-3">{c.organization_name ?? c.organization_id}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
+                              <td className="py-2 pr-3"><code className="text-xs">{c.code ?? '—'}</code></td>
+                              <td className="py-2 pr-3 text-muted-foreground">
+                                {new Date(c.revoked_at ?? c.expires_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-2 pr-3">
+                                {c.revoked_at ? <span className="text-destructive">Revoked</span> : <span className="text-muted-foreground">Expired</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* TidyWise Subscribers Tab - Only shows users with subscriptions */}
           <TabsContent value="subscribers">
             <Card>
