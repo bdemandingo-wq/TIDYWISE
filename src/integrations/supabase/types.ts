@@ -1610,29 +1610,35 @@ export type Database = {
         Row: {
           booking_id: string
           created_at: string
+          error_message: string | null
           id: string
           organization_id: string
           recipient_phone: string
           reminder_type: string
           sent_at: string
+          status: string
         }
         Insert: {
           booking_id: string
           created_at?: string
+          error_message?: string | null
           id?: string
           organization_id: string
           recipient_phone: string
           reminder_type: string
           sent_at?: string
+          status?: string
         }
         Update: {
           booking_id?: string
           created_at?: string
+          error_message?: string | null
           id?: string
           organization_id?: string
           recipient_phone?: string
           reminder_type?: string
           sent_at?: string
+          status?: string
         }
         Relationships: [
           {
