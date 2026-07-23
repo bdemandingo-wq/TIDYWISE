@@ -481,6 +481,13 @@ export default function PlatformAnalyticsPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Not counted as paying customers
               </p>
+              <Link
+                to="/admin/access-codes"
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1 mt-2"
+              >
+                Manage access codes
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
             </CardContent>
           </Card>
         </div>
