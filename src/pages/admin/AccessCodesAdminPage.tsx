@@ -94,19 +94,37 @@ export default function AccessCodesAdminPage() {
     e.preventDefault();
     setCreating(true);
     try {
+      // "" = default (1). "unlimited" sentinel handled via explicit null.
+      let max_uses: number | null | undefined = 1;
+      if (newCode.max_uses.trim().toLowerCase() === "unlimited") max_uses = null;
+      else if (newCode.max_uses.trim() !== "") max_uses = Number(newCode.max_uses);
       await invoke("create_code", {
         code: newCode.code || undefined,
         duration_days: Number(newCode.duration_days),
-        max_uses: newCode.max_uses ? Number(newCode.max_uses) : null,
+        max_uses,
         reason: newCode.reason || null,
+        email_lock: newCode.email_lock.trim() || null,
       });
       toast.success("Code created");
-      setNewCode({ code: "", duration_days: 30, max_uses: "", reason: "" });
+      setNewCode({ code: "", duration_days: 30, max_uses: "1", reason: "", email_lock: "" });
       await refresh();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function openHistory(c: AccessCode) {
+    setHistoryCode(c);
+    setHistoryLoading(true);
+    try {
+      const res = await invoke<{ redemptions: Redemption[] }>("list_redemptions", { access_code_id: c.id });
+      setHistoryRows(res.redemptions ?? []);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
