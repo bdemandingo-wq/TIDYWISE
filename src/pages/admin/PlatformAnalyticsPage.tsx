@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertDialog,
