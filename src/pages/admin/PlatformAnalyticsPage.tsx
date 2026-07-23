@@ -518,6 +518,10 @@ export default function PlatformAnalyticsPage() {
                 <Building2 className="w-4 h-4" />
                 <span>Orgs ({analytics?.organizations.total || 0})</span>
               </TabsTrigger>
+              <TabsTrigger value="comped" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Gift className="w-4 h-4" />
+                <span>Comped ({analytics?.compedAccess?.activeCount || 0})</span>
+              </TabsTrigger>
               <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <TrendingDown className="w-4 h-4" />
                 <span>Churn</span>
