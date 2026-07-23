@@ -312,20 +312,21 @@ const handler = async (req: Request): Promise<Response> => {
     });
   } catch (error: any) {
     console.error("Error in send-booking-email function:", error);
-    
-    // Audit log: failed email send
+
+    // Audit log: failed email send (reuse already-parsed body — never call req.json() twice)
     logAudit({
       action: AuditActions.EMAIL_BOOKING_CONFIRMATION,
-      organizationId: (await req.json().catch(() => ({}))).organizationId || 'unknown',
+      organizationId: bookingBody.organizationId || 'unknown',
       success: false,
-      error: error.message,
+      error: error?.message,
     });
 
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error?.message || String(error) }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
+
 };
 
 serve(handler);
