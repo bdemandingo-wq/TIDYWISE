@@ -36,19 +36,20 @@ function useQueueDetails(orgId: string | undefined, table: string, enabled: bool
       if (table === 'booking_reminder_log') {
         const { data, error } = await supabase
           .from('booking_reminder_log')
-          .select('id, created_at, booking_id, recipient_phone, reminder_type')
+          .select('id, created_at, booking_id, recipient_phone, reminder_type, status, error_message')
           .eq('organization_id', orgId)
           .order('created_at', { ascending: false })
           .limit(50);
         if (error) throw error;
         return (data || []).map((r: any) => ({
           id: r.id,
-          status: 'sent' as const,
+          status: (r.status === 'failed' ? 'failed' : 'sent') as 'failed' | 'sent',
           created_at: r.created_at,
           customer_name: r.recipient_phone,
-          error: null,
+          error: r.error_message || null,
         }));
       }
+
 
       if (table === 'automated_review_sms_queue') {
         const { data, error } = await supabase
