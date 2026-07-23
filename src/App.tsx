@@ -161,6 +161,7 @@ const TrackingPage = lazy(() => import("./pages/admin/TrackingPage"));
 
 // Blog admin (platform-admin only)
 const BlogAdminListPage = lazy(() => import("./pages/admin/blog/BlogAdminListPage"));
+const AccessCodesAdminPage = lazy(() => import("./pages/admin/AccessCodesAdminPage"));
 const BlogAdminEditPage = lazy(() => import("./pages/admin/blog/BlogAdminEditPage"));
 const BlogAdminGeneratePage = lazy(() => import("./pages/admin/blog/BlogAdminGeneratePage"));
 const BlogAdminPreviewPage = lazy(() => import("./pages/admin/blog/BlogAdminPreviewPage"));
