@@ -32,6 +32,7 @@ interface BookingWithWage {
   booking_number: number;
   scheduled_at: string;
   total_amount: number;
+  duration: number;
   cleaner_wage: number | null;
   cleaner_wage_type: string | null;
   customer: {
@@ -71,7 +72,7 @@ export function BulkEditCleanerWages() {
       const { data, error } = await client
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, total_amount, 
+          id, booking_number, scheduled_at, total_amount, duration,
           cleaner_wage, cleaner_wage_type,
           customer:customers(first_name, last_name),
           service:services(name),
@@ -189,14 +190,35 @@ export function BulkEditCleanerWages() {
         const edit = localEdits[id];
         const wageValue = edit.value ? parseFloat(edit.value) : null;
         const jobTotalValue = edit.jobTotal ? parseFloat(edit.jobTotal) : undefined;
+        const booking = bookings.find((b) => b.id === id);
 
         const updateData: Record<string, unknown> = {
           cleaner_wage_type: edit.type || null,
           cleaner_wage: wageValue,
         };
-        
+
         if (jobTotalValue !== undefined) {
           updateData.total_amount = jobTotalValue;
+        }
+
+        // Keep cleaner_pay_expected (the payroll snapshot) in sync with the
+        // wage just set here — same fix as the single-booking Edit dialog:
+        // a configured wage must win over any stale actual-payment override,
+        // and that override is cleared so it can't resurface later.
+        const wageDerivedPay = (() => {
+          if (wageValue == null || isNaN(wageValue) || wageValue === 0) return null;
+          const totalAmt = jobTotalValue !== undefined ? jobTotalValue : (booking?.total_amount ?? 0);
+          if (edit.type === 'flat') return wageValue;
+          if (edit.type === 'percentage') return Math.round((wageValue / 100) * totalAmt * 100) / 100;
+          const hours = (booking?.duration ?? 0) / 60;
+          return Math.round(wageValue * hours * 100) / 100;
+        })();
+        updateData.cleaner_pay_expected = wageDerivedPay;
+        // Only clear the actual-payment override when a wage actually won —
+        // clearing the wage field entirely shouldn't also wipe a legitimate
+        // actual-payment override left in place for that booking.
+        if (wageDerivedPay != null) {
+          updateData.cleaner_actual_payment = null;
         }
 
         const { error } = await supabase
