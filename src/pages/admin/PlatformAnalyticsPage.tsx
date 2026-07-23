@@ -71,6 +71,27 @@ interface PlatformAnalytics {
     recent: Subscriber[];
     last30Days: number;
   };
+  compedAccess?: {
+    activeCount: number;
+    active: CompRow[];
+    recentlyExpired: CompRow[];
+    compedOrgIds: string[];
+  };
+}
+
+interface CompRow {
+  id: string;
+  organization_id: string;
+  organization_name: string | null;
+  owner_email: string | null;
+  code: string | null;
+  email_lock: string | null;
+  source: 'code' | 'direct';
+  granted_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  days_remaining: number;
+  reason: string | null;
 }
 
 interface UserSessionStats {
