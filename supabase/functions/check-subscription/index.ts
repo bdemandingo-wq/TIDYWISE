@@ -155,6 +155,41 @@ serve(async (req) => {
       });
     }
 
+    // ── Step 0.5: Check for active comped access grant on user's org ──────
+    const { data: compMembership } = await supabaseClient
+      .from("org_memberships")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .in("role", ["owner", "admin", "manager"])
+      .limit(1)
+      .maybeSingle();
+
+    if (compMembership) {
+      const { data: comp } = await supabaseClient
+        .from("comped_access")
+        .select("expires_at")
+        .eq("organization_id", compMembership.organization_id)
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (comp) {
+        logStep("Active comped access grant found", { expiresAt: comp.expires_at });
+        return new Response(JSON.stringify({
+          subscribed: true,
+          trial_active: false,
+          product_id: "comped",
+          plan_type: "comped",
+          subscription_end: comp.expires_at,
+          trial_end: null,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
 
     // ── Step 1: Check Stripe for an active/trialing subscription first ──
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
