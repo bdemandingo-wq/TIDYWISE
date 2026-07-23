@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -480,6 +481,13 @@ export default function PlatformAnalyticsPage() {
               <p className="text-xs text-muted-foreground mt-1">
                 Not counted as paying customers
               </p>
+              <Link
+                to="/admin/access-codes"
+                className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1 mt-2"
+              >
+                Manage access codes
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
             </CardContent>
           </Card>
         </div>
@@ -487,7 +495,8 @@ export default function PlatformAnalyticsPage() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
-          <div className="mb-4 -mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none">
+          <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div className="-mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none md:flex-1">
             <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 px-4 md:px-1">
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <CreditCard className="w-4 h-4" />
@@ -531,6 +540,14 @@ export default function PlatformAnalyticsPage() {
               </TabsTrigger>
             </TabsList>
           </div>
+          <Link
+            to="/admin/access-codes"
+            className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 px-4 md:px-0 shrink-0"
+          >
+            Manage access codes
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
 
           <TabsContent value="churn">
             <div className="space-y-6">
