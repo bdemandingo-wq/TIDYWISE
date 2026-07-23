@@ -104,30 +104,13 @@ serve(async (req) => {
       });
     }
 
-    // ── Owner bypass: any user who owns (or admins) an organization gets
-    // full access for free. Staff added as owners qualify here too.
-    const { data: ownerMembership } = await supabaseClient
-      .from("org_memberships")
-      .select("role")
-      .eq("user_id", user.id)
-      .in("role", ["owner", "admin"])
-      .limit(1)
-      .maybeSingle();
+    // NOTE: There is intentionally NO blanket "owner/admin bypass" here.
+    // Granting subscribed=true to every org owner desynced the frontend from
+    // the DB gate (has_active_subscription), letting post-cutoff owners into
+    // the app where they hit RLS errors on every insert. Owners must qualify
+    // through one of the real branches below: lifetime, active Stripe sub,
+    // active comped_access grant, or an unexpired pre-cutoff org trial.
 
-    if (ownerMembership) {
-      logStep("Owner/admin bypass - granting full access", { email: user.email, role: ownerMembership.role });
-      return new Response(JSON.stringify({
-        subscribed: true,
-        trial_active: false,
-        product_id: "owner_free",
-        plan_type: "owner",
-        subscription_end: null,
-        trial_end: null,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
 
 
 
@@ -170,6 +153,41 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
+    }
+
+    // ── Step 0.5: Check for active comped access grant on user's org ──────
+    const { data: compMembership } = await supabaseClient
+      .from("org_memberships")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .in("role", ["owner", "admin", "manager"])
+      .limit(1)
+      .maybeSingle();
+
+    if (compMembership) {
+      const { data: comp } = await supabaseClient
+        .from("comped_access")
+        .select("expires_at")
+        .eq("organization_id", compMembership.organization_id)
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (comp) {
+        logStep("Active comped access grant found", { expiresAt: comp.expires_at });
+        return new Response(JSON.stringify({
+          subscribed: true,
+          trial_active: false,
+          product_id: "comped",
+          plan_type: "comped",
+          subscription_end: comp.expires_at,
+          trial_end: null,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
     }
 
 
