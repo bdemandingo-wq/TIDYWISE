@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Check, Loader2, Lock, LogOut, Sparkles } from 'lucide-react';
@@ -126,10 +127,15 @@ const PAIN_PITCH: Record<string, string> = {
  */
 export default function ChoosePlanPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, checkSubscription } = useAuth();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const [billingInterval, setBillingInterval] = useState<Interval>('monthly');
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
+  // "Have a code?" redemption — same RPC/pattern as RedeemAccessCodeCard.
+  const [showRedeem, setShowRedeem] = useState(false);
+  const [redeemValue, setRedeemValue] = useState('');
+  const [redeemBusy, setRedeemBusy] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
   // Onboarding answers — read once; personalizes headline + recommendation.
   const [personal] = useState<OnboardingAnswers>(() => readAnswers());
   const recommendedId = recommendPlan(personal);
@@ -213,6 +219,31 @@ export default function ChoosePlanPage() {
       setCheckoutBusy(null);
       const message = err instanceof Error ? err.message : 'Failed to start checkout';
       toast.error(message);
+    }
+  }
+
+  async function redeemCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!redeemValue.trim() || redeemBusy || checkoutBusy) return;
+    setRedeemBusy(true);
+    setRedeemError(null);
+    try {
+      const { data, error } = await supabase.rpc('redeem_access_code', {
+        _code: redeemValue.trim(),
+      });
+      if (error) throw error;
+      const payload = data as { duration_days?: number } | null;
+      toast.success(
+        payload?.duration_days
+          ? `Code redeemed — ${payload.duration_days} days of full access activated.`
+          : 'Code redeemed successfully.',
+      );
+      await checkSubscription();
+      navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      setRedeemError(err?.message ?? 'Could not redeem code');
+    } finally {
+      setRedeemBusy(false);
     }
   }
 
@@ -323,7 +354,7 @@ export default function ChoosePlanPage() {
                   <Button
                     className="w-full gap-2"
                     variant={isRecommended ? 'default' : 'outline'}
-                    disabled={!!checkoutBusy}
+                    disabled={!!checkoutBusy || redeemBusy}
                     onClick={() => startCheckout(tier.id)}
                   >
                     {busy ? (
@@ -339,6 +370,43 @@ export default function ChoosePlanPage() {
               </Card>
             );
           })}
+        </div>
+
+        {/* "Have a code?" redemption — comped access / promo codes */}
+        <div className="flex flex-col items-center mt-8 gap-2">
+          {!showRedeem ? (
+            <button
+              type="button"
+              onClick={() => setShowRedeem(true)}
+              className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Have a code?
+            </button>
+          ) : (
+            <form onSubmit={redeemCode} className="flex flex-col items-center gap-2 w-full max-w-xs">
+              <div className="flex w-full gap-2">
+                <Input
+                  value={redeemValue}
+                  onChange={(e) => {
+                    setRedeemValue(e.target.value.toUpperCase());
+                    setRedeemError(null);
+                  }}
+                  placeholder="Enter code"
+                  autoComplete="off"
+                  disabled={redeemBusy}
+                  className="flex-1"
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={redeemBusy || !!checkoutBusy || !redeemValue.trim()}
+                >
+                  {redeemBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Redeem'}
+                </Button>
+              </div>
+              {redeemError && <p className="text-xs text-destructive">{redeemError}</p>}
+            </form>
+          )}
         </div>
 
         <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-8">
