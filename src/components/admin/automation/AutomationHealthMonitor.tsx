@@ -422,6 +422,28 @@ export function AutomationHealthMonitor() {
         </Card>
       </div>
 
+      {/* Cron heartbeat / reminder pipeline outage banner */}
+      {reminderStats && reminderStats.cronHealthy === false && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="pt-4 pb-4 px-4 flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-destructive">
+                Appointment reminder pipeline may be down
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No reminder activity in the last 2 hours.{' '}
+                {reminderStats.lastActivityAt
+                  ? <>Last log entry {format(new Date(reminderStats.lastActivityAt), 'MMM d, h:mm a')}.</>
+                  : <>No reminder has ever been logged for this organization.</>}
+                {' '}The scheduler runs every 15 minutes — if you have bookings in the next few days, contact support.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
       {/* Abandoned Bookings Card */}
       {abandonedStats && abandonedStats.total > 0 && (
         <Card>
