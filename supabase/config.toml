@@ -63,6 +63,8 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.notify-booking-request]
     verify_jwt = false
+  [functions.notify-job-completed]
+    verify_jwt = false
   [functions.notify-platform-admin-subscription]
     verify_jwt = false
   [functions.openphone-webhook]

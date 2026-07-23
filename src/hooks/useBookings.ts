@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { sendPushBestEffort } from '@/lib/pushNotify';
+import { notifyJobCompletedBestEffort, sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -434,6 +434,8 @@ export function useUpdateBooking() {
       }
 
       if (data.status === 'completed' && booking?.organization_id) {
+        // Admin bell + push to admin devices (deduped per booking server-side)
+        notifyJobCompletedBestEffort(booking.id, 'admin');
         buildBookingZapierPayload(booking as any).then((payload) =>
           dispatchZapier('booking.completed', booking.organization_id, payload),
         );

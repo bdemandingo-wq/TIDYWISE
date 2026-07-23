@@ -31,3 +31,22 @@ export function sendPushBestEffort(params: {
     })
     .catch((err) => console.error('[push] send failed:', err));
 }
+
+/**
+ * Fire-and-forget admin notification for a completed booking. The edge
+ * function inserts the admin bell row (deduped per booking) and pushes to
+ * admin devices server-side — send-push-notification rejects client calls.
+ */
+export function notifyJobCompletedBestEffort(
+  bookingId: string,
+  completedBy: 'staff' | 'admin',
+): void {
+  void supabase.functions
+    .invoke('notify-job-completed', {
+      body: { bookingId, completedBy },
+    })
+    .then(({ error }) => {
+      if (error) console.error('[notify-job-completed] failed:', error);
+    })
+    .catch((err) => console.error('[notify-job-completed] failed:', err));
+}
