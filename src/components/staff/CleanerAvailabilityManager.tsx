@@ -85,6 +85,21 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
       // Use type workaround for Supabase deep type inference
       const client: any = supabase;
 
+      // Resolve organization_id: prefer context, fall back to the staff row
+      let orgId = organizationId;
+      if (!orgId) {
+        const { data: staffRow, error: staffErr } = await client
+          .from('staff')
+          .select('organization_id')
+          .eq('id', staffId)
+          .maybeSingle();
+        if (staffErr) throw staffErr;
+        orgId = staffRow?.organization_id;
+      }
+      if (!orgId) {
+        throw new Error('Could not determine organization for availability save');
+      }
+
       // Delete existing and insert new
       const { error: deleteError } = await client
         .from('working_hours')
@@ -98,6 +113,7 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
         .insert(
           workingHours.map((h) => ({
             staff_id: staffId,
+            organization_id: orgId,
             day_of_week: h.day_of_week,
             start_time: h.start_time,
             end_time: h.end_time,
@@ -107,6 +123,7 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
 
       if (error) throw error;
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['working-hours', staffId, organizationId] });
       queryClient.invalidateQueries({ queryKey: ['onboarding-avail', staffId] });
@@ -114,10 +131,11 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
       setHasChanges(false);
       onSaved?.();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error saving availability:', error);
-      toast.error('Failed to save availability');
+      toast.error(error?.message ? `Failed to save availability: ${error.message}` : 'Failed to save availability');
     },
+
   });
 
   const updateDay = (dayIndex: number, field: keyof WorkingHour, value: string | boolean) => {
