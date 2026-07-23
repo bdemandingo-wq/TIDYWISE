@@ -483,7 +483,24 @@ export default function PlatformAnalyticsPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-pink-500/10 to-transparent rounded-bl-full" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Comped Access</CardTitle>
+              <div className="p-2 bg-pink-500/10 rounded-lg">
+                <Gift className="h-4 w-4 text-pink-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{analytics?.compedAccess?.activeCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Not counted as paying customers
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
