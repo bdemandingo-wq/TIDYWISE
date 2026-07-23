@@ -131,10 +131,11 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
       setHasChanges(false);
       onSaved?.();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Error saving availability:', error);
-      toast.error('Failed to save availability');
+      toast.error(error?.message ? `Failed to save availability: ${error.message}` : 'Failed to save availability');
     },
+
   });
 
   const updateDay = (dayIndex: number, field: keyof WorkingHour, value: string | boolean) => {
