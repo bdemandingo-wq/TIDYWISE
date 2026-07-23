@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, PauseCircle, PlayCircle, CreditCard } from "lucide-react";
 import CancellationFlowDialog from "@/components/subscription/CancellationFlowDialog";
 import { PlanSwitcher } from "@/components/subscription/PlanSwitcher";
+import { RedeemAccessCodeCard } from "@/components/subscription/RedeemAccessCodeCard";
 
 export default function SubscriptionPage() {
   const { subscription, checkSubscription } = useAuth();
@@ -69,6 +70,7 @@ export default function SubscriptionPage() {
 
       <div className="mx-auto max-w-2xl space-y-4">
         <PlanSwitcher />
+        <RedeemAccessCodeCard />
 
         <Card>
           <CardHeader>

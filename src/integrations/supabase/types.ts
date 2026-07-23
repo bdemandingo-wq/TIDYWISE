@@ -104,6 +104,45 @@ export type Database = {
         }
         Relationships: []
       }
+      access_codes: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          created_by: string | null
+          duration_days: number
+          expires_at: string | null
+          id: string
+          max_uses: number | null
+          reason: string | null
+          uses: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          created_by?: string | null
+          duration_days: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          reason?: string | null
+          uses?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number | null
+          reason?: string | null
+          uses?: number
+        }
+        Relationships: []
+      }
       account_deletion_requests: {
         Row: {
           created_at: string
@@ -3138,6 +3177,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "client_tier_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comped_access: {
+        Row: {
+          access_code_id: string | null
+          created_at: string
+          expires_at: string
+          granted_by: string | null
+          id: string
+          organization_id: string
+          reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          access_code_id?: string | null
+          created_at?: string
+          expires_at: string
+          granted_by?: string | null
+          id?: string
+          organization_id: string
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          access_code_id?: string | null
+          created_at?: string
+          expires_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comped_access_code_fk"
+            columns: ["access_code_id"]
+            isOneToOne: false
+            referencedRelation: "access_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comped_access_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -10743,6 +10833,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      redeem_access_code: { Args: { _code: string }; Returns: Json }
       refresh_peer_benchmark_snapshots: { Args: never; Returns: number }
       remove_org_member: {
         Args: { _organization_id: string; _target_user_id: string }
