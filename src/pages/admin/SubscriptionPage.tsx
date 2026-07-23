@@ -70,6 +70,7 @@ export default function SubscriptionPage() {
 
       <div className="mx-auto max-w-2xl space-y-4">
         <PlanSwitcher />
+        <RedeemAccessCodeCard />
 
         <Card>
           <CardHeader>
