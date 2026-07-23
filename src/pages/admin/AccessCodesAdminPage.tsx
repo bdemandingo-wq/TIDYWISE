@@ -371,6 +371,7 @@ export default function AccessCodesAdminPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Organization</TableHead>
+                        <TableHead>Owner</TableHead>
                         <TableHead>Expires</TableHead>
                         <TableHead>Source</TableHead>
                         <TableHead>Reason</TableHead>
@@ -386,6 +387,7 @@ export default function AccessCodesAdminPage() {
                               {c.organization_id}
                             </div>
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{c.owner_email ?? "—"}</TableCell>
                           <TableCell>{new Date(c.expires_at).toLocaleString()}</TableCell>
                           <TableCell className="text-xs">
                             {c.access_codes?.code ? (
