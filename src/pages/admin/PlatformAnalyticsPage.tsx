@@ -540,6 +540,14 @@ export default function PlatformAnalyticsPage() {
               </TabsTrigger>
             </TabsList>
           </div>
+          <Link
+            to="/admin/access-codes"
+            className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 px-4 md:px-0 shrink-0"
+          >
+            Manage access codes
+            <ArrowUpRight className="w-4 h-4" />
+          </Link>
+        </div>
 
           <TabsContent value="churn">
             <div className="space-y-6">
