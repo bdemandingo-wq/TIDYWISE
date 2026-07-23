@@ -309,6 +309,64 @@ serve(async (req) => {
       console.log("[PLATFORM-ANALYTICS] No Stripe key found");
     }
 
+    // ---- Comped access section ----
+    const nowIso = new Date().toISOString();
+    const thirtyDaysAgoIso = thirtyDaysAgo.toISOString();
+    const { data: allComps } = await supabaseClient
+      .from('comped_access')
+      .select('id, organization_id, expires_at, granted_by, reason, revoked_at, created_at, access_code_id, organizations:organization_id(id,name), access_codes:access_code_id(code,email_lock)')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    // Owner emails
+    const compOrgIds = Array.from(new Set((allComps ?? []).map((c: any) => c.organization_id).filter(Boolean)));
+    const ownerEmailByOrg = new Map<string, string>();
+    if (compOrgIds.length) {
+      const { data: mems } = await supabaseClient
+        .from('org_memberships')
+        .select('organization_id, user_id, role')
+        .in('organization_id', compOrgIds)
+        .in('role', ['owner', 'admin']);
+      const uids = Array.from(new Set((mems ?? []).map((m: any) => m.user_id)));
+      const { data: profs } = uids.length
+        ? await supabaseClient.from('profiles').select('id,email').in('id', uids)
+        : { data: [] as any[] };
+      const emailById = new Map<string, string>();
+      for (const p of profs ?? []) emailById.set(p.id, p.email ?? '');
+      const sorted = (mems ?? []).sort((a: any, b: any) => (a.role === 'owner' ? -1 : 1));
+      for (const m of sorted) {
+        if (!ownerEmailByOrg.has(m.organization_id)) {
+          const em = emailById.get(m.user_id);
+          if (em) ownerEmailByOrg.set(m.organization_id, em);
+        }
+      }
+    }
+
+    const shape = (c: any) => {
+      const expiresMs = c.expires_at ? new Date(c.expires_at).getTime() : 0;
+      const daysRemaining = Math.max(0, Math.ceil((expiresMs - Date.now()) / 86400000));
+      return {
+        id: c.id,
+        organization_id: c.organization_id,
+        organization_name: c.organizations?.name ?? null,
+        owner_email: ownerEmailByOrg.get(c.organization_id) ?? null,
+        code: c.access_codes?.code ?? null,
+        email_lock: c.access_codes?.email_lock ?? null,
+        source: c.access_codes?.code ? 'code' : 'direct',
+        granted_at: c.created_at,
+        expires_at: c.expires_at,
+        revoked_at: c.revoked_at,
+        days_remaining: daysRemaining,
+        reason: c.reason,
+      };
+    };
+
+    const activeCompsList = (allComps ?? []).filter((c: any) => !c.revoked_at && c.expires_at > nowIso).map(shape);
+    const expiredCompsList = (allComps ?? [])
+      .filter((c: any) => (c.revoked_at || c.expires_at <= nowIso) && (c.revoked_at ?? c.expires_at) >= thirtyDaysAgoIso)
+      .map(shape);
+    const compedOrgIds = new Set(activeCompsList.map((c) => c.organization_id));
+
     console.log("[PLATFORM-ANALYTICS] Returning data...");
     return new Response(JSON.stringify({
       signups: {
@@ -331,6 +389,12 @@ serve(async (req) => {
         total: totalSubscribers,
         recent: subscribersList.slice(0, 100),
         last30Days: recentSubscribers,
+      },
+      compedAccess: {
+        activeCount: activeCompsList.length,
+        active: activeCompsList,
+        recentlyExpired: expiredCompsList,
+        compedOrgIds: Array.from(compedOrgIds),
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

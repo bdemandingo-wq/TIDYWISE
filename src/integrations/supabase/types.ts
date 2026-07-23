@@ -104,6 +104,48 @@ export type Database = {
         }
         Relationships: []
       }
+      access_code_redemptions: {
+        Row: {
+          access_code_id: string
+          email: string | null
+          id: string
+          organization_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          access_code_id: string
+          email?: string | null
+          id?: string
+          organization_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          access_code_id?: string
+          email?: string | null
+          id?: string
+          organization_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_code_redemptions_access_code_id_fkey"
+            columns: ["access_code_id"]
+            isOneToOne: false
+            referencedRelation: "access_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_code_redemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       access_codes: {
         Row: {
           active: boolean
@@ -111,6 +153,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           duration_days: number
+          email_lock: string | null
           expires_at: string | null
           id: string
           max_uses: number | null
@@ -123,6 +166,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_days: number
+          email_lock?: string | null
           expires_at?: string | null
           id?: string
           max_uses?: number | null
@@ -135,6 +179,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_days?: number
+          email_lock?: string | null
           expires_at?: string | null
           id?: string
           max_uses?: number | null

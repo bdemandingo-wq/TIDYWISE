@@ -71,9 +71,17 @@ serve(async (req) => {
           return json(400, { error: "duration_days must be > 0" });
         }
         const code = (body.code as string | undefined)?.trim().toUpperCase() || randomCode(10);
-        const max_uses = body.max_uses == null ? null : Number(body.max_uses);
+        // Default max_uses = 1 (one-per-person). Explicit null = unlimited.
+        let max_uses: number | null = 1;
+        if (body.max_uses === null) {
+          max_uses = null;
+        } else if (body.max_uses !== undefined && body.max_uses !== "") {
+          max_uses = Number(body.max_uses);
+        }
         const expires_at = body.expires_at ?? null;
         const reason = (body.reason as string | undefined) ?? null;
+        const rawLock = (body.email_lock as string | undefined)?.trim().toLowerCase();
+        const email_lock = rawLock ? rawLock : null;
 
         const { data, error } = await supabaseAdmin
           .from("access_codes")
@@ -83,6 +91,7 @@ serve(async (req) => {
             max_uses,
             expires_at,
             reason,
+            email_lock,
             active: true,
             created_by: user.id,
           })
@@ -90,6 +99,19 @@ serve(async (req) => {
           .single();
         if (error) throw error;
         return json(200, { code: data });
+      }
+
+      case "list_redemptions": {
+        const access_code_id = body.access_code_id as string | undefined;
+        let q = supabaseAdmin
+          .from("access_code_redemptions")
+          .select("id, access_code_id, user_id, organization_id, email, redeemed_at, organizations:organization_id(id,name)")
+          .order("redeemed_at", { ascending: false })
+          .limit(500);
+        if (access_code_id) q = q.eq("access_code_id", access_code_id);
+        const { data, error } = await q;
+        if (error) throw error;
+        return json(200, { redemptions: data });
       }
 
       case "deactivate_code":
@@ -109,11 +131,37 @@ serve(async (req) => {
       case "list_comps": {
         const { data, error } = await supabaseAdmin
           .from("comped_access")
-          .select("*, organizations:organization_id(id,name), access_codes:access_code_id(code)")
+          .select("*, organizations:organization_id(id,name), access_codes:access_code_id(code,email_lock)")
           .order("created_at", { ascending: false })
           .limit(500);
         if (error) throw error;
-        return json(200, { comps: data });
+
+        // Enrich with owner email via org_memberships → profiles
+        const orgIds = Array.from(new Set((data ?? []).map((r: any) => r.organization_id).filter(Boolean)));
+        const ownerMap = new Map<string, string>();
+        if (orgIds.length) {
+          const { data: mems } = await supabaseAdmin
+            .from("org_memberships")
+            .select("organization_id, user_id, role")
+            .in("organization_id", orgIds)
+            .in("role", ["owner", "admin"]);
+          const userIds = Array.from(new Set((mems ?? []).map((m: any) => m.user_id)));
+          const { data: profs } = userIds.length
+            ? await supabaseAdmin.from("profiles").select("id,email").in("id", userIds)
+            : { data: [] as any[] };
+          const emailById = new Map<string, string>();
+          for (const p of profs ?? []) emailById.set(p.id, p.email ?? "");
+          // prefer owner over admin
+          const sorted = (mems ?? []).sort((a: any, b: any) => (a.role === "owner" ? -1 : 1));
+          for (const m of sorted) {
+            if (!ownerMap.has(m.organization_id)) {
+              const em = emailById.get(m.user_id);
+              if (em) ownerMap.set(m.organization_id, em);
+            }
+          }
+        }
+        const enriched = (data ?? []).map((r: any) => ({ ...r, owner_email: ownerMap.get(r.organization_id) ?? null }));
+        return json(200, { comps: enriched });
       }
 
       case "grant_comp": {

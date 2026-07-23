@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Plus, Ban, RotateCcw, Copy, Gift } from "lucide-react";
+import { Loader2, Plus, Ban, RotateCcw, Copy, Gift, History } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AccessCode {
   id: string;
@@ -20,6 +21,7 @@ interface AccessCode {
   expires_at: string | null;
   active: boolean;
   reason: string | null;
+  email_lock: string | null;
   created_at: string;
 }
 
@@ -30,8 +32,19 @@ interface Comp {
   reason: string | null;
   revoked_at: string | null;
   created_at: string;
+  owner_email?: string | null;
   organizations?: { id: string; name: string } | null;
-  access_codes?: { code: string } | null;
+  access_codes?: { code: string; email_lock?: string | null } | null;
+}
+
+interface Redemption {
+  id: string;
+  access_code_id: string;
+  user_id: string;
+  organization_id: string;
+  email: string | null;
+  redeemed_at: string;
+  organizations?: { id: string; name: string } | null;
 }
 
 async function invoke<T>(action: string, body: Record<string, unknown> = {}): Promise<T> {
@@ -50,8 +63,12 @@ export default function AccessCodesAdminPage() {
   const [creating, setCreating] = useState(false);
   const [granting, setGranting] = useState(false);
 
-  const [newCode, setNewCode] = useState({ code: "", duration_days: 30, max_uses: "", reason: "" });
+  const [newCode, setNewCode] = useState({ code: "", duration_days: 30, max_uses: "1", reason: "", email_lock: "" });
   const [grant, setGrant] = useState({ organization_id: "", duration_days: 30, reason: "" });
+
+  const [historyCode, setHistoryCode] = useState<AccessCode | null>(null);
+  const [historyRows, setHistoryRows] = useState<Redemption[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -77,19 +94,37 @@ export default function AccessCodesAdminPage() {
     e.preventDefault();
     setCreating(true);
     try {
+      // "" = default (1). "unlimited" sentinel handled via explicit null.
+      let max_uses: number | null | undefined = 1;
+      if (newCode.max_uses.trim().toLowerCase() === "unlimited") max_uses = null;
+      else if (newCode.max_uses.trim() !== "") max_uses = Number(newCode.max_uses);
       await invoke("create_code", {
         code: newCode.code || undefined,
         duration_days: Number(newCode.duration_days),
-        max_uses: newCode.max_uses ? Number(newCode.max_uses) : null,
+        max_uses,
         reason: newCode.reason || null,
+        email_lock: newCode.email_lock.trim() || null,
       });
       toast.success("Code created");
-      setNewCode({ code: "", duration_days: 30, max_uses: "", reason: "" });
+      setNewCode({ code: "", duration_days: 30, max_uses: "1", reason: "", email_lock: "" });
       await refresh();
     } catch (err: any) {
       toast.error(err?.message ?? "Failed");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function openHistory(c: AccessCode) {
+    setHistoryCode(c);
+    setHistoryLoading(true);
+    try {
+      const res = await invoke<{ redemptions: Redemption[] }>("list_redemptions", { access_code_id: c.id });
+      setHistoryRows(res.redemptions ?? []);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to load history");
+    } finally {
+      setHistoryLoading(false);
     }
   }
 
@@ -169,12 +204,11 @@ export default function AccessCodesAdminPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Max uses (blank = ∞)</Label>
+                  <Label className="text-xs">Max uses (default 1, type "unlimited" for ∞)</Label>
                   <Input
-                    type="number"
-                    min={1}
                     value={newCode.max_uses}
                     onChange={(e) => setNewCode({ ...newCode, max_uses: e.target.value })}
+                    placeholder="1"
                   />
                 </div>
                 <div className="flex items-end">
@@ -183,12 +217,21 @@ export default function AccessCodesAdminPage() {
                     Create
                   </Button>
                 </div>
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-3">
+                  <Label className="text-xs">Bind to email (optional — only this account can redeem)</Label>
+                  <Input
+                    type="email"
+                    value={newCode.email_lock}
+                    onChange={(e) => setNewCode({ ...newCode, email_lock: e.target.value })}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                <div className="sm:col-span-2">
                   <Label className="text-xs">Reason / note</Label>
                   <Input
                     value={newCode.reason}
                     onChange={(e) => setNewCode({ ...newCode, reason: e.target.value })}
-                    placeholder="Podcast promo, refund replacement, etc."
+                    placeholder="Podcast promo, refund, etc."
                   />
                 </div>
               </form>
@@ -257,6 +300,7 @@ export default function AccessCodesAdminPage() {
                         <TableHead>Code</TableHead>
                         <TableHead>Days</TableHead>
                         <TableHead>Uses</TableHead>
+                        <TableHead>Bound to</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Reason</TableHead>
                         <TableHead></TableHead>
@@ -279,7 +323,10 @@ export default function AccessCodesAdminPage() {
                           <TableCell>{c.duration_days}</TableCell>
                           <TableCell>
                             {c.uses}
-                            {c.max_uses != null ? ` / ${c.max_uses}` : ""}
+                            {c.max_uses != null ? ` / ${c.max_uses}` : " / ∞"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {c.email_lock ?? <span className="italic">anyone</span>}
                           </TableCell>
                           <TableCell>
                             {c.active ? (
@@ -291,7 +338,10 @@ export default function AccessCodesAdminPage() {
                           <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                             {c.reason ?? "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => openHistory(c)} title="Redemption history">
+                              <History className="h-4 w-4" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => toggleCode(c)}>
                               {c.active ? <Ban className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
                             </Button>
@@ -321,6 +371,7 @@ export default function AccessCodesAdminPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Organization</TableHead>
+                        <TableHead>Owner</TableHead>
                         <TableHead>Expires</TableHead>
                         <TableHead>Source</TableHead>
                         <TableHead>Reason</TableHead>
@@ -336,6 +387,7 @@ export default function AccessCodesAdminPage() {
                               {c.organization_id}
                             </div>
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{c.owner_email ?? "—"}</TableCell>
                           <TableCell>{new Date(c.expires_at).toLocaleString()}</TableCell>
                           <TableCell className="text-xs">
                             {c.access_codes?.code ? (
@@ -409,6 +461,42 @@ export default function AccessCodesAdminPage() {
             </Card>
           )}
         </div>
+
+        <Dialog open={!!historyCode} onOpenChange={(o) => !o && setHistoryCode(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Redemptions for <span className="font-mono">{historyCode?.code}</span>
+              </DialogTitle>
+            </DialogHeader>
+            {historyLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : historyRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Not yet redeemed.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>When</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Organization</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyRows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{new Date(r.redeemed_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs">{r.email ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{r.organizations?.name ?? r.organization_id}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );

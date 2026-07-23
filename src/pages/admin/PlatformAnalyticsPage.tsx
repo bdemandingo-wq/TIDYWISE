@@ -8,7 +8,7 @@ import {
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase, Bell, Search
+  CalendarCheck, Phone, Briefcase, Bell, Search, Gift
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -71,6 +71,27 @@ interface PlatformAnalytics {
     recent: Subscriber[];
     last30Days: number;
   };
+  compedAccess?: {
+    activeCount: number;
+    active: CompRow[];
+    recentlyExpired: CompRow[];
+    compedOrgIds: string[];
+  };
+}
+
+interface CompRow {
+  id: string;
+  organization_id: string;
+  organization_name: string | null;
+  owner_email: string | null;
+  code: string | null;
+  email_lock: string | null;
+  source: 'code' | 'direct';
+  granted_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  days_remaining: number;
+  reason: string | null;
 }
 
 interface UserSessionStats {
@@ -375,8 +396,25 @@ export default function PlatformAnalyticsPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Signups</CardTitle>
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{analytics?.signups.total || 0}</div>
+              <div className="flex items-center gap-1 mt-1">
+                <ArrowUpRight className="w-3 h-3 text-success" />
+                <span className="text-xs text-success font-medium">+{analytics?.signups.last30Days || 0}</span>
+                <span className="text-xs text-muted-foreground">last 30 days</span>
+              </div>
+            </CardContent>
+          </Card>
+<Card className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Signups</CardTitle>
@@ -445,12 +483,29 @@ export default function PlatformAnalyticsPage() {
               </p>
             </CardContent>
           </Card>
+
+          <Card className="relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-pink-500/10 to-transparent rounded-bl-full" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Comped Access</CardTitle>
+              <div className="p-2 bg-pink-500/10 rounded-lg">
+                <Gift className="h-4 w-4 text-pink-500" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">{analytics?.compedAccess?.activeCount || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Not counted as paying customers
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
 
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
           <div className="mb-4 -mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none">
-            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-9 h-auto gap-1 px-4 md:px-1">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 px-4 md:px-1">
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <CreditCard className="w-4 h-4" />
                 <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
@@ -462,6 +517,10 @@ export default function PlatformAnalyticsPage() {
               <TabsTrigger value="organizations" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <Building2 className="w-4 h-4" />
                 <span>Orgs ({analytics?.organizations.total || 0})</span>
+              </TabsTrigger>
+              <TabsTrigger value="comped" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <Gift className="w-4 h-4" />
+                <span>Comped ({analytics?.compedAccess?.activeCount || 0})</span>
               </TabsTrigger>
               <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <TrendingDown className="w-4 h-4" />
@@ -495,6 +554,91 @@ export default function PlatformAnalyticsPage() {
               <ChurnRetentionTab />
               <CancellationFeedbackPanel />
             </div>
+          </TabsContent>
+
+          <TabsContent value="comped">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-pink-500" />
+                  Comped Access ({analytics?.compedAccess?.activeCount || 0} active)
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Orgs on time-limited comps do <b>not</b> appear in Subscribers / revenue metrics.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Active</h4>
+                  {(analytics?.compedAccess?.active?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active comps.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-muted-foreground">
+                          <tr className="border-b">
+                            <th className="text-left py-2 pr-3">Organization</th>
+                            <th className="text-left py-2 pr-3">Owner</th>
+                            <th className="text-left py-2 pr-3">Code</th>
+                            <th className="text-left py-2 pr-3">Granted</th>
+                            <th className="text-left py-2 pr-3">Expires</th>
+                            <th className="text-left py-2 pr-3">Days left</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics!.compedAccess!.active.map((c) => (
+                            <tr key={c.id} className="border-b last:border-0">
+                              <td className="py-2 pr-3 font-medium">{c.organization_name ?? c.organization_id}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
+                              <td className="py-2 pr-3"><code className="text-xs">{c.code ?? (c.source === 'direct' ? 'DIRECT' : '—')}</code></td>
+                              <td className="py-2 pr-3 text-muted-foreground">{new Date(c.granted_at).toLocaleDateString()}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{new Date(c.expires_at).toLocaleDateString()}</td>
+                              <td className="py-2 pr-3 font-medium">{c.days_remaining}d</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Recently expired / revoked (last 30 days)</h4>
+                  {(analytics?.compedAccess?.recentlyExpired?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-muted-foreground">None.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="text-xs text-muted-foreground">
+                          <tr className="border-b">
+                            <th className="text-left py-2 pr-3">Organization</th>
+                            <th className="text-left py-2 pr-3">Owner</th>
+                            <th className="text-left py-2 pr-3">Code</th>
+                            <th className="text-left py-2 pr-3">Ended</th>
+                            <th className="text-left py-2 pr-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics!.compedAccess!.recentlyExpired.map((c) => (
+                            <tr key={c.id} className="border-b last:border-0">
+                              <td className="py-2 pr-3">{c.organization_name ?? c.organization_id}</td>
+                              <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
+                              <td className="py-2 pr-3"><code className="text-xs">{c.code ?? '—'}</code></td>
+                              <td className="py-2 pr-3 text-muted-foreground">
+                                {new Date(c.revoked_at ?? c.expires_at).toLocaleDateString()}
+                              </td>
+                              <td className="py-2 pr-3">
+                                {c.revoked_at ? <span className="text-destructive">Revoked</span> : <span className="text-muted-foreground">Expired</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* TidyWise Subscribers Tab - Only shows users with subscriptions */}
