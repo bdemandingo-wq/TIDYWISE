@@ -505,7 +505,7 @@ export default function PlatformAnalyticsPage() {
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
           <div className="mb-4 -mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none">
-            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-9 h-auto gap-1 px-4 md:px-1">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 px-4 md:px-1">
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
                 <CreditCard className="w-4 h-4" />
                 <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
