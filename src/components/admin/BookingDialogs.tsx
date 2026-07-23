@@ -425,9 +425,12 @@ export function EditBookingDialog({
       const scheduledAtIso = date && time ? new Date(`${date}T${time}:00`).toISOString() : booking.scheduled_at;
       const parsedAmount = Number(amount);
 
-      // Compute cleaner_pay_expected snapshot so payroll always reads the correct value
-      const computedExpectedPay = (() => {
-        if (cleanerActualPayment) return parseFloat(cleanerActualPayment);
+      // Compute cleaner_pay_expected snapshot so payroll always reads the correct
+      // value. cleanerWage/cleanerWageType (this modal's wage fields) is the
+      // source of truth when set — it must win over any stale cleaner_actual_payment
+      // override, otherwise a leftover manual override silently shadows a wage
+      // change forever (payroll reads cleaner_pay_expected, never recomputing it).
+      const wageDerivedPay = (() => {
         const wage = cleanerWage ? parseFloat(cleanerWage) : null;
         if (wage == null || isNaN(wage) || wage === 0) return null;
         const totalAmt = Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount;
@@ -436,6 +439,18 @@ export function EditBookingDialog({
         const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : (booking.duration / 60);
         return Math.round(wage * hours * 100) / 100;
       })();
+
+      const computedExpectedPay = wageDerivedPay != null
+        ? wageDerivedPay
+        : (cleanerActualPayment ? parseFloat(cleanerActualPayment) : null);
+
+      // When a wage is configured, it's authoritative — clear any stale
+      // cleaner_actual_payment override so it can't resurface on a future
+      // wage-only edit. The separate "Adjust Payment" dialog remains the
+      // explicit way to set an actual-payment override when no wage applies.
+      const nextActualPayment = wageDerivedPay != null
+        ? null
+        : (cleanerActualPayment ? parseFloat(cleanerActualPayment) : null);
 
       // Detect reschedule: scheduled_at changed OR admin set status to "rescheduled"
       const bookingAny = booking as any;
@@ -471,7 +486,7 @@ export function EditBookingDialog({
         cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
         cleaner_wage_type: cleanerWageType || null,
         cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
-        cleaner_actual_payment: cleanerActualPayment ? parseFloat(cleanerActualPayment) : null,
+        cleaner_actual_payment: nextActualPayment,
         cleaner_pay_expected: computedExpectedPay,
         ...reschedulePayload,
       } as any);
