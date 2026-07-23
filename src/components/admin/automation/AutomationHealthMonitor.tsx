@@ -259,17 +259,28 @@ export function AutomationHealthMonitor() {
 
   const { data: reminderStats } = useQuery({
     queryKey: ['automation-health-reminders', organization?.id],
-    queryFn: async (): Promise<QueueStats> => {
-      if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0 };
-      const { count, error } = await supabase
+    queryFn: async (): Promise<QueueStats & { lastActivityAt: string | null; cronHealthy: boolean }> => {
+      if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0, lastActivityAt: null, cronHealthy: true };
+      const { data, error } = await supabase
         .from('booking_reminder_log')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id);
+        .select('status, sent_at')
+        .eq('organization_id', organization.id)
+        .order('sent_at', { ascending: false })
+        .limit(1000);
       if (error) throw error;
-      return { total: count || 0, sent: count || 0, failed: 0, pending: 0 };
+      const items = (data || []) as Array<{ status: string | null; sent_at: string }>;
+      const sent = items.filter(i => (i.status ?? 'sent') === 'sent').length;
+      const failed = items.filter(i => i.status === 'failed').length;
+      const lastActivityAt = items[0]?.sent_at ?? null;
+      // Cron runs every 15 min; treat >2h of silence as an outage signal.
+      const cronHealthy = lastActivityAt
+        ? (Date.now() - new Date(lastActivityAt).getTime()) < 2 * 60 * 60 * 1000
+        : false;
+      return { total: items.length, sent, failed, pending: 0, lastActivityAt, cronHealthy };
     },
     enabled: !!organization?.id,
   });
+
 
   // Abandoned booking link stats
   const { data: abandonedStats } = useQuery({
