@@ -251,13 +251,14 @@ const handler = async (req: Request): Promise<Response> => {
     ): Promise<{ success: boolean; error?: string }> => {
       const formattedPhone = formatPhone(to);
 
-      // Check if already sent (dedup)
+      // Check if already sent (dedup) — only successful sends block a retry
       if (!options?.skipDedup) {
         const { data: existing, error: existingErr } = await supabase
           .from("booking_reminder_log")
           .select("id")
           .eq("booking_id", bookingId)
           .eq("reminder_type", reminderType)
+          .eq("status", "sent")
           .maybeSingle();
 
         if (existingErr) {
@@ -271,16 +272,42 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
+      // Helper to log a failure row so outages are visible in Automation Health.
+      const logFailure = async (errMsg: string) => {
+        try {
+          await supabase.from("booking_reminder_log").insert({
+            booking_id: bookingId,
+            organization_id: organizationId,
+            reminder_type: reminderType,
+            recipient_phone: formattedPhone,
+            status: "failed",
+            error_message: errMsg.slice(0, 500),
+          });
+        } catch (e) {
+          console.error("[send-booking-reminder] failed to log failure row:", e);
+        }
+      };
+
       // Send via OpenPhone
-      const response = await fetch("https://api.openphone.com/v1/messages", {
-        method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: phoneNumberId, to: [formattedPhone], content: message }),
-      });
+      let response: Response;
+      try {
+        response = await fetch("https://api.openphone.com/v1/messages", {
+          method: "POST",
+          headers: { Authorization: authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({ from: phoneNumberId, to: [formattedPhone], content: message }),
+        });
+      } catch (netErr: any) {
+        const msg = `Network error: ${netErr?.message || netErr}`;
+        console.error(`[send-booking-reminder] ${msg}`);
+        await logFailure(msg);
+        return { success: false, error: "SMS delivery failed" };
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`[send-booking-reminder] OpenPhone error ${response.status}: ${errorText}`);
+        const errMsg = `OpenPhone ${response.status}: ${errorText}`;
+        await logFailure(errMsg);
         if (response.status === 402) return { success: false, error: "SMS billing issue" };
         if (response.status === 401) return { success: false, error: "Invalid API key" };
         return { success: false, error: "SMS delivery failed" };
@@ -288,16 +315,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       const result = await response.json();
 
-      // Log to booking_reminder_log (dedup)
+      // Log to booking_reminder_log (dedup, status=sent)
       const { error: logInsertErr } = await supabase.from("booking_reminder_log").insert({
         booking_id: bookingId,
         organization_id: organizationId,
         reminder_type: reminderType,
         recipient_phone: formattedPhone,
+        status: "sent",
       });
       if (logInsertErr) {
         console.error(`[send-booking-reminder] SMS sent but booking_reminder_log insert failed for booking ${bookingId} (${reminderType}) — dedupe will not catch this next run:`, logInsertErr);
       }
+
 
       // Log to conversation history
       try {
