@@ -461,6 +461,42 @@ export default function AccessCodesAdminPage() {
             </Card>
           )}
         </div>
+
+        <Dialog open={!!historyCode} onOpenChange={(o) => !o && setHistoryCode(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                Redemptions for <span className="font-mono">{historyCode?.code}</span>
+              </DialogTitle>
+            </DialogHeader>
+            {historyLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : historyRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Not yet redeemed.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>When</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Organization</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {historyRows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{new Date(r.redeemed_at).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs">{r.email ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{r.organizations?.name ?? r.organization_id}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AdminLayout>
   );
