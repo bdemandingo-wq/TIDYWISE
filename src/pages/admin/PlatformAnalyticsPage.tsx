@@ -736,9 +736,10 @@ export default function PlatformAnalyticsPage() {
                                     size="sm"
                                     variant="outline"
                                     onClick={() => setResubTarget(subscriber)}
+                                    aria-label="Send resubscribe email"
                                   >
-                                    <Mail className="w-3.5 h-3.5 mr-1.5" />
-                                    Send resubscribe email
+                                    <Mail className="w-3.5 h-3.5 sm:mr-1.5" />
+                                    <span className="hidden sm:inline">Send resubscribe email</span>
                                   </Button>
                                 )}
                               </div>
