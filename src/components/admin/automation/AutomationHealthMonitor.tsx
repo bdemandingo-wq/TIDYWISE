@@ -36,19 +36,20 @@ function useQueueDetails(orgId: string | undefined, table: string, enabled: bool
       if (table === 'booking_reminder_log') {
         const { data, error } = await supabase
           .from('booking_reminder_log')
-          .select('id, created_at, booking_id, recipient_phone, reminder_type')
+          .select('id, created_at, booking_id, recipient_phone, reminder_type, status, error_message')
           .eq('organization_id', orgId)
           .order('created_at', { ascending: false })
           .limit(50);
         if (error) throw error;
         return (data || []).map((r: any) => ({
           id: r.id,
-          status: 'sent' as const,
+          status: (r.status === 'failed' ? 'failed' : 'sent') as 'failed' | 'sent',
           created_at: r.created_at,
           customer_name: r.recipient_phone,
-          error: null,
+          error: r.error_message || null,
         }));
       }
+
 
       if (table === 'automated_review_sms_queue') {
         const { data, error } = await supabase
@@ -258,17 +259,28 @@ export function AutomationHealthMonitor() {
 
   const { data: reminderStats } = useQuery({
     queryKey: ['automation-health-reminders', organization?.id],
-    queryFn: async (): Promise<QueueStats> => {
-      if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0 };
-      const { count, error } = await supabase
+    queryFn: async (): Promise<QueueStats & { lastActivityAt: string | null; cronHealthy: boolean }> => {
+      if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0, lastActivityAt: null, cronHealthy: true };
+      const { data, error } = await supabase
         .from('booking_reminder_log')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id);
+        .select('status, sent_at')
+        .eq('organization_id', organization.id)
+        .order('sent_at', { ascending: false })
+        .limit(1000);
       if (error) throw error;
-      return { total: count || 0, sent: count || 0, failed: 0, pending: 0 };
+      const items = (data || []) as Array<{ status: string | null; sent_at: string }>;
+      const sent = items.filter(i => (i.status ?? 'sent') === 'sent').length;
+      const failed = items.filter(i => i.status === 'failed').length;
+      const lastActivityAt = items[0]?.sent_at ?? null;
+      // Cron runs every 15 min; treat >2h of silence as an outage signal.
+      const cronHealthy = lastActivityAt
+        ? (Date.now() - new Date(lastActivityAt).getTime()) < 2 * 60 * 60 * 1000
+        : false;
+      return { total: items.length, sent, failed, pending: 0, lastActivityAt, cronHealthy };
     },
     enabled: !!organization?.id,
   });
+
 
   // Abandoned booking link stats
   const { data: abandonedStats } = useQuery({
@@ -409,6 +421,28 @@ export function AutomationHealthMonitor() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cron heartbeat / reminder pipeline outage banner */}
+      {reminderStats && reminderStats.cronHealthy === false && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="pt-4 pb-4 px-4 flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-destructive">
+                Appointment reminder pipeline may be down
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No reminder activity in the last 2 hours.{' '}
+                {reminderStats.lastActivityAt
+                  ? <>Last log entry {format(new Date(reminderStats.lastActivityAt), 'MMM d, h:mm a')}.</>
+                  : <>No reminder has ever been logged for this organization.</>}
+                {' '}The scheduler runs every 15 minutes — if you have bookings in the next few days, contact support.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* Abandoned Bookings Card */}
       {abandonedStats && abandonedStats.total > 0 && (
