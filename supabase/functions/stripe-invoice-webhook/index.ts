@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { REFUND_POLICY, CANCELLATION_POLICY, POLICY_DISCLOSURE } from "../_shared/policies.ts";
+import { REFUND_POLICY, CANCELLATION_POLICY, POLICY_DISCLOSURE, TOS_VERSION } from "../_shared/policies.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1050,41 +1050,64 @@ const handler = async (req: Request): Promise<Response> => {
         // 'fraudulent' and any unlisted reason fall through to the CE 3.0
         // argument unchanged; 'subscription_canceled' and the two
         // not-delivered reasons get a targeted rebuttal instead.
+        //
+        // customerSawPolicy: only cite the formal REFUND_POLICY /
+        // CANCELLATION_POLICY text (and the policy-quote evidence fields)
+        // when the disputing customer's OWN recorded ToS acceptance is at
+        // or after the version that contains that language. Older
+        // acceptances (or none on file) predate the policy rollout — those
+        // customers never saw it, so asserting it as something they agreed
+        // to would be overclaiming to the bank. Version strings are
+        // YYYY-MM-DD, so lexical >= is chronological >=.
+        const customerSawPolicy =
+          !!tos?.accepted &&
+          typeof tos.tos_version === "string" &&
+          tos.tos_version >= TOS_VERSION;
+
         let cancellationRebuttal: string | null = null;
         let refundRefusalExplanation: string | null = null;
         let uncategorizedText = ce3Argument;
 
         if (dispute.reason === "subscription_canceled") {
-          let lastActiveAt: string | null = null;
-          if (disputedEvidence?.user_id) {
-            const { data: profileRow } = await supabase
-              .from("profiles")
-              .select("last_active_at")
-              .eq("id", disputedEvidence.user_id)
-              .maybeSingle();
-            lastActiveAt = profileRow?.last_active_at ?? null;
+          // Genuine post-charge usage signal: actual login sessions after
+          // this charge, not a policy quote. Falls back gracefully if the
+          // account or session history isn't available.
+          let recentSessions: Array<{ session_start: string }> = [];
+          if (disputedEvidence?.user_id && charge.created) {
+            const chargeDate = new Date(charge.created * 1000).toISOString();
+            const { data: sessions } = await supabase
+              .from("user_sessions")
+              .select("session_start")
+              .eq("user_id", disputedEvidence.user_id)
+              .gt("session_start", chargeDate)
+              .order("session_start", { ascending: false })
+              .limit(5);
+            recentSessions = sessions || [];
           }
 
           cancellationRebuttal =
             `Our records show no cancellation was made before this charge's renewal date. ` +
             `Cancellation is self-serve, available any time from Settings → Billing inside ` +
             `the TidyWise dashboard — no support request is required to cancel. ` +
-            `The account's access activity log shows continued use of the subscription ` +
-            `after this charge` +
-            (lastActiveAt ? `, most recently on ${fmt(lastActiveAt)}` : "") +
-            `, confirming the subscription was not cancelled and access continued to be used.`;
+            (recentSessions.length > 0
+              ? `The account logged in and used the Service ${recentSessions.length} time(s) after this charge, most recently on ${fmt(recentSessions[0].session_start)}, confirming the subscription was not cancelled and continued to be used.`
+              : `See access_activity_log for this account's prior payment and access history.`) +
+            (customerSawPolicy ? ` ${CANCELLATION_POLICY}` : "");
 
           uncategorizedText =
             (tos?.accepted
-              ? `Terms of Service v${tos.tos_version} accepted on ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}. `
-              : "") + CANCELLATION_POLICY;
+              ? `Terms of Service v${tos.tos_version} accepted on ${fmt(tos.accepted_at)} from IP ${tos.ip_address || "unknown"}.`
+              : "Account has no recorded Terms of Service acceptance on file.") +
+            (customerSawPolicy ? ` ${CANCELLATION_POLICY}` : "");
         } else if (
           dispute.reason === "product_not_received" ||
           dispute.reason === "product_unacceptable"
         ) {
           refundRefusalExplanation =
-            `${REFUND_POLICY} The account's access_activity_log evidences continued use ` +
-            `of the TidyWise SaaS platform — service was delivered and used, not withheld.`;
+            `The account's access_activity_log evidences continued use of the ` +
+            `TidyWise SaaS platform after this charge — service was delivered ` +
+            `and used, not withheld.` +
+            (customerSawPolicy ? ` ${REFUND_POLICY}` : "");
         }
 
         const draftedEvidence = {
@@ -1107,10 +1130,14 @@ const handler = async (req: Request): Promise<Response> => {
               payment_intent: p.stripe_payment_intent_id,
             })),
           ),
-          refund_policy: REFUND_POLICY,
-          refund_policy_disclosure: POLICY_DISCLOSURE,
-          cancellation_policy: CANCELLATION_POLICY,
-          cancellation_policy_disclosure: POLICY_DISCLOSURE,
+          // Policy-quote fields: only populated when this specific customer's
+          // accepted ToS version actually contained this language (see
+          // customerSawPolicy above). Never asserted against an
+          // acceptance that predates it.
+          refund_policy: customerSawPolicy ? REFUND_POLICY : null,
+          refund_policy_disclosure: customerSawPolicy ? POLICY_DISCLOSURE : null,
+          cancellation_policy: customerSawPolicy ? CANCELLATION_POLICY : null,
+          cancellation_policy_disclosure: customerSawPolicy ? POLICY_DISCLOSURE : null,
           cancellation_rebuttal: cancellationRebuttal,
           refund_refusal_explanation: refundRefusalExplanation,
           uncategorized_text: uncategorizedText,

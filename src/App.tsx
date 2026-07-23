@@ -151,6 +151,7 @@ const CleaningBusinessSoftware = lazy(() => import("./pages/CleaningBusinessSoft
 const LocationSoftwarePage = lazy(() => import("./pages/locations/LocationSoftwarePage"));
 const DemoPage = lazy(() => import("./pages/DemoPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
 const DeleteAccountPage = lazy(() => import("./pages/DeleteAccountPage"));
 const RedirectPage = lazy(() => import("./pages/RedirectPage"));
 const CardSavedPage = lazy(() => import("./pages/CardSavedPage"));
@@ -283,6 +284,7 @@ const App = () => (
                       <Route path="/deposit/:token" element={<DepositPage />} />
                       <Route path="/track/:token" element={<TrackCleanerPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms" element={<TermsPage />} />
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
                       {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
                       <Route path="/pricing" element={<Navigate to="/login" replace />} />
@@ -393,6 +395,7 @@ const App = () => (
                      <Route path="/deposit/:token" element={<DepositPage />} />
                      <Route path="/track/:token" element={<TrackCleanerPage />} />
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                      <Route path="/terms" element={<TermsPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<ErrorBoundary featureName="Pricing"><PricingPage /></ErrorBoundary>} />
                      <Route path="/choose-plan" element={<ErrorBoundary featureName="Choose Plan"><ChoosePlanPage /></ErrorBoundary>} />

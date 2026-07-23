@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TOS_VERSION } from '@/components/legal/termsContent';
 import { TermsOfServiceDialog } from '@/components/legal/TermsOfServiceDialog';
 import { SplashScreen } from '@/components/SplashScreen';
 import { toast } from 'sonner';
@@ -201,7 +202,7 @@ export default function SignupPage() {
         // row, degrading its value as Visa CE 3.0 evidence.
         try {
           await supabaseNoSession.functions.invoke('record-tos-acceptance', {
-            body: { tos_version: '2025-02-01' },
+            body: { tos_version: TOS_VERSION },
           });
         } catch (tosErr) {
           console.error('TOS acceptance logging failed (non-critical):', tosErr);
