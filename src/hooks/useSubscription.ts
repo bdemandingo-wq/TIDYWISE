@@ -18,7 +18,6 @@ import { Capacitor } from '@capacitor/core';
 const FREE_ACCOUNTS = [
   'support@tidywisecleaning.com',
   'applereview@tidywise.com',
-  'info@openarmscleaning.com',
   'applereview@tidywise1.com',
 ];
 
