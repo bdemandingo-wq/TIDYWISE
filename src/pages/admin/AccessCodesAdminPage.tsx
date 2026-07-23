@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Plus, Ban, RotateCcw, Copy, Gift } from "lucide-react";
+import { Loader2, Plus, Ban, RotateCcw, Copy, Gift, History } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AccessCode {
   id: string;
@@ -20,6 +21,7 @@ interface AccessCode {
   expires_at: string | null;
   active: boolean;
   reason: string | null;
+  email_lock: string | null;
   created_at: string;
 }
 
@@ -30,8 +32,19 @@ interface Comp {
   reason: string | null;
   revoked_at: string | null;
   created_at: string;
+  owner_email?: string | null;
   organizations?: { id: string; name: string } | null;
-  access_codes?: { code: string } | null;
+  access_codes?: { code: string; email_lock?: string | null } | null;
+}
+
+interface Redemption {
+  id: string;
+  access_code_id: string;
+  user_id: string;
+  organization_id: string;
+  email: string | null;
+  redeemed_at: string;
+  organizations?: { id: string; name: string } | null;
 }
 
 async function invoke<T>(action: string, body: Record<string, unknown> = {}): Promise<T> {
@@ -50,8 +63,12 @@ export default function AccessCodesAdminPage() {
   const [creating, setCreating] = useState(false);
   const [granting, setGranting] = useState(false);
 
-  const [newCode, setNewCode] = useState({ code: "", duration_days: 30, max_uses: "", reason: "" });
+  const [newCode, setNewCode] = useState({ code: "", duration_days: 30, max_uses: "1", reason: "", email_lock: "" });
   const [grant, setGrant] = useState({ organization_id: "", duration_days: 30, reason: "" });
+
+  const [historyCode, setHistoryCode] = useState<AccessCode | null>(null);
+  const [historyRows, setHistoryRows] = useState<Redemption[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   async function refresh() {
     setLoading(true);
