@@ -300,6 +300,7 @@ export default function AccessCodesAdminPage() {
                         <TableHead>Code</TableHead>
                         <TableHead>Days</TableHead>
                         <TableHead>Uses</TableHead>
+                        <TableHead>Bound to</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Reason</TableHead>
                         <TableHead></TableHead>
@@ -322,7 +323,10 @@ export default function AccessCodesAdminPage() {
                           <TableCell>{c.duration_days}</TableCell>
                           <TableCell>
                             {c.uses}
-                            {c.max_uses != null ? ` / ${c.max_uses}` : ""}
+                            {c.max_uses != null ? ` / ${c.max_uses}` : " / ∞"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {c.email_lock ?? <span className="italic">anyone</span>}
                           </TableCell>
                           <TableCell>
                             {c.active ? (
@@ -334,7 +338,10 @@ export default function AccessCodesAdminPage() {
                           <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
                             {c.reason ?? "—"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => openHistory(c)} title="Redemption history">
+                              <History className="h-4 w-4" />
+                            </Button>
                             <Button size="sm" variant="ghost" onClick={() => toggleCode(c)}>
                               {c.active ? <Ban className="h-4 w-4" /> : <RotateCcw className="h-4 w-4" />}
                             </Button>
