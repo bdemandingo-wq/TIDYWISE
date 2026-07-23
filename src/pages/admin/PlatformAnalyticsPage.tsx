@@ -496,45 +496,45 @@ export default function PlatformAnalyticsPage() {
         {/* Tabbed Content */}
         <Tabs defaultValue="subscribers" className="w-full">
           <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div className="-mx-3 md:mx-0 min-w-0 overflow-x-auto scrollbar-none md:flex-1">
-            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 pl-14 pr-4 md:px-1">
-              <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+            <div className="-mx-1 md:mx-0 min-w-0 overflow-x-auto overscroll-x-contain scrollbar-none md:flex-1">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
+              <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <CreditCard className="w-4 h-4" />
                 <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
               </TabsTrigger>
-              <TabsTrigger value="signups" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="signups" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <UserPlus className="w-4 h-4" />
                 <span>Signups ({analytics?.signups.total || 0})</span>
               </TabsTrigger>
-              <TabsTrigger value="organizations" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="organizations" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Building2 className="w-4 h-4" />
                 <span>Orgs ({analytics?.organizations.total || 0})</span>
               </TabsTrigger>
-              <TabsTrigger value="comped" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="comped" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Gift className="w-4 h-4" />
                 <span>Comped ({analytics?.compedAccess?.activeCount || 0})</span>
               </TabsTrigger>
-              <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="churn" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <TrendingDown className="w-4 h-4" />
                 <span>Churn</span>
               </TabsTrigger>
-              <TabsTrigger value="activity" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="activity" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Activity className="w-4 h-4" />
                 <span>Activity</span>
               </TabsTrigger>
-              <TabsTrigger value="evidence" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="evidence" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Search className="w-4 h-4" />
                 <span>Evidence</span>
               </TabsTrigger>
-              <TabsTrigger value="demos" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="demos" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <CalendarCheck className="w-4 h-4" />
                 <span>Demos</span>
               </TabsTrigger>
-              <TabsTrigger value="notifications" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="notifications" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Bell className="w-4 h-4" />
                 <span>Feed</span>
               </TabsTrigger>
-              <TabsTrigger value="errors" className="flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <TabsTrigger value="errors" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Bug className="w-4 h-4" />
                 <span>Errors</span>
               </TabsTrigger>
@@ -694,16 +694,16 @@ export default function PlatformAnalyticsPage() {
                           return (
                             <div
                               key={subscriber.id}
-                              className="group flex items-center justify-between gap-2 p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                              className="group flex flex-col gap-3 p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-2"
                             >
-                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="flex items-center gap-3 min-w-0 w-full sm:flex-1">
                                 <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
                                   <span className="text-sm font-medium text-primary">
                                     {subscriber.email?.charAt(0).toUpperCase() || '?'}
                                   </span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate">{subscriber.email}</p>
+                                  <p className="font-medium text-sm truncate max-w-[13rem] xs:max-w-none">{subscriber.email}</p>
                                   {subscriber.name && (
                                     <p className="text-xs text-muted-foreground">{subscriber.name}</p>
                                   )}
@@ -715,7 +715,7 @@ export default function PlatformAnalyticsPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
+                              <div className="flex items-center justify-between gap-2 w-full sm:w-auto sm:justify-end sm:shrink-0">
                                 <Badge
                                   variant={subscriber.subscriptionStatus === 'active' ? 'default' :
                                            subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
@@ -733,13 +733,14 @@ export default function PlatformAnalyticsPage() {
                                   </Button>
                                 ) : (
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="outline"
                                     onClick={() => setResubTarget(subscriber)}
                                     aria-label="Send resubscribe email"
+                                    title="Send resubscribe email"
+                                    className="h-9 w-9 shrink-0"
                                   >
-                                    <Mail className="w-3.5 h-3.5 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Send resubscribe email</span>
+                                    <Mail className="w-4 h-4" />
                                   </Button>
                                 )}
                               </div>
