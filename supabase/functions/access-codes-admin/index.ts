@@ -131,11 +131,37 @@ serve(async (req) => {
       case "list_comps": {
         const { data, error } = await supabaseAdmin
           .from("comped_access")
-          .select("*, organizations:organization_id(id,name), access_codes:access_code_id(code)")
+          .select("*, organizations:organization_id(id,name), access_codes:access_code_id(code,email_lock)")
           .order("created_at", { ascending: false })
           .limit(500);
         if (error) throw error;
-        return json(200, { comps: data });
+
+        // Enrich with owner email via org_memberships → profiles
+        const orgIds = Array.from(new Set((data ?? []).map((r: any) => r.organization_id).filter(Boolean)));
+        const ownerMap = new Map<string, string>();
+        if (orgIds.length) {
+          const { data: mems } = await supabaseAdmin
+            .from("org_memberships")
+            .select("organization_id, user_id, role")
+            .in("organization_id", orgIds)
+            .in("role", ["owner", "admin"]);
+          const userIds = Array.from(new Set((mems ?? []).map((m: any) => m.user_id)));
+          const { data: profs } = userIds.length
+            ? await supabaseAdmin.from("profiles").select("id,email").in("id", userIds)
+            : { data: [] as any[] };
+          const emailById = new Map<string, string>();
+          for (const p of profs ?? []) emailById.set(p.id, p.email ?? "");
+          // prefer owner over admin
+          const sorted = (mems ?? []).sort((a: any, b: any) => (a.role === "owner" ? -1 : 1));
+          for (const m of sorted) {
+            if (!ownerMap.has(m.organization_id)) {
+              const em = emailById.get(m.user_id);
+              if (em) ownerMap.set(m.organization_id, em);
+            }
+          }
+        }
+        const enriched = (data ?? []).map((r: any) => ({ ...r, owner_email: ownerMap.get(r.organization_id) ?? null }));
+        return json(200, { comps: enriched });
       }
 
       case "grant_comp": {
