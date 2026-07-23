@@ -204,12 +204,11 @@ export default function AccessCodesAdminPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Max uses (blank = ∞)</Label>
+                  <Label className="text-xs">Max uses (default 1, type "unlimited" for ∞)</Label>
                   <Input
-                    type="number"
-                    min={1}
                     value={newCode.max_uses}
                     onChange={(e) => setNewCode({ ...newCode, max_uses: e.target.value })}
+                    placeholder="1"
                   />
                 </div>
                 <div className="flex items-end">
@@ -218,12 +217,21 @@ export default function AccessCodesAdminPage() {
                     Create
                   </Button>
                 </div>
-                <div className="sm:col-span-5">
+                <div className="sm:col-span-3">
+                  <Label className="text-xs">Bind to email (optional — only this account can redeem)</Label>
+                  <Input
+                    type="email"
+                    value={newCode.email_lock}
+                    onChange={(e) => setNewCode({ ...newCode, email_lock: e.target.value })}
+                    placeholder="customer@example.com"
+                  />
+                </div>
+                <div className="sm:col-span-2">
                   <Label className="text-xs">Reason / note</Label>
                   <Input
                     value={newCode.reason}
                     onChange={(e) => setNewCode({ ...newCode, reason: e.target.value })}
-                    placeholder="Podcast promo, refund replacement, etc."
+                    placeholder="Podcast promo, refund, etc."
                   />
                 </div>
               </form>
