@@ -11,7 +11,6 @@ const PLATFORM_ADMIN_EMAIL = "support@tidywisecleaning.com";
 const FREE_ACCOUNTS = new Set([
   "support@tidywisecleaning.com",
   "applereview@tidywise.com",
-  "info@openarmscleaning.com",
 ]);
 
 function normalizeEmail(email: string | null | undefined): string | null {
