@@ -27,6 +27,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useQuery } from '@tanstack/react-query';
@@ -150,6 +157,7 @@ export default function PlatformAnalyticsPage() {
   const [cancelling, setCancelling] = useState(false);
   const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
   const [sendingResub, setSendingResub] = useState(false);
+  const [activeTab, setActiveTab] = useState('subscribers');
 
   const handleSendResubscribeEmail = async () => {
     if (!resubTarget) return;
@@ -494,9 +502,28 @@ export default function PlatformAnalyticsPage() {
 
 
         {/* Tabbed Content */}
-        <Tabs defaultValue="subscribers" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div className="-mx-1 md:mx-0 min-w-0 overflow-x-auto overscroll-x-contain scrollbar-none md:flex-1">
+            <div className="md:hidden w-full px-4">
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="w-full bg-background">
+                  <SelectValue placeholder="Choose report" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="subscribers">Subscribers ({analytics?.subscribers?.total || 0})</SelectItem>
+                  <SelectItem value="signups">Signups ({analytics?.signups.total || 0})</SelectItem>
+                  <SelectItem value="organizations">Orgs ({analytics?.organizations.total || 0})</SelectItem>
+                  <SelectItem value="comped">Comped ({analytics?.compedAccess?.activeCount || 0})</SelectItem>
+                  <SelectItem value="churn">Churn</SelectItem>
+                  <SelectItem value="activity">Activity</SelectItem>
+                  <SelectItem value="evidence">Evidence</SelectItem>
+                  <SelectItem value="demos">Demos</SelectItem>
+                  <SelectItem value="notifications">Feed</SelectItem>
+                  <SelectItem value="errors">Errors</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="hidden md:block md:mx-0 min-w-0 overflow-x-auto overscroll-x-contain scrollbar-none md:flex-1">
             <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <CreditCard className="w-4 h-4" />
@@ -540,9 +567,9 @@ export default function PlatformAnalyticsPage() {
               </TabsTrigger>
             </TabsList>
           </div>
-          <Link
+            <Link
             to="/admin/access-codes"
-            className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 px-4 md:px-0 shrink-0"
+              className="text-sm font-medium text-primary hover:underline inline-flex items-center gap-1 px-4 md:px-0 shrink-0"
           >
             Manage access codes
             <ArrowUpRight className="w-4 h-4" />
@@ -653,7 +680,7 @@ export default function PlatformAnalyticsPage() {
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 sm:px-6">
                 <div className="relative mb-3">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -663,7 +690,7 @@ export default function PlatformAnalyticsPage() {
                     className="pl-9"
                   />
                 </div>
-                <ScrollArea className="h-[500px] pr-4">
+                <ScrollArea className="h-[500px] pr-0 sm:pr-4 overflow-x-hidden">
                   {(() => {
                     const list = analytics?.subscribers?.recent || [];
                     const q = subscriberSearch.trim().toLowerCase();
@@ -686,7 +713,7 @@ export default function PlatformAnalyticsPage() {
                       );
                     }
                     return (
-                      <div className="space-y-2">
+                      <div className="space-y-2 overflow-x-hidden">
                         {filtered.map((subscriber) => {
                           const canCancel = ['active', 'trialing', 'past_due'].includes(
                             subscriber.subscriptionStatus
@@ -694,32 +721,32 @@ export default function PlatformAnalyticsPage() {
                           return (
                             <div
                               key={subscriber.id}
-                              className="group flex flex-col gap-3 p-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+                              className="group w-full overflow-hidden rounded-lg bg-muted/50 p-3 transition-colors hover:bg-muted sm:flex sm:items-center sm:justify-between sm:gap-2"
                             >
-                              <div className="flex items-center gap-3 min-w-0 w-full sm:flex-1">
+                              <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] gap-3 sm:flex sm:flex-1 sm:items-center">
                                 <div className="w-10 h-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
                                   <span className="text-sm font-medium text-primary">
                                     {subscriber.email?.charAt(0).toUpperCase() || '?'}
                                   </span>
                                 </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate max-w-[13rem] sm:max-w-none">{subscriber.email}</p>
+                                <div className="min-w-0 overflow-hidden">
+                                  <p className="truncate text-sm font-medium sm:max-w-none">{subscriber.email}</p>
                                   {subscriber.name && (
-                                    <p className="text-xs text-muted-foreground">{subscriber.name}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{subscriber.name}</p>
                                   )}
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
+                                  <p className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                    <Calendar className="w-3 h-3 shrink-0" />
                                     Subscribed {subscriber.subscriptionCreated !== 'Unknown'
                                       ? formatDistanceToNow(new Date(subscriber.subscriptionCreated), { addSuffix: true })
                                       : 'Unknown date'}
                                   </p>
                                 </div>
                               </div>
-                              <div className="flex items-center justify-between gap-2 w-full sm:w-auto sm:justify-end sm:shrink-0">
+                              <div className="mt-3 flex w-full items-center justify-between gap-2 pl-[3.25rem] sm:mt-0 sm:w-auto sm:justify-end sm:pl-0 sm:shrink-0">
                                 <Badge
                                   variant={subscriber.subscriptionStatus === 'active' ? 'default' :
                                            subscriber.subscriptionStatus === 'trialing' ? 'secondary' : 'destructive'}
-                                  className="text-xs"
+                                  className="max-w-[9rem] shrink truncate text-xs"
                                 >
                                   {subscriber.subscriptionStatus}
                                 </Badge>
@@ -728,6 +755,7 @@ export default function PlatformAnalyticsPage() {
                                     size="sm"
                                     variant="destructive"
                                     onClick={() => { setCancelImmediate(false); setCancelTarget(subscriber); }}
+                                    className="min-w-[5.5rem] shrink-0"
                                   >
                                     Cancel
                                   </Button>
