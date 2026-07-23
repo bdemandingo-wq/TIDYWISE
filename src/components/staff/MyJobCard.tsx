@@ -344,6 +344,19 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
   
   const hasAddress = Boolean(booking.address);
 
+  // Day-of gate for On The Way / Start Job / GPS Check-In — calendar-date
+  // comparison only (local device time), not a time-of-day check.
+  const isScheduledToday = (() => {
+    const scheduled = new Date(booking.scheduled_at);
+    const now = new Date();
+    return (
+      scheduled.getFullYear() === now.getFullYear() &&
+      scheduled.getMonth() === now.getMonth() &&
+      scheduled.getDate() === now.getDate()
+    );
+  })();
+  const NOT_TODAY_TOOLTIP = 'Available on the day of the job';
+
   const handleDirectionsClick = () => {
     openDirections({
       address: booking.address,
@@ -493,20 +506,26 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
 
           {/* On The Way Button - only show for confirmed jobs */}
           {booking.status === 'confirmed' && booking.customer?.phone && (
-            <Button
-              variant={onTheWaySent ? "secondary" : "default"}
-              size="sm"
-              className="gap-2 bg-info hover:bg-info/90"
-              onClick={handleOnTheWayClick}
-              disabled={isSendingOnTheWay || onTheWaySent}
-            >
-              {isSendingOnTheWay ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Car className="w-4 h-4" />
+            <div className="flex flex-col gap-1">
+              <Button
+                variant={onTheWaySent ? "secondary" : "default"}
+                size="sm"
+                className="gap-2 bg-info hover:bg-info/90"
+                onClick={handleOnTheWayClick}
+                disabled={isSendingOnTheWay || onTheWaySent || !isScheduledToday}
+                title={!isScheduledToday ? NOT_TODAY_TOOLTIP : undefined}
+              >
+                {isSendingOnTheWay ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Car className="w-4 h-4" />
+                )}
+                {onTheWaySent ? 'Sent!' : 'On The Way'}
+              </Button>
+              {!isScheduledToday && (
+                <p className="text-[11px] text-muted-foreground">{NOT_TODAY_TOOLTIP}</p>
               )}
-              {onTheWaySent ? 'Sent!' : 'On The Way'}
-            </Button>
+            </div>
           )}
 
           {/* I've Arrived - manual arrival (no background GPS on iOS, so the
@@ -546,6 +565,8 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
               organizationId={booking.organization_id}
               bookingAddress={destAddress || null}
               type="check_in"
+              disabled={!isScheduledToday}
+              disabledReason={NOT_TODAY_TOOLTIP}
             />
           )}
           {/* GPS Check-Out when completing job */}
@@ -604,14 +625,20 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
             </div>
           )}
           {booking.status === 'confirmed' && onUpdateStatus && (
-            <Button
-              size="sm"
-              className="flex-1"
-              onClick={() => onUpdateStatus(booking.id, 'in_progress')}
-              disabled={isUpdating}
-            >
-              Start Job
-            </Button>
+            <div className="flex flex-col gap-1 flex-1">
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => onUpdateStatus(booking.id, 'in_progress')}
+                disabled={isUpdating || !isScheduledToday}
+                title={!isScheduledToday ? NOT_TODAY_TOOLTIP : undefined}
+              >
+                Start Job
+              </Button>
+              {!isScheduledToday && (
+                <p className="text-[11px] text-muted-foreground">{NOT_TODAY_TOOLTIP}</p>
+              )}
+            </div>
           )}
           {booking.status === 'in_progress' && onUpdateStatus && (
             <Button

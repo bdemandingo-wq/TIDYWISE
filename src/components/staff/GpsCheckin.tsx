@@ -11,6 +11,8 @@ interface GpsCheckinProps {
   bookingAddress: string | null;
   type: 'check_in' | 'check_out';
   onSuccess?: () => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 const NEARBY_METERS = 500; // within 500m counts as "at property"
@@ -25,7 +27,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress, type, onSuccess }: GpsCheckinProps) {
+export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress, type, onSuccess, disabled, disabledReason }: GpsCheckinProps) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -114,15 +116,21 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
   }
 
   return (
-    <Button
-      size="sm"
-      variant="outline"
-      className="gap-1.5 text-xs"
-      onClick={handleCheckin}
-      disabled={loading}
-    >
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
-      {type === 'check_in' ? 'GPS Check-In' : 'GPS Check-Out'}
-    </Button>
+    <div className="flex flex-col gap-1">
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5 text-xs"
+        onClick={handleCheckin}
+        disabled={loading || disabled}
+        title={disabled ? disabledReason : undefined}
+      >
+        {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+        {type === 'check_in' ? 'GPS Check-In' : 'GPS Check-Out'}
+      </Button>
+      {disabled && disabledReason && (
+        <p className="text-[11px] text-muted-foreground">{disabledReason}</p>
+      )}
+    </div>
   );
 }
