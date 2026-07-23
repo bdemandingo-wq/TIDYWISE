@@ -703,7 +703,7 @@ export default function PlatformAnalyticsPage() {
                                   </span>
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="font-medium text-sm truncate max-w-[13rem] xs:max-w-none">{subscriber.email}</p>
+                                  <p className="font-medium text-sm truncate max-w-[13rem] sm:max-w-none">{subscriber.email}</p>
                                   {subscriber.name && (
                                     <p className="text-xs text-muted-foreground">{subscriber.name}</p>
                                   )}
