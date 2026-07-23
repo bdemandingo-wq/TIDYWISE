@@ -414,7 +414,7 @@ export default function PlatformAnalyticsPage() {
               </div>
             </CardContent>
           </Card>
-DUPLICATE_MARKER_REMOVE_ME
+<Card className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/10 to-transparent rounded-bl-full" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Signups</CardTitle>
