@@ -3964,6 +3964,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          meeting_link: string | null
           original_date: string | null
           original_time: string | null
           phone: string
@@ -3982,6 +3983,7 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          meeting_link?: string | null
           original_date?: string | null
           original_time?: string | null
           phone: string
@@ -4000,6 +4002,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          meeting_link?: string | null
           original_date?: string | null
           original_time?: string | null
           phone?: string
