@@ -10587,6 +10587,7 @@ export type Database = {
           total_amount: number
         }[]
       }
+      get_demo_availability: { Args: never; Returns: Json }
       get_demo_booked_slots: {
         Args: never
         Returns: {
