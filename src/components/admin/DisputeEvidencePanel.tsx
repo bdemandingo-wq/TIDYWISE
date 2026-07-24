@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Shield, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Loader2, Shield, AlertTriangle, CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -39,6 +40,10 @@ interface Dispute {
 
 // Final Stripe dispute statuses — no evidence can be submitted once here.
 const TERMINAL_STATUSES = new Set(['won', 'lost', 'warning_closed']);
+
+const isClosed = (d: Dispute) => !!d.status && TERMINAL_STATUSES.has(d.status);
+// Open and not yet responded to = still needs a response from us.
+const needsResponse = (d: Dispute) => !isClosed(d) && !d.submitted_at;
 
 // Drafted-evidence fields in display order, with plain-English labels.
 const EVIDENCE_FIELDS: { key: string; label: string; long?: boolean }[] = [
@@ -228,6 +233,17 @@ export function DisputeEvidencePanel() {
     }
   };
 
+  // needs-response first, then other open (newest), closed sink to the bottom.
+  const sorted = useMemo(() => {
+    const rank = (d: Dispute) => (isClosed(d) ? 2 : needsResponse(d) ? 0 : 1);
+    return [...(disputes ?? [])].sort(
+      (a, b) =>
+        rank(a) - rank(b) ||
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [disputes]);
+  const onlyOne = sorted.length === 1;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -252,107 +268,115 @@ export function DisputeEvidencePanel() {
           <div className="py-10 text-center text-muted-foreground">No disputes recorded.</div>
         ) : (
           <div className="space-y-3">
-            {disputes.map((d) => {
-              const closed = !!d.status && TERMINAL_STATUSES.has(d.status);
+            {sorted.map((d) => {
+              const closed = isClosed(d);
+              const open = needsResponse(d) || onlyOne;
               return (
                 <Card key={d.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <CardTitle className="text-base font-mono">
-                          {d.stripe_dispute_id}
-                        </CardTitle>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {d.customer_email || 'unknown email'} • opened {format(new Date(d.created_at), 'MMM d, yyyy')}
+                  <Collapsible defaultOpen={open}>
+                    <CollapsibleTrigger className="group w-full text-left">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div className="flex items-start gap-2">
+                            <ChevronDown className="h-4 w-4 mt-1 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+                            <div>
+                              <p className="text-base font-mono">{d.stripe_dispute_id}</p>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {d.customer_email || 'unknown email'} • opened {format(new Date(d.created_at), 'MMM d, yyyy')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <Badge variant="outline">
+                              ${((d.amount_cents || 0) / 100).toFixed(2)} {(d.currency || 'usd').toUpperCase()}
+                            </Badge>
+                            <Badge variant="secondary">{d.reason || 'unknown'}</Badge>
+                            <Badge variant={d.status === 'won' ? 'default' : d.status === 'lost' ? 'destructive' : 'outline'}>
+                              {d.status || 'pending'}
+                            </Badge>
+                            {d.qualifies_for_ce3 ? (
+                              <Badge className="bg-emerald-600 hover:bg-emerald-600">
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> CE3.0 qualifying
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive">
+                                <AlertTriangle className="h-3 w-3 mr-1" /> Not CE3.0 qualifying
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <Badge variant="outline">
-                          ${((d.amount_cents || 0) / 100).toFixed(2)} {(d.currency || 'usd').toUpperCase()}
-                        </Badge>
-                        <Badge variant="secondary">{d.reason || 'unknown'}</Badge>
-                        <Badge variant={d.status === 'won' ? 'default' : d.status === 'lost' ? 'destructive' : 'outline'}>
-                          {d.status || 'pending'}
-                        </Badge>
-                        {d.qualifies_for_ce3 ? (
-                          <Badge className="bg-emerald-600 hover:bg-emerald-600">
-                            <CheckCircle2 className="h-3 w-3 mr-1" /> CE3.0 qualifying
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive">
-                            <AlertTriangle className="h-3 w-3 mr-1" /> Not CE3.0 qualifying
-                          </Badge>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent className="space-y-3 pt-0">
+                        <div className="text-xs text-muted-foreground">
+                          {d.matching_prior_count} prior undisputed transaction(s) with 2+ matching elements in the 120-365 day window.
+                        </div>
+
+                        {!d.qualifies_for_ce3 && (
+                          <div className="text-xs bg-destructive/10 text-destructive rounded p-3 border border-destructive/20">
+                            Likely unwinnable on CE 3.0 grounds. Consider accepting the dispute in the Stripe Dashboard instead of submitting evidence (submitting weak evidence still counts against your dispute-rate metrics).
+                          </div>
                         )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="text-xs text-muted-foreground">
-                      {d.matching_prior_count} prior undisputed transaction(s) with 2+ matching elements in the 120-365 day window.
-                    </div>
 
-                    {!d.qualifies_for_ce3 && (
-                      <div className="text-xs bg-destructive/10 text-destructive rounded p-3 border border-destructive/20">
-                        Likely unwinnable on CE 3.0 grounds. Consider accepting the dispute in the Stripe Dashboard instead of submitting evidence (submitting weak evidence still counts against your dispute-rate metrics).
-                      </div>
-                    )}
+                        <div className="rounded border p-3 bg-muted/30">
+                          <EvidenceView evidence={d.drafted_evidence} />
+                        </div>
 
-                    <div className="rounded border p-3 bg-muted/30">
-                      <EvidenceView evidence={d.drafted_evidence} />
-                    </div>
+                        <div className="flex gap-2 flex-wrap pt-1">
+                          <Button asChild variant="outline" size="sm">
+                            <a
+                              href={`https://dashboard.stripe.com/disputes/${d.stripe_dispute_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Open in Stripe <ExternalLink className="h-3 w-3 ml-1" />
+                            </a>
+                          </Button>
 
-                    <div className="flex gap-2 flex-wrap pt-1">
-                      <Button asChild variant="outline" size="sm">
-                        <a
-                          href={`https://dashboard.stripe.com/disputes/${d.stripe_dispute_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Open in Stripe <ExternalLink className="h-3 w-3 ml-1" />
-                        </a>
-                      </Button>
-
-                      {d.submitted_at ? (
-                        <Badge variant="secondary">
-                          Submitted {format(new Date(d.submitted_at), 'MMM d, yyyy')}
-                        </Badge>
-                      ) : closed ? (
-                        <Badge variant="secondary">
-                          Closed — {d.outcome || d.status}
-                        </Badge>
-                      ) : (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" disabled={submitting === d.id}>
-                              {submitting === d.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                              ) : null}
-                              Submit to Stripe
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Submit drafted evidence to Stripe?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This finalizes the dispute response to the issuing bank. You won't be able to edit it afterward. Make sure the draft above reads correctly.
-                                {!d.qualifies_for_ce3 && (
-                                  <span className="block mt-2 text-destructive font-medium">
-                                    Warning: this dispute does NOT qualify for CE 3.0 — submission is unlikely to win.
-                                  </span>
-                                )}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleSubmit(d)}>
-                                Submit
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </div>
-                  </CardContent>
+                          {d.submitted_at ? (
+                            <Badge variant="secondary">
+                              Submitted {format(new Date(d.submitted_at), 'MMM d, yyyy')}
+                            </Badge>
+                          ) : closed ? (
+                            <Badge variant="secondary">
+                              Closed — {d.outcome || d.status}
+                            </Badge>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" disabled={submitting === d.id}>
+                                  {submitting === d.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                  ) : null}
+                                  Submit to Stripe
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Submit drafted evidence to Stripe?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This finalizes the dispute response to the issuing bank. You won't be able to edit it afterward. Make sure the draft above reads correctly.
+                                    {!d.qualifies_for_ce3 && (
+                                      <span className="block mt-2 text-destructive font-medium">
+                                        Warning: this dispute does NOT qualify for CE 3.0 — submission is unlikely to win.
+                                      </span>
+                                    )}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleSubmit(d)}>
+                                    Submit
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </Card>
               );
             })}
