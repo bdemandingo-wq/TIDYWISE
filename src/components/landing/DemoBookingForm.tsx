@@ -8,6 +8,7 @@ import { CheckCircle2, Loader2, Calendar as CalendarIcon, ArrowRight, ArrowLeft,
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, startOfDay, addDays } from "date-fns";
+import { DEFAULT_AVAILABILITY, parseAvailability, slotsForDay, type WeeklyAvailability } from "@/lib/demoAvailability";
 
 const teamSizeOptions = ["Just me", "2-5 cleaners", "6-10 cleaners", "10+ cleaners"];
 const challengeOptions = [
@@ -18,28 +19,8 @@ const challengeOptions = [
   "All of the above",
 ];
 
-// Emmanuel's availability in EST (America/New_York)
-// 0=Sun, 1=Mon, ..., 6=Sat
-const AVAILABILITY: Record<number, { start: number; end: number } | null> = {
-  0: { start: 13, end: 22 }, // Sunday 1 PM - 10 PM EST
-  1: { start: 19, end: 22 }, // Monday 7 PM - 10 PM EST
-  2: null,                    // Tuesday
-  3: { start: 19, end: 22 }, // Wednesday 7 PM - 10 PM EST
-  4: null,                    // Thursday
-  5: null,                    // Friday
-  6: { start: 10, end: 22 }, // Saturday 10 AM - 10 PM EST
-};
-
-function generateTimeSlots(dayOfWeek: number): string[] {
-  const avail = AVAILABILITY[dayOfWeek];
-  if (!avail) return [];
-  const slots: string[] = [];
-  for (let h = avail.start; h < avail.end; h++) {
-    slots.push(`${h}:00`);
-    slots.push(`${h}:30`);
-  }
-  return slots;
-}
+// Availability now comes from the demo_availability platform setting (read via
+// the public get_demo_availability RPC). See @/lib/demoAvailability.
 
 function formatTimeEST(time: string): string {
   const [h, m] = time.split(":").map(Number);
@@ -137,6 +118,9 @@ export function DemoBookingForm() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [bookedSlots, setBookedSlots] = useState<{ date: string; time: string }[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  // Seed with the hardcoded default so the calendar is never empty before the
+  // demo_availability setting resolves (or if it's missing/malformed).
+  const [availability, setAvailability] = useState<WeeklyAvailability>(DEFAULT_AVAILABILITY);
   const localTz = useMemo(() => getLocalTimezone(), []);
   const isLocalEST = localTz.includes("New_York") || localTz.includes("Eastern");
 
@@ -166,10 +150,15 @@ export function DemoBookingForm() {
       const { data: blocked } = await supabase
         .from("demo_blocked_dates" as any)
         .select("blocked_date");
-      
+
       if (blocked) {
         setBlockedDates((blocked as any[]).map((b: any) => b.blocked_date));
       }
+
+      // Weekly schedule via the anon-readable SECURITY DEFINER RPC. On any
+      // failure parseAvailability falls back to DEFAULT_AVAILABILITY.
+      const { data: availRaw } = await (supabase.rpc("get_demo_availability" as any) as any);
+      setAvailability(parseAvailability(availRaw));
     };
     fetchSlots();
   }, []);
@@ -185,12 +174,12 @@ export function DemoBookingForm() {
 
   const isDayAvailable = (date: Date): boolean => {
     const dow = date.getDay();
-    if (!AVAILABILITY[dow]) return false;
+    if (!availability[dow]) return false;
     if (isBefore(startOfDay(date), startOfDay(new Date()))) return false;
     const dateStr = format(date, "yyyy-MM-dd");
     if (blockedDates.includes(dateStr)) return false;
     // Check if all slots are booked
-    const slots = generateTimeSlots(dow);
+    const slots = slotsForDay(availability, dow);
     const bookedForDay = bookedSlots.filter(s => s.date === dateStr);
     if (bookedForDay.length >= slots.length) return false;
     return true;
@@ -485,7 +474,7 @@ export function DemoBookingForm() {
   }
 
   // Schedule step
-  const timeSlots = selectedDate ? generateTimeSlots(selectedDate.getDay()) : [];
+  const timeSlots = selectedDate ? slotsForDay(availability, selectedDate.getDay()) : [];
 
   return (
     <Card className="p-6 md:p-8 bg-card border border-border shadow-lg">

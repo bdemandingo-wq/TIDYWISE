@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, isBefore, startOfDay, isThisWeek } from 'date-fns';
 import { toast } from 'sonner';
+import { DEFAULT_AVAILABILITY, parseAvailability, slotsForDay, WEEKDAY_LABELS, type WeeklyAvailability } from '@/lib/demoAvailability';
 
 interface DemoBooking {
   id: string;
@@ -121,26 +122,8 @@ const CANCEL_REASONS = [
   'Other',
 ];
 
-const AVAILABILITY: Record<number, { start: number; end: number } | null> = {
-  0: { start: 13, end: 22 },
-  1: { start: 19, end: 22 },
-  2: null,
-  3: { start: 19, end: 22 },
-  4: null,
-  5: null,
-  6: { start: 10, end: 22 },
-};
-
-function generateTimeSlots(dow: number): string[] {
-  const avail = AVAILABILITY[dow];
-  if (!avail) return [];
-  const slots: string[] = [];
-  for (let h = avail.start; h < avail.end; h++) {
-    slots.push(`${h}:00`);
-    slots.push(`${h}:30`);
-  }
-  return slots;
-}
+// Availability comes from the demo_availability platform setting; see the
+// editor + query below and @/lib/demoAvailability.
 
 const TIDYWISE_ORG_ID = 'e95b92d0-7099-408e-a773-e4407b34f8b4';
 
@@ -283,6 +266,41 @@ export function DemoCalendarTab() {
   useEffect(() => {
     perDemoLinkDraftRef.current = detailBooking?.meeting_link ?? '';
   }, [detailBooking]);
+
+  // Weekly demo availability (editable). Admin reads platform_settings directly.
+  const { data: availabilityRaw } = useQuery({
+    queryKey: ['demo-availability'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('platform_settings' as any)
+        .select('value')
+        .eq('key', 'demo_availability')
+        .maybeSingle();
+      return (data as any)?.value ?? null;
+    },
+  });
+  const availability = useMemo(() => parseAvailability(availabilityRaw), [availabilityRaw]);
+  const [availDraft, setAvailDraft] = useState<WeeklyAvailability>(DEFAULT_AVAILABILITY);
+  useEffect(() => setAvailDraft(availability), [availability]);
+
+  const saveAvailabilityMutation = useMutation({
+    mutationFn: async (weekly: WeeklyAvailability) => {
+      const value: Record<string, unknown> = {};
+      for (let d = 0; d <= 6; d++) value[d] = weekly[d];
+      const { error } = await supabase
+        .from('platform_settings' as any)
+        .upsert(
+          { key: 'demo_availability', value, updated_at: new Date().toISOString() } as any,
+          { onConflict: 'key' },
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demo-availability'] });
+      toast.success('Availability saved');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Could not save availability'),
+  });
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
@@ -513,7 +531,7 @@ export function DemoCalendarTab() {
 
   // Reschedule time slots
   const rescheduleSlots = rescheduleDate
-    ? generateTimeSlots(new Date(rescheduleDate + 'T00:00:00').getDay())
+    ? slotsForDay(availability, new Date(rescheduleDate + 'T00:00:00').getDay())
     : [];
 
   const formatDateDisplay = (dateStr: string) => {
@@ -563,6 +581,67 @@ export function DemoCalendarTab() {
           >
             Save
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Weekly demo availability editor */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <CalendarIcon className="w-4 h-4" /> Weekly demo availability (EST)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {WEEKDAY_LABELS.map((label, d) => {
+            const day = availDraft[d];
+            const on = !!day;
+            const setDay = (next: typeof day) =>
+              setAvailDraft(prev => ({ ...prev, [d]: next }));
+            return (
+              <div key={d} className="flex items-center gap-3">
+                <div className="w-28 flex items-center gap-2">
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={(c) =>
+                      setDay(c === true ? (DEFAULT_AVAILABILITY[d] ?? { start: 9, end: 17 }) : null)
+                    }
+                  />
+                  <span className="text-sm">{label}</span>
+                </div>
+                {on ? (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Select value={String(day!.start)} onValueChange={(v) => setDay({ ...day!, start: Number(v) })}>
+                      <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <SelectItem key={h} value={String(h)}>{formatTime12h(`${h}:00`)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-muted-foreground">to</span>
+                    <Select value={String(day!.end)} onValueChange={(v) => setDay({ ...day!, end: Number(v) })}>
+                      <SelectTrigger className="w-28 h-8"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => (
+                          <SelectItem key={h} value={String(h)}>{formatTime12h(`${h % 24}:00`)}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Unavailable</span>
+                )}
+              </div>
+            );
+          })}
+          <div className="pt-2">
+            <Button
+              onClick={() => saveAvailabilityMutation.mutate(availDraft)}
+              disabled={saveAvailabilityMutation.isPending}
+            >
+              Save availability
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
