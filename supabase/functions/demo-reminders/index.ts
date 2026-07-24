@@ -17,6 +17,31 @@ function formatTime12h(time: string): string {
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+  "August", "September", "October", "November", "December"];
+
+// Eastern Time offset (minutes) for a UTC instant: Eastern = UTC + offset
+// (-240 during EDT, -300 during EST). Uses the IANA tz database so DST is
+// handled correctly year-round.
+function etOffsetMinutes(instant: Date): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const p: Record<string, string> = {};
+  for (const part of dtf.formatToParts(instant)) p[part.type] = part.value;
+  const asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return (asUTC - instant.getTime()) / 60000;
+}
+
+// Eastern wall-clock (the format demos are stored in) -> UTC epoch ms, DST-aware.
+function etWallClockToUtcMs(y: number, mo: number, d: number, h: number, min: number): number {
+  const approx = Date.UTC(y, mo - 1, d, h, min);
+  return approx - etOffsetMinutes(new Date(approx)) * 60000;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,11 +55,6 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get current time in EST
-    const now = new Date();
-    const estOffset = -5; // EST (simplified, doesn't handle DST)
-    const estNow = new Date(now.getTime() + (now.getTimezoneOffset() + estOffset * 60) * 60000);
 
     // Get confirmed demos
     const { data: demos, error } = await supabase
@@ -93,16 +113,18 @@ serve(async (req: Request) => {
     let sentCount = 0;
 
     for (const demo of demos) {
-      // Parse demo datetime in EST
       const [year, month, day] = demo.booked_date.split("-").map(Number);
       const [hours, minutes] = demo.booked_time.split(":").map(Number);
-      const demoTime = new Date(year, month - 1, day, hours, minutes);
-
-      const hoursUntilDemo = (demoTime.getTime() - estNow.getTime()) / (1000 * 60 * 60);
+      const demoUtcMs = etWallClockToUtcMs(year, month, day, hours, minutes);
+      const hoursUntilDemo = (demoUtcMs - Date.now()) / (1000 * 60 * 60);
 
       const firstName = demo.full_name.split(" ")[0];
-      const dateDisplay = `${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][demoTime.getDay()]}, ${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][demoTime.getMonth()]} ${day}`;
+      const dowIdx = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+      const dateDisplay = `${DAYS[dowIdx]}, ${MONTHS[month - 1]} ${day}`;
       const timeDisplay = formatTime12h(demo.booked_time.substring(0, 5));
+      const howLine = demo.meeting_link
+        ? `Join here: ${demo.meeting_link}`
+        : `He'll call you at ${demo.phone}`;
 
       // 24-hour reminder to client (send between 23-25 hours before)
       if (hoursUntilDemo >= 23 && hoursUntilDemo <= 25 && !sentSet.has(`${demo.id}:24h_client`)) {
@@ -114,7 +136,7 @@ serve(async (req: Request) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              content: `Hey ${firstName}! Just a reminder your TidyWise demo with Emmanuel is tomorrow at ${timeDisplay} EST. He'll call you at ${demo.phone}.\n\nNeed to reschedule?\n→ jointidywise.com/demo\nor reply to this message.\n\nSee you tomorrow! 🎉`,
+              content: `Hey ${firstName}! Just a reminder your TidyWise demo with Emmanuel is tomorrow at ${timeDisplay} EST. ${howLine}\n\nNeed to reschedule?\n→ jointidywise.com/demo\nor reply to this message.\n\nSee you tomorrow! 🎉`,
               to: [demo.phone],
               from: smsSettings.openphone_phone_number_id,
             }),
@@ -135,8 +157,9 @@ serve(async (req: Request) => {
         }
       }
 
-      // 1-hour reminder to Emmanuel (send between 55min-65min before)
-      if (hoursUntilDemo >= 0.92 && hoursUntilDemo <= 1.08 && !sentSet.has(`${demo.id}:1h_admin`)) {
+      // 1-hour reminder to Emmanuel (send 45-75 min before; 30-min band so the
+      // */15 cron always samples it at least once)
+      if (hoursUntilDemo >= 0.75 && hoursUntilDemo <= 1.25 && !sentSet.has(`${demo.id}:1h_admin`)) {
         const adminMsg = `⏰ DEMO REMINDER\n\n${demo.full_name} from ${demo.business_name}\nin 1 hour at ${timeDisplay} EST\n\n📞 ${demo.phone}\n📧 ${demo.email}\nChallenge: ${demo.biggest_challenge || "N/A"}`;
 
         try {
@@ -167,6 +190,40 @@ serve(async (req: Request) => {
           sentCount++;
         } catch (err) {
           console.error(`[demo-reminders] 1h admin reminder failed:`, err);
+        }
+      }
+
+      // 30-minute reminder to client with the join link (send 20-40 min before)
+      if (hoursUntilDemo >= 0.33 && hoursUntilDemo <= 0.67 && !sentSet.has(`${demo.id}:30min_client`)) {
+        const soonLine = demo.meeting_link
+          ? `Join here: ${demo.meeting_link}`
+          : `Emmanuel will call you at ${demo.phone}.`;
+        try {
+          await fetch("https://api.openphone.com/v1/messages", {
+            method: "POST",
+            headers: {
+              Authorization: smsSettings.openphone_api_key,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              content: `Hi ${firstName}! Your TidyWise demo with Emmanuel starts in 30 minutes (${timeDisplay} EST).\n\n${soonLine}\n\nSee you soon! 🎉`,
+              to: [demo.phone],
+              from: smsSettings.openphone_phone_number_id,
+            }),
+          });
+
+          const { error: logErr } = await supabase.from("demo_reminder_log").insert({
+            demo_booking_id: demo.id,
+            reminder_type: "30min_client",
+          });
+          if (logErr) {
+            console.error(`[demo-reminders] 30min reminder sent but log insert failed for demo ${demo.id} — dedupe will not catch this next run:`, logErr);
+          }
+
+          console.log(`[demo-reminders] 30min client reminder sent to ${demo.phone}`);
+          sentCount++;
+        } catch (err) {
+          console.error(`[demo-reminders] 30min client reminder failed:`, err);
         }
       }
     }
