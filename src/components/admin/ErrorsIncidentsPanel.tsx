@@ -126,13 +126,20 @@ function buildFixPrompt(issue: SentryIssue): string {
   const title = issue.title || issue.culprit || '(untitled issue)';
   const env = issue.metadata?.environment || 'production';
   const events = Number(issue.count ?? 0);
-  return `Fix this Sentry error in TidyWise CRM:
+  const location = issue.culprit || 'unknown (see stack trace link)';
+  const traceLink = issue.permalink || 'n/a';
+  return `First investigate and show me the proposed fix and diff.
+Do not apply until I say yes. Do not touch unrelated code.
+
+Fix this Sentry error in TidyWise CRM:
 
 Error: ${title}
+Location: ${location}
 Environment: ${env}
 Events: ${events} in last 7 days
 First seen: ${relativeTime(issue.firstSeen)}
 Last seen: ${relativeTime(issue.lastSeen)}
+Full stack trace: ${traceLink}
 
 Find the root cause in the codebase and fix it. Do not break any existing functionality.`;
 }
@@ -237,13 +244,10 @@ function InnerCard({
     try {
       await navigator.clipboard.writeText(buildFixPrompt(issue));
       setCopied(true);
-      toast.success('Prompt copied — auto-hides when fixed', {
+      toast.success('Copied — paste in Lovable', {
         duration: 2000,
         style: { background: '#16a34a', color: '#fff', border: '1px solid #15803d' },
       });
-      // Auto-dismiss: assume the user is about to fix it. If it reappears
-      // in Sentry (lastSeen advances past dismissed_at), the card returns.
-      onDismiss(issue);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy prompt');
@@ -269,6 +273,17 @@ function InnerCard({
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy Fix Prompt'}</span>
+          </Button>
+          {/* Explicit dismiss — copy no longer auto-hides the card, so this
+              preserves the "mark fixed" path (writes to sentry_dismissed_issues). */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDismiss(issue)}
+            className="h-8 gap-1.5 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mark fixed</span>
           </Button>
         </div>
       </div>
