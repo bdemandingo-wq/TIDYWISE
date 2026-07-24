@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Loader2, Shield, AlertTriangle, CheckCircle2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { SEOHead } from '@/components/SEOHead';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -39,7 +37,12 @@ interface Dispute {
   created_at: string;
 }
 
-export default function DisputesPage() {
+/**
+ * Chargeback disputes with auto-drafted CE 3.0 evidence + submit-to-Stripe.
+ * Extracted verbatim from the former /dashboard/disputes page so it can live
+ * in the platform-analytics Evidence tab. Submit flow is unchanged.
+ */
+export function DisputeEvidencePanel() {
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const { data: disputes, isLoading, refetch } = useQuery<Dispute[]>({
@@ -71,26 +74,25 @@ export default function DisputesPage() {
   };
 
   return (
-    <AdminLayout title="Disputes">
-<div className="portal-v2 portal-v2-scroll">
-      <SEOHead title="Disputes — TidyWise" description="Stripe chargeback dispute drafts" noIndex />
-      <div className="container mx-auto p-4 space-y-4 max-w-5xl">
-        <div className="flex items-center justify-between">
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Shield className="h-6 w-6" /> Disputes
-            </h1>
-            <p className="text-sm text-muted-foreground">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Shield className="h-5 w-5" /> Chargeback Disputes
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
               Stripe chargebacks with auto-drafted Visa Compelling Evidence 3.0 responses.
             </p>
           </div>
-          <Button variant="outline" onClick={() => refetch()}>Refresh</Button>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh</Button>
         </div>
-
+      </CardHeader>
+      <CardContent>
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
         ) : !disputes || disputes.length === 0 ? (
-          <Card><CardContent className="py-10 text-center text-muted-foreground">No disputes recorded.</CardContent></Card>
+          <div className="py-10 text-center text-muted-foreground">No disputes recorded.</div>
         ) : (
           <div className="space-y-3">
             {disputes.map((d) => (
@@ -197,8 +199,7 @@ export default function DisputesPage() {
             ))}
           </div>
         )}
-      </div>
-    </div>
-</AdminLayout>
+      </CardContent>
+    </Card>
   );
 }

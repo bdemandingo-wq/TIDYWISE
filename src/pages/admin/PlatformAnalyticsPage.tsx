@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -42,6 +42,7 @@ import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
 import { PlatformNotificationsLog } from '@/components/admin/PlatformNotificationsLog';
 import { CancellationFeedbackPanel } from '@/components/admin/CancellationFeedbackPanel';
 import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
+import { DisputeEvidencePanel } from '@/components/admin/DisputeEvidencePanel';
 import ChurnRetentionTab from '@/components/admin/ChurnRetentionTab';
 import { ErrorsIncidentsPanel } from '@/components/admin/ErrorsIncidentsPanel';
 import { TrendingDown, Bug } from 'lucide-react';
@@ -157,7 +158,12 @@ export default function PlatformAnalyticsPage() {
   const [cancelling, setCancelling] = useState(false);
   const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
   const [sendingResub, setSendingResub] = useState(false);
-  const [activeTab, setActiveTab] = useState('subscribers');
+  // Deep-link support: e.g. /dashboard/platform-analytics?tab=evidence (used by
+  // the /dashboard/disputes redirect). Falls back to 'subscribers'.
+  const [searchParams] = useSearchParams();
+  const VALID_TABS = ['subscribers', 'signups', 'organizations', 'comped', 'churn', 'activity', 'evidence', 'demos', 'notifications', 'errors'];
+  const requestedTab = searchParams.get('tab') || '';
+  const [activeTab, setActiveTab] = useState(VALID_TABS.includes(requestedTab) ? requestedTab : 'subscribers');
 
   const handleSendResubscribeEmail = async () => {
     if (!resubTarget) return;
@@ -1211,7 +1217,10 @@ export default function PlatformAnalyticsPage() {
             </Card>
           </TabsContent>
           <TabsContent value="evidence">
-            <UserSessionEvidence />
+            <div className="space-y-6">
+              <DisputeEvidencePanel />
+              <UserSessionEvidence />
+            </div>
           </TabsContent>
           <DemoCalendarTab />
           <PlatformNotificationsLog />

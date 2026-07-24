@@ -92,7 +92,6 @@ const HelpPage = lazy(() => import("./pages/admin/HelpPage"));
 
 const DiscountsPage = lazy(() => import("./pages/admin/DiscountsPage"));
 const PlatformAnalyticsPage = lazy(() => import("./pages/admin/PlatformAnalyticsPage"));
-const DisputesPage = lazy(() => import("./pages/admin/DisputesPage"));
 const MessagesPage = lazy(() => import("./pages/admin/MessagesPage"));
 const TasksPage = lazy(() => import("./pages/admin/TasksPage"));
 const AIIntelligencePage = lazy(() => import("./pages/admin/AIIntelligencePage"));
@@ -341,7 +340,7 @@ const App = () => (
                       <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/platform-analytics" element={<AdminRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/disputes" element={<AdminRoute><ErrorBoundary featureName="Disputes"><DisputesPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/disputes" element={<Navigate to="/dashboard/platform-analytics?tab=evidence" replace />} />
                       <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/client-portal" element={<AdminRoute><ErrorBoundary featureName="Client Portal"><ClientPortalAdminPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
@@ -485,7 +484,7 @@ const App = () => (
                     <Route path="/dashboard/messages" element={<AdminRoute><ErrorBoundary featureName="Messages"><MessagesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tasks" element={<AdminRoute><ErrorBoundary featureName="Tasks"><TasksPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/platform-analytics" element={<AdminRoute><ErrorBoundary featureName="Platform Analytics"><PlatformAnalyticsPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/disputes" element={<AdminRoute><ErrorBoundary featureName="Disputes"><DisputesPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/disputes" element={<Navigate to="/dashboard/platform-analytics?tab=evidence" replace />} />
                     <Route path="/dashboard/ai-intelligence" element={<AdminRoute><ErrorBoundary featureName="AI Intelligence"><AIIntelligencePage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/client-portal" element={<AdminRoute><ErrorBoundary featureName="Client Portal"><ClientPortalAdminPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/automation-center" element={<AdminRoute><ErrorBoundary featureName="Automation Center"><AutomationCenterPage /></ErrorBoundary></AdminRoute>} />
