@@ -96,11 +96,90 @@ function statCards(stats: OrgStats): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>${cells}</tr></table>`;
 }
 
+// Pro-plan capabilities (sourced from ChoosePlanPage's 'pro' tier), framed as
+// what's switched off right now. Emoji are used as email-safe "icons" — no
+// external images, renders in Gmail and Apple Mail.
+const PRO_LOCKED_FEATURES: { icon: string; label: string }[] = [
+  { icon: "⚡", label: "Automations — reviews, reminders, win-back" },
+  { icon: "🤖", label: "AI Intelligence + Copilot" },
+  { icon: "📍", label: "GPS tracking" },
+  { icon: "📊", label: "Advanced reports" },
+  { icon: "💵", label: "Payroll" },
+  { icon: "📦", label: "Inventory" },
+  { icon: "🔑", label: "Client portal" },
+];
+
+// "What's new since you left." No changelog source exists in the repo, so this
+// is authored copy — leave empty to hide the section entirely. Each item below
+// maps to a shipped, verified feature (component + edge function present).
+const WHATS_NEW: { title: string; desc: string }[] = [
+  { title: "Tidy AI Co-pilot", desc: "an in-app assistant that knows your business and answers questions, drafts messages, and helps you move faster." },
+  { title: "AI text auto-reply", desc: "incoming customer texts get answered automatically, so leads don't sit waiting." },
+  { title: "GPS arrival tracking", desc: "see cleaners en route and on-site, and share live arrival tracking with customers." },
+  { title: "Automation Center", desc: "hands-off reminders, review requests, rebooking nudges, and win-back offers running in the background." },
+];
+
+// Dark panel listing the Pro toolkit as switched off — the emotional weight of
+// the email. Dimmed rows on a dark card read as "the lights are off."
+function lockedFeaturesPanel(): string {
+  const rows = PRO_LOCKED_FEATURES.map((f, i) => `
+    <tr>
+      <td style="padding:13px 0;${i ? "border-top:1px solid #1e293b;" : ""}">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td width="28" valign="middle" style="font-size:17px;line-height:1;">${f.icon}</td>
+          <td valign="middle" style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#cbd5e1;">${f.label}</td>
+          <td align="right" valign="middle" style="font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.8px;color:#f59e0b;">OFF</td>
+        </tr></table>
+      </td>
+    </tr>`).join("");
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;border-radius:14px;margin:0 0 30px;">
+      <tr><td style="padding:24px 22px 4px;">
+        <div style="font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;color:#ffffff;">Your Pro toolkit is switched off</div>
+        <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#94a3b8;margin-top:6px;">Reactivating turns all of it back on — nothing was deleted.</div>
+      </td></tr>
+      <tr><td style="padding:8px 22px 22px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>
+      </td></tr>
+    </table>`;
+}
+
+// "New since you left" — renders only when WHATS_NEW has items.
+function whatsNewSection(): string {
+  if (WHATS_NEW.length === 0) return "";
+  const items = WHATS_NEW.map((n) => `
+    <tr><td style="padding:0 0 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="52" valign="top">
+          <span style="display:inline-block;background:#dcfce7;color:#15803d;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.6px;padding:4px 9px;border-radius:20px;">NEW</span>
+        </td>
+        <td valign="top" style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#475569;">
+          <strong style="color:#0f172a;">${n.title}</strong> — ${n.desc}
+        </td>
+      </tr></table>
+    </td></tr>`).join("");
+  return `
+    <p style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;font-weight:700;">New since you left</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 30px;">${items}</table>`;
+}
+
 function innerBody(checkoutUrl: string, ctx: EmailContext): string {
   const p = (text: string) =>
     `<p style="margin:0 0 26px;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:#475569;">${text}</p>`;
   const eyebrow =
     `<p style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#2563eb;font-weight:700;">Welcome back</p>`;
+
+  // Shared tail: locked Pro toolkit, what's-new (if any), value line, CTA, link.
+  const tail = `
+    ${lockedFeaturesPanel()}
+    ${whatsNewSection()}
+    ${p("Reactivate your Pro plan and pick up right where you stopped — your customers, bookings, and invoices are waiting.")}
+
+    ${ctaButton(checkoutUrl)}
+    <p style="margin:14px 0 0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#94a3b8;">$50/month · cancel anytime</p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:30px 0 0;"><tr><td style="border-top:1px solid #eef1f5;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+    <p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;word-break:break-all;">Button not working? Paste this link into your browser:<br/><a href="${checkoutUrl}" style="color:#2563eb;">${checkoutUrl}</a></p>`;
 
   if (ctx.stats) {
     const s = ctx.stats;
@@ -122,28 +201,16 @@ function innerBody(checkoutUrl: string, ctx: EmailContext): string {
           </td>
         </tr>
       </table>
-
-      ${p("Your customers, bookings, invoices, and history are exactly where you left them. Reactivate your Pro plan and pick up right where you stopped.")}
-
-      ${ctaButton(checkoutUrl)}
-      <p style="margin:14px 0 0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#94a3b8;">$50/month · cancel anytime</p>
-
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:30px 0 0;"><tr><td style="border-top:1px solid #eef1f5;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-      <p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;word-break:break-all;">Button not working? Paste this link into your browser:<br/><a href="${checkoutUrl}" style="color:#2563eb;">${checkoutUrl}</a></p>`;
+      ${tail}`;
   }
 
-  // Clean, stat-free fallback.
+  // Clean, stat-free fallback (org unresolved or < 5 bookings).
   const heading = ctx.firstName ? `${ctx.firstName}, come back to TidyWise` : `Come back to TidyWise`;
   return `
     ${eyebrow}
     <h1 style="margin:0 0 16px;font-family:Arial,Helvetica,sans-serif;font-size:27px;line-height:1.25;color:#0f172a;font-weight:800;">${heading}</h1>
-    ${p("Your account access ended when your Pro subscription was canceled — but all your data is still here, exactly where you left it. Reactivate anytime and pick up right where you stopped.")}
-
-    ${ctaButton(checkoutUrl)}
-    <p style="margin:14px 0 0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#94a3b8;">$50/month · cancel anytime</p>
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:30px 0 0;"><tr><td style="border-top:1px solid #eef1f5;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-    <p style="margin:20px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;word-break:break-all;">Button not working? Paste this link into your browser:<br/><a href="${checkoutUrl}" style="color:#2563eb;">${checkoutUrl}</a></p>`;
+    ${p("Your account access ended when your Pro subscription was canceled — but everything you set up is still here, exactly where you left it.")}
+    ${tail}`;
 }
 
 function buildEmailHtml(checkoutUrl: string, ctx: EmailContext): string {
