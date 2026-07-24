@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
   CalendarCheck, Phone, Mail, Briefcase, Loader2,
   ChevronLeft, ChevronRight, Ban, X, Search,
   Calendar as CalendarIcon, Clock, AlertTriangle,
-  ArrowUpDown, Eye, CheckCircle2, Trash2, Video, MessageSquare
+  ArrowUpDown, Eye, CheckCircle2, Trash2, Video, MessageSquare, ExternalLink
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -40,6 +40,7 @@ interface DemoBooking {
   original_date: string | null;
   original_time: string | null;
   created_at: string;
+  meeting_link: string | null;
 }
 
 // ── Google Calendar quick-add ─────────────────────────────────────────────
@@ -243,6 +244,45 @@ export function DemoCalendarTab() {
       queryClient.invalidateQueries({ queryKey: ['demo-bookings'] });
     },
   });
+
+  // Platform-wide default meeting link (new demos auto-fill it via a DB trigger).
+  const { data: defaultMeetingLink = '' } = useQuery({
+    queryKey: ['demo-default-meeting-link'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('platform_settings' as any)
+        .select('value')
+        .eq('key', 'demo_default_meeting_link')
+        .maybeSingle();
+      return (((data as any)?.value as { url?: string } | null)?.url ?? '') as string;
+    },
+  });
+  const [defaultLinkDraft, setDefaultLinkDraft] = useState('');
+  useEffect(() => setDefaultLinkDraft(defaultMeetingLink), [defaultMeetingLink]);
+
+  const saveDefaultLinkMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const { error } = await supabase
+        .from('platform_settings' as any)
+        .upsert(
+          { key: 'demo_default_meeting_link', value: { url: url.trim() }, updated_at: new Date().toISOString() } as any,
+          { onConflict: 'key' },
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['demo-default-meeting-link'] });
+      toast.success('Default meeting link saved');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Could not save link'),
+  });
+
+  // Draft for the per-demo override input inside the detail modal. Reset it
+  // whenever a different demo's detail dialog is opened.
+  const perDemoLinkDraftRef = useRef('');
+  useEffect(() => {
+    perDemoLinkDraftRef.current = detailBooking?.meeting_link ?? '';
+  }, [detailBooking]);
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
@@ -503,6 +543,29 @@ export function DemoCalendarTab() {
         ))}
       </div>
 
+      {/* Default meeting link — new demos auto-fill it; override per demo below. */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Video className="w-4 h-4" /> Default demo meeting link
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            value={defaultLinkDraft}
+            onChange={(e) => setDefaultLinkDraft(e.target.value)}
+            placeholder="https://meet.google.com/your-permanent-room"
+            className="flex-1"
+          />
+          <Button
+            onClick={() => saveDefaultLinkMutation.mutate(defaultLinkDraft)}
+            disabled={saveDefaultLinkMutation.isPending || defaultLinkDraft === defaultMeetingLink}
+          >
+            Save
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Controls */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
@@ -645,6 +708,18 @@ export function DemoCalendarTab() {
                               <Clock className="w-3 h-3" />
                               {formatTime12h(demo.booked_time.substring(0, 5))} EST
                             </div>
+                            {demo.meeting_link && (
+                              <Button
+                                size="sm"
+                                className="mt-1.5 h-8 gap-1.5 bg-info text-info-foreground hover:bg-info/90"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(demo.meeting_link!, '_blank', 'noopener');
+                                }}
+                              >
+                                <Video className="w-3.5 h-3.5" /> Join Call
+                              </Button>
+                            )}
                           </TableCell>
                           <TableCell>
                             <a
@@ -923,6 +998,39 @@ export function DemoCalendarTab() {
                     <br />
                     {formatTime12h(detailBooking.booked_time.substring(0, 5))} EST
                   </p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs text-muted-foreground">Meeting link (this demo)</Label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center mt-1">
+                    <Input
+                      key={detailBooking.id}
+                      defaultValue={detailBooking.meeting_link ?? ''}
+                      placeholder="Leave blank to use the default"
+                      className="flex-1"
+                      onChange={(e) => (perDemoLinkDraftRef.current = e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        updateBookingMutation.mutate(
+                          { id: detailBooking.id, updates: { meeting_link: perDemoLinkDraftRef.current.trim() || null } },
+                          { onSuccess: () => toast.success('Meeting link updated') },
+                        )
+                      }
+                    >
+                      Save
+                    </Button>
+                    {detailBooking.meeting_link && (
+                      <Button
+                        size="sm"
+                        className="bg-info text-info-foreground hover:bg-info/90 gap-1.5"
+                        onClick={() => window.open(detailBooking.meeting_link!, '_blank', 'noopener')}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Join
+                      </Button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Contact</Label>

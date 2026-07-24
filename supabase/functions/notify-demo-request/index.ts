@@ -63,6 +63,17 @@ serve(async (req: Request) => {
       .select("*", { count: "exact", head: true })
       .eq("status", "confirmed");
 
+    // Platform-wide default demo meeting link (service role bypasses the
+    // admin-only read policy). At booking time a demo's link always equals
+    // this default; per-demo overrides are a later admin action.
+    const { data: linkSetting } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "demo_default_meeting_link")
+      .maybeSingle();
+    const meetingLink =
+      ((linkSetting?.value as { url?: string } | null)?.url || "").trim();
+
     // SMS removed for cost control — see admin email below for the
     // alert, and the prospect confirmation email further down for the
     // booking acknowledgment.
@@ -123,6 +134,16 @@ serve(async (req: Request) => {
         ? `Your TidyWise Demo is Confirmed for ${dateDisplay} at ${timeDisplay} ✅`
         : "Your TidyWise Demo Request is Confirmed! 🎉";
 
+      // "How" line + prominent join button flip to video when a link exists.
+      const howLine = meetingLink
+        ? `<strong>💻 How:</strong> <a href="${meetingLink}" style="color:#2563eb;">Join the video call</a> at your booked time`
+        : `<strong>📞 How:</strong> Emmanuel will call you at ${phone}`;
+      const joinButton = meetingLink
+        ? `<div style="text-align:center;margin:24px 0;">
+             <a href="${meetingLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;">Join Video Call</a>
+           </div>`
+        : "";
+
       const emailHtml = bookedDate && bookedTime
         ? `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px;">
@@ -131,8 +152,9 @@ serve(async (req: Request) => {
           <div style="background: #f5f5f5; border-radius: 12px; padding: 20px; margin: 20px 0;">
             <p style="margin: 5px 0; font-size: 16px;"><strong>📆 Date:</strong> ${dateDisplay}</p>
             <p style="margin: 5px 0; font-size: 16px;"><strong>⏰ Time:</strong> ${timeDisplay} EST</p>
-            <p style="margin: 5px 0; font-size: 16px;"><strong>📞 How:</strong> Emmanuel will call you at ${phone}</p>
+            <p style="margin: 5px 0; font-size: 16px;">${howLine}</p>
           </div>
+          ${joinButton}
           <h3 style="color: #1a1a1a; font-size: 18px;">What we'll cover:</h3>
           <ul style="color: #555; font-size: 16px; line-height: 2;">
             <li>Your specific business workflow</li>
