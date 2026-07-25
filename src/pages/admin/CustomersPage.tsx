@@ -431,7 +431,7 @@ export default function CustomersPage() {
     });
 
     return list;
-  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap, enrollmentsByCustomer]);
+  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap]);
 
   const getInitials = (firstName: string, lastName: string) =>
     `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
