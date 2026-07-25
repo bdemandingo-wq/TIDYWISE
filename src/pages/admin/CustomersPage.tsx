@@ -88,6 +88,10 @@ export default function CustomersPage() {
   const [tabFilter, setTabFilter] = useState<TabFilter>(
     searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all'
   );
+
+  useEffect(() => {
+    setTabFilter(searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all');
+  }, [searchParams]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
