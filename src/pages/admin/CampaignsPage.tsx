@@ -1098,7 +1098,7 @@ export default function CampaignsPage() {
                           : 'Recipient count will appear here.'}
                     </span>
                     <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
-                      onClick={() => testCampaign.mutate()} disabled={testCampaign.isPending}>
+                      onClick={() => testCampaign.mutate(undefined)} disabled={testCampaign.isPending}>
                       Refresh
                     </Button>
                   </div>
@@ -1364,7 +1364,7 @@ export default function CampaignsPage() {
               </div>
 
               {/* Preview audience */}
-              <Button variant="outline" className="w-full gap-2" onClick={() => testCampaign.mutate()} disabled={testCampaign.isPending}>
+              <Button variant="outline" className="w-full gap-2" onClick={() => testCampaign.mutate(undefined)} disabled={testCampaign.isPending}>
                 {testCampaign.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                 Preview Recipients
               </Button>
