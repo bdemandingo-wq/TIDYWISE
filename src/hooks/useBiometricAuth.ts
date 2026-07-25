@@ -20,13 +20,24 @@ const getBiometricPlugin = async () => {
   }
 };
 
+// BIOMETRIC_PROBE_DISABLED — the on-mount NativeBiometric.isAvailable() probe
+// below is turned off. capacitor-native-biometric is NOT registered in the
+// iOS/Android builds, so isAvailable() threw "plugin is not implemented" on
+// every staff-login view — ~41 Sentry events from a feature no user can reach
+// (isAvailable stays false → the "Sign in with Face ID" button never renders).
+// The hook, the button, and the credential-storage code are intentionally left
+// intact; flip this to true to restore the probe once the plugin is registered
+// natively (planned alongside the push-notification plugin).
+const BIOMETRIC_PROBE_ENABLED = false;
+
 export function useBiometricAuth() {
   const [isAvailable, setIsAvailable] = useState(false);
   const [biometryType, setBiometryType] = useState<number | null>(null);
   const [hasStoredCredentials, setHasStoredCredentials] = useState(false);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
+    // Probe disabled — see BIOMETRIC_PROBE_DISABLED note above.
+    if (BIOMETRIC_PROBE_ENABLED && Capacitor.isNativePlatform()) {
       checkBiometricAvailability();
     }
   }, []);
