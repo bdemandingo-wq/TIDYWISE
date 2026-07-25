@@ -398,7 +398,7 @@ export default function CustomersPage() {
       let matchesTab = true;
       if (tabFilter === 'customers') matchesTab = effectiveStatus === 'active';
       else if (tabFilter === 'leads') matchesTab = effectiveStatus === 'lead';
-      else if (tabFilter === 'non_recurring') matchesTab = (enrollmentsByCustomer.get(customer.id) || []).length === 0;
+      else if (tabFilter === 'non_recurring') matchesTab = customer.is_recurring === false;
 
       return matchesSearch && matchesTab;
     });
