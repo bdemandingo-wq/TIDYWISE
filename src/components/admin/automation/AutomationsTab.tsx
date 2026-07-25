@@ -15,7 +15,7 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
-  AlertTriangle, MessageSquare, Plus, Trash2, Pencil,
+  MessageSquare, Plus, Trash2, Pencil,
 } from 'lucide-react';
 import { AutomationEditorDialog } from './AutomationEditorDialog';
 
@@ -343,12 +343,6 @@ const activeAutomationsMeta: Record<string, {
     description: 'Emails you a weekly digest of bookings, revenue, and team stats every Monday',
     color: 'text-blue-500',
   },
-  recurring_lapse_alert: {
-    icon: AlertTriangle,
-    emoji: '⚠️',
-    description: 'Alerts you when a recurring client\'s expected booking didn\'t get created',
-    color: 'text-red-500',
-  },
   quote_stale_reengage: {
     icon: MessageSquare,
     emoji: '💬',
@@ -398,7 +392,9 @@ export function AutomationsTab() {
         .eq('organization_id', organization.id)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data || [];
+      // recurring_lapse_alert was removed; defensively hide any lingering row
+      // (e.g. before the cleanup migration lands).
+      return (data || []).filter((a) => a.automation_type !== 'recurring_lapse_alert');
     },
     enabled: !!organization?.id,
     retry: 3,
@@ -496,7 +492,7 @@ export function AutomationsTab() {
       // Reengage each write one row per confirmed send to the shared
       // automation_fire_log (a row only exists on success — no sent/error flag
       // to filter on).
-      for (const type of ['seasonal_promo', 'weekly_summary', 'recurring_lapse_alert', 'quote_stale_reengage']) {
+      for (const type of ['seasonal_promo', 'weekly_summary', 'quote_stale_reengage']) {
         const { count } = await supabase
           .from('automation_fire_log')
           .select('*', { count: 'exact', head: true })
