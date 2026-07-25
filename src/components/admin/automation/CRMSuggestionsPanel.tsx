@@ -40,15 +40,56 @@ export function CRMSuggestionsPanel() {
     queryKey: ['inactive-customers-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
-      const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, bookings!inner(scheduled_at)')
-        .eq('organization_id', organization.id)
-        .lt('bookings.scheduled_at', sixtyDaysAgo)
-        .limit(100);
-      if (error) return 0;
-      return data?.length || 0;
+      const orgId = organization.id;
+      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+      const PAGE = 1000;
+
+      // Page through a range query so we're not capped at PostgREST's 1000-row
+      // default. Ordered by a unique column so range pagination is stable.
+      const pageThrough = async (build: (from: number, to: number) => any): Promise<any[]> => {
+        const out: any[] = [];
+        for (let page = 0; ; page++) {
+          const { data, error } = await build(page * PAGE, (page + 1) * PAGE - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          out.push(...data);
+          if (data.length < PAGE) break;
+        }
+        return out;
+      };
+
+      try {
+        // Customers with a booking on/after the cutoff — the campaign treats
+        // these as active (their most-recent booking is within the window).
+        const recent = await pageThrough((from, to) =>
+          supabase
+            .from('bookings')
+            .select('id, customer_id')
+            .eq('organization_id', orgId)
+            .gte('scheduled_at', cutoff)
+            .order('id', { ascending: true })
+            .range(from, to),
+        );
+        const activeIds = new Set(recent.map((r) => r.customer_id).filter(Boolean));
+
+        // Campaign-eligible customers: opted-in with a phone (SMS win-back).
+        const eligible = await pageThrough((from, to) =>
+          supabase
+            .from('customers')
+            .select('id')
+            .eq('organization_id', orgId)
+            .eq('marketing_status', 'active')
+            .not('phone', 'is', null)
+            .order('id', { ascending: true })
+            .range(from, to),
+        );
+
+        // Inactive = eligible with no booking on/after the cutoff. Mirrors
+        // run-inactive-campaign's inactive_clients audience, uncapped.
+        return eligible.filter((c) => !activeIds.has(c.id)).length;
+      } catch {
+        return 0;
+      }
     },
     enabled: !!organization?.id,
   });
