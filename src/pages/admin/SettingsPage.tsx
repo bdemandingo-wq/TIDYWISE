@@ -44,6 +44,7 @@ import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSetti
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
 import { EmailSettingsCard } from '@/components/admin/EmailSettingsCard';
+import { EmailDeliveryPanel } from '@/components/admin/EmailDeliveryPanel';
 import { EmailTemplatesSettings } from '@/components/admin/EmailTemplatesSettings';
 import { NotificationPreferencesCard } from '@/components/admin/NotificationPreferencesCard';
 import { useLegacyNotificationMigration } from '@/hooks/useLegacyNotificationMigration';
@@ -809,6 +810,7 @@ export default function SettingsPage() {
         {/* Email & Domain Settings */}
         <TabsContent value="emails" className="space-y-6">
           <EmailSettingsCard />
+          <EmailDeliveryPanel />
 
           <EmailTemplatesSettings
             organizationId={organization?.id}

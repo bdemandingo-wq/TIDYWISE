@@ -2,42 +2,42 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { useOrganization } from '@/contexts/OrganizationContext';
-import { useQuery } from '@tanstack/react-query';
+import { useOrgEmailHealth } from '@/hooks/useOrgEmailHealth';
 
-const DISMISS_KEY = 'tw_email_identity_banner_dismissed';
+// Per-mode session dismissal so dismissing "set up email" doesn't suppress a
+// later failures warning (and vice versa).
+const DISMISS_PREFIX = 'tw_email_banner_dismissed_';
 
 export function EmailIdentityBanner() {
-  const { organization, isOwner, isAdmin } = useOrganization();
-  const [dismissed, setDismissed] = useState(
-    () => sessionStorage.getItem(DISMISS_KEY) === '1',
-  );
+  const { canView, notConfigured, hardFailures } = useOrgEmailHealth();
+  const [dismissedModes, setDismissedModes] = useState<Record<string, boolean>>(() => ({
+    not_configured: sessionStorage.getItem(DISMISS_PREFIX + 'not_configured') === '1',
+    failures: sessionStorage.getItem(DISMISS_PREFIX + 'failures') === '1',
+  }));
 
-  const { data: configured } = useQuery({
-    queryKey: ['email-identity-configured', organization?.id],
-    enabled: !!organization?.id && (isOwner || isAdmin),
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      // Non-secret columns only — RLS revokes the API-key/password columns.
-      const { data, error } = await supabase
-        .from('organization_email_settings')
-        .select('from_name, from_email')
-        .eq('organization_id', organization!.id)
-        .maybeSingle();
-      if (error) return true; // fail closed: never nag on a read error
-      return !!data && !!data.from_name?.trim() && !!data.from_email?.trim();
-    },
-  });
+  // notConfigured wins: a new org with no identity has zero failure rows,
+  // so failures alone can't cover it.
+  const mode = notConfigured
+    ? 'not_configured'
+    : hardFailures.length > 0
+      ? 'failures'
+      : null;
 
-  if (!(isOwner || isAdmin)) return null;
-  if (dismissed) return null;
-  if (configured !== false) return null; // configured / loading / unknown → hide
+  if (!canView || !mode || dismissedModes[mode]) return null;
 
   const dismiss = () => {
-    sessionStorage.setItem(DISMISS_KEY, '1');
-    setDismissed(true);
+    sessionStorage.setItem(DISMISS_PREFIX + mode, '1');
+    setDismissedModes((prev) => ({ ...prev, [mode]: true }));
   };
+
+  const n = hardFailures.length;
+  const title = mode === 'not_configured'
+    ? 'Your customers aren’t receiving emails'
+    : `${n} recent email ${n === 1 ? 'failure' : 'failures'}`;
+  const body = mode === 'not_configured'
+    ? 'You haven’t set up a sender email yet, so booking confirmations, invoices, and receipts aren’t being delivered.'
+    : 'Some customer emails failed to send recently — customers may not be receiving confirmations, invoices, or receipts.';
+  const cta = mode === 'not_configured' ? 'Set up email' : 'View email delivery';
 
   return (
     <div
@@ -47,14 +47,10 @@ export function EmailIdentityBanner() {
     >
       <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600" />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-          Your customers aren’t receiving emails
-        </p>
-        <p className="text-sm text-amber-800/90 dark:text-amber-100/80">
-          You haven’t set up a sender email yet, so booking confirmations, invoices, and receipts aren’t being delivered.
-        </p>
+        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">{title}</p>
+        <p className="text-sm text-amber-800/90 dark:text-amber-100/80">{body}</p>
         <Button asChild size="sm" variant="outline" className="mt-2 h-8">
-          <Link to="/dashboard/settings?tab=emails">Set up email</Link>
+          <Link to="/dashboard/settings?tab=emails">{cta}</Link>
         </Button>
       </div>
       <button
