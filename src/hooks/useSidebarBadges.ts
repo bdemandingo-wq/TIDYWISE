@@ -226,7 +226,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     refetchInterval,
     queryFn: async () => {
       if (!orgId) return 0;
-      const { data } = await supabase.from('org_stripe_settings').select('is_connected, stripe_payouts_enabled').eq('organization_id', orgId).maybeSingle();
+      const { data } = await supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: orgId }).maybeSingle();
       if (!data) return 1;
       if (!data.is_connected) return 1;
       if (data.stripe_payouts_enabled === false) return 1;

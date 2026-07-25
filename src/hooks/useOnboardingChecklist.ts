@@ -24,7 +24,7 @@ export function useOnboardingChecklist() {
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
         supabase.from('staff').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
         supabase.rpc('has_openphone_api_key', { _org_id: organizationId }),
-        supabase.from('org_stripe_settings').select('stripe_account_id').eq('organization_id', organizationId).maybeSingle(),
+        supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId }).maybeSingle(),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
       ]);
 
