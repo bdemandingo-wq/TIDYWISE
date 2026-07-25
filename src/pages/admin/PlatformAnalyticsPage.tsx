@@ -152,6 +152,7 @@ export default function PlatformAnalyticsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [activityFilter, setActivityFilter] = useState<'all' | 'admin' | 'client_portal'>('all');
+  const [activitySearch, setActivitySearch] = useState('');
   const [subscriberSearch, setSubscriberSearch] = useState('');
   const [cancelTarget, setCancelTarget] = useState<Subscriber | null>(null);
   const [cancelImmediate, setCancelImmediate] = useState(false);
@@ -1089,6 +1090,16 @@ export default function PlatformAnalyticsPage() {
                     </div>
                   </div>
                 </div>
+                {/* Client-side filter on the already-loaded list (email) */}
+                <div className="relative mt-3 w-full sm:max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={activitySearch}
+                    onChange={(e) => setActivitySearch(e.target.value)}
+                    placeholder="Filter by email…"
+                    className="pl-8 h-9"
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
@@ -1157,8 +1168,10 @@ export default function PlatformAnalyticsPage() {
                     </h4>
                     <ScrollArea className="h-[280px] pr-4 pb-2">
                       {(() => {
+                        const q = activitySearch.trim().toLowerCase();
                         const filteredUsers = sessionStats?.userList?.filter(u =>
-                          activityFilter === 'all' || u.user_type === activityFilter
+                          (activityFilter === 'all' || u.user_type === activityFilter) &&
+                          (!q || u.user_email.toLowerCase().includes(q))
                         ) || [];
                         
                         if (filteredUsers.length > 0) {
@@ -1205,8 +1218,14 @@ export default function PlatformAnalyticsPage() {
                         return (
                           <div className="text-center py-12 text-muted-foreground">
                             <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                            <p>No session data available yet</p>
-                            <p className="text-xs mt-1">Sessions are tracked as users browse the app</p>
+                            {q ? (
+                              <p>No users match "{activitySearch.trim()}"</p>
+                            ) : (
+                              <>
+                                <p>No session data available yet</p>
+                                <p className="text-xs mt-1">Sessions are tracked as users browse the app</p>
+                              </>
+                            )}
                           </div>
                         );
                       })()}
