@@ -88,6 +88,10 @@ export default function CustomersPage() {
   const [tabFilter, setTabFilter] = useState<TabFilter>(
     searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all'
   );
+
+  useEffect(() => {
+    setTabFilter(searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all');
+  }, [searchParams]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -427,7 +431,7 @@ export default function CustomersPage() {
     });
 
     return list;
-  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap, enrollmentsByCustomer]);
+  }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap]);
 
   const getInitials = (firstName: string, lastName: string) =>
     `${firstName[0] || ''}${lastName[0] || ''}`.toUpperCase();
@@ -781,6 +785,9 @@ export default function CustomersPage() {
             </TabsTrigger>
             <TabsTrigger value="leads" className="flex-1 sm:flex-none gap-1.5">
               Leads <Badge variant="secondary" className="text-xs px-1.5 py-0">{leadCount}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="non_recurring" className="flex-1 sm:flex-none gap-1.5">
+              Non-Recurring <Badge variant="secondary" className="text-xs px-1.5 py-0">{customers.filter(c => c.is_recurring === false).length}</Badge>
             </TabsTrigger>
           </TabsList>
         </Tabs>
