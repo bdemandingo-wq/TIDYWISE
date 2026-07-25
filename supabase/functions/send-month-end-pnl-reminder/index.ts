@@ -83,6 +83,15 @@ serve(async (req) => {
           continue;
         }
 
+        // app_url lives on business_settings, not organization_email_settings —
+        // read it from the right table so the P&L link points at the org's app.
+        const { data: bizSettings } = await supabase
+          .from("business_settings")
+          .select("app_url")
+          .eq("organization_id", org.id)
+          .maybeSingle();
+        const appUrl = (bizSettings?.app_url || Deno.env.get("APP_URL") || "https://jointidywise.com").replace(/\/$/, "");
+
         const html = `
           <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
             <h1 style="font-size:20px;margin:0 0 12px">Month-end P&amp;L reminder</h1>
@@ -91,7 +100,7 @@ serve(async (req) => {
               P&amp;L Overview with your revenue, marketing budget, and expenses.
             </p>
             <p style="margin:24px 0">
-              <a href="${(settings.app_url || "https://jointidywise.lovable.app").replace(/\/$/, "")}${PNL_LINK}"
+              <a href="${appUrl}${PNL_LINK}"
                  style="background:#0f172a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600">
                 Open P&amp;L Overview
               </a>
