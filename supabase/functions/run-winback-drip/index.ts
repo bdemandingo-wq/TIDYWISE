@@ -40,6 +40,22 @@ serve(async (req) => {
     if (!orgs?.length) return jsonOk({ results });
 
     for (const org of orgs) {
+      // Opt-in gate: only send for orgs that have the winback_60day automation
+      // explicitly enabled. Without this, the drip would send discount offers on
+      // behalf of every org — including ones that turned it off. This keeps the
+      // function safe-by-default if it's ever scheduled. (Whether winback should
+      // be automatic at all, and its default-ON seed, are separate decisions.)
+      const { data: automation } = await supabase
+        .from("organization_automations")
+        .select("is_enabled")
+        .eq("organization_id", org.id)
+        .eq("automation_type", "winback_60day")
+        .maybeSingle();
+      if (!automation?.is_enabled) {
+        results.skipped++;
+        continue;
+      }
+
       // Get email settings for org
       const { data: emailSettings } = await supabase
         .from("organization_email_settings")
