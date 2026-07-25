@@ -492,6 +492,26 @@ export function AutomationsTab() {
         .limit(1);
       counts['winback_60day'] = { total: winbackCount || 0, lastFired: lastWinback?.[0]?.sent_at || null };
 
+      // Seasonal Promo, Weekly Summary, Recurring Lapse Alert, and Quote Stale
+      // Reengage each write one row per confirmed send to the shared
+      // automation_fire_log (a row only exists on success — no sent/error flag
+      // to filter on).
+      for (const type of ['seasonal_promo', 'weekly_summary', 'recurring_lapse_alert', 'quote_stale_reengage']) {
+        const { count } = await supabase
+          .from('automation_fire_log')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organization.id)
+          .eq('automation_type', type);
+        const { data: last } = await supabase
+          .from('automation_fire_log')
+          .select('fired_at')
+          .eq('organization_id', organization.id)
+          .eq('automation_type', type)
+          .order('fired_at', { ascending: false })
+          .limit(1);
+        counts[type] = { total: count || 0, lastFired: last?.[0]?.fired_at || null };
+      }
+
       return counts;
     },
     enabled: !!organization?.id,

@@ -297,6 +297,14 @@ Give practical advice for a cleaning business owner.`;
             html: reportHtml,
           });
           console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
+          // Log the successful send so Automation Center can show a real fire count.
+          const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
+            organization_id: org.id,
+            automation_type: 'weekly_summary',
+            target_id: org.id,               // one summary email per org per run
+            metadata: { sent_at: new Date().toISOString(), to: adminEmail },
+          });
+          if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
         } catch (emailError) {
           console.error(`[weekly-business-report] Email error for org ${org.id}:`, emailError);
         }

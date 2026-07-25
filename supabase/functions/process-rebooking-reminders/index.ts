@@ -101,36 +101,17 @@ const handler = async (req: Request): Promise<Response> => {
 
         const rating = review?.rating || portalFeedback?.rating || null;
 
-        if (rating !== null) {
-          // Rating exists - check if 4 or 5 stars
-          if (rating <= 3) {
-            await supabase.from("rebooking_reminder_queue")
-              .update({ cancelled: true, cancelled_reason: `Low rating: ${rating} stars` })
-              .eq("id", item.id);
-            console.log(`[process-rebooking-reminders] Cancelled for booking ${item.booking_id}: rating ${rating} stars`);
-            continue;
-          }
-          // Rating is 4 or 5 - proceed to send
-        } else {
-          // No review yet - defer 7 days (only once)
-          if (item.defer_count === 0) {
-            const deferUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-            await supabase.from("rebooking_reminder_queue")
-              .update({ deferred_until: deferUntil, defer_count: 1 })
-              .eq("id", item.id);
-            console.log(`[process-rebooking-reminders] Deferred booking ${item.booking_id} by 7 days (no review yet)`);
-            continue;
-          }
-          // Already deferred once - send anyway (no review after 35 days total)
-          // Actually per requirements: "If no review exists yet, wait 7 additional days and check again before sending"
-          // After the 7-day deferral, check again. If still no review, skip (don't send).
-          // Re-reading: "check again before sending" - if still no review, we should cancel
+        // Suppress rebooking nudges only for unhappy customers: a 3-or-below
+        // rating cancels. Everyone else — including customers who left no
+        // review — gets the nudge. (No more 7-day "wait for a review" defer.)
+        if (rating !== null && rating <= 3) {
           await supabase.from("rebooking_reminder_queue")
-            .update({ cancelled: true, cancelled_reason: "No review after deferral" })
+            .update({ cancelled: true, cancelled_reason: `Low rating: ${rating} stars` })
             .eq("id", item.id);
-          console.log(`[process-rebooking-reminders] Cancelled for booking ${item.booking_id}: no review after deferral`);
+          console.log(`[process-rebooking-reminders] Cancelled for booking ${item.booking_id}: rating ${rating} stars`);
           continue;
         }
+        // No review, or 4-5 stars → proceed to send
 
         // 3. Get customer details
         const { data: customer } = await supabase
