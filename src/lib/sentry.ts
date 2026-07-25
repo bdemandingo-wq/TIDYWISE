@@ -84,6 +84,11 @@ export function initSentry(): void {
       "Loading chunk",
       "Loading CSS chunk",
       "Importing a module script failed",
+      // Cloudflare Web Analytics beacon noise: its minified script occasionally
+      // throws TypeError on this.i.at not being a function on older browsers.
+      // The entire stack trace is in /beacon.min.js/, so it's never our code.
+      "this.i.at is not a function",
+
       // Facebook / Instagram / TikTok in-app browser noise. Their
       // injected scripts assume native bridges (window.webkit.messageHandlers
       // on iOS, Java postMessage on Android) and throw on every page load.
@@ -134,7 +139,8 @@ export function initSentry(): void {
 
         // Code we do not ship — extensions + in-app-browser bridges.
         const EXTERNAL_ORIGIN =
-          /(chrome|moz|safari(?:-web)?|ms-browser)-extension:\/\/|^extensions::|iabjs:\/\/|navigation_performance_logger/im;
+          /(chrome|moz|safari(?:-web)?|ms-browser)-extension:\/\/|^extensions::|iabjs:\/\/|navigation_performance_logger|\/beacon\.min\.js/im;
+
 
         if (
           EXTERNAL_ORIGIN.test(allStacks) ||
