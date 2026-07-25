@@ -105,9 +105,7 @@ export function PaymentStep() {
     if (!organizationId) return;
     let cancelled = false;
     supabase
-      .from('org_stripe_settings')
-      .select('is_connected')
-      .eq('organization_id', organizationId)
+      .rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId })
       .maybeSingle()
       .then(({ data }) => {
         if (!cancelled) setStripeConfigured(!!data?.is_connected);

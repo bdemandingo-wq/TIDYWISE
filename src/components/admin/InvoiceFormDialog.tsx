@@ -131,9 +131,7 @@ export function InvoiceFormDialog({
     queryKey: ['org-stripe-check', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('org_stripe_settings')
-        .select('is_connected')
-        .eq('organization_id', organizationId)
+        .rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId })
         .maybeSingle();
       if (error) throw error;
       return data;
