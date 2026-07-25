@@ -152,7 +152,7 @@ export default function BenchmarksPage() {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users className="h-3.5 w-3.5" />
-                  {peerAll?.org_count ? `${peerAll.org_count} peer orgs` : 'Cohort too small'}
+                  {peerAll?.org_count ? `${peerAll.org_count} participating businesses` : 'Cohort too small'}
                 </div>
                 <Select value={bucket} onValueChange={(v) => setBucket(v as ServiceBucket)}>
                   <SelectTrigger className="w-44">
