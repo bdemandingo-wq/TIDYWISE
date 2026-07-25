@@ -492,7 +492,7 @@ export default function CampaignsPage() {
   });
 
   const testCampaign = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts?: { silent?: boolean }) => {
       const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
         body: {
           organizationId: orgId,
@@ -505,19 +505,28 @@ export default function CampaignsPage() {
         },
       });
       if (error) throw error;
-      return data;
+      return { data, silent: opts?.silent };
     },
-    onSuccess: (data) => {
+    onSuccess: ({ data, silent }) => {
       setTestResult({
         inactive: data.inactiveCount || 0,
         contactable: data.toContactCount || 0,
         excludedCount: data.excludedCount || 0,
         customers: data.customers,
       });
-      toast({ title: "Preview ready", description: `${data.toContactCount || 0} recipients found` });
+      if (!silent) toast({ title: "Preview ready", description: `${data.toContactCount || 0} recipients found` });
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
   });
+
+  // Auto-refresh recipient count on step 1 when audience params change
+  useEffect(() => {
+    if (!createOpen || createStep !== 1 || !orgId) return;
+    if (campaignForm.audience !== "inactive_clients") return;
+    const t = setTimeout(() => testCampaign.mutate({ silent: true }), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOpen, createStep, orgId, campaignForm.audience, campaignForm.days_inactive, campaignForm.excludeAlreadyReceived, campaignForm.excludeRecentDays, campaignForm.onlyAfterDate]);
 
   const sendCampaignNow = useMutation({
     mutationFn: async () => {
