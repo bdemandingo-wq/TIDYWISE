@@ -322,7 +322,7 @@ const activeAutomationsMeta: Record<string, {
   winback_60day: {
     icon: UserX,
     emoji: '💸',
-    description: 'Fires after 30 days of no booking — sends win-back message',
+    description: 'Enable win-back for clients with no booking in 60+ days — you send it from the Campaigns page (not automatic)',
     color: 'text-orange-500',
   },
   recurring_upsell: {
@@ -412,16 +412,20 @@ export function AutomationsTab() {
       const counts: Record<string, { total: number; lastFired: string | null }> = {};
 
       // Review requests
+      // "Fired" = actually sent. Skips/failures are stamped sent=true with an
+      // error (e.g. "Automation disabled"), so exclude error rows.
       const { count: reviewCount } = await supabase
         .from('automated_review_sms_queue')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .eq('sent', true);
+        .eq('sent', true)
+        .is('error', null);
       const { data: lastReview } = await supabase
         .from('automated_review_sms_queue')
         .select('sent_at')
         .eq('organization_id', organization.id)
         .eq('sent', true)
+        .is('error', null)
         .order('sent_at', { ascending: false })
         .limit(1);
       counts['review_request'] = { total: reviewCount || 0, lastFired: lastReview?.[0]?.sent_at || null };
@@ -444,12 +448,14 @@ export function AutomationsTab() {
         .from('rebooking_reminder_queue')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .eq('sent', true);
+        .eq('sent', true)
+        .is('error', null);
       const { data: lastRebook } = await supabase
         .from('rebooking_reminder_queue')
         .select('created_at')
         .eq('organization_id', organization.id)
         .eq('sent', true)
+        .is('error', null)
         .order('created_at', { ascending: false })
         .limit(1);
       counts['rebooking_reminder'] = { total: rebookCount || 0, lastFired: lastRebook?.[0]?.created_at || null };
@@ -459,12 +465,14 @@ export function AutomationsTab() {
         .from('recurring_offer_queue')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .eq('sent', true);
+        .eq('sent', true)
+        .is('error', null);
       const { data: lastRecur } = await supabase
         .from('recurring_offer_queue')
         .select('created_at')
         .eq('organization_id', organization.id)
         .eq('sent', true)
+        .is('error', null)
         .order('created_at', { ascending: false })
         .limit(1);
       counts['recurring_upsell'] = { total: recurCount || 0, lastFired: lastRecur?.[0]?.created_at || null };
