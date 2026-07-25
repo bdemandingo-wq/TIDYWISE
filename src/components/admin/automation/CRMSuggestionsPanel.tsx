@@ -98,11 +98,14 @@ export function CRMSuggestionsPanel() {
     queryKey: ['non-recurring-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
+      // Mirror useCustomers: exclude merged-out records so this count matches
+      // the Non-Recurring tab badge on /dashboard/customers.
       const { count, error } = await supabase
         .from('customers')
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', organization.id)
-        .eq('is_recurring', false);
+        .eq('is_recurring', false)
+        .is('merged_into', null);
       if (error) return 0;
       return count || 0;
     },
