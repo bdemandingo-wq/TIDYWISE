@@ -118,6 +118,15 @@ export function initSentry(): void {
     // the originating frames are external, so genuine hook bugs in our own
     // code (frames on our https origin) still report.
     beforeSend(event, hint) {
+      // Only production events are actionable. Preview/dev builds are tagged
+      // environment 'development' (see the `environment` const above), so drop
+      // them here — this is what stops Lovable preview + Vite HMR transients
+      // from landing as production criticals. Environment-based rather than
+      // stack-path matching so it stays correct even if we later upload source
+      // maps (which would rewrite minified frames to /src/ paths).
+      if (environment !== "production") {
+        return null;
+      }
       try {
         const ex = hint?.originalException as { stack?: string; message?: string } | undefined;
 

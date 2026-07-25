@@ -166,6 +166,11 @@ export default function StaffPortal() {
 
       setStaffInfo(data);
 
+      // get_my_staff_profile returns null for a user with no staff record
+      // (e.g. an owner/admin who isn't also staff). Bail before touching
+      // data.id, which was throwing "null is not an object" on /staff/login.
+      if (!data) return;
+
       // Check if staff has set their availability
       const client: any = supabase;
       const { data: hours } = await client
