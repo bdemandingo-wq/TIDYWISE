@@ -427,13 +427,202 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Missed calls are logged but no auto-text-back
+    // Missed inbound call → send a one-time textback so the lead isn't lost.
     if (isMissedCall) {
-      console.log(`[openphone-webhook] Missed call from ${(payload.data.object as any).from} — no auto-reply`);
-      return new Response(
-        JSON.stringify({ success: true, message: 'Missed call logged' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const callObj = payload.data.object as any;
+      // Keep the raw call object logged so the first real miss confirms the shape.
+      console.log('[openphone-webhook] Missed call object:', JSON.stringify(callObj));
+
+      try {
+        // Inbound-only: an outbound miss would text our own number.
+        const callDirection = (callObj.direction || '').toLowerCase();
+        if (callDirection && callDirection !== 'incoming' && callDirection !== 'inbound') {
+          console.log(`[openphone-webhook] Missed ${callDirection} call — no textback (not inbound)`);
+          return new Response(JSON.stringify({ success: true, message: 'Missed non-inbound call' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        const callerPhone: string = callObj.from;
+        const callPhoneNumberId: string = callObj.phoneNumberId;
+        if (!callerPhone || !callPhoneNumberId) {
+          console.log('[openphone-webhook] Missed call missing from/phoneNumberId — cannot textback');
+          return new Response(JSON.stringify({ success: true, message: 'Missed call logged (insufficient data)' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // Resolve the org by phoneNumberId (exact, then partial match).
+        let mcOrgId: string | undefined;
+        let mcApiKey: string | undefined;
+        let mcPhoneNumberId: string | undefined;
+        let mcSmsEnabled = false;
+        const { data: mcExact } = await supabase
+          .from('organization_sms_settings')
+          .select('organization_id, openphone_api_key, openphone_phone_number_id, sms_enabled')
+          .eq('openphone_phone_number_id', callPhoneNumberId)
+          .maybeSingle();
+        if (mcExact?.organization_id) {
+          mcOrgId = mcExact.organization_id;
+          mcApiKey = mcExact.openphone_api_key ?? undefined;
+          mcPhoneNumberId = mcExact.openphone_phone_number_id ?? undefined;
+          mcSmsEnabled = !!mcExact.sms_enabled;
+        } else {
+          const { data: mcAll } = await supabase
+            .from('organization_sms_settings')
+            .select('organization_id, openphone_api_key, openphone_phone_number_id, sms_enabled');
+          for (const s of mcAll || []) {
+            if (s.openphone_phone_number_id?.includes(callPhoneNumberId) ||
+                callPhoneNumberId.includes(s.openphone_phone_number_id || '')) {
+              mcOrgId = s.organization_id;
+              mcApiKey = s.openphone_api_key ?? undefined;
+              mcPhoneNumberId = s.openphone_phone_number_id ?? undefined;
+              mcSmsEnabled = !!s.sms_enabled;
+              break;
+            }
+          }
+        }
+
+        if (!mcOrgId || !mcApiKey || !mcPhoneNumberId || !mcSmsEnabled) {
+          console.log('[openphone-webhook] Missed call: org unresolved or SMS not configured — no textback');
+          return new Response(JSON.stringify({ success: true, message: 'Missed call logged' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // Automation toggle (seeded on by default).
+        const { data: mcAutomation } = await supabase
+          .from('organization_automations')
+          .select('is_enabled')
+          .eq('organization_id', mcOrgId)
+          .eq('automation_type', 'missed_call_textback')
+          .maybeSingle();
+        if (!mcAutomation?.is_enabled) {
+          console.log(`[openphone-webhook] Missed call: textback disabled for org ${mcOrgId}`);
+          return new Response(JSON.stringify({ success: true, message: 'Missed call logged (textback off)' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // Normalize (digits only, drop US country code) for internal-number
+        // matching and the cooldown key.
+        const normDigits = (p: string) => (p || '').replace(/\D/g, '').replace(/^1/, '');
+        const callerKey = normDigits(callerPhone);
+
+        // Skip if the caller is staff or the owner.
+        const [{ data: mcStaff }, { data: mcBiz }, { data: mcOrg }] = await Promise.all([
+          supabase.from('staff').select('phone').eq('organization_id', mcOrgId).not('phone', 'is', null),
+          supabase.from('business_settings').select('company_name, company_phone').eq('organization_id', mcOrgId).maybeSingle(),
+          supabase.from('organizations').select('owner_id').eq('id', mcOrgId).maybeSingle(),
+        ]);
+        const internalKeys = new Set<string>();
+        for (const s of mcStaff || []) { if ((s as any).phone) internalKeys.add(normDigits((s as any).phone)); }
+        if ((mcBiz as any)?.company_phone) internalKeys.add(normDigits((mcBiz as any).company_phone));
+        if ((mcOrg as any)?.owner_id) {
+          const { data: mcOwner } = await supabase
+            .from('profiles').select('phone').eq('id', (mcOrg as any).owner_id).maybeSingle();
+          if ((mcOwner as any)?.phone) internalKeys.add(normDigits((mcOwner as any).phone));
+        }
+        if (internalKeys.has(callerKey)) {
+          console.log(`[openphone-webhook] Missed call from staff/owner (${callerPhone}) — no textback`);
+          return new Response(JSON.stringify({ success: true, message: 'Missed call from internal number' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // Per-caller cooldown (24h) — a second ring the same day already has the text.
+        const mcCooldownSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: mcRecent } = await supabase
+          .from('automation_fire_log')
+          .select('id')
+          .eq('organization_id', mcOrgId)
+          .eq('automation_type', 'missed_call_textback')
+          .eq('target_id', callerKey)
+          .gte('fired_at', mcCooldownSince)
+          .limit(1);
+        if (mcRecent && mcRecent.length > 0) {
+          console.log(`[openphone-webhook] Missed call: textback already sent to ${callerPhone} within 24h — skipping`);
+          return new Response(JSON.stringify({ success: true, message: 'Textback cooldown active' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+
+        // Fixed message (no AI / persona / escalation).
+        const companyName = (mcBiz as any)?.company_name || 'our team';
+        const textbackMessage = `Hi, this is ${companyName} — sorry we missed your call! Reply to this text and we'll help you get scheduled or answer any questions.`;
+
+        // Send via OpenPhone using the org's own number.
+        let sendPhoneId = mcPhoneNumberId;
+        if (sendPhoneId.includes('/')) { const m = sendPhoneId.match(/(PN[A-Za-z0-9]+)/); if (m) sendPhoneId = m[1]; }
+        const mcAuthHeader = mcApiKey.trim().replace(/^Bearer\s+/i, '');
+        let toPhoneFmt = callerPhone.replace(/\D/g, '');
+        if (toPhoneFmt.length === 10) toPhoneFmt = `+1${toPhoneFmt}`;
+        else if (!toPhoneFmt.startsWith('+')) toPhoneFmt = `+${toPhoneFmt}`;
+
+        const mcSendResp = await fetch('https://api.openphone.com/v1/messages', {
+          method: 'POST',
+          headers: { Authorization: mcAuthHeader, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: sendPhoneId, to: [toPhoneFmt], content: textbackMessage }),
+        });
+        if (!mcSendResp.ok) {
+          const errText = await mcSendResp.text();
+          console.error(`[openphone-webhook] Missed-call textback send failed (${mcSendResp.status}): ${errText}`);
+          return new Response(JSON.stringify({ success: true, message: 'Missed call logged (textback send failed)' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const mcSendResult = await mcSendResp.json().catch(() => ({}));
+        const textbackMsgId = (mcSendResult as any)?.data?.id || null;
+
+        // Log to the thread so it appears in the conversation.
+        let mcConvId: string | undefined;
+        const { data: mcConv } = await supabase
+          .from('sms_conversations')
+          .select('id')
+          .eq('organization_id', mcOrgId)
+          .eq('customer_phone', toPhoneFmt)
+          .maybeSingle();
+        if (mcConv?.id) {
+          mcConvId = mcConv.id;
+        } else {
+          const local = await findLocalContactName(supabase, mcOrgId, toPhoneFmt);
+          const { data: mcNewConv } = await supabase
+            .from('sms_conversations')
+            .insert({
+              organization_id: mcOrgId,
+              customer_phone: toPhoneFmt,
+              customer_name: local.name,
+              customer_id: local.customerId,
+            })
+            .select('id')
+            .single();
+          mcConvId = mcNewConv?.id;
+        }
+        if (mcConvId) {
+          await supabase.from('sms_messages').insert({
+            conversation_id: mcConvId,
+            organization_id: mcOrgId,
+            direction: 'outbound',
+            content: textbackMessage,
+            status: 'sent',
+            openphone_message_id: textbackMsgId,
+            sent_at: new Date().toISOString(),
+          });
+          await supabase.from('sms_conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', mcConvId);
+        }
+
+        // Record for the cooldown + a fire trail.
+        await supabase.from('automation_fire_log').insert({
+          organization_id: mcOrgId,
+          automation_type: 'missed_call_textback',
+          target_id: callerKey,
+          metadata: { caller: toPhoneFmt, openphone_message_id: textbackMsgId, sent_at: new Date().toISOString() },
+        });
+
+        console.log(`[openphone-webhook] Missed-call textback sent to ${toPhoneFmt} for org ${mcOrgId}`);
+        return new Response(JSON.stringify({ success: true, message: 'Missed-call textback sent' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      } catch (mcErr) {
+        // Never fail the webhook over a textback problem.
+        console.error('[openphone-webhook] Missed-call textback error:', mcErr);
+        return new Response(JSON.stringify({ success: true, message: 'Missed call logged (textback errored)' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     if (!isInbound && !isOutbound) {
