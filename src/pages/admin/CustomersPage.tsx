@@ -786,6 +786,9 @@ export default function CustomersPage() {
             <TabsTrigger value="leads" className="flex-1 sm:flex-none gap-1.5">
               Leads <Badge variant="secondary" className="text-xs px-1.5 py-0">{leadCount}</Badge>
             </TabsTrigger>
+            <TabsTrigger value="non_recurring" className="flex-1 sm:flex-none gap-1.5">
+              Non-Recurring <Badge variant="secondary" className="text-xs px-1.5 py-0">{customers.filter(c => c.is_recurring === false).length}</Badge>
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
