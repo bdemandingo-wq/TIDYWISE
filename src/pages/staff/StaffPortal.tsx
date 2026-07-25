@@ -254,7 +254,7 @@ export default function StaffPortal() {
       const { data: directBookings, error: directError } = await supabase
         .from('bookings')
         .select(`
-          id, organization_id, staff_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+          id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
           total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
           cleaner_checkin_at, cleaner_checkout_at, notes,
           customer:customers(first_name, last_name, phone),
@@ -274,7 +274,7 @@ export default function StaffPortal() {
           pay_share,
           is_primary,
           booking:bookings(
-            id, organization_id, staff_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+            id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
             total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
             cleaner_checkin_at, cleaner_checkout_at, notes,
             customer:customers(first_name, last_name, phone),
@@ -348,6 +348,52 @@ export default function StaffPortal() {
     },
     enabled: !!staffInfo?.id,
   });
+
+  // Batched per-card data for the My Jobs tab. Each MyJobCard used to fire its
+  // own business_settings / booking_photos / property_notes / booking_reminder_log
+  // queries on mount — an N+1 that scaled with the number of assigned jobs.
+  // Fetch them once here (one settings read + three in-list batches) and pass
+  // the results down as props.
+  const assignedIds = assignedBookings.map((b) => b.id);
+  const assignedCustomerIds = [
+    ...new Set(assignedBookings.map((b) => (b as any).customer_id).filter(Boolean)),
+  ] as string[];
+  const { data: cardData } = useQuery({
+    queryKey: ['staff-myjob-carddata', staffInfo?.id, assignedIds.join(',')],
+    enabled: !!staffInfo?.id && !!staffInfo?.organization_id && assignedIds.length > 0,
+    queryFn: async () => {
+      const orgId = staffInfo!.organization_id;
+      const [bizRes, photoRes, notesRes, reminderRes] = await Promise.all([
+        supabase.from('business_settings' as any).select('require_clockout_photos, min_clockout_photos').eq('organization_id', orgId).maybeSingle(),
+        supabase.from('booking_photos').select('booking_id').in('booking_id', assignedIds),
+        assignedCustomerIds.length
+          ? supabase.from('property_notes' as any).select('customer_id, notes, access_instructions, gate_code, alarm_code, has_pets, pet_notes, parking_notes').eq('organization_id', orgId).in('customer_id', assignedCustomerIds)
+          : Promise.resolve({ data: [] as any[] }),
+        supabase.from('booking_reminder_log').select('booking_id').in('booking_id', assignedIds).eq('reminder_type', `on_the_way:${staffInfo!.id}`),
+      ]);
+      const photoCountByBooking: Record<string, number> = {};
+      for (const row of ((photoRes as any).data as any[]) || []) {
+        photoCountByBooking[row.booking_id] = (photoCountByBooking[row.booking_id] ?? 0) + 1;
+      }
+      const propertyNoteByCustomer: Record<string, any> = {};
+      for (const row of ((notesRes as any).data as any[]) || []) {
+        propertyNoteByCustomer[row.customer_id] = row;
+      }
+      const onTheWaySent = new Set<string>(
+        (((reminderRes as any).data as any[]) || []).map((r) => r.booking_id),
+      );
+      return {
+        photoReqs: {
+          required: ((bizRes as any).data as any)?.require_clockout_photos ?? true,
+          min: ((bizRes as any).data as any)?.min_clockout_photos ?? 2,
+        },
+        photoCountByBooking,
+        propertyNoteByCustomer,
+        onTheWaySent,
+      };
+    },
+  });
+  const cardPhotoReqs = cardData?.photoReqs ?? { required: true, min: 2 };
 
   // Fetch unassigned bookings - scoped to staff's organization
   const { data: unassignedBookings = [], isLoading: loadingUnassigned } = useQuery({
@@ -821,6 +867,10 @@ export default function StaffPortal() {
                       percentage_rate: staffInfo?.percentage_rate || null,
                       default_hours: staffInfo?.default_hours || null,
                     }}
+                    photoReqs={cardPhotoReqs}
+                    photoCount={cardData?.photoCountByBooking[booking.id] ?? 0}
+                    propertyNote={cardData?.propertyNoteByCustomer[(booking as any).customer_id] ?? null}
+                    onTheWaySent={cardData?.onTheWaySent.has(booking.id) ?? false}
                     onUpdateStatus={(id, status) => updateStatus.mutate({ bookingId: id, status })}
                     isUpdating={updateStatus.isPending}
                   />

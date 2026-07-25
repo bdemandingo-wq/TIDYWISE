@@ -65,39 +65,27 @@ interface Booking {
 interface Props {
   booking: Booking;
   staffInfo: StaffInfo & { id?: string };
+  // Batched by the parent (StaffPortal) to avoid a per-card N+1 on load.
+  photoReqs: { required: boolean; min: number };
+  photoCount: number;
+  propertyNote: PropertyNote | null;
+  onTheWaySent: boolean;
   onUpdateStatus?: (bookingId: string, status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show') => void;
   isUpdating?: boolean;
 }
 
-export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Props) {
+export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
   const orgTimezone = useOrgTimezone();
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
-  const [onTheWaySent, setOnTheWaySent] = useState(false);
+  const [onTheWaySent, setOnTheWaySent] = useState(initialOnTheWaySent);
   const [isMarkingArrived, setIsMarkingArrived] = useState(false);
-  const [propertyNote, setPropertyNote] = useState<PropertyNote | null>(null);
-  const [photoCount, setPhotoCount] = useState<number>(0);
-  const [photoReqs, setPhotoReqs] = useState<{ required: boolean; min: number }>({ required: true, min: 2 });
+  const [photoCount, setPhotoCount] = useState<number>(initialPhotoCount);
 
-  // Load org photo requirements
-  useEffect(() => {
-    if (!booking.organization_id) return;
-    (supabase
-      .from('business_settings' as any) as any)
-      .select('require_clockout_photos, min_clockout_photos')
-      .eq('organization_id', booking.organization_id)
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (data) {
-          setPhotoReqs({
-            required: data.require_clockout_photos ?? true,
-            min: data.min_clockout_photos ?? 2,
-          });
-        }
-      });
-  }, [booking.organization_id]);
-
-  // Count photos for this booking (refresh on demand)
+  // photoReqs, propertyNote, and the initial photoCount / onTheWaySent are now
+  // supplied by the parent's batched query (StaffPortal) instead of a per-card
+  // fetch. Photo count is re-counted on demand after an upload — a single query
+  // on user action, not on mount.
   const refreshPhotoCount = async () => {
     const { count } = await supabase
       .from('booking_photos')
@@ -105,27 +93,9 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       .eq('booking_id', booking.id);
     setPhotoCount(count ?? 0);
   };
-  useEffect(() => {
-    refreshPhotoCount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [booking.id]);
 
 
   const destAddress = [booking.address, booking.city, booking.state, booking.zip_code].filter(Boolean).join(', ');
-
-  // Fetch property notes for this customer
-  useEffect(() => {
-    if (!booking.organization_id) return;
-    const customerId = (booking as any).customer_id;
-    if (!customerId) return;
-    (supabase
-      .from('property_notes' as any) as any)
-      .select('notes, access_instructions, gate_code, alarm_code, has_pets, pet_notes, parking_notes')
-      .eq('organization_id', booking.organization_id)
-      .eq('customer_id', customerId)
-      .maybeSingle()
-      .then(({ data }: any) => { if (data) setPropertyNote(data as PropertyNote); });
-  }, [booking.id, booking.organization_id]);
 
   const { startTracking, stopTracking, isTracking, hasArrived, markArrived } = useCleanerTracking({
     bookingId: booking.id,
@@ -140,25 +110,6 @@ export function MyJobCard({ booking, staffInfo, onUpdateStatus, isUpdating }: Pr
       stopTracking();
     }
   }, [booking.status, isTracking, stopTracking]);
-
-  // Check if THIS staff member already sent the on-the-way SMS for this booking.
-  // Team jobs allow each cleaner to send their own once.
-  useEffect(() => {
-    if (!staffInfo.id) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('booking_reminder_log')
-        .select('id')
-        .eq('booking_id', booking.id)
-        .eq('reminder_type', `on_the_way:${staffInfo.id}`)
-        .limit(1);
-      if (!cancelled && data && data.length > 0) {
-        setOnTheWaySent(true);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [booking.id, staffInfo.id]);
 
   const handleArrivedClick = async () => {
     setIsMarkingArrived(true);
