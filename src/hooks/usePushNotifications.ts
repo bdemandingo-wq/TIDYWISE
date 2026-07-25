@@ -23,6 +23,24 @@ const getPushPlugin = async () => {
   }
 };
 
+// Generous enough that a legitimately-shown OS prompt awaiting the user's tap
+// won't falsely time out, but short enough that a native call that never
+// responds surfaces as an error instead of an infinite spinner.
+const PERMISSION_TIMEOUT_MS = 20000;
+
+// Race a native call against a timeout so a stalled bridge (no resolve, no
+// reject) becomes a visible error. Rejects with `label` context.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: number;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms / 1000}s — the native layer never responded`)),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+}
+
 type NotificationPayload = {
   title: string;
   body?: string;
@@ -134,7 +152,22 @@ export function usePushNotifications(staffId?: string) {
       return false;
     }
 
-    const permStatus = await PushNotifications.requestPermissions();
+    // requestPermissions() had no timeout: if the native call stalls (no OS
+    // prompt, no resolve), the flow hung here forever and the toggle spun with
+    // no feedback. Time it out and surface whatever the native layer returns.
+    let permStatus: { receive: string };
+    try {
+      permStatus = await withTimeout(
+        PushNotifications.requestPermissions(),
+        PERMISSION_TIMEOUT_MS,
+        'PushNotifications.requestPermissions()',
+      );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error('[PUSH] requestPermissions failed or stalled:', detail);
+      toast.error(`Couldn't enable notifications: ${detail}`);
+      return false;
+    }
     if (permStatus.receive !== 'granted') {
       toast.error('Push notification permission denied');
       return false;
