@@ -48,14 +48,19 @@ Deno.serve(async (req) => {
   } catch (e) {
     const duration = Date.now() - startedAt;
     console.error("refresh-benchmark-snapshots error", e);
-    await supabase.rpc("log_benchmark_event", {
-      p_organization_id: null,
-      p_event_type: "refresh_snapshots",
-      p_status: "error",
-      p_duration_ms: duration,
-      p_metadata: { source },
-      p_error_code: (e as Error).message?.slice(0, 200) ?? "unknown",
-    }).catch(() => {});
+    try {
+      const { error: logError } = await supabase.rpc("log_benchmark_event", {
+        p_organization_id: null,
+        p_event_type: "refresh_snapshots",
+        p_status: "error",
+        p_duration_ms: duration,
+        p_metadata: { source },
+        p_error_code: (e as Error).message?.slice(0, 200) ?? "unknown",
+      });
+      if (logError) console.error("log_benchmark_event failed", logError);
+    } catch (logErr) {
+      console.error("log_benchmark_event threw", logErr);
+    }
     return new Response(
       JSON.stringify({ error: (e as Error).message }),
       {
