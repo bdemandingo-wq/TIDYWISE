@@ -1179,6 +1179,43 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ── DISPUTE CLOSED (finalized in Stripe) ────────────────────────────────
+    // Stripe fires charge.dispute.closed when a dispute reaches a terminal
+    // state (won / lost / warning_closed). Sync the local row's status and
+    // outcome so the Chargeback Disputes panel can't keep showing a stale
+    // "needs_response" / "under_review" after it's actually resolved. Mirrors
+    // the field mapping in sync-dispute-status so the poller and the webhook
+    // can't disagree.
+    if (event.type === "charge.dispute.closed") {
+      try {
+        const dispute = event.data.object as Stripe.Dispute;
+        const TERMINAL = new Set(["won", "lost", "warning_closed"]);
+
+        const { data: updated, error: closeErr } = await supabase
+          .from("disputes")
+          .update({
+            status: dispute.status,
+            outcome: TERMINAL.has(dispute.status) ? dispute.status : null,
+            raw_event: event.data.object,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_dispute_id", dispute.id)
+          .select("id");
+
+        if (closeErr) {
+          console.error("[stripe-invoice-webhook] dispute close update failed:", closeErr);
+        } else if (!updated || updated.length === 0) {
+          // No local row — dispute closed before we ever recorded it. The
+          // sync-dispute-status poller / next created event will reconcile.
+          console.warn(`[stripe-invoice-webhook] dispute ${dispute.id} closed (${dispute.status}) but no local row found`);
+        } else {
+          console.log(`[stripe-invoice-webhook] dispute ${dispute.id} closed → ${dispute.status}`);
+        }
+      } catch (e) {
+        console.error("[stripe-invoice-webhook] dispute close handling error:", e);
+      }
+    }
+
 
     // ── SUBSCRIPTION CANCELLED / ENDED ──────────────────────────────────────
     // When Stripe finalizes a subscription deletion (either user-initiated
