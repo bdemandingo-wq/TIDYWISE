@@ -49,7 +49,7 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2024-06-20" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Optional: sync a specific dispute id via body
     let targetId: string | null = null;

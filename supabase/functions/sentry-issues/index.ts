@@ -89,6 +89,52 @@ serve(async (req) => {
     console.log("[SENTRY-ISSUES] token prefix:", token.slice(0, 7), "org:", orgSlug, "base:", base);
 
     const url = url0;
+
+    // Optional single-issue mode: fetch the latest event and return distilled
+    // stack frames (file:line) so "Copy Fix Prompt" carries real locations, not
+    // just culprit + permalink. issueId comes from the POST body
+    // (supabase.functions.invoke) or a ?issueId= query param.
+    let bodyIssueId: string | undefined;
+    if (req.method === "POST") {
+      try {
+        const b = await req.json();
+        if (b && typeof b.issueId === "string") bodyIssueId = b.issueId;
+      } catch { /* no/empty body — fall through to the issues list */ }
+    }
+    const issueId = url.searchParams.get("issueId") ?? bodyIssueId;
+
+    if (issueId) {
+      const evUrl = `${base}/issues/${encodeURIComponent(issueId)}/events/latest/`;
+      const evResp = await fetch(evUrl, { headers: { Authorization: `Bearer ${token}` } });
+      const evText = await evResp.text();
+      if (!evResp.ok) {
+        return json({ error: "Sentry event API error", status: evResp.status, detail: safeParseSentryError(evText) }, 502);
+      }
+      let ev: any = {};
+      try { ev = JSON.parse(evText); } catch { /* leave ev empty */ }
+      const entries: any[] = Array.isArray(ev?.entries) ? ev.entries : [];
+      const exc = entries.find((e) => e?.type === "exception");
+      const stack = entries.find((e) => e?.type === "stacktrace");
+      let raw: any[] = [];
+      if (exc?.data?.values?.length) {
+        raw = exc.data.values[exc.data.values.length - 1]?.stacktrace?.frames ?? [];
+      } else if (Array.isArray(stack?.data?.frames)) {
+        raw = stack.data.frames;
+      }
+      // Sentry lists frames caller→callee; reverse so the throwing frame is
+      // first. Prefer in-app frames; if none are flagged, keep them all.
+      const ordered = [...raw].reverse();
+      const inApp = ordered.filter((f) => f?.inApp);
+      const frames = (inApp.length ? inApp : ordered).slice(0, 12).map((f) => ({
+        filename: f?.filename ?? f?.absPath ?? f?.module ?? null,
+        lineNo: f?.lineNo ?? null,
+        colNo: f?.colNo ?? null,
+        function: f?.function ?? null,
+        inApp: !!f?.inApp,
+      }));
+      return json({ issueId, culprit: ev?.culprit ?? null, frames });
+    }
+
     const query = url.searchParams.get("query") ?? "is:unresolved";
     const limit = url.searchParams.get("limit") ?? "25";
 

@@ -122,12 +122,31 @@ function relativeTime(iso: string | null | undefined): string {
   }
 }
 
-function buildFixPrompt(issue: SentryIssue): string {
+interface SentryFrame {
+  filename: string | null;
+  lineNo: number | null;
+  colNo: number | null;
+  function: string | null;
+  inApp: boolean;
+}
+
+function formatFrames(frames: SentryFrame[]): string {
+  return frames
+    .filter((f) => f.filename)
+    .map((f) => {
+      const loc = `${f.filename}${f.lineNo != null ? ':' + f.lineNo : ''}${f.colNo != null ? ':' + f.colNo : ''}`;
+      return `  ${loc}${f.function ? ` in ${f.function}` : ''}`;
+    })
+    .join('\n');
+}
+
+function buildFixPrompt(issue: SentryIssue, frames: SentryFrame[] = []): string {
   const title = issue.title || issue.culprit || '(untitled issue)';
   const env = issue.metadata?.environment || 'production';
   const events = Number(issue.count ?? 0);
   const location = issue.culprit || 'unknown (see stack trace link)';
   const traceLink = issue.permalink || 'n/a';
+  const stack = formatFrames(frames);
   return `First investigate and show me the proposed fix and diff.
 Do not apply until I say yes. Do not touch unrelated code.
 
@@ -135,7 +154,7 @@ Fix this Sentry error in TidyWise CRM:
 
 Error: ${title}
 Location: ${location}
-Environment: ${env}
+${stack ? `Stack trace (most relevant first):\n${stack}\n` : ''}Environment: ${env}
 Events: ${events} in last 7 days
 First seen: ${relativeTime(issue.firstSeen)}
 Last seen: ${relativeTime(issue.lastSeen)}
@@ -242,7 +261,19 @@ function InnerCard({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(buildFixPrompt(issue));
+      // Pull real stack frames (file:line) from this issue's latest event so
+      // the prompt carries locations, not just culprit + permalink. On any
+      // failure, fall back to the permalink-only prompt.
+      let frames: SentryFrame[] = [];
+      try {
+        const { data } = await supabase.functions.invoke('sentry-issues', {
+          body: { issueId: issue.id },
+        });
+        if (data && !(data as any).error && Array.isArray((data as any).frames)) {
+          frames = (data as any).frames as SentryFrame[];
+        }
+      } catch { /* degrade to permalink-only */ }
+      await navigator.clipboard.writeText(buildFixPrompt(issue, frames));
       setCopied(true);
       toast.success('Copied — paste in Lovable', {
         duration: 2000,
