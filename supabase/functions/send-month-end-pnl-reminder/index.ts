@@ -1,9 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
-import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import { getOrgEmailSettings } from "../_shared/get-org-email-settings.ts";
+import { sendOrgEmail } from "../_shared/send-org-email.ts";
 
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -77,14 +76,6 @@ serve(async (req) => {
         }
 
         const settings = emailSettingsResult.settings;
-        const apiKey = settings.resend_api_key || RESEND_API_KEY;
-        if (!apiKey) {
-          results.push({ org_id: org.id, email_sent: false, reason: "no resend key" });
-          continue;
-        }
-
-        const resend = new Resend(apiKey);
-        const senderFrom = formatEmailFrom(settings);
         const toEmail = settings.from_email;
 
         if (!toEmail) {
@@ -111,14 +102,14 @@ serve(async (req) => {
           </div>
         `;
 
-        const sent = await resend.emails.send({
-          from: senderFrom,
-          to: [toEmail],
+        const sent = await sendOrgEmail({
+          organizationId: org.id,
+          to: toEmail,
           subject: `Month-end P&L reminder — ${monthLabel}`,
           html,
         });
 
-        results.push({ org_id: org.id, email_sent: !sent.error, error: sent.error?.message });
+        results.push({ org_id: org.id, email_sent: sent.success, error: sent.error, method: sent.method });
       } catch (e: any) {
         console.error(`[month-end-pnl] org ${org.id} failed:`, e);
         results.push({ org_id: org.id, email_sent: false, error: e.message });

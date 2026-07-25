@@ -2,6 +2,11 @@
 // Used by the "Send Test Email" button in the Email Settings UI.
 // Does NOT increment the daily counter and does NOT fall back to Resend —
 // admins want to see the real SMTP error.
+//
+// DO NOT route this through sendOrgEmail. Its entire purpose is to verify the
+// org's Gmail credentials *directly*. sendOrgEmail's Gmail→Resend fallback
+// would deliver the test via Resend when Gmail is misconfigured, reporting a
+// false "Gmail works" and defeating the test. This must stay Gmail-direct.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";

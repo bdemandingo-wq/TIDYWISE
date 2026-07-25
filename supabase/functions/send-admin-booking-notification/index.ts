@@ -1,11 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
-import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
+import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import { sendOrgEmail } from "../_shared/send-org-email.ts";
 import { verifyOrgAccess } from "../_shared/verify-org-access.ts";
 
-// Platform-level Resend API key (shared email service)
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -63,14 +61,6 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // STRICT ISOLATION: Verify Resend API key is available
-    if (!RESEND_API_KEY) {
-      console.error("[send-admin-booking-notification] Missing RESEND_API_KEY");
-      return new Response(JSON.stringify({ error: "Email service not configured" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
 
     // Get email settings from organization_email_settings table
     const emailSettingsResult = await getOrgEmailSettings(organizationId);
@@ -82,7 +72,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const resend = new Resend(emailSettingsResult.settings.resend_api_key || RESEND_API_KEY);
     console.log("[send-admin-booking-notification] Sending notification for org:", organizationId);
 
     const emailSettings = emailSettingsResult.settings;
@@ -126,10 +115,9 @@ const handler = async (req: Request): Promise<Response> => {
       hour12: true,
     }).format(bookingDate);
 
-    const { data, error: sendError } = await resend.emails.send({
-      from: senderFrom,
-      to: [adminEmail],
-      reply_to: getReplyTo(emailSettings),
+    const sendResult = await sendOrgEmail({
+      organizationId,
+      to: adminEmail,
       subject: `🆕 New Booking: ${customerName} - ${serviceName}`,
       html: `
         <!DOCTYPE html>
@@ -207,22 +195,17 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    if (sendError || !data?.id) {
-      const rawMsg = sendError?.message ?? "Email send failed (no email id returned)";
-      console.error("[send-admin-booking-notification] Resend error:", rawMsg);
+    if (!sendResult.success) {
+      const rawMsg = sendResult.error ?? "Email send failed";
+      console.error("[send-admin-booking-notification] send error:", rawMsg);
 
-      // Classify common Resend failures so the org owner sees an actionable message
-      const lower = rawMsg.toLowerCase();
-      let friendly = `Email failed: ${rawMsg}`;
-      if (lower.includes("domain") && (lower.includes("verif") || lower.includes("not found"))) {
-        friendly = "Email failed: sender domain not verified in Resend — check Settings → Emails";
-      } else if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("forbidden")) {
-        friendly = "Email failed: Resend API key invalid or missing — check Settings → Emails";
-      } else if (lower.includes("from")) {
-        friendly = "Email failed: invalid sender address — check Settings → Emails";
-      }
+      // Adapted to sendOrgEmail's error shape — the transport (Gmail SMTP,
+      // Resend fallback, or settings-missing) is abstracted, and all of those
+      // are fixed in the same place, so point the owner there.
+      const friendly = `Booking notification email failed to send: ${rawMsg}. Check Settings → Emails.`;
 
-      // Surface to org owner via admin_system_notifications (existing mechanism, dedupe by day)
+      // Surface to org owner via admin_system_notifications — louder than the
+      // delivery panel (a missed booking alert is worth the interrupt). Dedupe by day.
       try {
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -233,7 +216,7 @@ const handler = async (req: Request): Promise<Response> => {
             title: "Booking notification email failed",
             message: friendly,
             link: "/dashboard/settings?tab=emails",
-            metadata: { function: "send-admin-booking-notification", raw: rawMsg, from: senderFrom, to: adminEmail },
+            metadata: { function: "send-admin-booking-notification", raw: rawMsg, method: sendResult.method, from: senderFrom, to: adminEmail },
             is_read: false,
             dedupe_key: `email_send_failure:send-admin-booking-notification:${day}`,
           }, { onConflict: "organization_id,dedupe_key" });
@@ -248,14 +231,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("[send-admin-booking-notification] Email sent successfully:", data.id);
+    console.log("[send-admin-booking-notification] Email sent successfully:", sendResult.id, "via", sendResult.method);
 
     return new Response(JSON.stringify({
       success: true,
-      emailId: data.id,
+      emailId: sendResult.id,
       to: adminEmail,
       from: senderFrom,
-      replyTo: getReplyTo(emailSettings),
+      method: sendResult.method,
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
