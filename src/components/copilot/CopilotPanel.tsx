@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useCopilot, type CopilotMessage } from '@/hooks/useCopilot';
 import { AiCreditsMeter } from '@/components/ai-credits/AiCreditsMeter';
+import { Capacitor } from '@capacitor/core';
 
 const SUGGESTED_PROMPTS = [
   'How do I add my first booking?',
@@ -49,6 +50,9 @@ export function CopilotPanel() {
   // UIKeyboardWillShowNotification — adjust layout before the keyboard is visible.
   useEffect(() => {
     if (!isOpen) return;
+    // Keyboard is a native-only plugin — Keyboard.addListener throws
+    // "not implemented on web". Only wire it up on the native shell.
+    if (!Capacitor.isNativePlatform()) return;
     let showHandle: { remove: () => void } | null = null;
     let hideHandle: { remove: () => void } | null = null;
 
