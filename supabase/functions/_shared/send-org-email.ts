@@ -143,7 +143,7 @@ async function sendViaGmailSmtp(
         filename: a.filename,
         content: a.content,
         encoding: "base64",
-        contentType: a.content_type,
+        contentType: a.content_type ?? "application/octet-stream",
       })),
     });
     await client.close();

@@ -21,11 +21,6 @@ serve(async (req) => {
   }
 
   try {
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    if (!RESEND_API_KEY) {
-      throw new Error("RESEND_API_KEY is not configured");
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -176,6 +171,13 @@ serve(async (req) => {
     const orgSlug = orgData?.slug || "";
     const bookingUrl = orgSlug ? `${appUrl}/book/${orgSlug}` : `${appUrl}/book`;
 
+    // Throttle Gmail SMTP: pace sends and cap per run so we don't trip Gmail's
+    // burst rate limits. The daily cap (500/2000) is enforced separately in
+    // sendOrgEmail. 300ms × 200 ≈ 60s worst case; deferred recipients are
+    // reported so the caller can re-run to continue a large campaign.
+    const SEND_DELAY_MS = 300;
+    const MAX_SENDS_PER_RUN = 200;
+
     // Send emails to recipients
     for (const customer of recipients) {
       // Replace placeholders — support both {single} and {{double}} brace formats
@@ -248,6 +250,10 @@ serve(async (req) => {
         console.error(`[send-followup-campaign] Failed to send email to ${customer.email}:`, error);
         emailsFailed.push(customer.email);
       }
+
+      // Per-run cap + pacing (see constants above).
+      if (emailsSent.length + emailsFailed.length >= MAX_SENDS_PER_RUN) break;
+      await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
     }
 
 
@@ -257,12 +263,15 @@ serve(async (req) => {
       .update({ last_run_at: new Date().toISOString() })
       .eq("id", campaignId);
 
+    const deferred = recipients.length - (emailsSent.length + emailsFailed.length);
     return new Response(
       JSON.stringify({
         success: true,
         sentCount: emailsSent.length,
         emailsSent: emailsSent.length,
         emailsFailed: emailsFailed.length,
+        deferred,
+        totalRecipients: recipients.length,
         details: { sent: emailsSent, failed: emailsFailed },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

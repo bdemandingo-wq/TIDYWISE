@@ -72,7 +72,7 @@ export async function getOrgEmailSettings(organizationId: string): Promise<OrgEm
       resend_api_key: data.resend_api_key ?? null,
       smtp_email: data.smtp_email ?? null,
       smtp_app_password: data.smtp_app_password ?? null,
-      email_send_method: (data.email_send_method ?? "resend") as "resend" | "gmail_smtp",
+      email_send_method: (data.email_send_method ?? "gmail_smtp") as "resend" | "gmail_smtp",
       gmail_account_type: (data.gmail_account_type ?? "consumer") as "consumer" | "workspace",
     },
   };

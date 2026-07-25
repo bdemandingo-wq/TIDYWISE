@@ -4,7 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+
+// Throttle Gmail SMTP: pace sends and cap volume per org per run so we don't
+// trip Gmail's burst rate limits. The daily cap (500/2000) is enforced
+// separately in sendOrgEmail. 300ms × 200 ≈ 60s worst case, within the 120s
+// cron timeout.
+const SEND_DELAY_MS = 300;
+const MAX_SENDS_PER_ORG = 200;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +43,7 @@ serve(async (req) => {
       // Get email settings for org
       const { data: emailSettings } = await supabase
         .from("organization_email_settings")
-        .select("from_email, from_name, resend_api_key")
+        .select("from_email, from_name")
         .eq("organization_id", org.id)
         .maybeSingle();
 
@@ -50,10 +56,10 @@ serve(async (req) => {
       const baseUrl = (bizSettings?.app_url || Deno.env.get("APP_URL") || "https://jointidywise.com").replace(/\/+$/, "");
       const companyName = emailSettings?.from_name || "Your Cleaning Company";
       const fromEmail = emailSettings?.from_email || "noreply@jointidywise.com";
-      const apiKey = emailSettings?.resend_api_key || RESEND_API_KEY;
-      if (!apiKey) continue;
 
-      for (const { step, daysInactive, offerPercent, subject } of STEPS) {
+      let sentThisOrg = 0;
+
+      stepLoop: for (const { step, daysInactive, offerPercent, subject } of STEPS) {
         const cutoffDate = new Date(now);
         cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
 
@@ -128,6 +134,11 @@ serve(async (req) => {
             results[`step${step}`]++;
           }
 
+          // Throttle + per-org cap. Counts every send attempt; the delay paces
+          // Gmail SMTP, the cap is a safety ceiling (remainder drains next run).
+          sentThisOrg++;
+          if (sentThisOrg >= MAX_SENDS_PER_ORG) break stepLoop;
+          await new Promise((r) => setTimeout(r, SEND_DELAY_MS));
         }
       }
     }
