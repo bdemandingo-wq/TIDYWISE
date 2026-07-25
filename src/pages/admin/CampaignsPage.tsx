@@ -1076,10 +1076,23 @@ export default function CampaignsPage() {
                       <SelectItem value="7">7 days</SelectItem>
                       <SelectItem value="14">14 days</SelectItem>
                       <SelectItem value="30">30 days</SelectItem>
-                      <SelectItem value="60">30 days</SelectItem>
+                      <SelectItem value="60">60 days</SelectItem>
                       <SelectItem value="90">90 days</SelectItem>
                     </SelectContent>
                   </Select>
+                  <div className="mt-2 flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-xs">
+                    <span>
+                      {testCampaign.isPending
+                        ? 'Counting recipients…'
+                        : testResult
+                          ? <>Recipients: <strong>{testResult.contactable}</strong>{(testResult.excludedCount || 0) > 0 && <span className="text-muted-foreground"> · {testResult.excludedCount} excluded</span>}</>
+                          : 'Recipient count will appear here.'}
+                    </span>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                      onClick={() => testCampaign.mutate()} disabled={testCampaign.isPending}>
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -1113,7 +1126,7 @@ export default function CampaignsPage() {
                       <SelectItem value="7">Last 7 days</SelectItem>
                       <SelectItem value="14">Last 14 days</SelectItem>
                       <SelectItem value="30">Last 30 days</SelectItem>
-                      <SelectItem value="60">Last 30 days</SelectItem>
+                      <SelectItem value="60">Last 60 days</SelectItem>
                       <SelectItem value="90">Last 90 days</SelectItem>
                     </SelectContent>
                   </Select>
