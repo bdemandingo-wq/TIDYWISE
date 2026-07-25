@@ -111,8 +111,8 @@ export default function BenchmarksPage() {
             <h1 className="text-2xl font-semibold">Benchmarks</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            How your last 90 days compare to anonymous peers. All data is aggregated; no
-            organization names, customers, or addresses are ever shared.
+            How your last 90 days compare to all participating businesses, including your own.
+            All data is aggregated; no organization names, customers, or addresses are ever shared.
           </p>
         </div>
 
@@ -152,7 +152,7 @@ export default function BenchmarksPage() {
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Users className="h-3.5 w-3.5" />
-                  {peerAll?.org_count ? `${peerAll.org_count} peer orgs` : 'Cohort too small'}
+                  {peerAll?.org_count ? `${peerAll.org_count} participating businesses` : 'Cohort too small'}
                 </div>
                 <Select value={bucket} onValueChange={(v) => setBucket(v as ServiceBucket)}>
                   <SelectTrigger className="w-44">

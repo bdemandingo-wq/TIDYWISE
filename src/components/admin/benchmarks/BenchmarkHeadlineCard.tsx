@@ -79,7 +79,7 @@ export function BenchmarkHeadlineCard({
         )}
       </div>
       <div className="text-xs text-muted-foreground">
-        Peers: <span className="font-medium text-foreground">{formatValue(peerValue, format)}</span>
+        All orgs: <span className="font-medium text-foreground">{formatValue(peerValue, format)}</span>
         {helper ? <> · {helper}</> : null}
       </div>
     </Card>
