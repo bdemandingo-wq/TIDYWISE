@@ -61,9 +61,7 @@ export function HealthMonitorTab() {
     queryFn: async () => {
       if (!organization?.id) return { connected: false, lastSync: null as string | null };
       const { data, error } = await supabase
-        .from('org_stripe_settings')
-        .select('is_connected, connected_at')
-        .eq('organization_id', organization.id)
+        .rpc('get_org_stripe_settings_safe', { p_organization_id: organization.id })
         .maybeSingle();
       if (error || !data) return { connected: false, lastSync: null };
       return { connected: data.is_connected, lastSync: data.connected_at };
