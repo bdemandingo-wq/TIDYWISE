@@ -22,37 +22,38 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Fetch pending items ready to send
-    const { data: pendingItems, error: fetchError } = await supabase
-      .from("automated_review_sms_queue")
-      .select("id, booking_id, organization_id, customer_id")
-      .eq("sent", false)
-      .lte("send_at", new Date().toISOString())
-      .limit(20);
-
-    if (fetchError) {
-      console.error("Error fetching queue:", fetchError);
-      throw fetchError;
-    }
-
-    if (!pendingItems || pendingItems.length === 0) {
-      return new Response(JSON.stringify({ processed: 0 }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    console.log(`Processing ${pendingItems.length} review SMS requests`);
+    const BATCH = 50;
+    const MAX_PER_RUN = 200;   // safety ceiling; remainder drains on the next cron run
     let successCount = 0;
+    let processedTotal = 0;
 
-    // Pre-fetch automation settings
-    const orgIds = [...new Set(pendingItems.map(i => i.organization_id))];
-    const { data: automationSettings } = await supabase
-      .from("organization_automations")
-      .select("organization_id, is_enabled")
-      .in("organization_id", orgIds)
-      .eq("automation_type", "review_request");
-    const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+    // Drain the queue oldest-first, paging until nothing's ready (capped per run).
+    while (processedTotal < MAX_PER_RUN) {
+      const now = new Date().toISOString();
+      const { data: pendingItems, error: fetchError } = await supabase
+        .from("automated_review_sms_queue")
+        .select("id, booking_id, organization_id, customer_id")
+        .eq("sent", false)
+        .lte("send_at", now)
+        .order("send_at", { ascending: true })
+        .limit(BATCH);
+
+      if (fetchError) {
+        console.error("Error fetching queue:", fetchError);
+        throw fetchError;
+      }
+      if (!pendingItems || pendingItems.length === 0) break;
+
+      console.log(`Processing ${pendingItems.length} review SMS requests`);
+
+      // Pre-fetch automation settings for this batch's orgs
+      const orgIds = [...new Set(pendingItems.map(i => i.organization_id))];
+      const { data: automationSettings } = await supabase
+        .from("organization_automations")
+        .select("organization_id, is_enabled")
+        .in("organization_id", orgIds)
+        .eq("automation_type", "review_request");
+      const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
 
     for (const item of pendingItems) {
       try {
@@ -252,7 +253,11 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    return new Response(JSON.stringify({ processed: pendingItems.length, sent: successCount }), {
+      processedTotal += pendingItems.length;
+      if (pendingItems.length < BATCH) break;
+    }
+
+    return new Response(JSON.stringify({ processed: processedTotal, sent: successCount }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

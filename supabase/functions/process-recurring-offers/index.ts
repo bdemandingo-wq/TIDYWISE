@@ -21,46 +21,42 @@ serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const now = new Date().toISOString();
-
-    // Fetch pending items ready to send
-    const { data: pendingItems, error: fetchError } = await supabase
-      .from("recurring_offer_queue")
-      .select("id, booking_id, customer_id, organization_id, defer_count, deferred_until")
-      .eq("sent", false)
-      .eq("cancelled", false)
-      .lte("send_at", now)
-      .limit(20);
-
-    if (fetchError) {
-      console.error("[process-recurring-offers] Fetch error:", fetchError);
-      throw fetchError;
-    }
-
-    // Filter out deferred items not yet ready
-    const readyItems = (pendingItems || []).filter(item => {
-      if (item.deferred_until && new Date(item.deferred_until) > new Date()) return false;
-      return true;
-    });
-
-    if (readyItems.length === 0) {
-      return new Response(JSON.stringify({ processed: 0, sent: 0 }), {
-        status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    console.log(`[process-recurring-offers] Processing ${readyItems.length} items`);
+    const BATCH = 50;
+    const MAX_PER_RUN = 200;   // safety ceiling; remainder drains on the next cron run
     let sentCount = 0;
+    let processedTotal = 0;
 
-    // Pre-fetch automation settings
-    const orgIds = [...new Set(readyItems.map(i => i.organization_id))];
-    const { data: automationSettings } = await supabase
-      .from("organization_automations")
-      .select("organization_id, is_enabled")
-      .in("organization_id", orgIds)
-      .eq("automation_type", "recurring_upsell");
-    const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+    // Drain the queue oldest-first. Deferred rows are excluded in SQL so they
+    // don't consume the batch, and we page until nothing's ready (capped per run).
+    while (processedTotal < MAX_PER_RUN) {
+      const { data: batch, error: fetchError } = await supabase
+        .from("recurring_offer_queue")
+        .select("id, booking_id, customer_id, organization_id, defer_count, deferred_until")
+        .eq("sent", false)
+        .eq("cancelled", false)
+        .lte("send_at", now)
+        .or(`deferred_until.is.null,deferred_until.lte.${now}`)
+        .order("send_at", { ascending: true })
+        .limit(BATCH);
 
-    for (const item of readyItems) {
+      if (fetchError) {
+        console.error("[process-recurring-offers] Fetch error:", fetchError);
+        throw fetchError;
+      }
+      if (!batch || batch.length === 0) break;
+
+      console.log(`[process-recurring-offers] Processing ${batch.length} items`);
+
+      // Pre-fetch automation settings for this batch's orgs
+      const orgIds = [...new Set(batch.map(i => i.organization_id))];
+      const { data: automationSettings } = await supabase
+        .from("organization_automations")
+        .select("organization_id, is_enabled")
+        .in("organization_id", orgIds)
+        .eq("automation_type", "recurring_upsell");
+      const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+
+    for (const item of batch) {
       try {
         // Check if automation is enabled for this org
         if (automationMap.has(item.organization_id) && !automationMap.get(item.organization_id)) {
@@ -263,7 +259,11 @@ serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ processed: readyItems.length, sent: sentCount }), {
+      processedTotal += batch.length;
+      if (batch.length < BATCH) break;
+    }
+
+    return new Response(JSON.stringify({ processed: processedTotal, sent: sentCount }), {
       status: 200, headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
