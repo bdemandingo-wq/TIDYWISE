@@ -199,6 +199,16 @@ async function sendViaResend(
 export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEmailResult> {
   const settingsResult = await getOrgEmailSettings(opts.organizationId);
   if (!settingsResult.success || !settingsResult.settings) {
+    // Settings-missing failures were previously unlogged — the customer email
+    // silently never sent and the owner never found out. Persist it per-org.
+    await logFailure(
+      opts.organizationId,
+      "none",
+      null,
+      toArr(opts.to)[0] ?? "",
+      opts.subject,
+      settingsResult.error ?? "Email settings not configured",
+    );
     return { success: false, method: "none", error: settingsResult.error };
   }
   const settings = settingsResult.settings;
@@ -248,5 +258,7 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
     await incrementDailyCount(opts.organizationId, "resend");
     return { success: true, id: resendRes.id, method: "resend" };
   }
+  // Resend-only path failure was previously unlogged. Persist it per-org.
+  await logFailure(opts.organizationId, "resend", null, primaryRecipient, opts.subject, resendRes.error);
   return { success: false, method: "none", error: resendRes.error };
 }
