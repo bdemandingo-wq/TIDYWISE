@@ -111,8 +111,8 @@ export default function BenchmarksPage() {
             <h1 className="text-2xl font-semibold">Benchmarks</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            How your last 90 days compare to anonymous peers. All data is aggregated; no
-            organization names, customers, or addresses are ever shared.
+            How your last 90 days compare to all participating businesses, including your own.
+            All data is aggregated; no organization names, customers, or addresses are ever shared.
           </p>
         </div>
 
