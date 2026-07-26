@@ -48,9 +48,9 @@ const tierColors = {
 
 const tierBadgeStyles = {
   platinum: 'bg-primary/20 text-primary border-primary/30',
-  gold: 'bg-amber-500/20 text-amber-600 border-amber-500/30',
-  silver: 'bg-slate-400/20 text-slate-600 border-slate-400/30',
-  bronze: 'bg-orange-700/20 text-orange-700 border-orange-700/30'
+  gold: 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30',
+  silver: 'bg-slate-400/20 text-slate-600 dark:text-slate-300 border-slate-400/30',
+  bronze: 'bg-orange-700/20 text-orange-700 dark:text-orange-400 border-orange-700/30'
 };
 
 export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeValueProps) {
