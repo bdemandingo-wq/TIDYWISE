@@ -217,7 +217,6 @@ export default function BenchmarksPage() {
                     <BenchmarkHeadlineCard label="Your avg price" yourValue={myForBucket?.avg_price} peerValue={peerForBucket?.median_price} format="currency" helper="vs peer median" />
                     <BenchmarkHeadlineCard label="Peer 25th pct" yourValue={peerForBucket?.p25_price} peerValue={peerForBucket?.p25_price} format="currency" />
                     <BenchmarkHeadlineCard label="Peer 75th pct" yourValue={peerForBucket?.p75_price} peerValue={peerForBucket?.p75_price} format="currency" />
-                    <BenchmarkHeadlineCard label="Bookings in bucket" yourValue={myForBucket?.bookings_count} peerValue={peerForBucket?.bookings_per_org ?? null} format="number" />
                   </div>
                 </div>
 
