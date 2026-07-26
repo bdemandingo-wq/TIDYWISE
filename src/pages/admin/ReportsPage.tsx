@@ -16,7 +16,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useMemo, useState, useEffect } from 'react';
-import { format, subMonths, isAfter, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, subMonths, isAfter, startOfYear, endOfMonth, isWithinInterval } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -87,7 +87,7 @@ export default function ReportsPage() {
   });
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
-    from: subMonths(startOfMonth(new Date()), 5),
+    from: startOfYear(new Date()),
     to: endOfMonth(new Date()),
   });
 
@@ -463,14 +463,14 @@ export default function ReportsPage() {
             <ProfitByServiceChart bookings={bookings} />
 
             {/* Staff Performance Table */}
-            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[420px] overflow-auto">
+            <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[420px] lg:h-full flex flex-col">
               <h3 className="font-semibold mb-4">Staff Performance</h3>
               {staffStats.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No staff performance data available
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="flex-1 min-h-0 overflow-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="text-left border-b border-border">
