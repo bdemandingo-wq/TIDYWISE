@@ -1185,7 +1185,7 @@ export default function PayrollPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All cleaners</SelectItem>
-                    {staff.map((s: any) => (
+                    {[...staff].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((s: any) => (
                       <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
