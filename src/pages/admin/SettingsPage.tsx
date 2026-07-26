@@ -809,7 +809,9 @@ export default function SettingsPage() {
 
         {/* Email & Domain Settings */}
         <TabsContent value="emails" className="space-y-6">
-          <EmailSettingsCard />
+          <div data-tour-id="gmail-connect">
+            <EmailSettingsCard />
+          </div>
           <EmailDeliveryPanel />
 
           <EmailTemplatesSettings

@@ -100,6 +100,9 @@ export function ProductTour() {
   // Refs prevent infinite useEffect loops when we're inside the joyride callback.
   const eligibilityCheckedFor = useRef<string | null>(null);
   const tourStartedLogged = useRef(false);
+  // Once we've routed the user onto a step, we must never auto-navigate them
+  // back to it — otherwise any nav click bounces them and traps them.
+  const positionedForStep = useRef<number | null>(null);
 
   // ── Eligibility check ──────────────────────────────────────────────────
   useEffect(() => {
@@ -162,26 +165,49 @@ export function ProductTour() {
         setRun(false);
         return;
       }
+      // Auto-route onto this step's page exactly ONCE. After that, never
+      // re-navigate — otherwise every nav click bounces the user back to
+      // the step route and traps them. Once positioned, if they click away
+      // or hit Skip, let them leave.
+      if (positionedForStep.current === stepIndex) {
+        setRun(false);
+        return;
+      }
+      positionedForStep.current = stepIndex;
       setRun(false);
       navigate(step.route);
       return;
     }
 
+    // We're on the right page — mark this step positioned so a later
+    // navigation away is treated as the user leaving, not a cue to bounce
+    // them back.
+    positionedForStep.current = stepIndex;
 
-    // We're on the right page. Wait for the target element.
+    // Wait for the target element, then start joyride.
     let attempts = 0;
     const interval = setInterval(() => {
       attempts++;
       const el = typeof step.target === 'string'
         ? document.querySelector(step.target)
         : step.target;
-      if (el || attempts >= TARGET_WAIT_MAX_ATTEMPTS) {
+      if (el) {
         clearInterval(interval);
         setRun(true);
         if (!tourStartedLogged.current) {
           tourStartedLogged.current = true;
           void logEvent('tour_started', stepIndex);
         }
+      } else if (attempts >= TARGET_WAIT_MAX_ATTEMPTS) {
+        // Hard escape: the target never mounted (e.g. a step pointing at an
+        // element that isn't on the page). Rather than leave the user stuck,
+        // mark the tour skipped and stop — never trap them on a step that
+        // can't display.
+        clearInterval(interval);
+        setRun(false);
+        setEligible(false);
+        void markSkipped();
+        void logEvent('tour_skipped', stepIndex, { reason: 'target_not_found' });
       }
     }, TARGET_WAIT_MS);
 
