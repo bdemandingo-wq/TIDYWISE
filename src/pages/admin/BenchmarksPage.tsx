@@ -87,9 +87,25 @@ export default function BenchmarksPage() {
       if (vals.length === 0) return null;
       return vals.reduce((a, b) => a + b, 0) / vals.length;
     };
+    // Avg ticket must be booking-weighted to match the "you" side (myAll,
+    // weighted by bookings_count per bucket). Peer weight per bucket =
+    // bookings_per_org * org_count = total bookings in that bucket.
+    const weightedAvgPrice = (() => {
+      let weighted = 0;
+      let weight = 0;
+      for (const p of peerCohort) {
+        const price = typeof p.avg_price === 'number' ? p.avg_price : null;
+        const w = (p.bookings_per_org ?? 0) * (p.org_count ?? 0);
+        if (price != null && w > 0) {
+          weighted += price * w;
+          weight += w;
+        }
+      }
+      return weight > 0 ? weighted / weight : null;
+    })();
     return {
       org_count: totalOrgs,
-      avg_price: avg('avg_price'),
+      avg_price: weightedAvgPrice,
       median_price: avg('median_price'),
       cancel_rate: avg('cancel_rate'),
       noshow_rate: avg('noshow_rate'),
@@ -188,7 +204,7 @@ export default function BenchmarksPage() {
                     <BenchmarkHeadlineCard label="Recurring share" yourValue={myAll?.recurring_share} peerValue={peerAll?.recurring_share} format="percent" />
                     <BenchmarkHeadlineCard label="Review response rate" yourValue={myAll?.review_rate} peerValue={peerAll?.review_rate} format="percent" />
                     <BenchmarkHeadlineCard label="Avg rating" yourValue={myAll?.avg_rating} peerValue={peerAll?.avg_rating} format="rating" />
-                    <BenchmarkHeadlineCard label="Bookings (you / peer avg)" yourValue={myAll?.bookings_count} peerValue={(peerCohort[0] as any)?.bookings_per_org ?? null} format="number" />
+                    <BenchmarkHeadlineCard label={`Bookings in ${BUCKET_LABELS[bucket]} (you / peer avg)`} yourValue={myForBucket?.bookings_count} peerValue={peerForBucket?.bookings_per_org ?? null} format="number" />
                   </div>
                 </div>
 
