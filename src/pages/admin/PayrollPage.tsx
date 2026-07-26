@@ -59,6 +59,9 @@ interface StaffWithPayroll {
 
 interface BookingPayrollDetail {
   id: string;
+  /** The booking this row belongs to. A multi-cleaner booking has one row per
+   *  cleaner, so anything counting BOOKINGS must dedupe on this, not on rows. */
+  booking_id: string;
   booking_number: number;
   customer_name: string;
   scheduled_at: string;
@@ -70,7 +73,13 @@ interface BookingPayrollDetail {
   actual_pay: number | null;
   staff_id: string;
   staff_name: string;
+  /** This cleaner's slice of the booking's net revenue, split by pay. Sums to
+   *  the booking's revenue across its rows, so totals never double-count. */
   revenue_net: number;
+  /** True when revenue_net is a proportional share of a multi-cleaner booking
+   *  rather than a real invoiced amount — surfaced in the UI so nobody
+   *  reconciles a single row against a client invoice. */
+  revenue_is_share: boolean;
   labor_cost: number;
   labor_percent: number;
   profit: number;
@@ -541,10 +550,20 @@ export default function PayrollPage() {
 
         const financials = calcBookingFinancials(b, totalBookingLabor, settings);
 
+        // Each cleaner's slice of the booking, weighted by pay — the same split
+        // the profit column has always used, now applied to revenue too. Rows of
+        // one booking therefore sum to that booking's revenue exactly once, so
+        // no total downstream needs a dedupe pass. Falls back to an even split
+        // when nobody on the booking has any pay (0/0).
+        const shareOf = (pay: number) =>
+          totalBookingLabor > 0 ? pay / totalBookingLabor : 1 / assignments.length;
+        const isShared = assignments.length > 1;
+
         for (const { a, member, wageInfo } of memberDetails) {
-          const memberLaborPct = financials.revenueNet > 0 ? (wageInfo.calculatedPay / financials.revenueNet) * 100 : 0;
+          const share = shareOf(wageInfo.calculatedPay);
           details.push({
             id: `${b.id}-${a.staff_id}`,
+            booking_id: b.id,
             booking_number: b.booking_number,
             customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
             scheduled_at: b.scheduled_at,
@@ -556,10 +575,16 @@ export default function PayrollPage() {
             actual_pay: wageInfo.actualPay,
             staff_id: a.staff_id,
             staff_name: member?.name || staffMember?.name || 'Unassigned',
-            revenue_net: financials.revenueNet,
+            revenue_net: financials.revenueNet * share,
+            revenue_is_share: isShared,
             labor_cost: wageInfo.calculatedPay,
-            labor_percent: memberLaborPct,
-            profit: financials.profit * (totalBookingLabor > 0 ? wageInfo.calculatedPay / totalBookingLabor : 1 / assignments.length),
+            // Labor % is a property of the JOB, not of one person: the whole
+            // booking's labor against its whole revenue. (Dividing this
+            // cleaner's pay by their revenue share gives the identical figure —
+            // the split cancels — but the booking-level form is the honest one,
+            // and it's what makes the warning threshold fire on team bookings.)
+            labor_percent: financials.laborPercent,
+            profit: financials.profit * share,
             margin_percent: financials.marginPercent,
             isMissingPay: wageInfo.isMissingPay,
           });
@@ -571,6 +596,7 @@ export default function PayrollPage() {
         const financials = calcBookingFinancials(b, wageInfo.calculatedPay, settings);
         details.push({
           id: b.id,
+          booking_id: b.id,
           booking_number: b.booking_number,
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
           scheduled_at: b.scheduled_at,
@@ -582,7 +608,10 @@ export default function PayrollPage() {
           actual_pay: wageInfo.actualPay,
           staff_id: b.staff_id,
           staff_name: staffMember?.name || 'Unassigned',
+          // Sole cleaner — the whole booking is theirs, so this is the real
+          // invoiced figure, not a share.
           revenue_net: financials.revenueNet,
+          revenue_is_share: false,
           labor_cost: wageInfo.calculatedPay,
           labor_percent: financials.laborPercent,
           profit: financials.profit,
@@ -605,6 +634,46 @@ export default function PayrollPage() {
     return filtered;
   }, [bookingPayrollDetails, staffFilterId, profitFilter, settings]);
 
+  // One economic picture per booking, computed once, so the Staff Summary and
+  // the Booking Details table split revenue and profit the same way and can't
+  // report different figures for the same period.
+  //
+  // Membership deliberately matches getStaffPayEntries — every team assignment
+  // PLUS the primary staff_id when it isn't already among them — because that
+  // is who this page attributes pay to. Shares therefore always sum to 1 and a
+  // booking's revenue is counted exactly once across its cleaners.
+  const bookingEconomics = useMemo(() => {
+    const map = new Map<string, { revenueNet: number; profit: number; totalLabor: number; memberCount: number }>();
+    const bookingIdsWithTeam = new Set(teamAssignments.map((a: any) => a.booking_id));
+    const assignedBookings = bookings.filter((b: any) => b.status !== 'cancelled' && (b.staff_id || bookingIdsWithTeam.has(b.id)));
+
+    for (const b of assignedBookings) {
+      const isReclean = !b.service_id && Number(b.total_amount) === 0;
+      const assignments = teamAssignments.filter((a: any) => a.booking_id === b.id);
+      const memberIds = new Set<string>(assignments.map((a: any) => a.staff_id));
+      if (b.staff_id) memberIds.add(b.staff_id);
+
+      let totalLabor = 0;
+      if (!isReclean) {
+        for (const id of memberIds) {
+          const member = staff.find((s) => s.id === id);
+          const a = assignments.find((x: any) => x.staff_id === id);
+          const ps = a?.pay_share != null ? Number(a.pay_share) : null;
+          totalLabor += calcWage(b, member, ps).calculatedPay;
+        }
+      }
+
+      const financials = calcBookingFinancials(b, totalLabor, settings);
+      map.set(b.id, {
+        revenueNet: financials.revenueNet,
+        profit: financials.profit,
+        totalLabor,
+        memberCount: memberIds.size,
+      });
+    }
+    return map;
+  }, [bookings, staff, teamAssignments, settings]);
+
   // Payroll data per staff with financial intelligence
   const payrollData: StaffWithPayroll[] = useMemo(() => {
     return staff.map((s) => {
@@ -612,12 +681,22 @@ export default function PayrollPage() {
       const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
       const totalPay = entries.reduce((sum, e) => sum + e.pay, 0);
 
-      // Revenue attributed to this cleaner
-      const revenueAttributed = entries.reduce((sum, e) => {
-        const rev = Number(e.booking.subtotal || e.booking.total_amount) - Number(e.booking.discount_amount || 0);
-        return sum + rev;
-      }, 0);
-      const profitAttributed = revenueAttributed - totalPay;
+      // Revenue and profit attributed to this cleaner: their pay-weighted share
+      // of each booking, NOT the whole booking. Crediting every cleaner on a
+      // shared job with its full revenue made a $350 two-cleaner booking add
+      // $700 to the company totals. Profit comes from calcBookingFinancials, so
+      // it carries processing and vendor fees and agrees with Booking Details.
+      let revenueAttributed = 0;
+      let profitAttributed = 0;
+      for (const e of entries) {
+        const econ = bookingEconomics.get(e.booking.id);
+        if (!econ) continue;
+        const share = econ.totalLabor > 0
+          ? e.pay / econ.totalLabor
+          : (econ.memberCount > 0 ? 1 / econ.memberCount : 0);
+        revenueAttributed += econ.revenueNet * share;
+        profitAttributed += econ.profit * share;
+      }
       const laborPercent = revenueAttributed > 0 ? (totalPay / revenueAttributed) * 100 : 0;
 
       const ytdEntries = getStaffPayEntries(s.id, ytdBookings, ytdTeamAssignments);
@@ -647,26 +726,35 @@ export default function PayrollPage() {
         laborPercent: Math.round(laborPercent * 10) / 10,
       };
     });
-  }, [staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments]);
+  }, [staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments, bookingEconomics]);
 
   // Summary stats
   const effectivePayrollData = staffFilterId === 'all' ? payrollData : payrollData.filter((s) => s.id === staffFilterId);
   const totalPayroll = effectivePayrollData.reduce((sum, s) => sum + s.totalPay, 0);
   const totalHours = effectivePayrollData.reduce((sum, s) => sum + s.totalHours, 0);
   const totalCleans = effectivePayrollData.reduce((sum, s) => sum + s.assignedCleans, 0);
+  // Each cleaner's revenueAttributed is now their share of a booking, so these
+  // sum each booking exactly once. Profit is summed rather than derived as
+  // revenue - payroll, because the per-booking figure already nets off
+  // processing and vendor fees; deriving it here silently dropped them and made
+  // this card disagree with the Booking Details profit for the same period.
   const totalRevenue = effectivePayrollData.reduce((sum, s) => sum + s.revenueAttributed, 0);
-  const totalProfit = totalRevenue - totalPayroll;
+  const totalProfit = effectivePayrollData.reduce((sum, s) => sum + s.profitAttributed, 0);
   const avgLaborPct = totalRevenue > 0 ? (totalPayroll / totalRevenue) * 100 : 0;
   const contractorsNeedingFiling = payrollData.filter((s) => s.requiresTaxFiling).length;
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const negativeMarginCount = bookingPayrollDetails.filter(d => d.profit < 0).length;
   const missingPayCount = bookingPayrollDetails.filter(d => d.isMissingPay || (d.calculated_pay === 0 && d.staff_id)).length;
 
-  // Filtered totals
+  // Filtered totals. revenue_net and profit are per-cleaner shares, so summing
+  // rows counts each booking once — no dedupe needed here or in anything added
+  // later. The booking COUNT is the exception: rows are per cleaner, so it has
+  // to dedupe on booking_id or a two-cleaner job reads as two bookings.
   const filteredTotalHours = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.hours_worked, 0);
   const filteredTotalPay = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.calculated_pay, 0);
   const filteredTotalRevenue = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.revenue_net, 0);
   const filteredTotalProfit = filteredBookingPayrollDetails.reduce((sum, b) => sum + b.profit, 0);
+  const filteredBookingCount = new Set(filteredBookingPayrollDetails.map((b) => b.booking_id)).size;
 
   // Weekly forecast helper
   const calcWeekForecast = (weekBookings: any[], weekTeam: any[]) => {
@@ -741,13 +829,17 @@ export default function PayrollPage() {
   };
 
   const exportDetailedCSV = async () => {
-    const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Labor %', 'Profit', 'Margin %'];
+    // Revenue Basis is its own column rather than a suffix on the number, so
+    // the revenue column stays parseable in a spreadsheet while still saying
+    // when the figure is a split rather than an invoiced amount.
+    const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Revenue Basis', 'Labor %', 'Profit', 'Margin %'];
     const rows = filteredBookingPayrollDetails.map((b) => [
       getDateInTimezone(b.scheduled_at, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2), b.wage_type,
       b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate}`,
       b.calculated_pay.toFixed(2), b.revenue_net.toFixed(2),
+      b.revenue_is_share ? 'share of booking' : 'full booking',
       `${b.labor_percent.toFixed(1)}%`, b.profit.toFixed(2), `${b.margin_percent.toFixed(1)}%`,
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
@@ -1061,8 +1153,8 @@ export default function PayrollPage() {
                     <TableHead className="text-right">Cleans</TableHead>
                     <TableHead className="text-right">Hours</TableHead>
                     <TableHead className="text-right">Period Pay</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                    <TableHead className="text-right">Profit</TableHead>
+                    <TableHead className="text-right" title="Revenue from the jobs this cleaner worked. On a job shared with other cleaners, only this cleaner's share is counted, so the column sums to real company revenue.">Revenue</TableHead>
+                    <TableHead className="text-right" title="This cleaner's share of job profit, after labor, processing and vendor fees.">Profit</TableHead>
                     <TableHead className="text-right">Labor %</TableHead>
                     <TableHead className="text-right">YTD</TableHead>
                      <TableHead>Status</TableHead>
@@ -1236,7 +1328,15 @@ export default function PayrollPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        {isTestMode ? '$XXX' : `${fmt(b.revenue_net)}`}
+                        {isTestMode ? '$XXX' : b.revenue_is_share ? (
+                          // Shared booking: this is a split, not an invoiced
+                          // amount. Say so on the row, or someone reconciles it
+                          // against a client invoice and finds nothing.
+                          <span title={`This cleaner's share of booking #${b.booking_number}, split by pay. The client was invoiced the full booking amount.`}>
+                            {fmt(b.revenue_net)}
+                            <span className="ml-1 text-xs text-muted-foreground">(share)</span>
+                          </span>
+                        ) : `${fmt(b.revenue_net)}`}
                       </TableCell>
                       <TableCell className={cn("text-right", b.labor_percent > settings.labor_percent_warning_threshold ? "text-warning font-medium" : "")}>
                         {isTestMode ? 'XX%' : `${b.labor_percent.toFixed(1)}%`}
@@ -1252,7 +1352,7 @@ export default function PayrollPage() {
                   {filteredBookingPayrollDetails.length > 0 && (
                     <TableRow className="bg-muted/50 font-semibold border-t-2">
                       <TableCell colSpan={4} className="text-right">
-                        Totals ({filteredBookingPayrollDetails.length} booking{filteredBookingPayrollDetails.length !== 1 ? 's' : ''})
+                        Totals ({filteredBookingCount} booking{filteredBookingCount !== 1 ? 's' : ''})
                       </TableCell>
                       <TableCell className="text-right">{isTestMode ? 'X.XX' : filteredTotalHours.toFixed(2)}</TableCell>
                       <TableCell className="text-right text-success">
