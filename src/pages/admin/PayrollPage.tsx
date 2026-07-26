@@ -305,7 +305,9 @@ export default function PayrollPage() {
     });
   };
 
-  // Fetch staff
+  // Fetch staff — the active roster. Everything about who is CURRENTLY on
+  // payroll reads from here: the Staff Summary rows, the cleaner filter, the
+  // payout buttons. Deliberately still is_active only.
   const { data: staff = [] } = useQuery({
     queryKey: ['staff-payroll', organizationId],
     queryFn: async () => {
@@ -320,6 +322,33 @@ export default function PayrollPage() {
     },
     enabled: !!organizationId,
   });
+
+  // Names for EVERY cleaner, deactivated ones included. A past payroll period
+  // can contain work done by someone who has since been deactivated, and that
+  // row has to name the person who actually did the job — the active roster
+  // above can't resolve them, so they rendered as 'Unassigned'.
+  //
+  // Names ONLY. This must not become a second roster: it deliberately selects
+  // just id and name so it can't be used to decide who is on payroll, who can
+  // be filtered to, or whose wage rates apply.
+  const { data: staffNames = [] } = useQuery({
+    queryKey: ['staff-payroll-names', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('staff')
+        .select('id, name')
+        .eq('organization_id', organizationId);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  const staffNameById = useMemo(
+    () => new Map<string, string>((staffNames as { id: string; name: string }[]).map((s) => [s.id, s.name])),
+    [staffNames],
+  );
 
   // Fetch bookings for selected date range
   const { data: bookings = [] } = useQuery({
@@ -595,11 +624,11 @@ export default function PayrollPage() {
           calculated_pay: wageInfo.calculatedPay,
           actual_pay: wageInfo.actualPay,
           staff_id: m.staffId,
-          // No fallback to the booking's primary name: `staff` is filtered to
-          // is_active, and a deactivated team member used to render under the
-          // PRIMARY cleaner's name — a payroll row attributed to the wrong
-          // person. Unattributed is the safer failure.
-          staff_name: member?.name || 'Unassigned',
+          // Falls back to the all-staff name map so a cleaner deactivated since
+          // the job still appears under their own name on a historical row.
+          // Never falls back to the booking's PRIMARY cleaner, which is what
+          // this did originally — that put a payroll row under the wrong person.
+          staff_name: member?.name || staffNameById.get(m.staffId) || 'Unassigned',
           revenue_net: financials.revenueNet * share,
           revenue_is_share: isShared,
           labor_cost: wageInfo.calculatedPay,
@@ -616,7 +645,7 @@ export default function PayrollPage() {
       }
     }
     return details;
-  }, [bookings, staff, teamAssignments, settings]);
+  }, [bookings, staff, staffNameById, teamAssignments, settings]);
 
   // Apply filters
   const filteredBookingPayrollDetails = useMemo(() => {
