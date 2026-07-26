@@ -12,6 +12,7 @@ import {
   Tooltip, 
   ResponsiveContainer,
   Cell,
+  LabelList,
   PieChart,
   Pie
 } from 'recharts';
@@ -183,7 +184,7 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
 
   const topCustomersChartData = useMemo(() => {
     return customerCLVData.slice(0, 10).map(c => ({
-      name: isTestMode ? 'Customer' : c.name.split(' ')[0],
+      name: isTestMode ? 'Customer' : c.name,
       value: c.totalSpent,
       tier: c.tier
     }));
@@ -255,29 +256,45 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
         {/* Top Customers Chart */}
         <Card className="p-4">
           <h3 className="font-semibold mb-4">Top 10 Customers by Lifetime Value</h3>
-          <div className="h-[300px]">
+          <div className="h-[420px]">
             {topCustomersChartData.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 No customer data available
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topCustomersChartData} layout="vertical">
+                <BarChart data={topCustomersChartData} layout="vertical" margin={{ top: 4, right: 72, bottom: 4, left: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis type="number" tickFormatter={(v) => `$${v}`} />
-                  <YAxis type="category" dataKey="name" width={80} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={120}
+                    interval={0}
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(v) => (v.length > 14 ? `${v.slice(0, 13)}…` : v)}
+                  />
                   <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted))', fillOpacity: 0.4 }}
+                    allowEscapeViewBox={{ x: true }}
                     contentStyle={{
                       backgroundColor: 'hsl(var(--popover))',
                       border: '1px solid hsl(var(--border))',
                       borderRadius: '8px',
                     }}
-                    formatter={(value: number) => [`${fmt(value)}`, 'Total Spent']}
+                    formatter={(value: number) => [isTestMode ? '$XXX' : `${fmt(value)}`, 'Total Spent']}
                   />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {topCustomersChartData.map((entry, index) => (
                       <Cell key={index} fill={tierColors[entry.tier]} />
                     ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(v: any) => (isTestMode ? '$XXX' : fmt(v))}
+                      fill="hsl(var(--foreground))"
+                      fontSize={11}
+                    />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
