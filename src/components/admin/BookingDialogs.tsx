@@ -3,6 +3,7 @@ import { format } from "date-fns";
 
 import { BookingWithDetails, useStaff, useUpdateBooking } from "@/hooks/useBookings";
 import { useOrgId } from "@/hooks/useOrgId";
+import { computeExpectedPay, syncCleanerPayShare } from "@/lib/cleanerPay";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -333,6 +334,7 @@ export function EditBookingDialog({
   onOpenChange: (open: boolean) => void;
   booking: BookingWithDetails | null;
 }) {
+  const { organizationId } = useOrgId();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
   const updateBooking = useUpdateBooking();
 
@@ -430,15 +432,13 @@ export function EditBookingDialog({
       // source of truth when set — it must win over any stale cleaner_actual_payment
       // override, otherwise a leftover manual override silently shadows a wage
       // change forever (payroll reads cleaner_pay_expected, never recomputing it).
-      const wageDerivedPay = (() => {
-        const wage = cleanerWage ? parseFloat(cleanerWage) : null;
-        if (wage == null || isNaN(wage) || wage === 0) return null;
-        const totalAmt = Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount;
-        if (cleanerWageType === 'flat') return wage;
-        if (cleanerWageType === 'percentage') return Math.round((wage / 100) * totalAmt * 100) / 100;
-        const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : (booking.duration / 60);
-        return Math.round(wage * hours * 100) / 100;
-      })();
+      const wageDerivedPay = computeExpectedPay(
+        cleanerWageType,
+        cleanerWage,
+        cleanerOverrideHours,
+        booking.duration,
+        Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount,
+      );
 
       const computedExpectedPay = wageDerivedPay != null
         ? wageDerivedPay
@@ -490,6 +490,9 @@ export function EditBookingDialog({
         cleaner_pay_expected: computedExpectedPay,
         ...reschedulePayload,
       } as any);
+
+      // Keep single-cleaner pay_share in sync — payroll reads it first.
+      await syncCleanerPayShare(booking.id, organizationId, computedExpectedPay);
 
       toast({ title: "Saved", description: "Booking updated" });
       onOpenChange(false);

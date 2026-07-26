@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { syncCleanerPayShare } from '@/lib/cleanerPay';
 import {
   Sheet,
   SheetContent,
@@ -199,13 +200,18 @@ export function BulkEditBookingsDialog({
             await supabase.from('booking_team_assignments').delete().eq('booking_id', booking.id);
             for (let i = 0; i < editStaffIds.length; i++) {
               const individualPay = editIndividualPay[editStaffIds[i]];
-              let payShare: number;
+              let payShare: number | null;
               if (individualPay) {
                 payShare = parseFloat(individualPay);
               } else if (editCleanerPay) {
                 payShare = parseFloat(editCleanerPay) / editStaffIds.length;
               } else {
-                payShare = 1 / editStaffIds.length;
+                // No pay entered: split the booking's existing expected pay in
+                // dollars (null → payroll uses cleaner_pay_expected). Never 1/n.
+                const expected = Number((booking as any).cleaner_pay_expected);
+                payShare = Number.isFinite(expected) && expected > 0
+                  ? Math.round((expected / editStaffIds.length) * 100) / 100
+                  : null;
               }
               await supabase.from('booking_team_assignments').insert({
                 booking_id: booking.id,
@@ -215,6 +221,10 @@ export function BulkEditBookingsDialog({
                 organization_id: (booking as any).organization_id,
               });
             }
+          } else if (editCleanerPay) {
+            // Pay changed but staff didn't — keep single-cleaner pay_share in
+            // sync so payroll (which reads it first) doesn't show stale pay.
+            await syncCleanerPayShare(booking.id, (booking as any).organization_id, parseFloat(editCleanerPay));
           }
           successCount++;
         }

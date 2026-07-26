@@ -3080,8 +3080,13 @@ export default function BookingsPage() {
                     .delete()
                     .eq('booking_id', assignCleanerBooking.id);
 
-                  // Insert each team member
-                  const payShare = 1 / ids.length;
+                  // Insert each team member. pay_share is DOLLARS, not a
+                  // fraction — split the booking's expected pay across the
+                  // assigned cleaners (null → payroll uses cleaner_pay_expected).
+                  const expected = Number((assignCleanerBooking as any).cleaner_pay_expected);
+                  const payShare = Number.isFinite(expected) && expected > 0
+                    ? Math.round((expected / ids.length) * 100) / 100
+                    : null;
                   for (let i = 0; i < ids.length; i++) {
                     await supabase.from('booking_team_assignments').insert({
                       booking_id: assignCleanerBooking.id,

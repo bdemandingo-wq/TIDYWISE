@@ -28,6 +28,7 @@ import { invokeSmsFunction } from '@/lib/smsErrorHandler';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { Capacitor } from '@capacitor/core';
 import { useOrgId } from '@/hooks/useOrgId';
+import { computeExpectedPay, syncCleanerPayShare } from '@/lib/cleanerPay';
 import { useBookingForm } from '../BookingFormContext';
 import { useDiscounts } from '@/hooks/useDiscounts';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
@@ -35,24 +36,7 @@ import { preloadStripeModules } from '@/lib/stripe';
 import { useAuth } from '@/hooks/useAuth';
 import { fmt } from '@/lib/activeCurrency';
 
-/**
- * Compute cleaner_pay_expected from current form values.
- */
-function computeExpectedPay(
-  wageType: string,
-  wage: string,
-  overrideHours: string,
-  serviceDuration: number,
-  baseAmount: number,
-): number | null {
-  const w = wage ? parseFloat(wage) : null;
-  if (w == null || w === 0 || isNaN(w)) return null;
-  if (wageType === 'flat') return w;
-  if (wageType === 'percentage') return Math.round((w / 100) * baseAmount * 100) / 100;
-  // hourly
-  const hours = overrideHours ? parseFloat(overrideHours) : (serviceDuration / 60);
-  return Math.round(w * hours * 100) / 100;
-}
+// computeExpectedPay now lives in @/lib/cleanerPay (shared across all pay write sites).
 
 export function PaymentStep() {
   const {
@@ -162,6 +146,7 @@ export function PaymentStep() {
         .eq('id', editingBookingId);
 
       if (error) throw error;
+      await syncCleanerPayShare(editingBookingId, organizationId, expectedPay);
       setPaySaveStatus('saved');
       // Reset to idle after 3 seconds
       setTimeout(() => setPaySaveStatus((prev) => prev === 'saved' ? 'idle' : prev), 3000);

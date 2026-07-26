@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { computeExpectedPay, syncCleanerPayShare } from '@/lib/cleanerPay';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -205,14 +206,8 @@ export function BulkEditCleanerWages() {
         // wage just set here — same fix as the single-booking Edit dialog:
         // a configured wage must win over any stale actual-payment override,
         // and that override is cleared so it can't resurface later.
-        const wageDerivedPay = (() => {
-          if (wageValue == null || isNaN(wageValue) || wageValue === 0) return null;
-          const totalAmt = jobTotalValue !== undefined ? jobTotalValue : (booking?.total_amount ?? 0);
-          if (edit.type === 'flat') return wageValue;
-          if (edit.type === 'percentage') return Math.round((wageValue / 100) * totalAmt * 100) / 100;
-          const hours = (booking?.duration ?? 0) / 60;
-          return Math.round(wageValue * hours * 100) / 100;
-        })();
+        const totalAmt = jobTotalValue !== undefined ? jobTotalValue : (booking?.total_amount ?? 0);
+        const wageDerivedPay = computeExpectedPay(edit.type || 'hourly', edit.value, '', booking?.duration ?? 0, totalAmt);
         updateData.cleaner_pay_expected = wageDerivedPay;
         // Only clear the actual-payment override when a wage actually won —
         // clearing the wage field entirely shouldn't also wipe a legitimate
@@ -233,6 +228,7 @@ export function BulkEditCleanerWages() {
           errors.push(error.message);
         } else {
           successCount++;
+          await syncCleanerPayShare(id, organizationId, wageDerivedPay);
         }
       }
 

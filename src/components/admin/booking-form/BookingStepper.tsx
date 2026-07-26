@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { computeExpectedPay } from '@/lib/cleanerPay';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -660,18 +661,13 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       cleaner_wage_type: cleanerWageType,
       cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
       // Compute and persist cleaner_pay_expected — SINGLE SOURCE OF TRUTH for payroll
-      cleaner_pay_expected: (() => {
-        const wage = cleanerWage ? parseFloat(cleanerWage) : null;
-        if (wage == null || wage === 0) return null;
-        if (cleanerWageType === 'flat') return wage;
-        if (cleanerWageType === 'percentage') {
-          const base = finalPrice > 0 ? finalPrice : (totalAmount > 0 ? totalAmount : calculatedPrice);
-          return Math.round((wage / 100) * base * 100) / 100;
-        }
-        // hourly
-        const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : ((selectedService?.duration || 60) / 60);
-        return Math.round(wage * hours * 100) / 100;
-      })(),
+      cleaner_pay_expected: computeExpectedPay(
+        cleanerWageType,
+        cleanerWage,
+        cleanerOverrideHours,
+        selectedService?.duration || 60,
+        finalPrice > 0 ? finalPrice : (totalAmount > 0 ? totalAmount : calculatedPrice),
+      ),
     };
   };
 
@@ -696,16 +692,13 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     // occurrences, or a percentage-wage cleaner would be quietly
     // underpaid on every future occurrence. Flat/hourly wages don't
     // depend on price, so recomputing is a no-op for those types.
-    const undiscountedCleanerPayExpected = (() => {
-      const wage = cleanerWage ? parseFloat(cleanerWage) : null;
-      if (wage == null || wage === 0) return null;
-      if (cleanerWageType === 'flat') return wage;
-      if (cleanerWageType === 'percentage') {
-        return Math.round((wage / 100) * undiscountedTotal * 100) / 100;
-      }
-      const hours = cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : ((selectedService?.duration || 60) / 60);
-      return Math.round(wage * hours * 100) / 100;
-    })();
+    const undiscountedCleanerPayExpected = computeExpectedPay(
+      cleanerWageType,
+      cleanerWage,
+      cleanerOverrideHours,
+      selectedService?.duration || 60,
+      undiscountedTotal,
+    );
 
     const weekdayMap: Record<string, number> = {
       Sun: 0,
