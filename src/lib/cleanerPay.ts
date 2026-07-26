@@ -38,24 +38,44 @@ export function computeExpectedPay(
  * (payroll then uses cleaner_pay_expected) or 2+ (a real team, whose pay_share
  * is per-member) we leave it alone rather than clobbering it with a
  * booking-level value.
+ *
+ * @param staffId who the booking now belongs to (bookings.staff_id), when the
+ *   caller is in a position to change it.
+ *   - omitted   → pay only; the caller isn't touching the assignment's owner.
+ *   - a staffId → the lone assignment is MOVED to them if it belongs to someone
+ *     else. A booking whose staff_id has no assignment row still gets paid out
+ *     of the booking-level snapshot, on top of the assignment holders, so the
+ *     two must be reassigned together.
+ *   - null (booking unassigned) → nothing is written. The pay computed for a
+ *     booking with no cleaner must not land on a previous cleaner's row.
  */
 export async function syncCleanerPayShare(
   bookingId: string,
   organizationId: string | null | undefined,
   expectedPay: number | null,
+  staffId?: string | null,
 ): Promise<void> {
   let sel = supabase
     .from('booking_team_assignments')
-    .select('id')
+    .select('id, staff_id')
     .eq('booking_id', bookingId);
   if (organizationId) sel = sel.eq('organization_id', organizationId);
   const { data, error } = await sel;
   if (error || !data || data.length !== 1) return; // no row, or a team → leave alone
 
+  // Booking was unassigned: leave the existing row's owner and pay untouched
+  // rather than overwriting a real cleaner's pay with a booking-level figure.
+  if (staffId === null) return;
+
+  const assignment = data[0] as { id: string; staff_id: string };
+  const isReassignment = staffId != null && assignment.staff_id !== staffId;
+
   let upd = supabase
     .from('booking_team_assignments')
-    .update({ pay_share: expectedPay })
-    .eq('booking_id', bookingId);
+    .update(isReassignment ? { staff_id: staffId, pay_share: expectedPay } : { pay_share: expectedPay })
+    // Target the row by id — the booking has exactly one, and this keeps the
+    // update from depending on a staff_id that may be changing in the same call.
+    .eq('id', assignment.id);
   if (organizationId) upd = upd.eq('organization_id', organizationId);
   await upd;
 }

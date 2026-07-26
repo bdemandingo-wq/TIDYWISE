@@ -476,11 +476,13 @@ export function EditBookingDialog({
           ? 'rescheduled'
           : status;
 
+      const nextStaffId = staffId && staffId !== '__unassigned__' ? staffId : null;
+
       await updateBooking.mutateAsync({
         id: booking.id,
         status: finalStatus,
         scheduled_at: scheduledAtIso,
-        staff_id: staffId && staffId !== '__unassigned__' ? staffId : null,
+        staff_id: nextStaffId,
         notes: notes || null,
         total_amount: Number.isFinite(parsedAmount) ? parsedAmount : booking.total_amount,
         cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
@@ -491,8 +493,12 @@ export function EditBookingDialog({
         ...reschedulePayload,
       } as any);
 
-      // Keep single-cleaner pay_share in sync — payroll reads it first.
-      await syncCleanerPayShare(booking.id, organizationId, computedExpectedPay);
+      // Keep single-cleaner pay_share in sync — payroll reads it first. Passing
+      // the new staff_id also MOVES the assignment when the cleaner changed
+      // here: without it the row stayed with the previous cleaner while
+      // bookings.staff_id pointed at the new one, so payroll paid both, and the
+      // previous cleaner's pay_share was overwritten with the new cleaner's pay.
+      await syncCleanerPayShare(booking.id, organizationId, computedExpectedPay, nextStaffId);
 
       toast({ title: "Saved", description: "Booking updated" });
       onOpenChange(false);

@@ -271,10 +271,23 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     setConflictOverride(false);
   }, [selectedStaffId, selectedDate, selectedTime, selectedTeamMembers.join(',')]);
 
+  // The primary cleaner is ALWAYS the first member of the team. BookingStepper
+  // writes `is_primary: i === 0` on the assignments and `bookings.staff_id =
+  // selectedStaffId` from the same submit, so these two pieces of state have to
+  // move together. Letting them drift produced a booking whose staff_id pointed
+  // at someone with no assignment row — payroll would still pay them (the Staff
+  // Summary total feeds the Stripe payout amount) while the itemised Booking
+  // Details table showed no line for it. Never call setSelectedTeamMembers
+  // directly from this file; go through here.
+  const applyTeamMembers = (next: string[]) => {
+    setSelectedTeamMembers(next);
+    setSelectedStaffId(next[0] ?? '');
+  };
+
   // Handle team member toggle
   const toggleTeamMember = (staffId: string) => {
-    setSelectedTeamMembers(
-      selectedTeamMembers.includes(staffId) 
+    applyTeamMembers(
+      selectedTeamMembers.includes(staffId)
         ? selectedTeamMembers.filter(id => id !== staffId)
         : [...selectedTeamMembers, staffId]
     );
@@ -282,23 +295,20 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
 
   // Remove team member
   const removeTeamMember = (staffId: string) => {
-    setSelectedTeamMembers(selectedTeamMembers.filter(id => id !== staffId));
+    applyTeamMembers(selectedTeamMembers.filter(id => id !== staffId));
   };
 
   // Update primary staff when team mode changes
   const handleTeamModeChange = (checked: boolean) => {
     setIsTeamMode(checked);
     if (!checked) {
-      // Keep only the first team member as primary when switching back
-      if (selectedTeamMembers.length > 0) {
-        setSelectedStaffId(selectedTeamMembers[0]);
-      }
+      // Leaving team mode: the primary becomes the sole cleaner. Falls back to
+      // the current selection when the team was empty.
+      setSelectedStaffId(selectedTeamMembers[0] ?? selectedStaffId);
       setSelectedTeamMembers([]);
     } else {
-      // Add current selected staff to team
-      if (selectedStaffId) {
-        setSelectedTeamMembers([selectedStaffId]);
-      }
+      // Entering team mode: seed the team with the current cleaner as primary.
+      applyTeamMembers(selectedStaffId ? [selectedStaffId] : []);
     }
   };
 

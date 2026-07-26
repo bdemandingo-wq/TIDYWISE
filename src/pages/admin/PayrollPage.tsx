@@ -531,71 +531,59 @@ export default function PayrollPage() {
     for (const b of assignedBookings) {
       // Re-cleans (no service, $0 total) should show $0 across all financial columns
       const isReclean = !b.service_id && Number(b.total_amount) === 0;
-      const staffMember = staff.find((s) => s.id === b.staff_id);
       const assignments = teamAssignments.filter((a: any) => a.booking_id === b.id);
 
-      if (assignments.length > 0) {
-        // Calculate total labor for this booking across all team members
-        let totalBookingLabor = 0;
-        const memberDetails: any[] = [];
-        for (const a of assignments) {
-          const member = staff.find((s) => s.id === a.staff_id);
-          const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
-          const wageInfo = isReclean
-            ? { calculatedPay: 0, actualPay: 0, wageType: 'reclean', wageRate: 0, hoursWorked: 0, isMissingPay: false }
-            : calcWage(b, member, payShareOverride);
-          totalBookingLabor += wageInfo.calculatedPay;
-          memberDetails.push({ a, member, wageInfo });
-        }
+      // Membership is the UNION of the team assignments and the primary
+      // staff_id — the rule the rest of the codebase already follows
+      // (useCleanerConflicts, send-booking-reminder, getStaffPayEntries, the
+      // payout engine, bookingEconomics below). This table used to show ONLY
+      // the assignments once any existed, which made it the one place a
+      // staff_id-without-an-assignment could hide: Staff Summary would still
+      // pay that cleaner — and its total is what pre-fills the Stripe payout —
+      // while this itemised view showed no line explaining the money.
+      const members: { staffId: string; payShare: number | null; rowId: string }[] =
+        assignments.map((a: any) => ({
+          staffId: a.staff_id,
+          payShare: a.pay_share != null ? Number(a.pay_share) : null,
+          rowId: `${b.id}-${a.staff_id}`,
+        }));
+      if (b.staff_id && !members.some((m) => m.staffId === b.staff_id)) {
+        members.push({
+          staffId: b.staff_id,
+          payShare: null,
+          // Keep the bare booking id as the row key in the common
+          // no-assignments case so this row's identity doesn't change.
+          rowId: assignments.length === 0 ? b.id : `${b.id}-${b.staff_id}`,
+        });
+      }
+      if (members.length === 0) continue;
 
-        const financials = calcBookingFinancials(b, totalBookingLabor, settings);
-
-        // Each cleaner's slice of the booking, weighted by pay — the same split
-        // the profit column has always used, now applied to revenue too. Rows of
-        // one booking therefore sum to that booking's revenue exactly once, so
-        // no total downstream needs a dedupe pass. Falls back to an even split
-        // when nobody on the booking has any pay (0/0).
-        const shareOf = (pay: number) =>
-          totalBookingLabor > 0 ? pay / totalBookingLabor : 1 / assignments.length;
-        const isShared = assignments.length > 1;
-
-        for (const { a, member, wageInfo } of memberDetails) {
-          const share = shareOf(wageInfo.calculatedPay);
-          details.push({
-            id: `${b.id}-${a.staff_id}`,
-            booking_id: b.id,
-            booking_number: b.booking_number,
-            customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
-            scheduled_at: b.scheduled_at,
-            duration: b.duration,
-            hours_worked: wageInfo.hoursWorked,
-            wage_type: wageInfo.wageType,
-            wage_rate: wageInfo.wageRate,
-            calculated_pay: wageInfo.calculatedPay,
-            actual_pay: wageInfo.actualPay,
-            staff_id: a.staff_id,
-            staff_name: member?.name || staffMember?.name || 'Unassigned',
-            revenue_net: financials.revenueNet * share,
-            revenue_is_share: isShared,
-            labor_cost: wageInfo.calculatedPay,
-            // Labor % is a property of the JOB, not of one person: the whole
-            // booking's labor against its whole revenue. (Dividing this
-            // cleaner's pay by their revenue share gives the identical figure —
-            // the split cancels — but the booking-level form is the honest one,
-            // and it's what makes the warning threshold fire on team bookings.)
-            labor_percent: financials.laborPercent,
-            profit: financials.profit * share,
-            margin_percent: financials.marginPercent,
-            isMissingPay: wageInfo.isMissingPay,
-          });
-        }
-      } else {
+      let totalBookingLabor = 0;
+      const memberDetails: any[] = [];
+      for (const m of members) {
+        const member = staff.find((s) => s.id === m.staffId);
         const wageInfo = isReclean
           ? { calculatedPay: 0, actualPay: 0, wageType: 'reclean', wageRate: 0, hoursWorked: 0, isMissingPay: false }
-          : calcWage(b, staffMember);
-        const financials = calcBookingFinancials(b, wageInfo.calculatedPay, settings);
+          : calcWage(b, member, m.payShare);
+        totalBookingLabor += wageInfo.calculatedPay;
+        memberDetails.push({ m, member, wageInfo });
+      }
+
+      const financials = calcBookingFinancials(b, totalBookingLabor, settings);
+
+      // Each cleaner's slice of the booking, weighted by pay — the same split
+      // the profit column has always used, now applied to revenue too. Rows of
+      // one booking therefore sum to that booking's revenue exactly once, so
+      // no total downstream needs a dedupe pass. Falls back to an even split
+      // when nobody on the booking has any pay (0/0).
+      const shareOf = (pay: number) =>
+        totalBookingLabor > 0 ? pay / totalBookingLabor : 1 / members.length;
+      const isShared = members.length > 1;
+
+      for (const { m, member, wageInfo } of memberDetails) {
+        const share = shareOf(wageInfo.calculatedPay);
         details.push({
-          id: b.id,
+          id: m.rowId,
           booking_id: b.id,
           booking_number: b.booking_number,
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
@@ -606,15 +594,22 @@ export default function PayrollPage() {
           wage_rate: wageInfo.wageRate,
           calculated_pay: wageInfo.calculatedPay,
           actual_pay: wageInfo.actualPay,
-          staff_id: b.staff_id,
-          staff_name: staffMember?.name || 'Unassigned',
-          // Sole cleaner — the whole booking is theirs, so this is the real
-          // invoiced figure, not a share.
-          revenue_net: financials.revenueNet,
-          revenue_is_share: false,
+          staff_id: m.staffId,
+          // No fallback to the booking's primary name: `staff` is filtered to
+          // is_active, and a deactivated team member used to render under the
+          // PRIMARY cleaner's name — a payroll row attributed to the wrong
+          // person. Unattributed is the safer failure.
+          staff_name: member?.name || 'Unassigned',
+          revenue_net: financials.revenueNet * share,
+          revenue_is_share: isShared,
           labor_cost: wageInfo.calculatedPay,
+          // Labor % is a property of the JOB, not of one person: the whole
+          // booking's labor against its whole revenue. (Dividing this
+          // cleaner's pay by their revenue share gives the identical figure —
+          // the split cancels — but the booking-level form is the honest one,
+          // and it's what makes the warning threshold fire on team bookings.)
           labor_percent: financials.laborPercent,
-          profit: financials.profit,
+          profit: financials.profit * share,
           margin_percent: financials.marginPercent,
           isMissingPay: wageInfo.isMissingPay,
         });
