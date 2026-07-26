@@ -961,12 +961,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             }
           }
         } else if (bookingData.staff_id) {
-          // Single staff → one primary assignment
-          // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
+          // Single staff → one primary assignment.
+          // pay_share must be the computed dollar total — reuse the value
+          // already computed for cleaner_pay_expected, not the raw wage
+          // (which is a rate/percent for hourly/percentage types). Null when
+          // no wage → cleaner_actual_payment / the fallback stays source of truth.
           const { error: singleAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
             booking_id: booking.id,
             staff_id: bookingData.staff_id,
-            pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
+            pay_share: bookingData.cleaner_pay_expected,
             is_primary: true,
             organization_id: organizationId,
           });
@@ -1139,12 +1142,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               }
             }
           } else if (bookingData.staff_id) {
-            // Single staff → one primary assignment only
-            // Use null (not 0) when no wage is set, so cleaner_actual_payment remains the source of truth
+            // Single staff → one primary assignment only.
+            // pay_share must be the computed dollar total — reuse the value
+            // already computed for cleaner_pay_expected, not the raw wage
+            // (which is a rate/percent for hourly/percentage types). Null when
+            // no wage → cleaner_actual_payment / the fallback stays source of truth.
             const { error: newSingleAssignmentError } = await supabase.from('booking_team_assignments').insert({
               booking_id: newBooking.id,
               staff_id: bookingData.staff_id,
-              pay_share: cleanerWage ? parseFloat(cleanerWage) : null,
+              pay_share: bookingData.cleaner_pay_expected,
               is_primary: true,
               organization_id: organizationId,
             });
