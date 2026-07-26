@@ -37,7 +37,7 @@ interface StaffMetrics {
   totalRevenue: number;
   totalEarnings: number;
   avgJobDuration: number;
-  onTimeRate: number;
+  onTimeRate: number | null;
   avgRating: number;
   efficiency: number; // Revenue per hour
   jobsPerWeek: number;
@@ -59,7 +59,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
         totalRevenue: 0,
         totalEarnings: 0,
         avgJobDuration: 0,
-        onTimeRate: 100,
+        onTimeRate: null,
         avgRating: 0,
         efficiency: 0,
         jobsPerWeek: 0,
@@ -116,13 +116,16 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
       const totalJobs = staffJobs.length;
       metrics.cancellationRate = totalJobs > 0 ? (cancelledJobs.length / totalJobs) * 100 : 0;
 
-      // On-time rate (jobs started within 15 min of scheduled time)
+      // On-time rate: on time if the cleaner clocks in at or before the
+      // scheduled start, or no more than 15 minutes late. Arriving early never
+      // counts against them. Stays null when there are no clock-ins at all, so
+      // "no data" is distinguishable from a perfect score.
       const jobsWithCheckin = completedJobs.filter(b => (b as any).cleaner_checkin_at);
       if (jobsWithCheckin.length > 0) {
         const onTimeJobs = jobsWithCheckin.filter(b => {
           const scheduled = new Date(b.scheduled_at);
           const checkin = new Date((b as any).cleaner_checkin_at);
-          return Math.abs(differenceInMinutes(checkin, scheduled)) <= 15;
+          return differenceInMinutes(checkin, scheduled) <= 15;
         });
         metrics.onTimeRate = (onTimeJobs.length / jobsWithCheckin.length) * 100;
       }
@@ -136,7 +139,9 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
 
       const completionScore = Math.min(100, metrics.completedJobs * 2);
       const efficiencyScore = Math.min(100, metrics.efficiency);
-      const onTimeScore = metrics.onTimeRate;
+      // Missing clock-in data must not crash the composite; keep the prior
+      // scoring behavior (no penalty) — only the On-Time column/card treat null as "no data".
+      const onTimeScore = metrics.onTimeRate ?? 100;
       const cancellationScore = 100 - metrics.cancellationRate;
       const frequencyScore = Math.min(100, metrics.jobsPerWeek * 20);
 
@@ -177,14 +182,20 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
 
   const teamAverages = useMemo(() => {
     if (staffMetrics.length === 0) return {
-      avgJobs: 0, avgRevenue: 0, avgEfficiency: 0, avgOnTime: 0, avgScore: 0
+      avgJobs: 0, avgRevenue: 0, avgEfficiency: 0, avgOnTime: null as number | null, avgScore: 0
     };
+
+    // Only staff who have clock-in data count toward the team on-time rate,
+    // so staff with none don't inflate it. null when nobody has clock-in data.
+    const withOnTime = staffMetrics.filter(s => s.onTimeRate !== null);
 
     return {
       avgJobs: staffMetrics.reduce((sum, s) => sum + s.completedJobs, 0) / staffMetrics.length,
       avgRevenue: staffMetrics.reduce((sum, s) => sum + s.totalRevenue, 0) / staffMetrics.length,
       avgEfficiency: staffMetrics.reduce((sum, s) => sum + s.efficiency, 0) / staffMetrics.length,
-      avgOnTime: staffMetrics.reduce((sum, s) => sum + s.onTimeRate, 0) / staffMetrics.length,
+      avgOnTime: withOnTime.length > 0
+        ? withOnTime.reduce((sum, s) => sum + (s.onTimeRate as number), 0) / withOnTime.length
+        : null,
       avgScore: staffMetrics.reduce((sum, s) => sum + s.productivityScore, 0) / staffMetrics.length
     };
   }, [staffMetrics]);
@@ -194,7 +205,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
   const radarData = topPerformer ? [
     { metric: 'Jobs', value: Math.min(100, topPerformer.completedJobs * 2) },
     { metric: 'Efficiency', value: Math.min(100, topPerformer.efficiency) },
-    { metric: 'On-Time', value: topPerformer.onTimeRate },
+    { metric: 'On-Time', value: topPerformer.onTimeRate ?? 100 },
     { metric: 'Consistency', value: 100 - topPerformer.cancellationRate },
     { metric: 'Frequency', value: Math.min(100, topPerformer.jobsPerWeek * 20) },
   ] : [];
@@ -246,7 +257,9 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
             </div>
             <div>
               <p className="text-sm text-muted-foreground">On-Time Rate</p>
-              <p className="text-2xl font-bold">{isTestMode ? 'XX%' : `${teamAverages.avgOnTime.toFixed(0)}%`}</p>
+              <p className="text-2xl font-bold">
+                {isTestMode ? 'XX%' : teamAverages.avgOnTime === null ? '—' : `${teamAverages.avgOnTime.toFixed(0)}%`}
+              </p>
             </div>
           </div>
         </Card>
@@ -358,9 +371,13 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
                     {isTestMode ? '$XX' : `${fmt(staff.efficiency)}/hr`}
                   </td>
                   <td className="py-3 text-right">
-                    <Badge variant={staff.onTimeRate >= 90 ? 'default' : staff.onTimeRate >= 75 ? 'secondary' : 'destructive'}>
-                      {isTestMode ? 'XX%' : `${staff.onTimeRate.toFixed(0)}%`}
-                    </Badge>
+                    {staff.onTimeRate === null ? (
+                      <span className="text-muted-foreground" title="No clock-in data for this staff member">—</span>
+                    ) : (
+                      <Badge variant={staff.onTimeRate >= 90 ? 'default' : staff.onTimeRate >= 75 ? 'secondary' : 'destructive'}>
+                        {isTestMode ? 'XX%' : `${staff.onTimeRate.toFixed(0)}%`}
+                      </Badge>
+                    )}
                   </td>
                   <td className="py-3 text-right">{isTestMode ? 'X.X' : staff.jobsPerWeek.toFixed(1)}</td>
                   <td className="py-3 text-right">

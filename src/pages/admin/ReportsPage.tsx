@@ -421,7 +421,7 @@ export default function ReportsPage() {
             {/* Revenue by Service Pie Chart */}
             <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
               <h3 className="font-semibold mb-4">Revenue by Service (All time)</h3>
-              <div className="h-[300px]">
+              <div className="h-[220px]">
                 {serviceStatsAllTime.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     No service data available
@@ -430,7 +430,7 @@ export default function ReportsPage() {
                   <ResponsiveContainer width="100%" height="100%">
                      <PieChart>
                       <Pie
-                        data={serviceStatsAllTime}
+                        data={serviceStatsAllTime.filter((s) => s.revenue > 0)}
                         cx="50%"
                         cy="50%"
                         innerRadius={32}
@@ -445,7 +445,7 @@ export default function ReportsPage() {
                         labelLine={true}
                         fontSize={10}
                       >
-                        {serviceStatsAllTime.map((entry, index) => (
+                        {serviceStatsAllTime.filter((s) => s.revenue > 0).map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -454,6 +454,22 @@ export default function ReportsPage() {
                   </ResponsiveContainer>
                 )}
               </div>
+              {/* Legend — lists every service incl. Refund (negative), which is
+                  excluded from the donut geometry above but shown here with its
+                  real amount. */}
+              {serviceStatsAllTime.length > 0 && (
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs max-h-[64px] overflow-y-auto">
+                  {serviceStatsAllTime.map((s, i) => (
+                    <div key={`svc-legend-${i}`} className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                      <span className="flex-1 min-w-0 truncate text-muted-foreground">{s.name}</span>
+                      <span className={`shrink-0 font-medium ${s.revenue < 0 ? 'text-destructive' : 'text-foreground'}`}>
+                        {isTestMode ? '$XX' : fmt(s.revenue)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

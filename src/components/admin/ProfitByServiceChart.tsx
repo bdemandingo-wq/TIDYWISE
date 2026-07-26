@@ -138,6 +138,11 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
     isRefund: s.name === 'Refund',
   }));
 
+  // A donut can't render negative slices (e.g. Refund) — they surface as a
+  // stray leader line pointing at nothing. Exclude them from the geometry;
+  // the summary legend below still lists Refund with its real negative amount.
+  const pieChartData = pieData.filter(d => d.actualValue > 0);
+
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -198,7 +203,7 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={pieChartData}
                     cx="50%"
                     cy="50%"
                     innerRadius={38}
@@ -213,7 +218,7 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
                     labelLine={true}
                     fontSize={10}
                   >
-                  {pieData.map((entry, index) => (
+                  {pieChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.isRefund ? REFUND_COLOR : COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
