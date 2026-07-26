@@ -303,9 +303,9 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
         </Card>
 
         {/* Tier Distribution */}
-        <Card className="p-4">
+        <Card className="p-4 h-[300px] lg:h-full flex flex-col">
           <h3 className="font-semibold mb-4">Customer Tier Distribution</h3>
-          <div className="h-[300px]">
+          <div className="flex-1 min-h-0">
             {tierDistribution.length === 0 ? (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 No tier data available
@@ -317,8 +317,8 @@ export function CustomerLifetimeValue({ bookings, customers }: CustomerLifetimeV
                     data={tierDistribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
+                    innerRadius="42%"
+                    outerRadius="65%"
                     dataKey="value"
                     nameKey="name"
                     label={({ name, value }) => `${name}: ${value}`}
