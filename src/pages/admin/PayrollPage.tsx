@@ -55,6 +55,8 @@ interface StaffWithPayroll {
   revenueAttributed: number;
   profitAttributed: number;
   laborPercent: number;
+  /** Deactivated cleaner, on the roster only because they worked this period. */
+  isInactive: boolean;
 }
 
 interface BookingPayrollDetail {
@@ -305,39 +307,22 @@ export default function PayrollPage() {
     });
   };
 
-  // Fetch staff — the active roster. Everything about who is CURRENTLY on
-  // payroll reads from here: the Staff Summary rows, the cleaner filter, the
-  // payout buttons. Deliberately still is_active only.
-  const { data: staff = [] } = useQuery({
+  // Every cleaner in the org, deactivated included. Two views are derived from
+  // it — keep them straight, they answer different questions:
+  //
+  //   `staff`         — active only. Drives WAGE RESOLUTION. calcWage must keep
+  //                     receiving undefined for a deactivated cleaner, or the
+  //                     computed fallback starts using their rates and pay
+  //                     changes. That is a money decision, not this one.
+  //   `payrollRoster` — active, PLUS anyone with work in the selected period.
+  //                     Drives who gets a Staff Summary row.
+  const { data: allStaff = [] } = useQuery({
     queryKey: ['staff-payroll', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('staff')
         .select('*')
-        .eq('organization_id', organizationId)
-        .eq('is_active', true);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!organizationId,
-  });
-
-  // Names for EVERY cleaner, deactivated ones included. A past payroll period
-  // can contain work done by someone who has since been deactivated, and that
-  // row has to name the person who actually did the job — the active roster
-  // above can't resolve them, so they rendered as 'Unassigned'.
-  //
-  // Names ONLY. This must not become a second roster: it deliberately selects
-  // just id and name so it can't be used to decide who is on payroll, who can
-  // be filtered to, or whose wage rates apply.
-  const { data: staffNames = [] } = useQuery({
-    queryKey: ['staff-payroll-names', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
-      const { data, error } = await supabase
-        .from('staff')
-        .select('id, name')
         .eq('organization_id', organizationId);
       if (error) throw error;
       return data;
@@ -345,9 +330,13 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
+  const staff = useMemo(() => (allStaff as any[]).filter((s) => s.is_active), [allStaff]);
+
+  // Display names for anyone, active or not, so a historical row can name the
+  // person who actually did the job.
   const staffNameById = useMemo(
-    () => new Map<string, string>((staffNames as { id: string; name: string }[]).map((s) => [s.id, s.name])),
-    [staffNames],
+    () => new Map<string, string>((allStaff as { id: string; name: string }[]).map((s) => [s.id, s.name])),
+    [allStaff],
   );
 
   // Fetch bookings for selected date range
@@ -658,6 +647,25 @@ export default function PayrollPage() {
     return filtered;
   }, [bookingPayrollDetails, staffFilterId, profitFilter, settings]);
 
+  // Who actually has work in the selected period. Taken from the unfiltered
+  // detail rows, which already resolve booking membership by the union rule, so
+  // this can't disagree with what the Booking Details table shows. Unfiltered on
+  // purpose — applying a profit filter shouldn't shrink the roster.
+  const staffIdsWithEntries = useMemo(
+    () => new Set(bookingPayrollDetails.map((d) => d.staff_id).filter(Boolean)),
+    [bookingPayrollDetails],
+  );
+
+  // The Staff Summary roster: everyone currently active, plus deactivated
+  // cleaners who worked in this period. Without the second half, their pay was
+  // itemised in Booking Details but silently missing from the Staff Summary
+  // totals — the two tabs disagreed for any period containing a leaver. Gated on
+  // having entries so the table doesn't fill with $0 rows for every past hire.
+  const payrollRoster = useMemo(
+    () => (allStaff as any[]).filter((s) => s.is_active || staffIdsWithEntries.has(s.id)),
+    [allStaff, staffIdsWithEntries],
+  );
+
   // One economic picture per booking, computed once, so the Staff Summary and
   // the Booking Details table split revenue and profit the same way and can't
   // report different figures for the same period.
@@ -700,7 +708,7 @@ export default function PayrollPage() {
 
   // Payroll data per staff with financial intelligence
   const payrollData: StaffWithPayroll[] = useMemo(() => {
-    return staff.map((s) => {
+    return payrollRoster.map((s) => {
       const entries = getStaffPayEntries(s.id, bookings, teamAssignments);
       const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
       const totalPay = entries.reduce((sum, e) => sum + e.pay, 0);
@@ -738,6 +746,8 @@ export default function PayrollPage() {
         id: s.id, name: s.name, email: s.email,
         tax_classification: s.tax_classification,
         base_wage: s.base_wage, hourly_rate: s.hourly_rate,
+        // On the roster only because they have work in this period.
+        isInactive: !s.is_active,
         totalHours: Math.round(totalHours * 100) / 100,
         totalPay: Math.round(totalPay * 100) / 100,
         ytdEarnings: Math.round(ytdEarnings * 100) / 100,
@@ -750,7 +760,7 @@ export default function PayrollPage() {
         laborPercent: Math.round(laborPercent * 10) / 10,
       };
     });
-  }, [staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments, bookingEconomics]);
+  }, [payrollRoster, staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments, bookingEconomics]);
 
   // Summary stats
   const effectivePayrollData = staffFilterId === 'all' ? payrollData : payrollData.filter((s) => s.id === staffFilterId);
@@ -1224,6 +1234,14 @@ export default function PayrollPage() {
                        </TableCell>
                        <TableCell>
                          <div className="flex items-center gap-2">
+                           {s.isInactive && (
+                             // Say why a deactivated cleaner is on the list at
+                             // all: they have work in this period and still need
+                             // paying, but they aren't on the current roster.
+                             <Badge variant="outline" className="text-muted-foreground" title="Deactivated cleaner — shown because they have work in this period">
+                               Inactive
+                             </Badge>
+                           )}
                            {s.requiresTaxFiling && (
                              <Badge variant="outline" className="border-warning text-warning">
                                <AlertTriangle className="w-3 h-3 mr-1" />1099
@@ -1302,8 +1320,13 @@ export default function PayrollPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All cleaners</SelectItem>
-                    {[...staff].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((s: any) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    {/* Same roster as the Staff Summary — a deactivated cleaner
+                        with rows in this period must be filterable to, or you
+                        can see their line but not isolate it. */}
+                    {[...payrollRoster].sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}{s.is_active ? '' : ' (inactive)'}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
