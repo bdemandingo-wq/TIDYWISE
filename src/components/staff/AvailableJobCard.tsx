@@ -15,26 +15,18 @@ import {
 import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2, FileText } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
+import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 
-interface StaffInfo {
-  hourly_rate: number | null;
-  base_wage: number | null;
-  percentage_rate: number | null;
-  default_hours: number | null;
-}
+type StaffInfo = WageStaff;
 
-interface Booking {
+interface Booking extends WageBooking {
   id: string;
   booking_number: number;
   scheduled_at: string;
-  duration: number;
   status: string;
   address: string | null;
   city: string | null;
   state: string | null;
-  total_amount: number;
-  cleaner_wage: number | null;
-  cleaner_wage_type: string | null;
   square_footage?: string | null;
   bedrooms?: string | null;
   bathrooms?: string | null;
@@ -62,51 +54,14 @@ export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, cl
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;
 
-  // Calculate potential earnings based on staff pay type
-  // Priority: staff's own rate type wins over booking-level wage type
-  const calculatePotentialEarnings = (): { amount: number; type: string } => {
-    const defaultHours = staffInfo.default_hours || 5;
-
-    // Staff percentage rate takes priority — even if booking says "flat"
-    if (staffInfo.percentage_rate && staffInfo.percentage_rate > 0) {
-      return {
-        amount: (booking.total_amount * staffInfo.percentage_rate) / 100,
-        type: `${staffInfo.percentage_rate}% of job value`,
-      };
-    }
-
-    // Staff hourly rate takes priority — even if booking says "flat"
-    if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      return {
-        amount: staffInfo.hourly_rate * defaultHours,
-        type: `$${staffInfo.hourly_rate}/hr × ${defaultHours}hrs`,
-      };
-    }
-
-    // No staff-level rate set — fall back to booking-level wage
-    if (booking.cleaner_wage && booking.cleaner_wage_type) {
-      if (booking.cleaner_wage_type === 'percentage') {
-        return {
-          amount: (booking.total_amount * booking.cleaner_wage) / 100,
-          type: `${booking.cleaner_wage}% of job value`,
-        };
-      } else if (booking.cleaner_wage_type === 'flat') {
-        return {
-          amount: booking.cleaner_wage,
-          type: 'Flat rate',
-        };
-      } else {
-        return {
-          amount: booking.cleaner_wage * defaultHours,
-          type: `$${booking.cleaner_wage}/hr × ${defaultHours}hrs`,
-        };
-      }
-    }
-
-    return { amount: 0, type: 'TBD' };
+  // Same resolver as MyJobCard, so the estimate a cleaner sees before claiming
+  // a job matches what they see after claiming it — and what payroll pays.
+  // No pay_share: an unclaimed job has no team assignment row yet.
+  const payResult = resolveCleanerPay(booking, staffInfo);
+  const earnings = {
+    amount: payResult.calculatedPay,
+    type: describeCleanerPay(payResult),
   };
-
-  const earnings = calculatePotentialEarnings();
 
   const handleClaimClick = () => {
     setShowConfirmDialog(true);

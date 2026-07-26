@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import type { WageBooking } from '@/lib/wageCalculation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -48,20 +49,15 @@ const TabFallback = () => (
   </div>
 );
 
-interface Booking {
+interface Booking extends WageBooking {
   id: string;
   booking_number: number;
   scheduled_at: string;
-  duration: number;
   status: string;
   address: string | null;
   city: string | null;
   state: string | null;
   zip_code: string | null;
-  total_amount: number;
-  cleaner_wage: number | null;
-  cleaner_wage_type: string | null;
-  cleaner_actual_payment: number | null;
   square_footage?: string | null;
   bedrooms?: string | null;
   bathrooms?: string | null;
@@ -255,7 +251,8 @@ export default function StaffPortal() {
         .from('bookings')
         .select(`
           id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+          total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
           cleaner_checkin_at, cleaner_checkout_at, notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
@@ -275,7 +272,8 @@ export default function StaffPortal() {
           is_primary,
           booking:bookings(
             id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-            total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+            total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
+            cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
             cleaner_checkin_at, cleaner_checkout_at, notes,
             customer:customers(first_name, last_name, phone),
             service:services(name)
@@ -404,7 +402,9 @@ export default function StaffPortal() {
         .from('bookings')
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-          total_amount, cleaner_wage, cleaner_wage_type, cleaner_actual_payment,
+          total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
+          cleaner_checkin_at, cleaner_checkout_at,
           square_footage, bedrooms, bathrooms, notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
@@ -435,7 +435,9 @@ export default function StaffPortal() {
         .from('bookings')
         .select(`
           id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
-          total_amount, cleaner_actual_payment,
+          total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
+          cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
+          cleaner_checkin_at, cleaner_checkout_at,
           customer:customers(first_name, last_name),
           service:services(name)
         `)
@@ -864,7 +866,6 @@ export default function StaffPortal() {
                       id: staffInfo?.id,
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
-                      percentage_rate: staffInfo?.percentage_rate || null,
                       default_hours: staffInfo?.default_hours || null,
                     }}
                     photoReqs={cardPhotoReqs}
@@ -917,7 +918,6 @@ export default function StaffPortal() {
                     staffInfo={{
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
-                      percentage_rate: staffInfo?.percentage_rate || null,
                       default_hours: staffInfo?.default_hours || null,
                     }}
                     onAssign={(id) => assignToSelf.mutate(id)}

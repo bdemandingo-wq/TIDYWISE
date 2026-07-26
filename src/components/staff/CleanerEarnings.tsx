@@ -12,7 +12,7 @@ import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText, Cl
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { calculateBookingWage, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import { resolveCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 import { fmt } from '@/lib/activeCurrency';
 
 interface Props {
@@ -36,18 +36,10 @@ interface TeamAssignment {
   is_primary: boolean | null;
 }
 
-function resolveEarnings(
-  booking: Booking,
-  staffInfo: WageStaff | undefined | null,
-  payShare: number | null | undefined,
-) {
-  const base = calculateBookingWage(booking, staffInfo);
-  if (payShare != null && Number(payShare) > 0) {
-    return { calculatedPay: Number(payShare), hoursWorked: base.hoursWorked };
-  }
-  // calculateBookingWage already prioritizes cleaner_pay_expected → cleaner_actual_payment → fallback
-  return { calculatedPay: base.calculatedPay, hoursWorked: base.hoursWorked };
-}
+// Pay resolution lives in lib/wageCalculation.ts:resolveCleanerPay — the same
+// call the job cards and admin Payroll make. Nothing pay-related is computed
+// in this file.
+const resolveEarnings = resolveCleanerPay;
 
 export function CleanerEarnings({ staffId, staffName }: Props) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({

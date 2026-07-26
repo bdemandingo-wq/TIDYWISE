@@ -28,7 +28,7 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { calculateBookingWage } from '@/lib/wageCalculation';
+import { resolveCleanerPay } from '@/lib/wageCalculation';
 import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
 import { getCurrentPeriod, getNextPeriod, getPeriodStart, getPeriodEnd, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
 import { addDays as addDaysFn } from 'date-fns';
@@ -474,19 +474,20 @@ export default function PayrollPage() {
     enabled: !!organizationId,
   });
 
-  // Wage calculation — pay_share (per-cleaner) takes priority over cleaner_pay_expected (booking total)
+  // Thin adapter over the one shared resolver (lib/wageCalculation.ts), which
+  // mirrors the payout engine. The only thing added here is `actualPay` — the
+  // "confirmed vs estimated" column this page renders. Never reorder the
+  // priorities here; change the resolver so every surface moves together.
   const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
-    const baseResult = calculateBookingWage(booking, staffMember);
-    // PRIORITY 1: Individual cleaner pay from team assignments (pay_share)
-    if (payShareOverride != null && Number(payShareOverride) > 0) {
-      return { calculatedPay: Number(payShareOverride), actualPay: Number(payShareOverride), wageType: 'actual', wageRate: Number(payShareOverride), hoursWorked: baseResult.hoursWorked, isMissingPay: false };
-    }
-    // PRIORITY 2: cleaner_pay_expected is the booking-level source of truth (single-staff bookings)
-    if (booking.cleaner_pay_expected != null) {
-      return { calculatedPay: Number(booking.cleaner_pay_expected), actualPay: Number(booking.cleaner_pay_expected), wageType: baseResult.wageType, wageRate: baseResult.wageRate, hoursWorked: baseResult.hoursWorked, isMissingPay: false };
-    }
-    // PRIORITY 3: Fallback calculation from rate/hours
-    return { calculatedPay: baseResult.calculatedPay, actualPay: null, wageType: baseResult.wageType, wageRate: baseResult.wageRate, hoursWorked: baseResult.hoursWorked, isMissingPay: baseResult.isMissingPay };
+    const r = resolveCleanerPay(booking, staffMember, payShareOverride);
+    return {
+      calculatedPay: r.calculatedPay,
+      actualPay: r.isExact ? r.calculatedPay : null,
+      wageType: r.source === 'pay_share' ? 'actual' : r.wageType,
+      wageRate: r.source === 'pay_share' ? r.calculatedPay : r.wageRate,
+      hoursWorked: r.hoursWorked,
+      isMissingPay: r.isMissingPay,
+    };
   };
 
   const getStaffPayEntries = (staffId: string, bookingList: any[], assignmentList: any[]) => {

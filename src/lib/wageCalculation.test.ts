@@ -1,6 +1,12 @@
 // @ts-ignore - vitest types available at test runtime
 import { describe, it, expect } from 'vitest';
-import { calculateBookingWage, getActualHours, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import {
+  calculateBookingWage,
+  getActualHours,
+  resolveCleanerPay,
+  type WageBooking,
+  type WageStaff,
+} from '@/lib/wageCalculation';
 
 const makeBooking = (overrides: Partial<WageBooking> = {}): WageBooking => ({
   cleaner_actual_payment: null,
@@ -152,5 +158,114 @@ describe('calculateBookingWage', () => {
 
     expect(portalResult.calculatedPay).toBe(payrollResult.calculatedPay);
     expect(portalResult.hoursWorked).toBe(payrollResult.hoursWorked);
+  });
+
+  // These lock calculateBookingWage to payroll-period-process.ts, the engine
+  // that actually pays cleaners. If one changes, change both.
+  describe('parity with the payout engine', () => {
+    it('treats an explicit wage of 0 as 0, not "unset"', () => {
+      // Engine uses `??`, so cleaner_wage=0 must NOT fall through to base_wage.
+      const booking = makeBooking({ cleaner_wage: 0, cleaner_wage_type: 'flat' });
+      const staff = makeStaff({ base_wage: 80, hourly_rate: 25 });
+      expect(calculateBookingWage(booking, staff).calculatedPay).toBe(0);
+    });
+
+    it('matches wage types case-insensitively', () => {
+      const booking = makeBooking({ cleaner_wage: 150, cleaner_wage_type: 'Flat' });
+      expect(calculateBookingWage(booking).calculatedPay).toBe(150);
+    });
+
+    it('takes a percentage of net revenue, not the gross total', () => {
+      const booking = makeBooking({
+        cleaner_wage: 50,
+        cleaner_wage_type: 'percentage',
+        subtotal: 200,
+        total_amount: 180,
+        discount_amount: 20,
+      });
+      // 50% of (200 - 20)
+      expect(calculateBookingWage(booking).calculatedPay).toBe(90);
+    });
+
+    it('honours an override of 0 hours instead of falling back to defaults', () => {
+      const booking = makeBooking({ cleaner_override_hours: 0 });
+      const staff = makeStaff({ default_hours: 6 });
+      expect(getActualHours(booking, staff)).toBe(0);
+    });
+
+    it('prefers base_wage over hourly_rate as the fallback rate', () => {
+      const booking = makeBooking({ duration: 120 });
+      const staff = makeStaff({ base_wage: 30, hourly_rate: 25 });
+      expect(calculateBookingWage(booking, staff).calculatedPay).toBe(60); // 2h × $30
+    });
+
+    it('ignores staff.percentage_rate, because the engine does', () => {
+      // A percentage_rate cleaner with no other rate really is paid $0 by the
+      // payout engine. The screens must not promise money payroll won't send.
+      const booking = makeBooking();
+      const staff = { ...makeStaff({ hourly_rate: null }), percentage_rate: 40 } as WageStaff;
+      expect(calculateBookingWage(booking, staff).calculatedPay).toBe(0);
+    });
+  });
+});
+
+describe('resolveCleanerPay', () => {
+  it('pay_share beats every booking-level value', () => {
+    const booking = makeBooking({ cleaner_pay_expected: 120, cleaner_actual_payment: 200 });
+    const result = resolveCleanerPay(booking, makeStaff(), 90);
+    expect(result.calculatedPay).toBe(90);
+    expect(result.source).toBe('pay_share');
+    expect(result.isExact).toBe(true);
+  });
+
+  it('a non-primary team member sees their own share, not the primary\'s payment', () => {
+    // The regression this resolver exists to prevent: BookingDialogs writes the
+    // PRIMARY cleaner's pay to booking.cleaner_actual_payment, so reading that
+    // first showed every team member a coworker's number.
+    const booking = makeBooking({ cleaner_actual_payment: 300 }); // primary's pay
+    expect(resolveCleanerPay(booking, makeStaff(), 75).calculatedPay).toBe(75);
+  });
+
+  it('ignores a pay_share of 0 or null as "not set for this cleaner"', () => {
+    const booking = makeBooking({ cleaner_pay_expected: 120 });
+    expect(resolveCleanerPay(booking, makeStaff(), 0).calculatedPay).toBe(120);
+    expect(resolveCleanerPay(booking, makeStaff(), null).calculatedPay).toBe(120);
+  });
+
+  it('prefers cleaner_pay_expected over cleaner_actual_payment', () => {
+    const booking = makeBooking({ cleaner_pay_expected: 120, cleaner_actual_payment: 200 });
+    const result = resolveCleanerPay(booking, makeStaff());
+    expect(result.calculatedPay).toBe(120);
+    expect(result.source).toBe('pay_expected');
+  });
+
+  it('respects an actual_payment of $0 and reports it as exact', () => {
+    const booking = makeBooking({ cleaner_actual_payment: 0, cleaner_wage: 30, cleaner_wage_type: 'hourly' });
+    const result = resolveCleanerPay(booking, makeStaff());
+    expect(result.calculatedPay).toBe(0);
+    expect(result.source).toBe('actual_payment');
+    expect(result.isExact).toBe(true);
+  });
+
+  it('flags a computed amount as an estimate', () => {
+    const booking = makeBooking({ cleaner_wage: 25, cleaner_wage_type: 'hourly', duration: 120 });
+    const result = resolveCleanerPay(booking, makeStaff());
+    expect(result.calculatedPay).toBe(50);
+    expect(result.source).toBe('computed');
+    expect(result.isExact).toBe(false);
+  });
+
+  it('job card, earnings page and payroll agree on the same booking', () => {
+    const booking = makeBooking({ cleaner_pay_expected: 137.5, cleaner_wage: 25, cleaner_wage_type: 'hourly' });
+    const staff = makeStaff({ hourly_rate: 25, default_hours: 8 });
+    const payShare = 137.5;
+
+    const jobCard = resolveCleanerPay(booking, staff, payShare);
+    const earnings = resolveCleanerPay(booking, staff, payShare);
+    const payroll = resolveCleanerPay(booking, staff, payShare);
+
+    expect(jobCard.calculatedPay).toBe(earnings.calculatedPay);
+    expect(earnings.calculatedPay).toBe(payroll.calculatedPay);
+    expect(jobCard.calculatedPay).toBe(137.5);
   });
 });

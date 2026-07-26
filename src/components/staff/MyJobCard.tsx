@@ -13,6 +13,7 @@ import { PropertyInspectionUpload } from './PropertyInspectionUpload';
 import { useMapsNavigation } from '@/hooks/useMapsNavigation';
 import { useCleanerTracking } from '@/hooks/useCleanerTracking';
 import { supabase } from '@/lib/supabase';
+import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 import { toast } from 'sonner';
 
 interface PropertyNote {
@@ -25,30 +26,21 @@ interface PropertyNote {
   parking_notes: string | null;
 }
 
-interface StaffInfo {
-  hourly_rate: number | null;
-  base_wage: number | null;
-  percentage_rate: number | null;
-  default_hours: number | null;
-}
+// Pay inputs come from the shared resolver's contract so this card cannot
+// drift from payroll. percentage_rate is deliberately absent — see the note
+// at the top of lib/wageCalculation.ts.
+type StaffInfo = WageStaff;
 
-interface Booking {
+interface Booking extends WageBooking {
   id: string;
   organization_id?: string | null;
   booking_number: number;
   scheduled_at: string;
-  duration: number;
   status: string;
   address: string | null;
   city: string | null;
   state: string | null;
   zip_code: string | null;
-  total_amount: number;
-  cleaner_wage: number | null;
-  cleaner_wage_type: string | null;
-  cleaner_actual_payment: number | null;
-  cleaner_checkin_at?: string | null;
-  cleaner_checkout_at?: string | null;
   notes?: string | null;
   customer: {
     first_name: string;
@@ -188,96 +180,15 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
     }
   };
   
-  // Get actual hours from check-in/out if available
-  const getActualHours = (): number => {
-    if (booking.cleaner_checkin_at && booking.cleaner_checkout_at) {
-      const checkin = new Date(booking.cleaner_checkin_at).getTime();
-      const checkout = new Date(booking.cleaner_checkout_at).getTime();
-      return (checkout - checkin) / (1000 * 60 * 60);
-    }
-    if (booking.cleaner_checkin_at && booking.status === 'in_progress') {
-      // Job in progress - show elapsed time so far
-      const checkin = new Date(booking.cleaner_checkin_at).getTime();
-      return (Date.now() - checkin) / (1000 * 60 * 60);
-    }
-    return staffInfo.default_hours || booking.duration / 60 || 2;
+  // Pay shown here is resolved by the one shared resolver, so this card, the
+  // Earnings tab and admin Payroll can never show three different numbers for
+  // the same job. Do not compute pay inline — change lib/wageCalculation.ts.
+  const payResult = resolveCleanerPay(booking, staffInfo, booking.team_pay_share);
+  const pay = {
+    amount: payResult.calculatedPay,
+    type: describeCleanerPay(payResult),
+    isExact: payResult.isExact,
   };
-
-  // Calculate exact pay based on wage type
-  const calculatePay = (): { amount: number; type: string; isExact: boolean } => {
-    // If actual payment is already set by admin, use it
-    if (booking.cleaner_actual_payment && booking.cleaner_actual_payment > 0) {
-      return {
-        amount: booking.cleaner_actual_payment,
-        type: 'Confirmed',
-        isExact: true,
-      };
-    }
-
-    // pay_share stores the actual dollar amount for this cleaner's pay on this booking
-    // If set and > 0, use it directly as the pay amount
-    const payShareAmount = booking.team_pay_share;
-    if (payShareAmount && payShareAmount > 0) {
-      return {
-        amount: payShareAmount,
-        type: 'Assigned Pay',
-        isExact: true,
-      };
-    }
-
-    const hours = getActualHours();
-    const hasActualTime = !!(booking.cleaner_checkin_at && booking.cleaner_checkout_at);
-
-    // If booking has specific cleaner wage set
-    if (booking.cleaner_wage && booking.cleaner_wage_type) {
-      if (booking.cleaner_wage_type === 'percentage') {
-        return {
-          amount: (booking.total_amount * booking.cleaner_wage) / 100,
-          type: `${booking.cleaner_wage}% of job`,
-          isExact: true,
-        };
-      } else if (booking.cleaner_wage_type === 'flat') {
-        return {
-          amount: booking.cleaner_wage,
-          type: 'Flat rate',
-          isExact: true,
-        };
-      } else {
-        return {
-          amount: booking.cleaner_wage * hours,
-          type: `$${booking.cleaner_wage}/hr × ${hours.toFixed(1)}hrs`,
-          isExact: hasActualTime,
-        };
-      }
-    }
-
-    // Fall back to staff's default rates - check percentage first
-    if (staffInfo.percentage_rate && staffInfo.percentage_rate > 0) {
-      return {
-        amount: (booking.total_amount * staffInfo.percentage_rate) / 100,
-        type: `${staffInfo.percentage_rate}% of job`,
-        isExact: true,
-      };
-    }
-
-    // Then check hourly rate
-    if (staffInfo.hourly_rate && staffInfo.hourly_rate > 0) {
-      return {
-        amount: staffInfo.hourly_rate * hours,
-        type: `$${staffInfo.hourly_rate}/hr × ${hours.toFixed(1)}hrs`,
-        isExact: hasActualTime,
-      };
-    }
-
-    // Default if no wage info
-    return {
-      amount: 0,
-      type: 'TBD',
-      isExact: false,
-    };
-  };
-
-  const pay = calculatePay();
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: 'default' | 'secondary' | 'outline' | 'destructive'; label: string }> = {
