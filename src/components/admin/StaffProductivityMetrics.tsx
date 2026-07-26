@@ -38,6 +38,7 @@ interface StaffMetrics {
   totalEarnings: number;
   avgJobDuration: number;
   onTimeRate: number | null;
+  onTimeCheckins: number;
   avgRating: number;
   efficiency: number; // Revenue per hour
   jobsPerWeek: number;
@@ -60,6 +61,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
         totalEarnings: 0,
         avgJobDuration: 0,
         onTimeRate: null,
+        onTimeCheckins: 0,
         avgRating: 0,
         efficiency: 0,
         jobsPerWeek: 0,
@@ -121,6 +123,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
       // counts against them. Stays null when there are no clock-ins at all, so
       // "no data" is distinguishable from a perfect score.
       const jobsWithCheckin = completedJobs.filter(b => (b as any).cleaner_checkin_at);
+      metrics.onTimeCheckins = jobsWithCheckin.length;
       if (jobsWithCheckin.length > 0) {
         const onTimeJobs = jobsWithCheckin.filter(b => {
           const scheduled = new Date(b.scheduled_at);
@@ -130,27 +133,23 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
         metrics.onTimeRate = (onTimeJobs.length / jobsWithCheckin.length) * 100;
       }
 
-      // Calculate productivity score (weighted average)
-      const completionWeight = 0.25;
-      const efficiencyWeight = 0.25;
-      const onTimeWeight = 0.2;
-      const cancellationWeight = 0.15;
-      const frequencyWeight = 0.15;
-
-      const completionScore = Math.min(100, metrics.completedJobs * 2);
-      const efficiencyScore = Math.min(100, metrics.efficiency);
-      // Missing clock-in data must not crash the composite; keep the prior
-      // scoring behavior (no penalty) — only the On-Time column/card treat null as "no data".
-      const onTimeScore = metrics.onTimeRate ?? 100;
-      const cancellationScore = 100 - metrics.cancellationRate;
-      const frequencyScore = Math.min(100, metrics.jobsPerWeek * 20);
-
+      // Productivity score = weighted average of the measured components.
+      // When on-time has no clock-in data we drop that component and let the
+      // remaining weights renormalize (divide by the weight actually present),
+      // so a data gap neither rewards (as 100) nor punishes (as 0) — the score
+      // reflects only what was measured.
+      const scoreComponents: { score: number; weight: number }[] = [
+        { score: Math.min(100, metrics.completedJobs * 2), weight: 0.25 },
+        { score: Math.min(100, metrics.efficiency), weight: 0.25 },
+        { score: 100 - metrics.cancellationRate, weight: 0.15 },
+        { score: Math.min(100, metrics.jobsPerWeek * 20), weight: 0.15 },
+      ];
+      if (metrics.onTimeRate !== null) {
+        scoreComponents.push({ score: metrics.onTimeRate, weight: 0.2 });
+      }
+      const totalWeight = scoreComponents.reduce((sum, c) => sum + c.weight, 0);
       metrics.productivityScore = Math.round(
-        (completionScore * completionWeight) +
-        (efficiencyScore * efficiencyWeight) +
-        (onTimeScore * onTimeWeight) +
-        (cancellationScore * cancellationWeight) +
-        (frequencyScore * frequencyWeight)
+        scoreComponents.reduce((sum, c) => sum + c.score * c.weight, 0) / totalWeight
       );
     });
 
@@ -205,7 +204,11 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
   const radarData = topPerformer ? [
     { metric: 'Jobs', value: Math.min(100, topPerformer.completedJobs * 2) },
     { metric: 'Efficiency', value: Math.min(100, topPerformer.efficiency) },
-    { metric: 'On-Time', value: topPerformer.onTimeRate ?? 100 },
+    // Drop the On-Time axis when the top performer has no clock-in data,
+    // mirroring the score's renormalization rather than showing a fake 100.
+    ...(topPerformer.onTimeRate !== null
+      ? [{ metric: 'On-Time', value: topPerformer.onTimeRate }]
+      : []),
     { metric: 'Consistency', value: 100 - topPerformer.cancellationRate },
     { metric: 'Frequency', value: Math.min(100, topPerformer.jobsPerWeek * 20) },
   ] : [];
@@ -374,9 +377,14 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
                     {staff.onTimeRate === null ? (
                       <span className="text-muted-foreground" title="No clock-in data for this staff member">—</span>
                     ) : (
-                      <Badge variant={staff.onTimeRate >= 90 ? 'default' : staff.onTimeRate >= 75 ? 'secondary' : 'destructive'}>
-                        {isTestMode ? 'XX%' : `${staff.onTimeRate.toFixed(0)}%`}
-                      </Badge>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Badge variant={staff.onTimeRate >= 90 ? 'default' : staff.onTimeRate >= 75 ? 'secondary' : 'destructive'}>
+                          {isTestMode ? 'XX%' : `${staff.onTimeRate.toFixed(0)}%`}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {isTestMode ? '(X of XX)' : `(${staff.onTimeCheckins} of ${staff.completedJobs})`}
+                        </span>
+                      </div>
                     )}
                   </td>
                   <td className="py-3 text-right">{isTestMode ? 'X.X' : staff.jobsPerWeek.toFixed(1)}</td>

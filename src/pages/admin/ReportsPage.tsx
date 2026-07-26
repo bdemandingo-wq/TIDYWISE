@@ -421,7 +421,7 @@ export default function ReportsPage() {
             {/* Revenue by Service Pie Chart */}
             <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
               <h3 className="font-semibold mb-4">Revenue by Service (All time)</h3>
-              <div className="h-[220px]">
+              <div className="h-[200px]">
                 {serviceStatsAllTime.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     No service data available
@@ -458,7 +458,7 @@ export default function ReportsPage() {
                   excluded from the donut geometry above but shown here with its
                   real amount. */}
               {serviceStatsAllTime.length > 0 && (
-                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs max-h-[64px] overflow-y-auto">
+                <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   {serviceStatsAllTime.map((s, i) => (
                     <div key={`svc-legend-${i}`} className="flex items-center gap-2 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
