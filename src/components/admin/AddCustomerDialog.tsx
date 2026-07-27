@@ -54,6 +54,8 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
       city: '',
       state: '',
       zip_code: '',
+      latitude: null,
+      longitude: null,
       notes: '',
     });
   };
