@@ -10884,9 +10884,9 @@ export type Database = {
       my_effective_plan: {
         Args: never
         Returns: {
-          grandfathered: boolean
           organization_id: string
           plan_type: string
+          raw_plan_type: string
         }[]
       }
       org_has_resend_api_key: { Args: { p_org_id: string }; Returns: boolean }
