@@ -260,7 +260,11 @@ serve(async (req) => {
   }
 
   try {
-    const { address } = await req.json();
+    const { address, country } = await req.json();
+    const cc = typeof country === 'string' && /^[A-Za-z]{2}$/.test(country)
+      ? country.toLowerCase()
+      : 'us';
+    const isUS = cc === 'us';
     
     if (!address || typeof address !== 'string') {
       return new Response(
@@ -277,19 +281,19 @@ serve(async (req) => {
       );
     }
 
-    const normalized = normalizeUSAddress(trimmed);
+    const normalized = isUS ? normalizeUSAddress(trimmed) : trimmed;
     const candidates = buildCandidates(normalized);
     
     // Add USA suffix and original input
     const queries = [
-      ...candidates.map(c => c.includes('usa') ? c : `${c}, usa`),
+      ...(isUS ? candidates.map(c => c.includes('usa') ? c : `${c}, usa`) : candidates),
       trimmed
     ];
 
     console.log('Geocoding candidates:', queries);
 
     // Strategy A: Try structured search first (most reliable)
-    const structuredParts = parseStructuredAddress(normalized, trimmed);
+    const structuredParts = isUS ? parseStructuredAddress(normalized, trimmed) : null;
     if (structuredParts) {
       try {
         const params = new URLSearchParams({
@@ -298,7 +302,7 @@ serve(async (req) => {
           city: structuredParts.city,
           state: structuredParts.state,
           postalcode: structuredParts.zip,
-          countrycodes: 'us',
+          countrycodes: cc,
           limit: '1',
         });
         console.log('Trying structured search:', structuredParts);
@@ -328,7 +332,7 @@ serve(async (req) => {
     for (const query of queries) {
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=us`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=${cc}`,
           { headers: { 'Accept': 'application/json', 'User-Agent': 'TidywiseApp/1.0' } }
         );
         const ct = response.headers.get('content-type') || '';
@@ -358,7 +362,7 @@ serve(async (req) => {
         const fallbackQuery = `${structuredParts.city}, ${structuredParts.state} ${structuredParts.zip}`;
         console.log('Trying city-level fallback:', fallbackQuery);
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1&countrycodes=us`,
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fallbackQuery)}&limit=1&countrycodes=${cc}`,
           { headers: { 'Accept': 'application/json', 'User-Agent': 'TidywiseApp/1.0' } }
         );
         const ct = response.headers.get('content-type') || '';
