@@ -1838,7 +1838,9 @@ export type Database = {
           is_arrival_window: boolean
           is_draft: boolean | null
           is_test: boolean | null
+          latitude: number | null
           location_id: string | null
+          longitude: number | null
           notes: string | null
           organization_id: string | null
           original_scheduled_at: string | null
@@ -1906,7 +1908,9 @@ export type Database = {
           is_arrival_window?: boolean
           is_draft?: boolean | null
           is_test?: boolean | null
+          latitude?: number | null
           location_id?: string | null
+          longitude?: number | null
           notes?: string | null
           organization_id?: string | null
           original_scheduled_at?: string | null
@@ -1974,7 +1978,9 @@ export type Database = {
           is_arrival_window?: boolean
           is_draft?: boolean | null
           is_test?: boolean | null
+          latitude?: number | null
           location_id?: string | null
+          longitude?: number | null
           notes?: string | null
           organization_id?: string | null
           original_scheduled_at?: string | null
@@ -3835,6 +3841,8 @@ export type Database = {
           id: string
           is_recurring: boolean
           last_name: string
+          latitude: number | null
+          longitude: number | null
           marketing_status: string
           merged_into: string | null
           notes: string | null
@@ -3862,6 +3870,8 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           last_name: string
+          latitude?: number | null
+          longitude?: number | null
           marketing_status?: string
           merged_into?: string | null
           notes?: string | null
@@ -3889,6 +3899,8 @@ export type Database = {
           id?: string
           is_recurring?: boolean
           last_name?: string
+          latitude?: number | null
+          longitude?: number | null
           marketing_status?: string
           merged_into?: string | null
           notes?: string | null
@@ -6903,6 +6915,7 @@ export type Database = {
       }
       organizations: {
         Row: {
+          country_code: string
           created_at: string
           grandfathered_at: string | null
           grandfathered_lifetime: boolean
@@ -6919,6 +6932,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          country_code?: string
           created_at?: string
           grandfathered_at?: string | null
           grandfathered_lifetime?: boolean
@@ -6935,6 +6949,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          country_code?: string
           created_at?: string
           grandfathered_at?: string | null
           grandfathered_lifetime?: boolean
@@ -10493,6 +10508,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      effective_plan: { Args: { _org_id: string }; Returns: string }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -10864,6 +10880,14 @@ export type Database = {
           source_queue: string
         }
         Returns: number
+      }
+      my_effective_plan: {
+        Args: never
+        Returns: {
+          grandfathered: boolean
+          organization_id: string
+          plan_type: string
+        }[]
       }
       org_has_resend_api_key: { Args: { p_org_id: string }; Returns: boolean }
       org_stripe_has_secrets: {
