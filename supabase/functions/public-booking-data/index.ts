@@ -98,7 +98,7 @@ serve(async (req: Request) => {
         .eq("organization_id", org.id),
       supabase
         .from("business_settings")
-        .select("primary_color, accent_color")
+        .select("primary_color, accent_color, website_url")
         .eq("organization_id", org.id)
         .maybeSingle(),
       supabase
@@ -138,7 +138,8 @@ serve(async (req: Request) => {
         servicePricing: pricingRes.data ?? [],
         branding: brandRes.data ? {
           primary_color: brandRes.data.primary_color || '#3b82f6',
-          accent_color: brandRes.data.accent_color || '#14b8a6',
+          accent_color: brandRes.data.accent_color || '#e5e7eb',
+          website_url: brandRes.data.website_url ?? null,
         } : null,
         bookingFormTheme: displaySettings.booking_form_theme || 'dark',
         formColors: {
