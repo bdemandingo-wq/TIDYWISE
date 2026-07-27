@@ -4,45 +4,48 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Save, Loader2, Upload, Palette, Type, LayoutTemplate, MessageSquare } from 'lucide-react';
+import { Save, Loader2, Upload, Palette, LayoutTemplate, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useInvoiceBranding, getFontFamily, type InvoiceBranding } from '@/hooks/useInvoiceBranding';
+import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
 
 export function InvoiceDesignSettings() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
-  const { branding, isLoading } = useInvoiceBranding();
+  const branding = useInvoiceBusinessInfo();
+  const isLoading = branding.isLoading;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const [form, setForm] = useState<Omit<InvoiceBranding, 'id' | 'organization_id'>>({
+  // font_style is deliberately gone: getFontFamily returned 'Inter' for the
+  // default, which email clients cannot load — so the setting visibly did
+  // nothing in the surface invoices matter most in.
+  const [form, setForm] = useState<{
+    logo_url: string | null;
+    primary_color: string;
+    accent_color: string;
+    header_layout: 'left' | 'center' | 'right';
+    footer_message: string;
+  }>({
     logo_url: null,
     primary_color: '#3b82f6',
     accent_color: '#e5e7eb',
-    font_style: 'modern',
     header_layout: 'left',
     footer_message: 'Thank you for your business!',
   });
 
   useEffect(() => {
-    if (branding) {
-      setForm({
-        logo_url: branding.logo_url,
-        primary_color: branding.primary_color,
-        accent_color: branding.accent_color,
-        font_style: branding.font_style,
-        header_layout: branding.header_layout,
-        footer_message: branding.footer_message,
-      });
-    }
+    setForm({
+      logo_url: branding.logoUrl,
+      primary_color: branding.primaryColor || '#3b82f6',
+      accent_color: branding.accentColor || '#e5e7eb',
+      header_layout: branding.headerLayout,
+      footer_message: branding.footerMessage || 'Thank you for your business!',
+    });
   }, [branding]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -51,7 +54,9 @@ export function InvoiceDesignSettings() {
     setUploading(true);
     try {
       const ext = file.name.split('.').pop();
-      const path = `${organization.id}/invoice-logo.${ext}`;
+      // Same {org}/logos/ prefix Settings writes to — a separate key here
+      // is how the app ended up with two logos that could disagree.
+      const path = `${organization.id}/logos/invoice-logo.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from('business-assets')
         .upload(path, file, { upsert: true });
@@ -71,16 +76,23 @@ export function InvoiceDesignSettings() {
     if (!organization?.id) return;
     setSaving(true);
     try {
-      const payload = { ...form, organization_id: organization.id, updated_at: new Date().toISOString() };
-      console.log('[InvoiceDesign] Saving branding:', payload);
+      const payload = {
+        organization_id: organization.id,
+        logo_url: form.logo_url,
+        primary_color: form.primary_color,
+        accent_color: form.accent_color,
+        invoice_header_layout: form.header_layout,
+        invoice_footer_message: form.footer_message,
+        updated_at: new Date().toISOString(),
+      };
       const { error } = await (supabase as any)
-        .from('invoice_branding')
+        .from('business_settings')
         .upsert(payload, { onConflict: 'organization_id' });
       if (error) {
         console.error('[InvoiceDesign] Save error:', error);
         throw error;
       }
-      queryClient.invalidateQueries({ queryKey: ['invoice-branding'] });
+      queryClient.invalidateQueries({ queryKey: ['business-settings'] });
       toast.success('Invoice design saved');
     } catch (err: any) {
       console.error('[InvoiceDesign] Save failed:', err);
@@ -177,27 +189,6 @@ export function InvoiceDesignSettings() {
           </CardContent>
         </Card>
 
-        {/* Font */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Type className="w-4 h-4" /> Font Style
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={form.font_style} onValueChange={(v: 'modern' | 'classic' | 'minimal') => setForm(p => ({ ...p, font_style: v }))}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="modern">Modern (Inter / Sans-serif)</SelectItem>
-                <SelectItem value="classic">Classic (Georgia / Serif)</SelectItem>
-                <SelectItem value="minimal">Minimal (Monospace)</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
         {/* Layout */}
         <Card>
           <CardHeader className="pb-3">
@@ -252,7 +243,7 @@ export function InvoiceDesignSettings() {
           <CardContent className="p-0">
             <div
               className="bg-white rounded-b-lg overflow-hidden border-t"
-              style={{ fontFamily: getFontFamily(form.font_style) }}
+             
             >
               <InvoicePreview form={form} />
             </div>
@@ -284,7 +275,7 @@ function InvoicePreview({ form }: { form: Omit<InvoiceBranding, 'id' | 'organiza
   );
 
   return (
-    <div className="p-5 text-[11px] text-gray-700 space-y-4" style={{ fontFamily: getFontFamily(form.font_style) }}>
+    <div className="p-5 text-[11px] text-gray-700 space-y-4">
       {/* Header */}
       {form.header_layout === 'center' ? (
         <div className="text-center space-y-1">
