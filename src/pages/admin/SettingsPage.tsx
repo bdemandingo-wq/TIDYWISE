@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import { maybeAdoptOrgCountry } from '@/lib/orgCountry';
+import { normalizeWebsiteUrl } from '@/lib/websiteUrl';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,6 +78,7 @@ interface BusinessSettings {
   company_email: string;
   company_phone: string;
   company_address: string;
+  website_url: string;
   company_city: string;
   company_state: string;
   company_zip: string;
@@ -121,6 +123,7 @@ const defaultSettings: BusinessSettings = {
   company_email: '',
   company_phone: '',
   company_address: '',
+  website_url: '',
   company_city: '',
   company_state: '',
   company_zip: '',
@@ -323,6 +326,7 @@ export default function SettingsPage() {
           company_email: data.company_email || '',
           company_phone: data.company_phone || '',
           company_address: data.company_address || '',
+          website_url: data.website_url || '',
           company_city: data.company_city || '',
           company_state: data.company_state || '',
           company_zip: data.company_zip || '',
@@ -369,6 +373,9 @@ export default function SettingsPage() {
         company_email: settings.company_email,
         company_phone: settings.company_phone,
         company_address: settings.company_address,
+        // Layer 1 of the website_url guard — never persist an unnormalised
+        // value; it becomes an href on the public booking form.
+        website_url: normalizeWebsiteUrl(settings.website_url),
         company_city: settings.company_city,
         company_state: settings.company_state,
         company_zip: settings.company_zip,
@@ -682,6 +689,38 @@ export default function SettingsPage() {
                     void maybeAdoptOrgCountry(organization?.id ?? null, r.country);
                   }}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="website_url">Website</Label>
+                <Input
+                  id="website_url"
+                  type="url"
+                  inputMode="url"
+                  placeholder="mysite.com"
+                  value={settings.website_url}
+                  onChange={(e) => updateField('website_url', e.target.value)}
+                  onBlur={(e) => {
+                    // Normalise on blur so the operator sees what will actually
+                    // be saved — "mysite.com" visibly becomes a full https URL,
+                    // and anything unusable is cleared rather than silently
+                    // dropped at save time.
+                    const raw = e.target.value.trim();
+                    if (!raw) {
+                      updateField('website_url', '');
+                      return;
+                    }
+                    const normalized = normalizeWebsiteUrl(raw);
+                    if (normalized) {
+                      updateField('website_url', normalized);
+                    } else {
+                      updateField('website_url', '');
+                      toast.error("That doesn't look like a website address. Try something like mysite.com");
+                    }
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Shown as a link back to your site on your public booking form.
+                </p>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">

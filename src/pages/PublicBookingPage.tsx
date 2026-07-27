@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
+import { isSafeHttpUrl } from '@/lib/websiteUrl';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,6 +140,7 @@ export default function PublicBookingPage() {
     organizationName, 
     organizationId,
     logoUrl,
+    websiteUrl,
     primaryColor,
     accentColor,
     bookingFormTheme,
@@ -149,6 +151,11 @@ export default function PublicBookingPage() {
     homeConditionOptions,
     loading: pricingLoading 
   } = usePublicOrgPricing(orgSlug);
+
+  // Layer 2 of the website_url guard. The render path does not trust the
+  // database — a javascript: value reaching an href here would be stored XSS
+  // against every anonymous visitor to this form.
+  const safeWebsiteUrl = isSafeHttpUrl(websiteUrl) ? websiteUrl : null;
 
   const { customFrequencies: customFrequenciesFromHook } = useCustomFrequencies(organizationId);
   const [customFrequenciesFromRpc, setCustomFrequenciesFromRpc] = useState<
@@ -630,19 +637,39 @@ export default function PublicBookingPage() {
       <header className={cn(isLight ? "bg-secondary border-b border-border" : "bg-sidebar text-sidebar-foreground")}>
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {logoUrl ? (
-                <img src={logoUrl} alt={organizationName} className="w-10 h-10 rounded-xl object-cover" width={40} height={40} loading="lazy" />
+            {(() => {
+              const brand = (
+                <>
+                  {logoUrl ? (
+                    <img src={logoUrl} alt={organizationName} className="w-10 h-10 rounded-xl object-cover" width={40} height={40} loading="lazy" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <CalendarIcon className="w-6 h-6 text-primary-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-xl font-bold">{organizationName || 'Book Your Service'}</h1>
+                    <p className={cn("text-sm", isLight ? "text-muted-foreground" : "text-sidebar-foreground/70")}>Book your service online</p>
+                  </div>
+                </>
+              );
+              // target="_top" rather than _self: standalone it behaves as the
+              // same tab, embedded it breaks the customer out of the iframe
+              // instead of loading the site inside the booking widget.
+              return safeWebsiteUrl ? (
+                <a
+                  href={safeWebsiteUrl}
+                  target="_top"
+                  rel="noopener"
+                  className="flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={organizationName ? `Return to ${organizationName}` : 'Return to website'}
+                >
+                  {brand}
+                </a>
               ) : (
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <CalendarIcon className="w-6 h-6 text-primary-foreground" />
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-bold">{organizationName || 'Book Your Service'}</h1>
-              <p className={cn("text-sm", isLight ? "text-muted-foreground" : "text-sidebar-foreground/70")}>Book your service online</p>
-              </div>
-            </div>
+                <div className="flex items-center gap-3">{brand}</div>
+              );
+            })()}
           </div>
         </div>
       </header>
@@ -1587,9 +1614,18 @@ export default function PublicBookingPage() {
               </Button>
             )}
             {step === 5 && (
-              <Button size="lg" onClick={() => { setStep(1); setCardSaved(false); }} className="sm:mx-auto">
-                Book Another Service
-              </Button>
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-3 sm:mx-auto">
+                <Button size="lg" variant="outline" onClick={() => { setStep(1); setCardSaved(false); }}>
+                  Book Another Service
+                </Button>
+                {safeWebsiteUrl && (
+                  <Button size="lg" asChild>
+                    <a href={safeWebsiteUrl} target="_top" rel="noopener">
+                      Return to {organizationName || 'our website'}
+                    </a>
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>
