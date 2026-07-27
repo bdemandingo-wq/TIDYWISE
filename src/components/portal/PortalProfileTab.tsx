@@ -71,6 +71,8 @@ export function PortalProfileTab() {
     state: "",
     zip_code: "",
     is_primary: false,
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
   const [savingLocation, setSavingLocation] = useState(false);
   
@@ -181,6 +183,8 @@ export function PortalProfileTab() {
           p_city: newLocation.city.trim() || null,
           p_state: newLocation.state.trim() || null,
           p_zip_code: newLocation.zip_code.trim() || null,
+          p_latitude: newLocation.latitude,
+          p_longitude: newLocation.longitude,
           p_is_primary: newLocation.is_primary,
         },
       });
@@ -403,6 +407,8 @@ export function PortalProfileTab() {
                         city: r.city || prev.city,
                         state: r.state || prev.state,
                         zip_code: r.zip || prev.zip_code,
+                        latitude: r.lat,
+                        longitude: r.lng,
                       }))
                     }
                     placeholder="123 Main St"

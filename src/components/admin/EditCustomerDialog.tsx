@@ -78,7 +78,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   const [removingCard, setRemovingCard] = useState(false);
 
   // --- Addresses state ---
-  const [newAddress, setNewAddress] = useState({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
+  const [newAddress, setNewAddress] = useState({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '', latitude: null as number | null, longitude: null as number | null });
   const [addingAddress, setAddingAddress] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
@@ -193,6 +193,8 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         city: booking.city || null,
         state: booking.state || null,
         zip_code: booking.zip_code || null,
+        latitude: (booking as { latitude?: number | null }).latitude ?? null,
+        longitude: (booking as { longitude?: number | null }).longitude ?? null,
         is_primary: isFirst,
       });
       await refetchAddresses();
@@ -257,11 +259,13 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
           city: newAddress.city || null,
           state: newAddress.state || null,
           zip_code: newAddress.zip_code || null,
+          latitude: newAddress.latitude,
+          longitude: newAddress.longitude,
           is_primary: isFirst,
         });
       if (error) throw error;
       toast.success('Address added');
-      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
+      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '', latitude: null, longitude: null });
       setShowAddForm(false);
       refetchAddresses();
       queryClient.invalidateQueries({ queryKey: ['customer-locations'] });
@@ -526,6 +530,8 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                       city: r.city || prev.city,
                       state: r.state || prev.state,
                       zip_code: r.zip || prev.zip_code,
+                      latitude: r.lat,
+                      longitude: r.lng,
                     }))}
                     placeholder="123 Main St"
                     inputClassName="h-9"

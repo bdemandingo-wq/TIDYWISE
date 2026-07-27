@@ -95,7 +95,7 @@ export default function PortalRequestPage() {
 
   // Inline add address state
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [newAddr, setNewAddr] = useState({ name: "Home", address: "", city: "", state: "", zip_code: "" });
+  const [newAddr, setNewAddr] = useState({ name: "Home", address: "", city: "", state: "", zip_code: "", latitude: null as number | null, longitude: null as number | null });
   const [savingAddr, setSavingAddr] = useState(false);
 
   const isAirbnb = customer?.property_type === 'airbnb';
@@ -168,6 +168,8 @@ export default function PortalRequestPage() {
           p_city: newAddr.city.trim() || null,
           p_state: newAddr.state.trim() || null,
           p_zip_code: newAddr.zip_code.trim() || null,
+          p_latitude: newAddr.latitude,
+          p_longitude: newAddr.longitude,
           p_is_primary: locations.length === 0,
         },
       });
@@ -179,7 +181,7 @@ export default function PortalRequestPage() {
         if (newLoc) setSelectedLocation(newLoc.id);
       }
       toast.success("Address added!");
-      setNewAddr({ name: "Home", address: "", city: "", state: "", zip_code: "" });
+      setNewAddr({ name: "Home", address: "", city: "", state: "", zip_code: "", latitude: null, longitude: null });
       setShowAddAddress(false);
     } catch (err: any) {
       console.error("Add address error:", err);
@@ -463,6 +465,8 @@ export default function PortalRequestPage() {
                             city: r.city || prev.city,
                             state: r.state || prev.state,
                             zip_code: r.zip || prev.zip_code,
+                            latitude: r.lat,
+                            longitude: r.lng,
                           }))
                         }
                         placeholder="123 Main St"
