@@ -21,7 +21,8 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
-import { geocodeAddress } from '@/lib/distanceUtils';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
+import { maybeAdoptOrgCountry } from '@/lib/orgCountry';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { Upload, FileText, Trash2, Download, Key, Eye, EyeOff, MapPin, Loader2 } from 'lucide-react';
@@ -78,7 +79,6 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
-  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -147,30 +147,17 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
     setIsLoading(true);
 
     try {
-      // Geocode address if changed OR if no coordinates exist yet
-      let latitude = formData.home_latitude;
-      let longitude = formData.home_longitude;
-      
-      const needsGeocoding = formData.home_address && (
-        formData.home_address !== staff.home_address || 
-        !formData.home_latitude || 
-        !formData.home_longitude
-      );
-      
-      if (needsGeocoding) {
-        setIsGeocodingAddress(true);
-        const coords = await geocodeAddress(formData.home_address);
-        if (coords) {
-          latitude = coords.lat;
-          longitude = coords.lng;
-          toast.success(`Address geocoded successfully (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
-        } else {
-          toast.warning('Could not geocode address. Try adding commas: "Street, City, State ZIP"');
-          // Clear coordinates if geocoding fails
-          latitude = null;
-          longitude = null;
-        }
-        setIsGeocodingAddress(false);
+      // Coordinates now come from Google Places when the address is picked
+      // from autocomplete — no separate geocoding round-trip. The old
+      // fallback went through geocode-address, which is hard-locked to the
+      // US and failed silently for every non-US address.
+      const latitude = formData.home_latitude;
+      const longitude = formData.home_longitude;
+
+      if (formData.home_address && (latitude == null || longitude == null)) {
+        toast.warning(
+          'Address saved without a map location. Pick an address from the dropdown to enable distance-based assignment.',
+        );
       }
 
       const { error } = await supabase
@@ -204,7 +191,6 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
       toast.error('Failed to update staff member');
     } finally {
       setIsLoading(false);
-      setIsGeocodingAddress(false);
     }
   };
 
@@ -533,62 +519,40 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
               <MapPin className="w-4 h-4" />
               Home Address
             </Label>
-            <div className="flex gap-2">
-              <Input
-                id="edit-home_address"
-                value={formData.home_address}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    home_address: e.target.value,
-                    // Clear existing coordinates so we never keep an old geotag for a new address
-                    home_latitude: null,
-                    home_longitude: null,
-                  })
-                }
-                placeholder="123 Main St, City, State ZIP"
-                className="flex-1"
-              />
-              {formData.home_address && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isGeocodingAddress}
-                  onClick={async () => {
-                    setIsGeocodingAddress(true);
-                    const coords = await geocodeAddress(formData.home_address);
-                    if (coords) {
-                      setFormData({
-                        ...formData,
-                        home_latitude: coords.lat,
-                        home_longitude: coords.lng,
-                      });
-                      toast.success(`Location updated! (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`);
-                    } else {
-                      toast.error('Could not geocode. Try: "Street, City, State ZIP"');
-                    }
-                    setIsGeocodingAddress(false);
-                  }}
-                  title={formData.home_latitude ? "Re-geocode address" : "Geocode address"}
-                >
-                  {isGeocodingAddress ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <MapPin className="w-4 h-4" />
-                      {formData.home_latitude && <span className="ml-1 text-xs">↻</span>}
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
+            <AddressAutocomplete
+              id="edit-home_address"
+              value={formData.home_address}
+              onChange={(v) =>
+                setFormData({
+                  ...formData,
+                  home_address: v,
+                  // Clear existing coordinates so we never keep an old geotag for a new address
+                  home_latitude: null,
+                  home_longitude: null,
+                })
+              }
+              onResolved={(r) => {
+                const full = [r.street, r.city, [r.state, r.zip].filter(Boolean).join(' ')]
+                  .filter(Boolean)
+                  .join(', ');
+                setFormData((prev) => ({
+                  ...prev,
+                  home_address: full || prev.home_address,
+                  home_latitude: r.lat,
+                  home_longitude: r.lng,
+                }));
+                // Staff live in the market the business operates in, so this
+                // is a safe country signal. Customer addresses are not.
+                void maybeAdoptOrgCountry(organizationId, r.country);
+              }}
+              placeholder="Start typing an address..."
+            />
             <p className="text-xs text-muted-foreground">
               Used for distance calculations when assigning jobs
               {formData.home_latitude && formData.home_longitude ? (
                 <span className="text-primary ml-1">✓ Location saved ({formData.home_latitude.toFixed(2)}, {formData.home_longitude.toFixed(2)})</span>
               ) : formData.home_address ? (
-                <span className="text-muted-foreground ml-1 font-medium">⚠ Not geocoded yet</span>
+                <span className="text-muted-foreground ml-1 font-medium">⚠ Pick a suggestion to save the location</span>
               ) : null}
             </p>
           </div>
@@ -671,11 +635,11 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || isGeocodingAddress}>
-              {isLoading || isGeocodingAddress ? (
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isGeocodingAddress ? 'Geocoding...' : 'Saving...'}
+                  Saving...
                 </>
               ) : (
                 'Save Changes'

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
     city: '',
     state: '',
     zip_code: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
     notes: '',
   });
   
@@ -81,6 +84,8 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
         city: formData.city || undefined,
         state: formData.state || undefined,
         zip_code: formData.zip_code || undefined,
+        latitude: formData.latitude ?? undefined,
+        longitude: formData.longitude ?? undefined,
       });
 
       resetForm();
@@ -157,10 +162,18 @@ export function AddCustomerDialog({ open, onOpenChange }: AddCustomerDialogProps
           {/* Address */}
           <div className="space-y-2">
             <Label htmlFor="address">Street Address</Label>
-            <Input
+            <AddressAutocomplete
               id="address"
               value={formData.address}
-              onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+              onChange={(v) => setFormData(prev => ({ ...prev, address: v, latitude: null, longitude: null }))}
+              onResolved={(r) => setFormData(prev => ({
+                ...prev,
+                city: r.city || prev.city,
+                state: r.state || prev.state,
+                zip_code: r.zip || prev.zip_code,
+                latitude: r.lat,
+                longitude: r.lng,
+              }))}
               placeholder="123 Main St"
             />
           </div>

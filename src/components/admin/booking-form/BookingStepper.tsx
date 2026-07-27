@@ -254,6 +254,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     city,
     state,
     zipCode,
+    latitude,
+    longitude,
     selectedServiceId,
     squareFootage,
     bedrooms,
@@ -604,6 +606,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           city: city || null,
           state: state || null,
           zip_code: zipCode || null,
+          // Only overwrite when autocomplete actually resolved coordinates —
+          // a hand-typed address must not blank out good ones.
+          ...(latitude != null && longitude != null
+            ? { latitude, longitude }
+            : {}),
         })
         .eq('id', customerId)
         .eq('organization_id', organizationId);
@@ -649,6 +656,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       city: city || null,
       state: state || null,
       zip_code: zipCode || null,
+      latitude,
+      longitude,
       frequency: frequency,
       custom_frequency_days: customFrequencyDays,
       recurring_days_of_week: frequency === 'custom' ? (recurringDaysOfWeek || null) : null,
