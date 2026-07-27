@@ -118,12 +118,14 @@ Deno.serve(async (req) => {
         get("administrative_area_level_2");
       const state = get("administrative_area_level_1", true);
       const zip = get("postal_code");
+      const country = get("country", true);
 
       return json({
         street,
         city,
         state,
         zip,
+        country,
         lat: p.location?.latitude ?? null,
         lng: p.location?.longitude ?? null,
         formattedAddress: p.formattedAddress ?? "",
