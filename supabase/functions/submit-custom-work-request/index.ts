@@ -91,10 +91,11 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    // Custom-work is a Custom-tier benefit only (lifetime intentionally
-    // excluded per spec). Grandfathered users — promised "every feature
-    // forever" — are allowed in too.
-    if (!(org?.grandfathered_lifetime || org?.plan_type === "custom")) {
+    // Done-for-you work requires an actual paid Custom subscription.
+    // grandfathered_lifetime used to pass here, which let lifetime and
+    // pre-launch orgs submit requests the pricing spec never granted them.
+    // Must stay in step with canAccess in src/lib/features.ts.
+    if (org?.plan_type !== "custom") {
       return new Response(
         JSON.stringify({
           error:
