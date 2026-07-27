@@ -307,7 +307,7 @@ const handler = async (req: Request): Promise<Response> => {
     </div>
 
     <div style="padding:0 32px 32px;">
-      <a href="${paymentUrl}" target="_blank" style="display:block;background:${ACCENT};color:#ffffff;text-decoration:none;text-align:center;padding:16px 20px;border-radius:14px;font-size:16px;font-weight:700;">Pay ${formatMoney(data.total)}</a>
+      <a href="${paymentUrl}" target="_blank" style="display:block;background:${brandColor};color:#ffffff;text-decoration:none;text-align:center;padding:16px 20px;border-radius:14px;font-size:16px;font-weight:700;">Pay ${formatMoney(data.total)}</a>
       <div style="font-size:13px;color:${MUTED};text-align:center;margin-top:10px;">Secure payment powered by Stripe</div>
     </div>
 
@@ -317,6 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
       Questions? Reply to this email or contact ${escapeHtml(orgEmailLine || "us")}<br />
       ${escapeHtml(companyName)}
     </div>
+    ${footerMessage ? `<div style="padding:24px 32px;border-top:1px solid ${BORDER};text-align:center;font-size:13px;color:${MUTED};">${escapeHtml(footerMessage)}</div>` : ""}
   </div>
 </body>
 </html>`;
