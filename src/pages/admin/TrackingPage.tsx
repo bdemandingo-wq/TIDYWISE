@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { calculateDistanceMiles } from '@/lib/distanceUtils';
+import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
+import { useDistanceUnit } from '@/hooks/useDistanceUnit';
 import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
@@ -94,6 +95,7 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 }
 
 function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
+  const distanceUnit = useDistanceUnit();
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<{ durationMinutes: number; distanceMiles: number } | null>(null);
   const [, setTick] = useState(0);
@@ -121,12 +123,20 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
 
   // Geocode + ETA
   useEffect(() => {
+    // Bookings created through address autocomplete carry exact Places
+    // coordinates. Only fall back to geocode-address for legacy rows and
+    // hand-typed addresses — that path is still US-only.
+    const stored = booking as { latitude?: number | null; longitude?: number | null } | null;
+    if (stored?.latitude != null && stored?.longitude != null) {
+      setDestCoords({ lat: stored.latitude, lng: stored.longitude });
+      return;
+    }
     if (!addr) return;
     supabase.functions.invoke('geocode-address', { body: { address: addr } })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
       }).catch(() => {});
-  }, [addr]);
+  }, [addr, booking]);
 
   useEffect(() => {
     if (!destCoords) return;
@@ -211,7 +221,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
           </div>
           {eta && !isStale && (
             <span className="font-medium text-primary">
-              {eta.distanceMiles} mi · ETA ~{eta.durationMinutes} min (driving)
+              {formatDistance(eta.distanceMiles, distanceUnit)} · ETA ~{eta.durationMinutes} min (driving)
             </span>
           )}
         </div>
@@ -249,7 +259,7 @@ export default function TrackingPage() {
       .select(`
         id, latitude, longitude, is_active, recorded_at, created_at, booking_id, staff_id, organization_id,
         staff:staff_id(name),
-        booking:booking_id(booking_number, address, city, state, zip_code,
+        booking:booking_id(booking_number, address, city, state, zip_code, latitude, longitude,
           customer:customer_id(first_name, last_name),
           service:service_id(name)
         )

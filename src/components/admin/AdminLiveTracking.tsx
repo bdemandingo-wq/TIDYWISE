@@ -4,6 +4,7 @@ import { Navigation, Clock, MapPin, Car, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
+import { useDistanceUnit } from '@/hooks/useDistanceUnit';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 
@@ -72,7 +73,21 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
   return <div ref={mapRef} style={{ width: '100%', height: '200px', borderRadius: '8px' }} />;
 }
 
-export function AdminLiveTracking({ bookingId, address, bookingStatus }: { bookingId: string; address?: string; bookingStatus?: string }) {
+export function AdminLiveTracking({
+  bookingId,
+  address,
+  bookingStatus,
+  destLat,
+  destLng,
+}: {
+  bookingId: string;
+  address?: string;
+  bookingStatus?: string;
+  /** Places coordinates stored on the booking, when it has them. */
+  destLat?: number | null;
+  destLng?: number | null;
+}) {
+  const distanceUnit = useDistanceUnit();
   const [tracking, setTracking] = useState<TrackingInfo | null>(null);
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -139,15 +154,23 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
     return () => { supabase.removeChannel(channel); };
   }, [bookingId]);
 
-  // Geocode destination
+  // Resolve destination coordinates
   useEffect(() => {
-    if (!address || destCoords || !tracking) return;
+    if (destCoords || !tracking) return;
+    // Prefer what the booking already stores — Places gave us these at
+    // entry time and they work internationally. geocode-address is the
+    // legacy fallback and is still hard-locked to the US.
+    if (destLat != null && destLng != null) {
+      setDestCoords({ lat: destLat, lng: destLng });
+      return;
+    }
+    if (!address) return;
     supabase.functions.invoke('geocode-address', { body: { address } })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
       })
       .catch(() => {});
-  }, [address, tracking]);
+  }, [address, tracking, destCoords, destLat, destLng]);
 
   // Fetch real driving ETA from Google Maps
   useEffect(() => {
@@ -240,7 +263,7 @@ export function AdminLiveTracking({ bookingId, address, bookingStatus }: { booki
             <div className="flex items-center gap-1">
               <MapPin className="h-3 w-3" />
               <span className="font-medium text-primary">
-                {drivingEta.distanceMiles} mi · ETA ~{drivingEta.durationMinutes} min (driving)
+                {formatDistance(drivingEta.distanceMiles, distanceUnit)} · ETA ~{drivingEta.durationMinutes} min (driving)
               </span>
             </div>
           )}

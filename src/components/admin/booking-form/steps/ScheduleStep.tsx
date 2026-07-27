@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
+import { useDistanceUnit } from '@/hooks/useDistanceUnit';
 import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
 import { useOrgId } from '@/hooks/useOrgId';
 
@@ -87,7 +88,10 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     city,
     state,
     zipCode,
+    latitude,
+    longitude,
   } = useBookingForm();
+  const distanceUnit = useDistanceUnit();
 
   const { organizationId } = useOrgId();
   const { data: schedulingConfig } = useSchedulingMode(organizationId);
@@ -117,6 +121,16 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
 
   // Geocode the job address when it changes - with cache, retry, and fallback queries
   useEffect(() => {
+    // Google Places already gave us exact coordinates when the address was
+    // picked from autocomplete, so skip the geocoder entirely. This is the
+    // common path now; everything below is the legacy fallback for
+    // hand-typed addresses and bookings created before autocomplete.
+    if (latitude != null && longitude != null) {
+      setJobCoordinates({ lat: latitude, lng: longitude });
+      setIsGeocodingJob(false);
+      return;
+    }
+
     const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ').trim();
     if (!fullAddress || fullAddress.length < 5) {
       setJobCoordinates(null);
@@ -204,7 +218,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [address, city, state, zipCode]);
+  }, [address, city, state, zipCode, latitude, longitude]);
 
   // Calculate distance from staff home to job location
   const getStaffDistance = (staffMember: { home_latitude?: number | null; home_longitude?: number | null }) => {
@@ -220,7 +234,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     return {
       miles,
       driveMinutes: estimateDriveMinutes(miles),
-      display: formatDistance(miles),
+      display: formatDistance(miles, distanceUnit),
       driveDisplay: formatDriveTime(estimateDriveMinutes(miles)),
     };
   };
