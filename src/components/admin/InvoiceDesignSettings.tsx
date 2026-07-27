@@ -254,7 +254,7 @@ export function InvoiceDesignSettings() {
   );
 }
 
-function InvoicePreview({ form }: { form: Omit<InvoiceBranding, 'id' | 'organization_id'> }) {
+function InvoicePreview({ form }: { form: { logo_url: string | null; primary_color: string; accent_color: string; header_layout: 'left' | 'center' | 'right'; footer_message: string } }) {
   const logoEl = form.logo_url ? (
     <img src={form.logo_url} alt="Logo" className="h-8 w-auto max-w-[120px] object-contain" height={32} loading="lazy" />
   ) : null;
