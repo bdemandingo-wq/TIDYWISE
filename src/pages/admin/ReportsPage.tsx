@@ -218,6 +218,10 @@ export default function ReportsPage() {
       const year = monthDate.getFullYear();
       
       const monthBookings = filteredBookings.filter(b => {
+        // Cancelled work is not revenue. Without this the bar counted it,
+        // which is why it read higher than Finance's Total Sales for the
+        // same window. Matches the status handling in totalStats below.
+        if (b.status === 'cancelled') return false;
         const bookingDate = new Date(b.scheduled_at);
         return bookingDate.getMonth() === monthIndex && bookingDate.getFullYear() === year;
       });
