@@ -85,7 +85,7 @@ type PublicBookingDataResponse = {
   organization?: { id: string; name: string; logo_url: string | null };
   services?: any[];
   servicePricing?: any[];
-  branding?: { primary_color: string; accent_color: string } | null;
+  branding?: { primary_color: string; accent_color: string; website_url?: string | null } | null;
   bookingFormTheme?: string;
   formColors?: FormColors;
   displaySettings?: PublicDisplaySettings;
@@ -109,6 +109,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
   const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [organizationName, setOrganizationName] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [websiteUrl, setWebsiteUrl] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState<string | null>(null);
   const [accentColor, setAccentColor] = useState<string | null>(null);
   const [bookingFormTheme, setBookingFormTheme] = useState<'light' | 'dark'>('dark');
@@ -162,6 +163,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
         setLogoUrl(data.organization.logo_url);
         if (data.branding) {
           setPrimaryColor(data.branding.primary_color);
+          setWebsiteUrl(data.branding.website_url ?? null);
           setAccentColor(data.branding.accent_color);
         }
         setBookingFormTheme((data.bookingFormTheme === 'light' ? 'light' : 'dark'));
@@ -254,6 +256,7 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
     organizationId,
     organizationName,
     logoUrl,
+    websiteUrl,
     primaryColor,
     accentColor,
     bookingFormTheme,
