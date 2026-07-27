@@ -130,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: bizSettings } = await supabase
       .from("business_settings")
-      .select("company_name, company_email, company_phone, company_address, company_city, company_state, company_zip")
+      .select("company_name, company_email, company_phone, company_address, company_city, company_state, company_zip, logo_url, primary_color, invoice_footer_message")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
