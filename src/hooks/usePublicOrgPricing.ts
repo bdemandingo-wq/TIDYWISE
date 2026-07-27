@@ -65,6 +65,7 @@ export interface PublicOrgData {
   organizationId: string | null;
   organizationName: string;
   logoUrl: string | null;
+  websiteUrl: string | null;
   primaryColor: string | null;
   accentColor: string | null;
   bookingFormTheme: 'light' | 'dark';
