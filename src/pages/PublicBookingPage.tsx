@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1243,7 +1244,20 @@ export default function PublicBookingPage() {
                       <Label htmlFor="address">Street Address <span className="text-destructive" aria-hidden="true">*</span></Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input id="address" required autoComplete="street-address" placeholder="123 Main Street" className="pl-9" value={customerInfo.address} onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })} />
+                        <AddressAutocomplete
+                          id="address"
+                          required
+                          value={customerInfo.address}
+                          onChange={(v) => setCustomerInfo({ ...customerInfo, address: v })}
+                          onResolved={(r) => setCustomerInfo((prev) => ({
+                            ...prev,
+                            city: r.city || prev.city,
+                            state: r.state || prev.state,
+                            zipCode: r.zip || prev.zipCode,
+                          }))}
+                          placeholder="123 Main Street"
+                          inputClassName="pl-9"
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import { Loader2, User, MapPin, Plus, Trash2, Check, Trophy, FileText, Download } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -393,13 +394,19 @@ export function PortalProfileTab() {
 
                 <div className="space-y-1">
                   <Label className="text-xs">Street Address *</Label>
-                  <Input
-                    placeholder="123 Main St"
+                  <AddressAutocomplete
                     value={newLocation.address}
-                    onChange={(e) =>
-                      setNewLocation({ ...newLocation, address: e.target.value })
+                    onChange={(v) => setNewLocation({ ...newLocation, address: v })}
+                    onResolved={(r) =>
+                      setNewLocation((prev) => ({
+                        ...prev,
+                        city: r.city || prev.city,
+                        state: r.state || prev.state,
+                        zip_code: r.zip || prev.zip_code,
+                      }))
                     }
-                    className="h-9"
+                    placeholder="123 Main St"
+                    inputClassName="h-9"
                   />
                 </div>
 

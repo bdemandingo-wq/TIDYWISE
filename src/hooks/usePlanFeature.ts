@@ -70,13 +70,9 @@ export function usePlanState(): PlanState {
       // a redeemed access code, or an in-progress Stripe trial. See
       // public.effective_plan.
       const fetchPlan = async () => {
-        const { data, error } = await supabase.rpc('my_effective_plan' as never);
+        const { data, error } = await supabase.rpc('my_effective_plan');
         if (error) throw error;
-        const rows = data as unknown;
-        return (Array.isArray(rows) ? rows[0] : rows) as
-          | { plan_type?: string; grandfathered?: boolean }
-          | null
-          | undefined;
+        return Array.isArray(data) ? data[0] : data;
       };
 
       try {

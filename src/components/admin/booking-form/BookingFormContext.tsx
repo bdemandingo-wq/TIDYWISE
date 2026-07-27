@@ -52,7 +52,10 @@ interface BookingFormState {
   city: string;
   state: string;
   zipCode: string;
-  
+  /** From Google Places when the address was picked from autocomplete. */
+  latitude: number | null;
+  longitude: number | null;
+
   // Service
   selectedServiceId: string;
   squareFootage: string;
@@ -149,6 +152,8 @@ interface BookingFormContextType extends BookingFormState {
   setCity: (city: string) => void;
   setState: (state: string) => void;
   setZipCode: (zipCode: string) => void;
+  setLatitude: (lat: number | null) => void;
+  setLongitude: (lng: number | null) => void;
   setSelectedServiceId: (id: string) => void;
   setSquareFootage: (sqft: string) => void;
   setBedrooms: (bedrooms: string) => void;
@@ -238,6 +243,8 @@ export function BookingFormProvider({
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   
   // Service state
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -499,6 +506,8 @@ export function BookingFormProvider({
     setCity('');
     setState('');
     setZipCode('');
+    setLatitude(null);
+    setLongitude(null);
     setFrequency('one_time');
     setCustomFrequencyDays(null);
     setRecurringDaysOfWeek(null);
@@ -568,6 +577,8 @@ export function BookingFormProvider({
     setCity(booking.city || '');
     setState(booking.state || '');
     setZipCode(booking.zip_code || '');
+    setLatitude((booking as any).latitude ?? null);
+    setLongitude((booking as any).longitude ?? null);
     setSelectedLocationId((booking as any).location_id || null);
     setFrequency(booking.frequency || 'one_time');
     setCustomFrequencyDays((booking as any).custom_frequency_days || null);
@@ -697,6 +708,8 @@ export function BookingFormProvider({
       city,
       state,
       zipCode,
+      latitude,
+      longitude,
       selectedServiceId,
       squareFootage,
       bedrooms,
@@ -759,6 +772,8 @@ export function BookingFormProvider({
       setCity,
       setState,
       setZipCode,
+      setLatitude,
+      setLongitude,
       setSelectedServiceId,
       setSquareFootage,
       setBedrooms,

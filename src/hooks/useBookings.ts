@@ -136,6 +136,9 @@ export interface NewCustomerData {
   city?: string;
   state?: string;
   zip_code?: string;
+  /** From Google Places when the address came from autocomplete. */
+  latitude?: number;
+  longitude?: number;
 }
 
 export function useBookings() {

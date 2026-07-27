@@ -9,6 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { Camera, Save, Loader2, User, Mail, Phone, FileText, MapPin, Home } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
+import { maybeAdoptOrgCountry } from '@/lib/orgCountry';
+import { useOrgId } from '@/hooks/useOrgId';
 
 interface StaffInfo {
   id: string;
@@ -30,6 +33,7 @@ interface Props {
 
 export function CleanerProfile({ staffInfo, userId }: Props) {
   const queryClient = useQueryClient();
+  const { organizationId } = useOrgId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(null);
@@ -38,36 +42,21 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
     phone: staffInfo.phone || '',
     bio: staffInfo.bio || '',
     home_address: staffInfo.home_address || '',
+    home_latitude: staffInfo.home_latitude,
+    home_longitude: staffInfo.home_longitude,
   });
   const [hasChanges, setHasChanges] = useState(false);
-  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
 
   // Update profile mutation
   const updateProfile = useMutation({
-    mutationFn: async (data: { name: string; phone: string; bio: string; home_address: string }) => {
-      // If address changed, try to geocode it
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-
-      if (data.home_address && data.home_address !== staffInfo.home_address) {
-        setIsGeocodingAddress(true);
-        try {
-          const { data: geocodeResult, error: geocodeError } = await supabase.functions.invoke('geocode-address', {
-            body: { address: data.home_address },
-          });
-          if (!geocodeError && geocodeResult?.success) {
-            latitude = geocodeResult.lat;
-            longitude = geocodeResult.lng;
-            console.log('Geocoded address:', { latitude, longitude });
-          } else {
-            console.warn('Geocoding returned no results, address will be saved without coordinates');
-          }
-        } catch (geocodeError) {
-          console.error('Geocoding failed:', geocodeError);
-        }
-        setIsGeocodingAddress(false);
-      }
-
+    mutationFn: async (data: {
+      name: string;
+      phone: string;
+      bio: string;
+      home_address: string;
+      home_latitude: number | null;
+      home_longitude: number | null;
+    }) => {
       const updateData: Record<string, unknown> = {
         name: data.name,
         phone: data.phone || null,
@@ -75,10 +64,12 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
         home_address: data.home_address || null,
       };
 
-      // Only update lat/lng if we have new values
-      if (latitude !== null && longitude !== null) {
-        updateData.home_latitude = latitude;
-        updateData.home_longitude = longitude;
+      // Coordinates come from Google Places at pick time. The old path
+      // called geocode-address, which is hard-locked to the US and returned
+      // success:false for every non-US address without surfacing anything.
+      if (data.home_latitude !== null && data.home_longitude !== null) {
+        updateData.home_latitude = data.home_latitude;
+        updateData.home_longitude = data.home_longitude;
       }
 
       const { error } = await supabase
@@ -298,30 +289,41 @@ export function CleanerProfile({ staffInfo, userId }: Props) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="home_address">Street Address</Label>
-            <div className="relative">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="home_address"
-                value={formData.home_address}
-                onChange={(e) => handleInputChange('home_address', e.target.value)}
-                className="pl-10"
-                placeholder="123 Main St, City, State 12345"
-              />
-            </div>
+            <AddressAutocomplete
+              id="home_address"
+              value={formData.home_address}
+              onChange={(v) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  home_address: v,
+                  home_latitude: null,
+                  home_longitude: null,
+                }));
+                setHasChanges(true);
+              }}
+              onResolved={(r) => {
+                const full = [r.street, r.city, [r.state, r.zip].filter(Boolean).join(' ')]
+                  .filter(Boolean)
+                  .join(', ');
+                setFormData((prev) => ({
+                  ...prev,
+                  home_address: full || prev.home_address,
+                  home_latitude: r.lat,
+                  home_longitude: r.lng,
+                }));
+                setHasChanges(true);
+                void maybeAdoptOrgCountry(organizationId, r.country);
+              }}
+              placeholder="Start typing your address..."
+            />
             <p className="text-xs text-muted-foreground">
-              Enter your full address including city, state, and ZIP code
+              Pick your address from the dropdown so we can map it
             </p>
           </div>
           {staffInfo.home_latitude && staffInfo.home_longitude && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <MapPin className="h-3 w-3" />
               <span>Location verified: {staffInfo.home_latitude.toFixed(4)}, {staffInfo.home_longitude.toFixed(4)}</span>
-            </div>
-          )}
-          {isGeocodingAddress && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span>Verifying address location...</span>
             </div>
           )}
         </CardContent>
