@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Printer, ExternalLink, Send, Loader2, ChevronLeft } from 'lucide-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ import {
   isInvoicePaid,
 } from '@/lib/invoiceUtils';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
+import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
 
 interface InvoiceViewDialogProps {
   open: boolean;
@@ -35,21 +36,10 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const queryClient = useQueryClient();
   const [sending, setSending] = useState(false);
 
-  const { data: businessSettings } = useQuery({
-    queryKey: ['business-settings', organization?.id],
-    queryFn: async () => {
-      if (!organization?.id) return null;
-      const { data, error } = await supabase
-        .from('business_settings')
-        .select('*')
-        .eq('organization_id', organization.id)
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!organization?.id,
-  });
+  // Name chain matches send-invoice exactly, so the preview, the print
+  // output and the emailed invoice all agree — and none of them can fall
+  // back to the platform's brand.
+  const businessInfo = useInvoiceBusinessInfo();
 
   if (!invoice) return null;
 
@@ -60,10 +50,6 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const dueDate = getInvoiceDueDate(invoice);
   const isPaid = isInvoicePaid(invoice);
 
-  const companyAddressLines = [
-    businessSettings?.company_address,
-    [businessSettings?.company_city, businessSettings?.company_state, businessSettings?.company_zip].filter(Boolean).join(', '),
-  ].filter(Boolean);
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -175,10 +161,10 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
 
         <div ref={printRef}>
           <InvoiceDocument
-            businessName={businessSettings?.company_name || 'TidyWise Cleaning'}
-            businessEmail={businessSettings?.company_email}
-            businessPhone={businessSettings?.company_phone}
-            businessAddressLines={companyAddressLines}
+            businessName={businessInfo.businessName}
+            businessEmail={businessInfo.businessEmail}
+            businessPhone={businessInfo.businessPhone}
+            businessAddressLines={businessInfo.businessAddressLines}
             invoiceNumber={invoiceNumber}
             invoiceDate={invoice.created_at}
             dueDate={dueDate}
@@ -197,7 +183,7 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
             paymentUrl={!isPaid ? invoice.stripe_invoice_url : null}
           />
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            Questions? Reply to this email or contact {businessSettings?.company_email || 'us'}
+            Questions? Reply to this email or contact {businessInfo.businessEmail || 'us'}
           </div>
         </div>
       </DialogContent>

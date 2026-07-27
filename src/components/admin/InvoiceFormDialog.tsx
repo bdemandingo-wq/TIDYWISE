@@ -37,6 +37,7 @@ import { PaymentRemindersSheet } from './invoice/PaymentRemindersSheet';
 import { DueDateSheet } from './invoice/DueDateSheet';
 import { SendScheduleSheet } from './invoice/SendScheduleSheet';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
+import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
 import { formatInvoiceNumber } from '@/lib/invoiceUtils';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -70,6 +71,7 @@ export function InvoiceFormDialog({
   defaultTaxPercent,
   organizationId,
 }: InvoiceFormDialogProps) {
+  const businessInfo = useInvoiceBusinessInfo();
   const queryClient = useQueryClient();
   const isEditing = invoice?.id && invoice.id.length > 10;
 
@@ -1054,7 +1056,10 @@ export function InvoiceFormDialog({
             {selectedCustomer && (
               <div className="p-2">
                 <InvoiceDocument
-                  businessName="TidyWise Cleaning"
+                  businessName={businessInfo.businessName}
+                  businessEmail={businessInfo.businessEmail}
+                  businessPhone={businessInfo.businessPhone}
+                  businessAddressLines={businessInfo.businessAddressLines}
                   invoiceNumber={isEditing ? formatInvoiceNumber(invoice.invoice_number) : 'INV-NEW'}
                   invoiceDate={new Date().toISOString()}
                   dueDate={formData.due_date || format(addDays(new Date(), 7), 'yyyy-MM-dd')}
