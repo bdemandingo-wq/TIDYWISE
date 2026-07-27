@@ -133,7 +133,12 @@ const TIER_RANK: Record<RequiredTier, number> = {
 
 export interface PlanContext {
   planType: PlanType;
-  /** True for any org that was active before the pricing launch. */
+  /**
+   * @deprecated No longer consulted. Grandfathered orgs are resolved to
+   * planType 'lifetime' by public.effective_plan, which grants every
+   * feature except custom_work_requests. Kept only so existing callers
+   * still compile; safe to remove once they stop passing it.
+   */
   grandfathered: boolean;
 }
 
@@ -141,13 +146,16 @@ export function canAccess(
   featureKey: FeatureKey,
   ctx: PlanContext,
 ): boolean {
-  // Grandfathered orgs bypass every gate — they paid (or were here)
-  // before the new pricing existed and we promised they'd never lose
-  // access.
-  if (ctx.grandfathered) return true;
-
-  // Custom-work requests are a Custom-tier benefit only. Lifetime
-  // intentionally does NOT include them (per pricing spec).
+  // Custom-work requests are a paid-Custom benefit only. Nobody else gets
+  // them — not lifetime, not grandfathered, not comped, not trialing.
+  // Done-for-you work costs real hours, so it tracks an actual paid Custom
+  // subscription rather than feature tier.
+  //
+  // There used to be a blanket `if (ctx.grandfathered) return true` above
+  // this, which handed grandfathered orgs custom work as a side effect and
+  // contradicted the tier spec. Removing it changes nothing else: every
+  // other feature tops out at TIER_RANK 3, and effective_plan resolves
+  // grandfathered orgs to 'lifetime', which is PLAN_RANK 3.
   if (featureKey === 'custom_work_requests') {
     return ctx.planType === 'custom';
   }

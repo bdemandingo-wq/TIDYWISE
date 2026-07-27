@@ -90,9 +90,13 @@ export function PlanSwitcher() {
   const [downgrade, setDowngrade] = useState<DowngradeState>({ to: null, date: null });
   const [cancellingDowngrade, setCancellingDowngrade] = useState(false);
 
-  const currentPlanId = planState.planType;
-  const isLifetime =
-    currentPlanId === "lifetime" || planState.grandfathered;
+  // Billing UI must reflect the plan the org is actually ON, not the tier
+  // effective_plan grants them. effective_plan returns 'lifetime' for
+  // comped orgs and anyone mid-trial too, so reading planType here told a
+  // 14-day trial user they were a lifetime customer with nothing to buy —
+  // and hid the plan switcher that would have converted them.
+  const currentPlanId = planState.rawPlanType;
+  const isLifetime = currentPlanId === "lifetime";
 
   const currentPlan = useMemo(
     () => PLANS.find((p) => p.id === currentPlanId) ?? null,
