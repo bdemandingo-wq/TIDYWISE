@@ -2214,6 +2214,7 @@ export type Database = {
           surge_weekend_multiplier: number
           timezone: string | null
           updated_at: string
+          website_url: string | null
         }
         Insert: {
           accent_color?: string | null
@@ -2281,6 +2282,7 @@ export type Database = {
           surge_weekend_multiplier?: number
           timezone?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
           accent_color?: string | null
@@ -2348,6 +2350,7 @@ export type Database = {
           surge_weekend_multiplier?: number
           timezone?: string | null
           updated_at?: string
+          website_url?: string | null
         }
         Relationships: [
           {
