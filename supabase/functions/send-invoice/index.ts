@@ -220,6 +220,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
     const companyName = bizSettings?.company_name || emailSettings.from_name || orgRow?.name || "Your Business";
+    const logoUrl = await resolveLogoUrl(bizSettings?.logo_url ?? null, SUPABASE_URL!, supabase);
+    const brandColor = bizSettings?.primary_color || ACCENT;
+    const footerMessage = bizSettings?.invoice_footer_message || "";
     const orgEmailLine = bizSettings?.company_email || emailSettings.from_email;
     const companyMeta = [
       [bizSettings?.company_address, [bizSettings?.company_city, bizSettings?.company_state, bizSettings?.company_zip].filter(Boolean).join(", ")].filter(Boolean).join("\n"),
