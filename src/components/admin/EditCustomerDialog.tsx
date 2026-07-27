@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import {
   Dialog,
   DialogContent,
@@ -517,11 +518,17 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm">Street Address *</Label>
-                  <Input
+                  <AddressAutocomplete
                     value={newAddress.address}
-                    onChange={(e) => setNewAddress(prev => ({ ...prev, address: e.target.value }))}
+                    onChange={(v) => setNewAddress(prev => ({ ...prev, address: v }))}
+                    onResolved={(r) => setNewAddress(prev => ({
+                      ...prev,
+                      city: r.city || prev.city,
+                      state: r.state || prev.state,
+                      zip_code: r.zip || prev.zip_code,
+                    }))}
                     placeholder="123 Main St"
-                    className="h-9"
+                    inputClassName="h-9"
                   />
                 </div>
                 <div className="space-y-2">

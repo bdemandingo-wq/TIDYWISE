@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, Calendar as CalendarIcon, Clock, Loader2, MapPin, Send, AlertTriangle, Plus, Home } from "lucide-react";
@@ -453,11 +454,19 @@ export default function PortalRequestPage() {
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Street Address *</Label>
-                      <Input
-                        placeholder="123 Main St"
+                      <AddressAutocomplete
                         value={newAddr.address}
-                        onChange={(e) => setNewAddr(prev => ({ ...prev, address: e.target.value }))}
-                        className="h-9"
+                        onChange={(v) => setNewAddr(prev => ({ ...prev, address: v }))}
+                        onResolved={(r) =>
+                          setNewAddr(prev => ({
+                            ...prev,
+                            city: r.city || prev.city,
+                            state: r.state || prev.state,
+                            zip_code: r.zip || prev.zip_code,
+                          }))
+                        }
+                        placeholder="123 Main St"
+                        inputClassName="h-9"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">

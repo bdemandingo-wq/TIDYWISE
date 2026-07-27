@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
+import { maybeAdoptOrgCountry } from '@/lib/orgCountry';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -667,10 +669,18 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Business Address</Label>
-                <Input
+                <AddressAutocomplete
                   id="address"
                   value={settings.company_address}
-                  onChange={(e) => updateField('company_address', e.target.value)}
+                  onChange={(v) => updateField('company_address', v)}
+                  onResolved={(r) => {
+                    if (r.city) updateField('company_city', r.city);
+                    if (r.state) updateField('company_state', r.state);
+                    if (r.zip) updateField('company_zip', r.zip);
+                    // The business's own address — the authoritative country
+                    // signal. Staff home addresses are the weaker fallback.
+                    void maybeAdoptOrgCountry(organization?.id ?? null, r.country);
+                  }}
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
