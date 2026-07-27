@@ -101,7 +101,10 @@ export function usePlanState(): PlanState {
         const next: PlanState = {
           planType: (row?.plan_type as PlanType) ?? 'free',
           rawPlanType: (row?.raw_plan_type as PlanType) ?? 'free',
-          grandfathered: !!row?.grandfathered,
+          // Deprecated and always false. my_effective_plan stopped
+          // returning it once canAccess stopped reading it; grandfathered
+          // orgs now arrive as planType 'lifetime' instead.
+          grandfathered: false,
           loading: false,
         };
         cachedKey = userId;
