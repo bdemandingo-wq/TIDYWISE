@@ -253,11 +253,12 @@ const handler = async (req: Request): Promise<Response> => {
   <div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid ${BORDER};border-radius:20px;overflow:hidden;">
     <div style="padding:32px;border-bottom:1px solid ${BORDER};display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;">
       <div>
+        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="max-height:48px;max-width:180px;object-fit:contain;display:block;margin-bottom:12px;" />` : ""}
         <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};">${escapeHtml(companyName)}</div>
         ${companyMeta.map((line) => `<div style="font-size:14px;line-height:1.6;color:${MUTED};margin-top:4px;">${renderAddress(line)}</div>`).join("")}
       </div>
       <div style="text-align:right;">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};">Invoice</div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${brandColor};">Invoice</div>
         <div style="font-size:34px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};margin-top:6px;">${invoiceNumber}</div>
         <div style="display:inline-block;margin-top:12px;padding:6px 12px;border-radius:999px;background:#e0f2fe;color:${ACCENT};font-size:12px;font-weight:700;">Sent</div>
       </div>
