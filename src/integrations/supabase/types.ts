@@ -5381,6 +5381,8 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_primary: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string
           organization_id: string | null
           phone: string | null
@@ -5400,6 +5402,8 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_primary?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           organization_id?: string | null
           phone?: string | null
@@ -5419,6 +5423,8 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_primary?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           organization_id?: string | null
           phone?: string | null
@@ -10391,6 +10397,8 @@ export type Database = {
           p_city?: string
           p_client_user_id: string
           p_is_primary?: boolean
+          p_latitude?: number
+          p_longitude?: number
           p_name: string
           p_state?: string
           p_zip_code?: string
