@@ -25,6 +25,14 @@ import {
 
 interface PlanState extends PlanContext {
   loading: boolean;
+  /**
+   * organizations.plan_type as stored, before effective_plan folds in
+   * comps, access codes and trials. Use this to answer "what plan is this
+   * org actually ON" — billing UI, plan switching. Use planType for "what
+   * features do they get". Conflating the two told every trialing and
+   * comped org they were a lifetime customer.
+   */
+  rawPlanType: PlanType;
 }
 
 // Session-level cache so every component that asks doesn't refetch.
@@ -34,6 +42,7 @@ let cachedState: PlanState | null = null;
 
 const DEFAULT_STATE: PlanState = {
   planType: 'free',
+  rawPlanType: 'free',
   grandfathered: false,
   loading: true,
 };
@@ -53,7 +62,12 @@ export function usePlanState(): PlanState {
       cachedState = null;
     }
     if (!userId) {
-      const next: PlanState = { planType: 'free', grandfathered: false, loading: false };
+      const next: PlanState = {
+        planType: 'free',
+        rawPlanType: 'free',
+        grandfathered: false,
+        loading: false,
+      };
       cachedState = next;
       setState(next);
       return;
@@ -86,6 +100,7 @@ export function usePlanState(): PlanState {
 
         const next: PlanState = {
           planType: (row?.plan_type as PlanType) ?? 'free',
+          rawPlanType: (row?.raw_plan_type as PlanType) ?? 'free',
           grandfathered: !!row?.grandfathered,
           loading: false,
         };
@@ -102,7 +117,12 @@ export function usePlanState(): PlanState {
         // gate to mount retries.
         if (!cancelled) {
           cachedState = null;
-          setState({ planType: 'free', grandfathered: false, loading: true });
+          setState({
+            planType: 'free',
+            rawPlanType: 'free',
+            grandfathered: false,
+            loading: true,
+          });
         }
       }
     })();
