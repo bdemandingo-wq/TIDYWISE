@@ -127,6 +127,8 @@ export default function PublicBookingPage() {
     city: '',
     state: '',
     zipCode: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
     notes: '',
   });
 
@@ -444,6 +446,8 @@ export default function PublicBookingPage() {
             city: customerInfo.city,
             state: customerInfo.state,
             zip_code: customerInfo.zipCode,
+            latitude: customerInfo.latitude ?? undefined,
+            longitude: customerInfo.longitude ?? undefined,
             service_name: service?.name || '',
             scheduled_at: scheduledAt,
             duration: service?.duration || 120,
@@ -1248,12 +1252,14 @@ export default function PublicBookingPage() {
                           id="address"
                           required
                           value={customerInfo.address}
-                          onChange={(v) => setCustomerInfo({ ...customerInfo, address: v })}
+                          onChange={(v) => setCustomerInfo({ ...customerInfo, address: v, latitude: null, longitude: null })}
                           onResolved={(r) => setCustomerInfo((prev) => ({
                             ...prev,
                             city: r.city || prev.city,
                             state: r.state || prev.state,
                             zipCode: r.zip || prev.zipCode,
+                            latitude: r.lat,
+                            longitude: r.lng,
                           }))}
                           placeholder="123 Main Street"
                           inputClassName="pl-9"

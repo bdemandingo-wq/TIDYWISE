@@ -280,6 +280,8 @@ export function BookingDetailsDialog({
             bookingId={booking.id}
             address={[booking.address, booking.city, booking.state].filter(Boolean).join(', ')}
             bookingStatus={booking.status}
+            destLat={(booking as { latitude?: number | null }).latitude}
+            destLng={(booking as { longitude?: number | null }).longitude}
           />
         </div>
 

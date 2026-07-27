@@ -94,6 +94,8 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
     staffId: staffInfo.id || '',
     organizationId: booking.organization_id || '',
     destinationAddress: destAddress || undefined,
+    destinationLat: (booking as { latitude?: number | null }).latitude,
+    destinationLng: (booking as { longitude?: number | null }).longitude,
   });
 
   // Stop tracking when booking moves to in_progress or completed

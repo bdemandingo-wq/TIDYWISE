@@ -37,10 +37,25 @@ export function estimateDriveMinutes(distanceMiles: number): number {
   return Math.round(hours * 60);
 }
 
+/** Display unit for distances. Resolved from the org's country_code. */
+export type DistanceUnit = 'mi' | 'km';
+
+const KM_PER_MILE = 1.609344;
+
 /**
- * Format distance for display
+ * Format distance for display.
+ *
+ * Everything upstream computes and passes MILES — the haversine, the
+ * drive-time estimate, and get-driving-eta all stay in miles so their
+ * heuristics keep their tuning. Conversion happens here and nowhere else,
+ * so there is exactly one place a unit can go wrong.
  */
-export function formatDistance(distanceMiles: number): string {
+export function formatDistance(distanceMiles: number, unit: DistanceUnit = 'mi'): string {
+  if (unit === 'km') {
+    const km = distanceMiles * KM_PER_MILE;
+    if (km < 0.1) return '< 0.1 km';
+    return `${km.toFixed(1)} km`;
+  }
   if (distanceMiles < 0.1) {
     return '< 0.1 mi';
   }
@@ -63,124 +78,6 @@ export function formatDriveTime(minutes: number): string {
     return `~${hours} hr`;
   }
   return `~${hours} hr ${remainingMinutes} min`;
-}
-
-/**
- * Normalize US address for geocoding accuracy
- */
-function normalizeUSAddress(address: string): string {
-  let normalized = address.trim().toLowerCase();
-
-  // Remove apartment/unit/suite identifiers – they confuse geocoders
-  normalized = normalized
-    .replace(/\b(apt|apartment|unit|suite|ste|bldg|building)\.?\s*#?\s*[\w-]+/gi, '')
-    .replace(/\s+#[\w-]+/gi, '');
-
-  // Replace common street abbreviations with full words
-  const streetAbbrevs: [RegExp, string][] = [
-    [/\brd\b/gi, 'road'],
-    [/\bave\b/gi, 'avenue'],
-    [/\bblvd\b/gi, 'boulevard'],
-    [/\bdr\b/gi, 'drive'],
-    [/\bln\b/gi, 'lane'],
-    [/\bct\b/gi, 'court'],
-    [/\bcir\b/gi, 'circle'],
-    [/\bpl\b/gi, 'place'],
-    [/\bpkwy\b/gi, 'parkway'],
-    [/\bhwy\b/gi, 'highway'],
-    [/\btrl\b/gi, 'trail'],
-    [/\bter\b/gi, 'terrace'],
-  ];
-  for (const [pattern, replacement] of streetAbbrevs) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-
-  // Collapse whitespace
-  normalized = normalized.replace(/\s+/g, ' ').trim();
-
-  // Remove double commas or trailing commas before state/zip
-  normalized = normalized.replace(/,\s*,/g, ',').replace(/,\s*$/g, '');
-
-  // Append USA if not present (helps Nominatim)
-  if (!normalized.includes('usa') && !normalized.includes('united states')) {
-    normalized = normalized + ', usa';
-  }
-
-  return normalized.trim();
-}
-
-function buildCommaFormattedCandidates(
-  normalizedNoCountry: string
-): string[] {
-  // Input example (already lowercased, units removed, abbreviations expanded):
-  // "6701 mallards cove road jupiter fl 33458"
-  const cleaned = normalizedNoCountry
-    .replace(/\s+/g, " ")
-    .replace(/,/g, " ")
-    .trim();
-
-  const tokens = cleaned.split(" ").filter(Boolean);
-  if (tokens.length < 4) return [];
-
-  const zip = tokens[tokens.length - 1];
-  const state = tokens[tokens.length - 2];
-
-  const isZip = /^\d{5}(?:-\d{4})?$/.test(zip);
-  const isState = /^[a-z]{2}$/i.test(state);
-  if (!isZip || !isState) return [];
-
-  const prefix = tokens.slice(0, -2);
-  if (prefix.length < 2) return [];
-
-  // Heuristic 1 (preferred): split street/city using a known street suffix.
-  const streetSuffixes = new Set([
-    "road",
-    "street",
-    "avenue",
-    "boulevard",
-    "drive",
-    "lane",
-    "court",
-    "circle",
-    "place",
-    "parkway",
-    "highway",
-    "trail",
-    "terrace",
-    "way",
-  ]);
-
-  const candidates: string[] = [];
-
-  let suffixIdx = -1;
-  for (let i = prefix.length - 1; i >= 0; i--) {
-    if (streetSuffixes.has(prefix[i])) {
-      suffixIdx = i;
-      break;
-    }
-  }
-
-  if (suffixIdx >= 0 && suffixIdx < prefix.length - 1) {
-    const street = prefix.slice(0, suffixIdx + 1).join(" ").trim();
-    const city = prefix.slice(suffixIdx + 1).join(" ").trim();
-    if (street && city) {
-      candidates.push(`${street}, ${city}, ${state.toUpperCase()} ${zip}`);
-    }
-  }
-
-  // Heuristic 2 (fallback): assume city is the last 1–3 tokens before state.
-  // This helps when the street suffix is missing (or abbreviated in an unexpected way).
-  for (const cityLen of [1, 2, 3]) {
-    if (prefix.length <= cityLen) continue;
-    const street = prefix.slice(0, prefix.length - cityLen).join(" ").trim();
-    const city = prefix.slice(prefix.length - cityLen).join(" ").trim();
-    if (street && city) {
-      const formatted = `${street}, ${city}, ${state.toUpperCase()} ${zip}`;
-      if (!candidates.includes(formatted)) candidates.push(formatted);
-    }
-  }
-
-  return candidates;
 }
 
 /**
