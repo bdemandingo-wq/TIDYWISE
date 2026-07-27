@@ -4,6 +4,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { getOrgEmailSettings, formatEmailFrom, getReplyTo } from "../_shared/get-org-email-settings.ts";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
 import { resolveCallerOrg, isServiceRoleRequest } from "../_shared/require-caller-org.ts";
+import { resolveLogoUrl } from "../_shared/org-email-renderer.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -129,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: bizSettings } = await supabase
       .from("business_settings")
-      .select("company_name, company_email, company_phone, company_address, company_city, company_state, company_zip")
+      .select("company_name, company_email, company_phone, company_address, company_city, company_state, company_zip, logo_url, primary_color, invoice_footer_message")
       .eq("organization_id", data.organizationId)
       .maybeSingle();
 
@@ -219,6 +220,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const paymentUrl = session.url;
     const companyName = bizSettings?.company_name || emailSettings.from_name || orgRow?.name || "Your Business";
+    const logoUrl = await resolveLogoUrl(bizSettings?.logo_url ?? null, SUPABASE_URL!, supabase);
+    const brandColor = bizSettings?.primary_color || ACCENT;
+    const footerMessage = bizSettings?.invoice_footer_message || "";
     const orgEmailLine = bizSettings?.company_email || emailSettings.from_email;
     const companyMeta = [
       [bizSettings?.company_address, [bizSettings?.company_city, bizSettings?.company_state, bizSettings?.company_zip].filter(Boolean).join(", ")].filter(Boolean).join("\n"),
@@ -249,11 +253,12 @@ const handler = async (req: Request): Promise<Response> => {
   <div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid ${BORDER};border-radius:20px;overflow:hidden;">
     <div style="padding:32px;border-bottom:1px solid ${BORDER};display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;">
       <div>
+        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="max-height:48px;max-width:180px;object-fit:contain;display:block;margin-bottom:12px;" />` : ""}
         <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};">${escapeHtml(companyName)}</div>
         ${companyMeta.map((line) => `<div style="font-size:14px;line-height:1.6;color:${MUTED};margin-top:4px;">${renderAddress(line)}</div>`).join("")}
       </div>
       <div style="text-align:right;">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};">Invoice</div>
+        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${brandColor};">Invoice</div>
         <div style="font-size:34px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};margin-top:6px;">${invoiceNumber}</div>
         <div style="display:inline-block;margin-top:12px;padding:6px 12px;border-radius:999px;background:#e0f2fe;color:${ACCENT};font-size:12px;font-weight:700;">Sent</div>
       </div>
@@ -302,7 +307,7 @@ const handler = async (req: Request): Promise<Response> => {
     </div>
 
     <div style="padding:0 32px 32px;">
-      <a href="${paymentUrl}" target="_blank" style="display:block;background:${ACCENT};color:#ffffff;text-decoration:none;text-align:center;padding:16px 20px;border-radius:14px;font-size:16px;font-weight:700;">Pay ${formatMoney(data.total)}</a>
+      <a href="${paymentUrl}" target="_blank" style="display:block;background:${brandColor};color:#ffffff;text-decoration:none;text-align:center;padding:16px 20px;border-radius:14px;font-size:16px;font-weight:700;">Pay ${formatMoney(data.total)}</a>
       <div style="font-size:13px;color:${MUTED};text-align:center;margin-top:10px;">Secure payment powered by Stripe</div>
     </div>
 
@@ -312,6 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
       Questions? Reply to this email or contact ${escapeHtml(orgEmailLine || "us")}<br />
       ${escapeHtml(companyName)}
     </div>
+    ${footerMessage ? `<div style="padding:24px 32px;border-top:1px solid ${BORDER};text-align:center;font-size:13px;color:${MUTED};">${escapeHtml(footerMessage)}</div>` : ""}
   </div>
 </body>
 </html>`;

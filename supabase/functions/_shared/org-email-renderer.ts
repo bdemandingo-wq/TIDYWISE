@@ -64,7 +64,7 @@ export function replaceBookingVariables(text: string, data: BookingEmailData): s
  * image URL, then HEAD-verify it returns an image content-type. Returns null on failure
  * so callers can fall back to rendering the company name as text (no broken image).
  */
-async function resolveLogoUrl(
+export async function resolveLogoUrl(
   logoUrl: string | null,
   supabaseUrl: string,
   admin: ReturnType<typeof createClient>,
