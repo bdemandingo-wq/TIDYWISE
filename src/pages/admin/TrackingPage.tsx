@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
-import { useDistanceUnit } from '@/hooks/useDistanceUnit';
+import { useDistanceUnit, useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
@@ -95,7 +95,8 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
 }
 
 function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
-  const distanceUnit = useDistanceUnit();
+  const distanceUnit = useDistanceUnit(tracking.organization_id);
+  const orgCountry = useOrgCountryCode(tracking.organization_id);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [eta, setEta] = useState<{ durationMinutes: number; distanceMiles: number } | null>(null);
   const [, setTick] = useState(0);
@@ -132,11 +133,13 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
       return;
     }
     if (!addr) return;
-    supabase.functions.invoke('geocode-address', { body: { address: addr } })
+    supabase.functions.invoke('geocode-address', {
+      body: { address: addr, ...(orgCountry ? { country: orgCountry } : {}) },
+    })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
       }).catch(() => {});
-  }, [addr, booking]);
+  }, [addr, booking, orgCountry]);
 
   useEffect(() => {
     if (!destCoords) return;

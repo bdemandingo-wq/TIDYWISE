@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { MapPin, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import { useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { toast } from 'sonner';
 
 interface GpsCheckinProps {
@@ -28,6 +29,8 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 }
 
 export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress, type, onSuccess, disabled, disabledReason }: GpsCheckinProps) {
+  // Staff surfaces have no OrganizationContext, so pass the id explicitly.
+  const orgCountry = useOrgCountryCode(organizationId);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -45,7 +48,7 @@ export function GpsCheckin({ bookingId, staffId, organizationId, bookingAddress,
       // Geocode the booking address to compare
       if (bookingAddress) {
         const { data: geocoded } = await supabase.functions.invoke('geocode-address', {
-          body: { address: bookingAddress },
+          body: { address: bookingAddress, ...(orgCountry ? { country: orgCountry } : {}) },
         });
         if (geocoded?.lat && geocoded?.lng) {
           distanceMeters = Math.round(haversineMeters(latitude, longitude, geocoded.lat, geocoded.lng));
