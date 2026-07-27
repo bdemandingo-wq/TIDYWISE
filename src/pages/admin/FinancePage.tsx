@@ -118,6 +118,10 @@ export default function FinancePage() {
           staff:staff(*)
         `)
         .eq('organization_id', organizationId)
+        // Drafts are not committed work and must not count as revenue.
+        // Mirrors the guard in useBookings, which every other surface
+        // already goes through — this query was the outlier.
+        .or('is_draft.is.null,is_draft.eq.false')
         .gte('scheduled_at', dateRange.from.toISOString())
         .lte('scheduled_at', dateRange.to.toISOString())
         .order('scheduled_at', { ascending: false });
