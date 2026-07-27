@@ -578,7 +578,7 @@ export default function PricingPage() {
           </p>
           <p className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
             <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
-            Start with a 7-day free trial — card required, cancel anytime.
+            Start with a 14-day free trial — card required, cancel anytime.
           </p>
 
           <div
@@ -694,7 +694,7 @@ export default function PricingPage() {
                     </span>
                   </div>
                   <p className="text-xs font-medium text-primary mb-6">
-                    7 days free, then {price.display}{price.sub}
+                    14 days free, then {price.display}{price.sub}
                   </p>
 
                   <Button
@@ -703,13 +703,13 @@ export default function PricingPage() {
                     variant={tier.highlight ? 'default' : 'outline'}
                     size="lg"
                     className="w-full mb-2"
-                    aria-label={`Start 7-day free trial of ${tier.name} plan, ${billingInterval === 'yearly' ? 'billed yearly after trial' : 'billed monthly after trial'}`}
+                    aria-label={`Start 14-day free trial of ${tier.name} plan, ${billingInterval === 'yearly' ? 'billed yearly after trial' : 'billed monthly after trial'}`}
                     aria-busy={isBusy}
                   >
                     {isBusy ? (
                       <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                     ) : (
-                      `Start 7-day free trial`
+                      `Start 14-day free trial`
                     )}
                   </Button>
                   <p className="text-[11px] text-muted-foreground text-center mb-6">

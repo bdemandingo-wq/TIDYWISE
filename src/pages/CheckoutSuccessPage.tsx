@@ -51,7 +51,7 @@ export default function CheckoutSuccessPage() {
   const interval = searchParams.get('interval');
   const planLabel = PLAN_LABELS[plan] ?? null;
   const intervalLabel = interval === 'yearly' ? 'yearly' : interval === 'monthly' ? 'monthly' : null;
-  // During the 7-day free trial Stripe does NOT generate a paid invoice
+  // During the 14-day free trial Stripe does NOT generate a paid invoice
   // yet, so we must not claim a receipt was emailed.
   const isTrial = subscription?.trial_active === true;
   // Anonymous-checkout: the visitor paid without logging in. The webhook
@@ -220,7 +220,7 @@ export default function CheckoutSuccessPage() {
                     intervalLabel ? ` (${intervalLabel})` : ''
                   }. ${
                     isTrial
-                      ? `Your 7-day free trial is active — you won't be charged until it ends${
+                      ? `Your 14-day free trial is active — you won't be charged until it ends${
                           intervalLabel ? `, then billing starts ${intervalLabel}.` : '.'
                         } We'll email a receipt the moment your first payment is processed.`
                       : intervalLabel === 'yearly'
