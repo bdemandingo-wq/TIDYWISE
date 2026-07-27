@@ -149,6 +149,8 @@ serve(async (req) => {
           p_city: typeof body?.p_city === "string" && body.p_city.trim() ? body.p_city.trim() : null,
           p_state: typeof body?.p_state === "string" && body.p_state.trim() ? body.p_state.trim() : null,
           p_zip_code: typeof body?.p_zip_code === "string" && body.p_zip_code.trim() ? body.p_zip_code.trim() : null,
+          p_latitude: typeof body?.p_latitude === "number" && Math.abs(body.p_latitude) <= 90 ? body.p_latitude : null,
+          p_longitude: typeof body?.p_longitude === "number" && Math.abs(body.p_longitude) <= 180 ? body.p_longitude : null,
           p_is_primary: !!body?.p_is_primary,
         });
         if (error) return err(error.message, 500);
