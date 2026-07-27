@@ -1060,6 +1060,10 @@ export function InvoiceFormDialog({
                   businessEmail={businessInfo.businessEmail}
                   businessPhone={businessInfo.businessPhone}
                   businessAddressLines={businessInfo.businessAddressLines}
+                  logoUrl={businessInfo.logoUrl}
+                  primaryColor={businessInfo.primaryColor}
+                  headerLayout={businessInfo.headerLayout}
+                  footerMessage={businessInfo.footerMessage}
                   invoiceNumber={isEditing ? formatInvoiceNumber(invoice.invoice_number) : 'INV-NEW'}
                   invoiceDate={new Date().toISOString()}
                   dueDate={formData.due_date || format(addDays(new Date(), 7), 'yyyy-MM-dd')}

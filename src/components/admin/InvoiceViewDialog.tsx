@@ -165,6 +165,10 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
             businessEmail={businessInfo.businessEmail}
             businessPhone={businessInfo.businessPhone}
             businessAddressLines={businessInfo.businessAddressLines}
+            logoUrl={businessInfo.logoUrl}
+            primaryColor={businessInfo.primaryColor}
+            headerLayout={businessInfo.headerLayout}
+            footerMessage={businessInfo.footerMessage}
             invoiceNumber={invoiceNumber}
             invoiceDate={invoice.created_at}
             dueDate={dueDate}

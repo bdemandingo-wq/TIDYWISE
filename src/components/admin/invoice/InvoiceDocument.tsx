@@ -14,6 +14,12 @@ interface InvoiceDocumentProps {
   businessEmail?: string | null;
   businessPhone?: string | null;
   businessAddressLines?: string[];
+  /** business_settings.logo_url, already resolved to a fetchable URL. */
+  logoUrl?: string | null;
+  /** business_settings.primary_color — drives the Pay button. */
+  primaryColor?: string | null;
+  headerLayout?: 'left' | 'center' | 'right';
+  footerMessage?: string | null;
   invoiceNumber: string;
   invoiceDate: string;
   dueDate: string;
@@ -59,6 +65,10 @@ export function InvoiceDocument({
   businessEmail,
   businessPhone,
   businessAddressLines = [],
+  logoUrl,
+  primaryColor,
+  headerLayout = 'left',
+  footerMessage,
   invoiceNumber,
   invoiceDate,
   dueDate,
@@ -99,10 +109,34 @@ export function InvoiceDocument({
           gap: 24,
         }}
       >
-        <div style={{ flex: '1 1 240px', minWidth: 220 }}>
+        <div
+          style={{
+            flex: '1 1 240px',
+            minWidth: 220,
+            textAlign: headerLayout === 'left' ? 'left' : headerLayout,
+          }}
+        >
+          {logoUrl && (
+            <img
+              src={logoUrl}
+              // Company name, not "Logo" — email clients block remote images
+              // by default, so this alt text is what many recipients read.
+              alt={businessName}
+              style={{
+                maxHeight: 48,
+                maxWidth: 180,
+                objectFit: 'contain',
+                marginBottom: 12,
+                display: 'block',
+                marginLeft: headerLayout === 'center' ? 'auto' : headerLayout === 'right' ? 'auto' : undefined,
+                marginRight: headerLayout === 'center' ? 'auto' : undefined,
+              }}
+            />
+          )}
           <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em' }}>{businessName}</div>
           <div style={{ marginTop: 12, color: COLORS.muted, fontSize: 14, lineHeight: 1.7 }}>
             {businessEmail && <div>{businessEmail}</div>}
+            {businessPhone && <div>{businessPhone}</div>}
             {businessAddressLines.map((line) => (
               <div key={line}>{line}</div>
             ))}
@@ -221,7 +255,7 @@ export function InvoiceDocument({
               display: 'block',
               textAlign: 'center',
               textDecoration: 'none',
-              backgroundColor: COLORS.text,
+              backgroundColor: primaryColor || COLORS.text,
               color: '#ffffff',
               borderRadius: 14,
               padding: '16px 20px',
@@ -239,6 +273,22 @@ export function InvoiceDocument({
         <div style={{ marginTop: 28 }}>
           <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>Notes</div>
           <div style={{ color: COLORS.muted, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-line' }}>{notes}</div>
+        </div>
+      )}
+
+      {footerMessage && (
+        <div
+          style={{
+            marginTop: 28,
+            paddingTop: 20,
+            borderTop: `1px solid ${COLORS.border}`,
+            color: COLORS.muted,
+            fontSize: 13,
+            textAlign: 'center',
+            whiteSpace: 'pre-line',
+          }}
+        >
+          {footerMessage}
         </div>
       )}
     </div>

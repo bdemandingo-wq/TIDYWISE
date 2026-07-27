@@ -28,13 +28,25 @@ export interface InvoiceBusinessInfo {
   businessEmail: string | null;
   businessPhone: string | null;
   businessAddressLines: string[];
+  /**
+   * Invoice branding, consolidated onto business_settings. It used to live in
+   * a separate invoice_branding table that nothing read — an operator could
+   * upload a logo there and it appeared on no invoice, while the logo they
+   * set in Settings was the one emails actually used.
+   */
+  logoUrl: string | null;
+  primaryColor: string | null;
+  accentColor: string | null;
+  headerLayout: 'left' | 'center' | 'right';
+  footerMessage: string | null;
+  isLoading: boolean;
 }
 
 export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
 
-  const { data: businessSettings } = useQuery({
+  const { data: businessSettings, isLoading } = useQuery({
     queryKey: ['business-settings', organizationId],
     queryFn: async () => {
       if (!organizationId) return null;
@@ -75,6 +87,11 @@ export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
     company_city?: string | null;
     company_state?: string | null;
     company_zip?: string | null;
+    logo_url?: string | null;
+    primary_color?: string | null;
+    accent_color?: string | null;
+    invoice_header_layout?: string | null;
+    invoice_footer_message?: string | null;
   } | null;
 
   const businessName =
@@ -90,10 +107,19 @@ export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
       .join(', '),
   ].filter(Boolean) as string[];
 
+  const layout = settings?.invoice_header_layout;
+
   return {
     businessName,
     businessEmail: settings?.company_email ?? null,
     businessPhone: settings?.company_phone ?? null,
     businessAddressLines,
+    logoUrl: settings?.logo_url ?? null,
+    primaryColor: settings?.primary_color ?? null,
+    accentColor: settings?.accent_color ?? null,
+    headerLayout:
+      layout === 'center' || layout === 'right' ? layout : 'left',
+    footerMessage: settings?.invoice_footer_message ?? null,
+    isLoading,
   };
 }
