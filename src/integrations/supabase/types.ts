@@ -2172,6 +2172,8 @@ export type Database = {
           google_analytics_id: string | null
           google_review_url: string | null
           id: string
+          invoice_footer_message: string | null
+          invoice_header_layout: string | null
           logo_url: string | null
           max_advance_booking_days: number | null
           meta_pixel_id: string | null
@@ -2240,6 +2242,8 @@ export type Database = {
           google_analytics_id?: string | null
           google_review_url?: string | null
           id?: string
+          invoice_footer_message?: string | null
+          invoice_header_layout?: string | null
           logo_url?: string | null
           max_advance_booking_days?: number | null
           meta_pixel_id?: string | null
@@ -2308,6 +2312,8 @@ export type Database = {
           google_analytics_id?: string | null
           google_review_url?: string | null
           id?: string
+          invoice_footer_message?: string | null
+          invoice_header_layout?: string | null
           logo_url?: string | null
           max_advance_booking_days?: number | null
           meta_pixel_id?: string | null
