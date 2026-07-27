@@ -138,7 +138,12 @@ serve(async (req: Request) => {
         servicePricing: pricingRes.data ?? [],
         branding: brandRes.data ? {
           primary_color: brandRes.data.primary_color || '#3b82f6',
-          accent_color: brandRes.data.accent_color || '#e5e7eb',
+          // Matches the business_settings.accent_color column default from
+          // 20251218171152. Do not "harmonise" this with invoice_branding's
+          // '#e5e7eb' — that is a near-white value, and this feeds
+          // applyPublicBranding on the public booking form, where it would
+          // wash out accented elements for any org that never set a colour.
+          accent_color: brandRes.data.accent_color || '#14b8a6',
           website_url: brandRes.data.website_url ?? null,
         } : null,
         bookingFormTheme: displaySettings.booking_form_theme || 'dark',
