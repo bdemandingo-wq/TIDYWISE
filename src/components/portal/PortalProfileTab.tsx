@@ -200,6 +200,8 @@ export function PortalProfileTab() {
         state: "",
         zip_code: "",
         is_primary: false,
+        latitude: null,
+        longitude: null,
       });
       setShowAddLocation(false);
 

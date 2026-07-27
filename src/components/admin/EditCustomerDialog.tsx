@@ -222,7 +222,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
       });
       setShowCardForm(false);
       setShowAddForm(false);
-      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '' });
+      setNewAddress({ name: 'Home', address: '', apt_suite: '', city: '', state: '', zip_code: '', latitude: null, longitude: null });
     }
   }, [customer]);
 
