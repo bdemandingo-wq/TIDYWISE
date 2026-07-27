@@ -7,12 +7,12 @@ import { Loader2, MapPin } from 'lucide-react';
 import { useBookingForm } from '../BookingFormContext';
 import { supabase } from '@/integrations/supabase/client';
 
+// Region filtering is intentionally off until organizations.country_code is
+// populated. This used to read navigator.languages, which is the browser's
+// locale and not where the business operates — a Canadian org on a
+// US-configured browser never saw their own address in the results.
+// undefined = worldwide, which is strictly better than a wrong filter.
 function detectRegionCode(): string | undefined {
-  const locales = navigator.languages?.length ? navigator.languages : [navigator.language];
-  for (const loc of locales) {
-    const region = loc?.split('-')[1];
-    if (region && /^[A-Za-z]{2}$/.test(region)) return region.toUpperCase();
-  }
   return undefined;
 }
 

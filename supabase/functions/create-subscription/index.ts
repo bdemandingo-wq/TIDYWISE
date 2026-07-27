@@ -216,14 +216,15 @@ serve(async (req) => {
       "https://jointidywise.com";
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
-    // 7-day free trial on every new subscription. Card is collected
+    // 14-day free trial on every new subscription. Card is collected
     // upfront at Stripe Checkout (default in subscription mode) and
     // billing automatically starts at $X/mo once the trial ends. If
     // the saved card later fails or is removed before trial end, the
     // subscription is cancelled instead of going unpaid.
-    // Redeploy marker 2026-06-13: ensure trial is live (checkout was
-    // charging $49 immediately because the deployed function was stale).
-    const TRIAL_DAYS = 7;
+    // Trial users get full features for the duration — that's resolved
+    // server-side by public.effective_plan, not by plan_type, so the tier
+    // they picked at checkout is still what they convert onto.
+    const TRIAL_DAYS = 14;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -235,7 +236,7 @@ serve(async (req) => {
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
       // Force card collection even during the trial so the customer
-      // is auto-charged when the 7 days end.
+      // is auto-charged when the 14 days end.
       payment_method_collection: "always",
       payment_method_options: {
         card: { request_three_d_secure: "automatic" },
