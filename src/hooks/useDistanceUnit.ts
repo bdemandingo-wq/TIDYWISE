@@ -1,13 +1,18 @@
 /**
- * useDistanceUnit – which unit to render distances in for this org.
+ * Org country_code, and the two things that depend on it.
  *
- * Reads organizations.country_code, which is populated opportunistically
- * from Google Places (see src/lib/orgCountry.ts) and defaults to 'US'.
+ * organizations.country_code is populated opportunistically from Google
+ * Places (see src/lib/orgCountry.ts) and defaults to 'US'.
  *
- * Only three countries use miles for road distance. Everyone else gets km,
- * so the safe default for an unrecognised or missing country is km — but
- * country_code itself defaults to 'US', so an org that has never resolved
- * an address still sees miles rather than silently flipping.
+ * Two consumers, one query — do not add a second read path:
+ *   useOrgCountryCode  raw ISO-2, passed to geocode-address so a non-US org
+ *                      stops getting US-only results for hand-typed addresses
+ *   useDistanceUnit    miles vs km for display
+ *
+ * Both share a react-query cache key, so an admin screen doing both makes a
+ * single request. Callers that already hold an explicit organization id
+ * (staff-side components, where OrganizationContext isn't populated) pass it
+ * in rather than relying on useOrgId.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -17,8 +22,13 @@ import type { DistanceUnit } from '@/lib/distanceUtils';
 
 const MILE_COUNTRIES = new Set(['US', 'LR', 'MM']);
 
-export function useDistanceUnit(): DistanceUnit {
-  const { organizationId } = useOrgId();
+/**
+ * @param orgIdOverride use when the caller holds the org id directly — staff
+ *        portal surfaces don't have OrganizationContext populated.
+ */
+export function useOrgCountryCode(orgIdOverride?: string | null): string | null {
+  const { organizationId: contextOrgId } = useOrgId();
+  const organizationId = orgIdOverride ?? contextOrgId;
 
   const { data } = useQuery({
     queryKey: ['org-country-code', organizationId],
@@ -36,8 +46,14 @@ export function useDistanceUnit(): DistanceUnit {
     staleTime: 30 * 60 * 1000,
   });
 
+  return data ? data.toUpperCase() : null;
+}
+
+export function useDistanceUnit(orgIdOverride?: string | null): DistanceUnit {
+  const country = useOrgCountryCode(orgIdOverride);
+
   // Before the lookup resolves, fall back to miles rather than flipping the
   // UI to km and back — country_code defaults to 'US' anyway.
-  if (!data) return 'mi';
-  return MILE_COUNTRIES.has(data.toUpperCase()) ? 'mi' : 'km';
+  if (!country) return 'mi';
+  return MILE_COUNTRIES.has(country) ? 'mi' : 'km';
 }

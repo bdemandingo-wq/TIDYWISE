@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { calculateDistanceMiles, estimateDriveMinutes } from '@/lib/distanceUtils';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -82,6 +83,8 @@ interface UseCleanerTrackingOptions {
 // ─── hook ────────────────────────────────────────────────────────────────────
 
 export function useCleanerTracking({ bookingId, staffId, organizationId, destinationAddress, destinationLat, destinationLng }: UseCleanerTrackingOptions) {
+  // Staff surfaces have no OrganizationContext, so pass the id explicitly.
+  const orgCountry = useOrgCountryCode(organizationId);
   const trackingIdRef    = useRef<string | null>(null);
   const destCoordsRef    = useRef<{ lat: number; lng: number } | null>(null);
   const arrivedRef       = useRef<boolean>(false);
@@ -326,7 +329,9 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
         // Legacy fallback. geocode-address is still US-only, so this
         // silently yields no ETA for non-US addresses without coordinates.
         try {
-          const res = await supabase.functions.invoke('geocode-address', { body: { address: destinationAddress } });
+          const res = await supabase.functions.invoke('geocode-address', {
+            body: { address: destinationAddress, ...(orgCountry ? { country: orgCountry } : {}) },
+          });
           if (res.data?.lat && res.data?.lng) {
             destCoordsRef.current = { lat: res.data.lat, lng: res.data.lng };
             const dist = calculateDistanceMiles(latitude, longitude, res.data.lat, res.data.lng);
@@ -353,7 +358,7 @@ export function useCleanerTracking({ bookingId, staffId, organizationId, destina
       }
       return null;
     }
-  }, [bookingId, staffId, organizationId, destinationAddress, destinationLat, destinationLng, checkArrival, startWatch, acquireWakeLock]);
+  }, [bookingId, staffId, organizationId, destinationAddress, destinationLat, destinationLng, orgCountry, checkArrival, startWatch, acquireWakeLock]);
 
   // Re-acquire wake lock when app comes back to foreground
   useEffect(() => {

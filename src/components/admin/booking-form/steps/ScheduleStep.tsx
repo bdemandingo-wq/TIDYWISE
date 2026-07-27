@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { useCleanerConflicts } from '@/hooks/useCleanerConflicts';
 import { CleanerConflictWarning } from '../CleanerConflictWarning';
 import { calculateDistanceMiles, estimateDriveMinutes, formatDistance, formatDriveTime, geocodeAddress } from '@/lib/distanceUtils';
-import { useDistanceUnit } from '@/hooks/useDistanceUnit';
+import { useDistanceUnit, useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { useSchedulingMode, formatWindowRange } from '@/hooks/useSchedulingMode';
 import { useOrgId } from '@/hooks/useOrgId';
 
@@ -92,6 +92,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     longitude,
   } = useBookingForm();
   const distanceUnit = useDistanceUnit();
+  const orgCountry = useOrgCountryCode();
 
   const { organizationId } = useOrgId();
   const { data: schedulingConfig } = useSchedulingMode(organizationId);
@@ -160,7 +161,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
       for (let attempt = 0; attempt <= retries; attempt++) {
         if (cancelled) return null;
 
-        const coords = await geocodeAddress(query);
+        const coords = await geocodeAddress(query, orgCountry);
         if (cancelled) return null;
         if (coords) return coords;
 
@@ -218,7 +219,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [address, city, state, zipCode, latitude, longitude]);
+  }, [address, city, state, zipCode, latitude, longitude, orgCountry]);
 
   // Calculate distance from staff home to job location
   const getStaffDistance = (staffMember: { home_latitude?: number | null; home_longitude?: number | null }) => {

@@ -4,7 +4,7 @@ import { Navigation, Clock, MapPin, Car, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { calculateDistanceMiles, formatDistance } from '@/lib/distanceUtils';
-import { useDistanceUnit } from '@/hooks/useDistanceUnit';
+import { useDistanceUnit, useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 
@@ -88,6 +88,7 @@ export function AdminLiveTracking({
   destLng?: number | null;
 }) {
   const distanceUnit = useDistanceUnit();
+  const orgCountry = useOrgCountryCode();
   const [tracking, setTracking] = useState<TrackingInfo | null>(null);
   const [onTheWay, setOnTheWay] = useState<OnTheWayInfo | null>(null);
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -165,12 +166,14 @@ export function AdminLiveTracking({
       return;
     }
     if (!address) return;
-    supabase.functions.invoke('geocode-address', { body: { address } })
+    supabase.functions.invoke('geocode-address', {
+      body: { address, ...(orgCountry ? { country: orgCountry } : {}) },
+    })
       .then(res => {
         if (res.data?.lat && res.data?.lng) setDestCoords(res.data);
       })
       .catch(() => {});
-  }, [address, tracking, destCoords, destLat, destLng]);
+  }, [address, tracking, destCoords, destLat, destLng, orgCountry]);
 
   // Fetch real driving ETA from Google Maps
   useEffect(() => {

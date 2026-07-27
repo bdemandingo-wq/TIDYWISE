@@ -85,7 +85,10 @@ export function formatDriveTime(minutes: number): string {
  * Falls back to direct Nominatim call if edge function unavailable
  * Returns null if geocoding fails
  */
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+export async function geocodeAddress(
+  address: string,
+  country?: string | null,
+): Promise<{ lat: number; lng: number } | null> {
   try {
     const trimmed = address.trim();
     if (!trimmed) return null;
@@ -93,9 +96,12 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; ln
 
     // Use supabase edge function to avoid CORS issues
     const { supabase } = await import('@/integrations/supabase/client');
-    
+
+    // country is the org's ISO-2 country_code. Omitting it makes
+    // geocode-address fall back to its US-only behaviour, which returns
+    // nothing for a Canadian address.
     const { data, error } = await supabase.functions.invoke('geocode-address', {
-      body: { address: trimmed }
+      body: { address: trimmed, ...(country ? { country } : {}) }
     });
 
     if (error) {
