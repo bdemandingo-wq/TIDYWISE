@@ -441,14 +441,37 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         ...(sessionToken ? { 'x-portal-session': sessionToken } : {}),
       };
       const result: any = await supabase.functions.invoke(name, { ...options, headers: mergedHeaders });
-      const status =
-        result?.error?.context?.response?.status ??
-        result?.error?.status ??
-        (result?.data && typeof result.data === 'object' && (result.data as any).error === 'unauthorized' ? 401 : undefined);
+
+      // supabase-js wraps non-2xx responses in FunctionsHttpError, where the raw
+      // Response lives at error.context (NOT error.context.response). Read every
+      // known shape, then fall back to inspecting the returned error payload.
+      const ctx = result?.error?.context;
+      let status: number | undefined =
+        ctx?.status ?? ctx?.response?.status ?? result?.error?.status;
+
+      let payload: any = result?.data;
+      if (!payload && ctx && typeof ctx.json === 'function') {
+        try {
+          payload = await ctx.clone().json();
+        } catch {
+          /* body already consumed or not JSON */
+        }
+      }
+
+      const payloadError =
+        payload && typeof payload === 'object' ? String((payload as any).error ?? '') : '';
+      if (
+        status === undefined &&
+        /unauthorized|inactive|invalid session|session expired|not authenticated/i.test(payloadError)
+      ) {
+        status = 401;
+      }
+
       if (status === 401) {
         handleUnauthorized();
-        return { data: null, error: result.error ?? new Error('unauthorized'), unauthorized: true };
+        return { data: null, error: result.error ?? new Error(payloadError || 'unauthorized'), unauthorized: true };
       }
+
       return { data: result.data as T | null, error: result.error, unauthorized: false };
     },
     [sessionToken, handleUnauthorized],
