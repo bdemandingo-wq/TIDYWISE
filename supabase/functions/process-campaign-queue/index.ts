@@ -52,7 +52,10 @@ interface CampaignRun {
   skipped_opted_out_count: number
 }
 
-type Supa = ReturnType<typeof createClient>
+// The generated Database types are not imported here; the untyped client keeps
+// PostgREST calls permissive the same way the other queue workers do.
+// deno-lint-ignore no-explicit-any
+type Supa = any
 
 function parseJwtClaims(token: string): Record<string, unknown> | null {
   const parts = token.split('.')
@@ -255,7 +258,7 @@ Deno.serve(async (req) => {
     })
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase: Supa = createClient(supabaseUrl, supabaseServiceKey)
   const projectUrl =
     Deno.env.get('APP_URL') || Deno.env.get('PROJECT_URL') || 'https://jointidywise.com'
 
