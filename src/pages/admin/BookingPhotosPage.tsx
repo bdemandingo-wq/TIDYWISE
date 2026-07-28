@@ -11,7 +11,7 @@ import { SignedImage } from '@/components/ui/signed-image';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Search, Camera, Calendar, User, Loader2, Image as ImageIcon, Trash2, Play, Download, Video } from 'lucide-react';
+import { Search, Camera, Calendar, User, Loader2, Image as ImageIcon, Trash2, Play, Download, Video, ArrowLeftRight } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -97,6 +97,7 @@ export default function BookingPhotosPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [mediaFilter, setMediaFilter] = useState<string>('all');
   const [selectedPhoto, setSelectedPhoto] = useState<BookingPhoto | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const bookingPhotoSelect = `
@@ -227,6 +228,31 @@ export default function BookingPhotosPage() {
 
     return matchesType && matchesMedia && (customerName.includes(term) || staffName.includes(term) || bookingNum.includes(term));
   });
+
+  // Reclassify a misfiled photo. The stage is stored twice — as this column
+  // and inside the storage path (`.../{photoType}/{ts}.jpg`) — but nothing
+  // reads the path for classification, so the column is authoritative and the
+  // object is deliberately left where it is. Moving storage objects to keep a
+  // redundant encoding in sync would risk breaking photo_url for no gain.
+  const handleMovePhoto = async (photo: BookingPhoto, target: 'before' | 'after') => {
+    setMovingId(photo.id);
+    try {
+      const { error } = await supabase
+        .from('booking_photos')
+        .update({ photo_type: target })
+        .eq('id', photo.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ['booking-photos'] });
+      setSelectedPhoto({ ...photo, photo_type: target });
+      toast.success(`Moved to ${target}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Could not move this photo');
+    } finally {
+      setMovingId(null);
+    }
+  };
 
   const handleDelete = async (photo: BookingPhoto) => {
     if (!confirm(`Delete this ${isVideoMedia(photo) ? 'video' : 'photo'}? This cannot be undone.`)) return;
@@ -497,16 +523,39 @@ export default function BookingPhotosPage() {
                     <span>Uploaded: {selectedPhoto.created_at ? formatInTimezone(selectedPhoto.created_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '—'}</span>
                   </div>
                 </div>
-                <div className="flex justify-between">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => handleDownload(selectedPhoto)}
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => handleDownload(selectedPhoto)}
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </Button>
+                    {/* Only offered for before/after. An inspection photo has a
+                        different meaning and must not be silently restaged. */}
+                    {(selectedPhoto.photo_type === 'before' || selectedPhoto.photo_type === 'after') && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        disabled={movingId === selectedPhoto.id}
+                        onClick={() =>
+                          handleMovePhoto(
+                            selectedPhoto,
+                            selectedPhoto.photo_type === 'before' ? 'after' : 'before',
+                          )
+                        }
+                      >
+                        {movingId === selectedPhoto.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <ArrowLeftRight className="w-4 h-4" />}
+                        Move to {selectedPhoto.photo_type === 'before' ? 'after' : 'before'}
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     variant="destructive"
                     size="sm"
