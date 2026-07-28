@@ -11,6 +11,11 @@ export function useClientPortalSessionTracker() {
   const sessionStartRef = useRef<number>(Date.now());
   const isIdleRef = useRef<boolean>(false);
   const activeTimeRef = useRef<number>(0);
+  // Set once the server rejects our token. Session tracking is telemetry, so it
+  // stands down for the rest of the visit rather than re-firing every 30s and
+  // filling the logs with 401s. It never signs the customer out — the pages
+  // they actually interact with will surface a real auth problem on their own.
+  const trackingDisabledRef = useRef<boolean>(false);
 
   // Reset activity timer on user interaction
   const handleActivity = useCallback(() => {
@@ -37,15 +42,17 @@ export function useClientPortalSessionTracker() {
 
   // Create a new session
   const createSession = useCallback(async () => {
-    if (!user || !customer || !sessionToken) return;
-    
+    if (!user || !customer || !sessionToken || trackingDisabledRef.current) return;
+
     try {
       console.log('[CLIENT_PORTAL_SESSION] createSession start', { userId: user.id });
-      const { data, error, unauthorized } = await invokePortal<{ id?: string }>('client-portal-session-track', {
-        body: { action: 'create' },
-      });
+      const { data, error, unauthorized } = await invokePortal<{ id?: string }>(
+        'client-portal-session-track',
+        { body: { action: 'create' } },
+        { silentUnauthorized: true },
+      );
 
-      if (unauthorized) return;
+      if (unauthorized) { trackingDisabledRef.current = true; return; }
       if (error) throw error;
       const sessionId = (data as { id?: string } | null)?.id;
       if (!sessionId) throw new Error('Session id missing');
@@ -61,7 +68,7 @@ export function useClientPortalSessionTracker() {
 
   // Update session duration
   const updateSession = useCallback(async () => {
-    if (!sessionIdRef.current || !user || !sessionToken) return;
+    if (!sessionIdRef.current || !user || !sessionToken || trackingDisabledRef.current) return;
     
     // Check for idle before updating
     checkIdle();
@@ -76,15 +83,19 @@ export function useClientPortalSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      const { error, unauthorized } = await invokePortal('client-portal-session-track', {
-        body: {
-          action: 'update',
-          session_id: sessionIdRef.current,
-          duration_seconds: durationSeconds,
+      const { error, unauthorized } = await invokePortal(
+        'client-portal-session-track',
+        {
+          body: {
+            action: 'update',
+            session_id: sessionIdRef.current,
+            duration_seconds: durationSeconds,
+          },
         },
-      });
+        { silentUnauthorized: true },
+      );
 
-      if (unauthorized) return;
+      if (unauthorized) { trackingDisabledRef.current = true; return; }
       if (error) throw error;
     } catch (err) {
       console.error('[CLIENT_PORTAL_SESSION] updateSession failed', err);
@@ -93,7 +104,7 @@ export function useClientPortalSessionTracker() {
 
   // End the session
   const endSession = useCallback(async () => {
-    if (!sessionIdRef.current || !sessionToken) return;
+    if (!sessionIdRef.current || !sessionToken || trackingDisabledRef.current) return;
     
     // Final activity check
     if (!isIdleRef.current) {
@@ -104,15 +115,19 @@ export function useClientPortalSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      const { error, unauthorized } = await invokePortal('client-portal-session-track', {
-        body: {
-          action: 'end',
-          session_id: sessionIdRef.current,
-          duration_seconds: durationSeconds,
+      const { error, unauthorized } = await invokePortal(
+        'client-portal-session-track',
+        {
+          body: {
+            action: 'end',
+            session_id: sessionIdRef.current,
+            duration_seconds: durationSeconds,
+          },
         },
-      });
+        { silentUnauthorized: true },
+      );
 
-      if (unauthorized) return;
+      if (unauthorized) { trackingDisabledRef.current = true; return; }
       if (error) throw error;
     } catch (err) {
       console.error('[CLIENT_PORTAL_SESSION] endSession failed', err);
