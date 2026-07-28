@@ -477,18 +477,32 @@ export default function FinancePage() {
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="w-4 h-4 text-success" />
               <span className="text-xs text-muted-foreground">Total Sales</span>
-              {stripeConnected ? <CheckCircle className="w-3 h-3 text-success ml-auto" /> : <AlertTriangle className="w-3 h-3 text-warning ml-auto" />}
             </div>
             <p className="text-xl font-bold text-success">
               {isTestMode ? '$X,XXX.XX' : fmt(metrics.totalSales)}
             </p>
+            {/* transactionCount is activeTransactions.length — every booking
+                with status != 'cancelled', regardless of payment_status. It
+                previously read "paid bookings", which it never was. */}
             <p className="text-[10px] text-muted-foreground">
-              {metrics.transactionCount} paid bookings (gross)
+              {metrics.transactionCount} bookings · gross, incl. unpaid
             </p>
-            {stripeConnected && !isTestMode && (
-              <p className="text-[10px] text-muted-foreground mt-0.5">
-                Stripe processed {fmt(stripeData.total_revenue)} in window
-              </p>
+            {/* The connectivity icon used to sit beside "Total Sales", which
+                read as "this figure came from Stripe". It never does — this
+                card is always metrics.totalSales from bookings. Moved next to
+                the Stripe text so it can only be read as connection state. */}
+            {!isTestMode && (
+              stripeConnected ? (
+                <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 text-success shrink-0" />
+                  <span>Stripe connected · processed {fmt(stripeData.total_revenue)} in window</span>
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 text-warning shrink-0" />
+                  <span>Stripe not connected</span>
+                </p>
+              )
             )}
           </CardContent>
         </Card>
