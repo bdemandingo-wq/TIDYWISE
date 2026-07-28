@@ -52,6 +52,7 @@ import {
 } from '@/lib/recurringDiscount';
 import { useCustomFrequencies, resolveCustomFrequencyDiscountPct } from '@/hooks/useCustomFrequencies';
 import { supabase } from '@/lib/supabase';
+import { getAbandonedBookingClient } from '@/lib/abandonedBookingClient';
 import { isValidPhone } from '@/lib/errorHandling';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
@@ -328,7 +329,7 @@ export default function PublicBookingPage() {
     const timer = setTimeout(() => {
       if (!customerInfo.phone || !isValidPhone(customerInfo.phone)) return;
       const nameParts = customerInfo.name.trim().split(/\s+/);
-      supabase
+      getAbandonedBookingClient(sessionTokenRef)
         .from('abandoned_bookings')
         .upsert(
           {
@@ -422,7 +423,7 @@ export default function PublicBookingPage() {
   // UPDATE policy lands with the recovery migrations.
   useEffect(() => {
     if (abandonedTrackedRef.tracked && step > 3) {
-      supabase
+      getAbandonedBookingClient(sessionTokenRef)
         .from('abandoned_bookings')
         .update({ step_reached: step })
         .eq('session_token', sessionTokenRef)
@@ -433,7 +434,7 @@ export default function PublicBookingPage() {
   // Mark as converted when booking completes
   useEffect(() => {
     if (confirmationNumber && abandonedTrackedRef.tracked) {
-      supabase
+      getAbandonedBookingClient(sessionTokenRef)
         .from('abandoned_bookings')
         .update({ converted: true, converted_at: new Date().toISOString() })
         .eq('session_token', sessionTokenRef)
