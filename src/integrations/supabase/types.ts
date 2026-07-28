@@ -10549,6 +10549,7 @@ export type Database = {
         Returns: string
       }
       ai_daily_limit_for_tier: { Args: { _tier: string }; Returns: number }
+      campaign_queue_dispatch: { Args: never; Returns: undefined }
       change_client_portal_password: {
         Args: {
           p_current_password: string
