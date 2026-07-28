@@ -86,9 +86,18 @@ The `to_regclass()` guard in migration `20260715180557` did not silently skip, d
 
 ---
 
-## Phase 1 — Schema and queue (Lovable)
+## Phase 1 — Schema and queue (Lovable) ✅ COMPLETE (2026-07-28)
 
-- [ ] **1.1** Create `campaign_runs` and add throttle config.
+Applied and verified live:
+
+- `campaign_runs` created, all 17 columns, both indexes.
+- Queues now: `auth_emails`, `transactional_emails`, both DLQs, `campaign_sms`, `campaign_sms_dlq`. Both `audit_probe` leftovers dropped (real names were `audit_probe_nonexistent_queue_42478` and `audit_probe_dlq_42478`).
+- `set_campaign_run_status`: `prosecdef` true, REVOKEd from PUBLIC, EXECUTE to `authenticated` only, resolves org from the run id, requires `is_org_admin`.
+- `authenticated` has **zero UPDATE grants** on `campaign_runs` — SELECT only; `service_role` has ALL. The RPC is the only sanctioned path to change run state.
+- `automated_campaigns` has `throttle_seconds` (default 60, 30–3600) and `scheduled_at`.
+- No triggers or cron entries added, as instructed.
+
+- [x] **1.1** Create `campaign_runs` and add throttle config.
 
 > **Lovable prompt:**
 >
