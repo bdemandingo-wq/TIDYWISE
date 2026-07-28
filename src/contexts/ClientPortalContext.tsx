@@ -70,6 +70,66 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     const isDev = typeof import.meta !== 'undefined' && (import.meta as any).env?.DEV;
     const dlog = (...args: any[]) => { if (isDev) console.log('[ClientPortal]', ...args); };
 
+    // A session stored by an older build can be missing customer_id. That
+    // strands the portal silently: every client-portal-api call site is gated
+    // on that field, so the dashboard renders empty states and never asks the
+    // server for anything. The server still has the value — the signed token
+    // carries it and verifies fine — so re-fetch the identity with the token
+    // we already hold instead of telling the customer to sign out and back in.
+    // Three named outcomes rather than ok/reachable booleans: this project
+    // compiles with strict: false, and non-strict TypeScript won't narrow a
+    // union by a boolean discriminant — only by a string-literal one.
+    type RepairResult =
+      | { outcome: 'repaired'; user: ClientPortalUser; customer: CustomerInfo; loyalty: LoyaltyInfo | null }
+      | { outcome: 'denied' }
+      | { outcome: 'unreachable' };
+
+    const repairIdentity = async (token: string): Promise<RepairResult> => {
+      try {
+        const { data, error } = await supabase.functions.invoke('client-portal-api', {
+          body: { action: 'get_user_data' },
+          headers: { 'x-portal-session': token },
+        });
+        if (error) {
+          // A transport failure (offline, relay error) carries no HTTP status.
+          // Distinguish it from a real denial so we never sign someone out
+          // just because their connection dropped.
+          const reachable = typeof (error as any)?.context?.response?.status === 'number';
+          return { outcome: reachable ? 'denied' : 'unreachable' };
+        }
+        const row = (Array.isArray(data) ? data[0] : null) as any;
+        if (!row?.customer_id || !row.is_active) return { outcome: 'denied' };
+        return {
+          outcome: 'repaired',
+          user: {
+            id: row.user_id,
+            username: row.username,
+            customer_id: row.customer_id,
+            organization_id: row.organization_id,
+            is_active: row.is_active,
+            must_change_password: row.must_change_password,
+          },
+          customer: {
+            id: row.customer_id,
+            first_name: row.first_name,
+            last_name: row.last_name,
+            email: row.email,
+            phone: row.phone,
+            property_type: row.property_type || 'residential',
+          },
+          loyalty: row.loyalty_points !== null
+            ? {
+              points: row.loyalty_points,
+              lifetime_points: row.loyalty_lifetime_points,
+              tier: row.loyalty_tier,
+            }
+            : null,
+        };
+      } catch {
+        return { outcome: 'unreachable' };
+      }
+    };
+
     const load = async () => {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) { setLoading(false); return; }
@@ -145,7 +205,43 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Modern session (has sessionToken) — restore as-is.
+      // Modern session (has sessionToken) — restore as-is, unless the stored
+      // identity is incomplete, in which case heal it from the server first.
+      if (hasToken && !parsed.user?.customer_id) {
+        dlog('stored session missing customer_id, re-fetching identity');
+        const repaired = await repairIdentity(parsed.sessionToken);
+
+        if (repaired.outcome === 'repaired') {
+          dlog('identity repaired from server');
+          const healedLoyalty = repaired.loyalty ?? parsed.loyalty ?? null;
+          setUser(repaired.user);
+          setCustomer(repaired.customer);
+          setLoyalty(healedLoyalty);
+          setSessionToken(parsed.sessionToken);
+          // Persist via saveSession so the repaired blob goes through the same
+          // PII-stripping rules as a fresh login. The token is passed
+          // explicitly, so this doesn't depend on sessionToken state yet.
+          saveSession(repaired.user, repaired.customer, healedLoyalty, parsed.sessionToken);
+          setLoading(false);
+          return;
+        }
+
+        if (repaired.outcome === 'denied') {
+          // The server answered and could not confirm the customer link. A
+          // half-usable session would render empty tabs forever, so end it and
+          // send them through a clean sign-in rather than leaving them stuck.
+          dlog('identity repair denied by server, forcing re-login');
+          localStorage.removeItem(STORAGE_KEY);
+          toast.error('Please sign in again to finish restoring your account.');
+          setLoading(false);
+          return;
+        }
+
+        // Server unreachable — restore what we have rather than logging someone
+        // out on a flaky connection. The next load retries the repair.
+        dlog('identity repair unreachable, restoring stored session unchanged');
+      }
+
       setUser(parsed.user);
       setCustomer(parsed.customer);
       setLoyalty(parsed.loyalty);
