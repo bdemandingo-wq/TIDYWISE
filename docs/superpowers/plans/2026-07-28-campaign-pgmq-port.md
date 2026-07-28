@@ -2,11 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the synchronous SMS send loop in `run-inactive-campaign` with a throttled, pausable, cancellable, genuinely-schedulable queue worker built on the PGMQ + pg_cron pattern already running in production for email — and close the opt-out gap in the five marketing senders that currently bypass it.
+**Goal:** Replace the synchronous SMS send loop in `run-inactive-campaign` with a throttled, pausable, cancellable, genuinely-schedulable queue worker built on the PGMQ + self-arming pg_cron pattern already proven in production for email — and close the opt-out gap in the five marketing senders that currently bypass it.
 
-**Architecture:** Campaign send becomes two halves. An *enqueue* half resolves the audience once and pushes one PGMQ message per recipient, then returns immediately. A *drain* half — a pg_cron-driven worker — pops messages at a configured interval, re-checks opt-out at send time, sends one message, and records it. Run state (`running`/`paused`/`cancelled`/`completed`) lives in a `campaign_runs` row the worker consults on every tick, which is what makes pause and cancel possible at all.
+**Architecture:** Campaign send becomes two halves. An *enqueue* half resolves the audience once and pushes one PGMQ message per recipient, then returns immediately. A *drain* half — a **self-arming** pg_cron dispatcher modelled on `email_queue_wake` / `email_queue_dispatch` — pops messages, re-checks opt-out at send time, sends, and records. Run state (`running`/`paused`/`cancelled`/`completed`) lives in a `campaign_runs` row the worker consults on every tick, which is what makes pause and cancel possible at all.
 
-**Tech Stack:** Supabase Postgres + PGMQ + pg_cron, Deno edge functions, OpenPhone SMS API, React + TanStack Query front end.
+**Tech Stack:** Supabase Postgres + PGMQ 1.5.1 + pg_cron, Deno edge functions, OpenPhone SMS API, React + TanStack Query front end.
+
+> **Revised 2026-07-28 after preflight.** An earlier draft of this plan said the email queue "runs on pg_cron" on a fixed schedule. That was wrong. There is no standing `process-email-queue` cron job. The real design is a self-arming/disarming dispatcher pair: an `AFTER INSERT` trigger on the pgmq queue tables arms a cron job, and the dispatcher unschedules itself once both queues drain. The absence of the job in `cron.job` means the system is correctly at rest, not broken. This plan now copies that pattern rather than the one I assumed existed.
 
 ---
 
@@ -14,7 +16,9 @@
 
 **Ownership (from `CLAUDE.md`).** Lovable owns `supabase/`. A git push does not deploy an edge function or run a migration. Every task below that touches `supabase/` is written as a **paste-ready Lovable prompt**, not a local edit. Tasks marked *(Claude Code)* touch `src/` only and are committed normally.
 
-**Do not start Phase 1 until Phase 0 returns.** The whole plan assumes `automated_campaigns` has no `scheduled_at`, that PGMQ is installed, and that `process-email-queue` is cron-driven. Those are read from code, not from the live database. A migration file existing is not proof it ran.
+**Copy the self-arming dispatcher pattern, not a standing cron.** Campaign runs are bursty — a permanently-armed job burning ticks against an empty queue is waste, and the codebase already has a better answer. Arm on enqueue, disarm when no run is active.
+
+**Auth shape for the cron entry:** vault-based `supabase_url` + `supabase_service_role_key` + `x-cron-secret`, as `demo-reminders-15min` does. Do **not** copy the older jobs that inline the anon key.
 
 **Opt-out is checked at dequeue, not enqueue.** This is the single most important correctness property in the plan. Throttled at 30–60s per message, a 300-recipient campaign runs for hours. A customer who texts STOP at minute 20 must not receive a message at minute 90. Enqueue-time filtering alone would violate the opt-out promise every template makes.
 
@@ -43,13 +47,43 @@
 
 ---
 
-## Phase 0 — Preflight (blocking)
+## Phase 0 — Preflight ✅ COMPLETE (2026-07-28)
 
-- [ ] **0.1** Run `docs/superpowers/specs/2026-07-28-campaign-queue-preflight.sql` in Lovable. Paste results back.
-- [ ] **0.2** Confirm from results: (a) `automated_campaigns` has no `scheduled_at`; (b) PGMQ extension present and which queues exist; (c) `process-email-queue` cron `schedule` string — **the worker cadence in Phase 2 must match whatever granularity pg_cron is actually configured for here**; (d) `log_org_email_send_failure` exists.
-- [ ] **0.3** If any assumption is wrong, stop and revise this plan before writing code.
+Results, and what each one changed:
 
-**Note on cadence:** if pg_cron on this instance only supports minute granularity, a 30-second throttle cannot be achieved by cron frequency alone. In that case the worker sends *up to* `floor(60 / throttle_seconds)` messages per minute-tick, spacing them with an in-function delay — still well inside the wall-clock limit at these volumes. Decide this at 0.2, not later.
+| Checked | Result | Effect on plan |
+|---|---|---|
+| `automated_campaigns.scheduled_at` | **Absent.** Columns: id, name, type, subject, body, days_inactive, is_active, last_run_at, created_at, updated_at, organization_id. Repo-wide scan found only unrelated matches. | Phase 1 adds it. Unchanged. |
+| PGMQ | **v1.5.1**, `pgmq` schema. Queues: `auth_emails`, `auth_emails_dlq`, `transactional_emails`, `transactional_emails_dlq` — all empty. Plus two `audit_probe` test leftovers holding 1 message each. | **Every real queue has a paired DLQ.** Phase 1 now creates `campaign_sms_dlq` too. |
+| `process-email-queue` cron | **No such job.** 23 active jobs, none invokes it. Drained by `email_queue_wake` trigger + self-disarming `email_queue_dispatch`. | Architecture corrected. Phase 2 copies the self-arming pattern. |
+| Cron template | `demo-reminders-15min` — `*/15 * * * *`, vault `supabase_url` + `supabase_service_role_key` + `x-cron-secret`. 18/18 jobs succeeded in 24h, zero failures. | Auth shape adopted. |
+| Opt-out columns | All present. **45 opt-outs across two orgs** — the STOP path demonstrably works in production. | Confirms Phase 4 is a gap in *senders*, not in capture. |
+| `log_org_email_send_failure` | Exists, SECURITY DEFINER. | Unchanged. |
+
+### Cadence decision — reversed
+
+The preflight conclusion "pg_cron is minute-granularity" does not hold. `email_queue_wake` already calls:
+
+```sql
+cron.schedule('process-email-queue', '5 seconds', $cron$ SELECT public.email_queue_dispatch(); $cron$);
+```
+
+pg_cron ≥ 1.5 accepts interval syntax, and this codebase relies on it. Sub-minute scheduling is available. The reason no such job is visible is that the queues are empty and the dispatcher unscheduled itself.
+
+**So the worker does not need to space sends inside a tick.** The design keeps the `next_send_at` cursor regardless, because a cursor is cadence-independent: it enforces the exact throttle whether cron fires every 5s or every 60s, and it survives a cadence change without a code change. Cron cadence only has to be *finer than the smallest throttle*. Use `'15 seconds'` — comfortably under the 30s minimum throttle, and no per-tick sleeping, so the ~150s wall-clock ceiling stops being a design constraint at all.
+
+- [ ] **0.1** ✅ Preflight run, results recorded above.
+- [ ] **0.2** **One residual check before Phase 1** — confirm the wake triggers are actually attached (see the note below; this is cheap and it gates whether the pattern we're copying is live at all):
+
+```sql
+select tgname, tgrelid::regclass as on_table, tgenabled
+from pg_trigger
+where tgname in ('email_queue_wake_auth','email_queue_wake_transactional');
+```
+
+Expect two rows with `tgenabled = 'O'`. **If it returns zero rows, stop** — see "Separately tracked" below, and treat the email-queue pattern as unproven before copying it.
+
+- [ ] **0.3** Clean up the two `audit_probe` leftover queues (`pgmq.drop_queue`) so queue listings stay meaningful.
 
 ---
 
@@ -84,11 +118,15 @@
 >
 > Also add `throttle_seconds integer not null default 60` to `automated_campaigns` (the per-campaign default that seeds a run), and `scheduled_at timestamptz` for real scheduling.
 >
-> Create the PGMQ queue: `select pgmq.create('campaign_sms');`
+> Create the PGMQ queues — both of them, matching the existing convention where every real queue has a paired dead-letter queue:
+> ```sql
+> select pgmq.create('campaign_sms');
+> select pgmq.create('campaign_sms_dlq');
+> ```
 >
 > Then deploy/run the migration and confirm it applied, not just committed.
 
-- [ ] **1.2** Verify live: `campaign_runs` exists with the check constraints, `pgmq.list_queues()` shows `campaign_sms`, and `set_campaign_run_status` is `prosecdef = true`. Confirm a plain `authenticated` role cannot UPDATE `campaign_runs` directly.
+- [ ] **1.2** Verify live: `campaign_runs` exists with the check constraints, both `campaign_sms` and `campaign_sms_dlq` appear in the queue list, and `set_campaign_run_status` is `prosecdef = true`. Confirm a plain `authenticated` role cannot UPDATE `campaign_runs` directly.
 
 ---
 
@@ -133,11 +171,31 @@
 >
 > Then deploy it and confirm deployed, not just committed.
 
-- [ ] **2.3** Add the cron entry, matching the cadence decided in 0.2.
+- [ ] **2.3** Add the **self-arming** dispatcher pair — mirroring `email_queue_wake` / `email_queue_dispatch`, not a standing cron.
 
-> **Lovable prompt:** Add a migration scheduling `process-campaign-queue` via `pg_cron`, following the exact pattern of the existing `process-email-queue` job (same invocation style, same auth header approach). Use the cadence we confirmed in preflight. Then run it and confirm the job appears in `cron.job` and is `active`.
+> **Lovable prompt:**
+>
+> Add a migration creating a self-arming/disarming pg_cron dispatcher for the campaign queue, modelled directly on the existing `public.email_queue_wake()` / `public.email_queue_dispatch()` pair.
+>
+> `public.campaign_queue_dispatch()` — `SECURITY DEFINER`, `SET search_path TO ''`:
+> - If no `campaign_runs` row has `status in ('pending','running','paused')`, take the advisory lock, re-read under it (same race-avoidance as the email pair — use a **different** lock key, e.g. `7700000000000002`, so campaign and email dispatchers never block each other), and if still none, `cron.unschedule('process-campaign-queue')` and return.
+> - Otherwise `net.http_post` to `process-campaign-queue`, using the vault-based auth shape from `demo-reminders-15min`: `supabase_url` and `supabase_service_role_key` from vault, plus the `x-cron-secret` header. Do not inline the anon key.
+>
+> `public.campaign_queue_wake()` — trigger function, `SECURITY DEFINER`, `SET search_path TO ''`:
+> - Take the same advisory lock, and if no `process-campaign-queue` job exists, `cron.schedule('process-campaign-queue', '15 seconds', $cron$ SELECT public.campaign_queue_dispatch(); $cron$)`.
+> - Then `net.http_post` once immediately so the first message goes out without waiting for a tick.
+> - Wrap both in `BEGIN ... EXCEPTION WHEN OTHERS THEN RAISE WARNING` exactly as `email_queue_wake` does — arming must never roll back the enqueue transaction.
+>
+> Attach it as `AFTER INSERT ... FOR EACH STATEMENT` on `campaign_runs` (not on the pgmq table — a run is created before its messages, and this way the trigger target is a table we own and that definitely exists).
+>
+> **Attach the trigger unconditionally in this migration.** Do not guard it behind `to_regclass()`. The email pair's trigger attachment was guarded that way, and a sibling migration records it as a KNOWN GAP that was never captured — do not repeat that.
+>
+> `REVOKE ALL` on both functions from `PUBLIC`.
+>
+> Then run the migration and confirm both functions and the trigger exist live.
 
-- [ ] **2.4** Verify live with a **single-recipient** run inserted by hand: confirm one message sends, `sent_count` reaches 1, status lands on `completed`, and the message appears in `sms_messages`. Do not proceed on a real audience until this passes.
+- [ ] **2.4** Verify the arming works: insert a `campaign_runs` row by hand, confirm `process-campaign-queue` appears in `cron.job` within seconds, then cancel the run and confirm the job unschedules itself.
+- [ ] **2.5** Verify live with a **single-recipient** run: confirm one message sends, `sent_count` reaches 1, status lands on `completed`, the message appears in `sms_messages`, and the cron job disarms afterwards. Do not proceed on a real audience until this passes.
 
 ---
 
@@ -209,13 +267,35 @@ Five marketing senders POST to OpenPhone without consulting `marketing_status`. 
 
 ---
 
-## Out of scope (deliberately)
+## Separately tracked
 
-Tracked, not included — each is independent and would dilute this plan:
+### Email wake-trigger attachment — verify, do not assume
+
+Not folded into this plan, but it gates Phase 0.2 because we are copying this pattern.
+
+The queue drain design is sound: `email_queue_wake` arms a 5-second cron and `email_queue_dispatch` disarms it once both queues are empty, with an advisory lock serializing the two. Messages that fail and return via visibility-timeout keep the job armed, because `EXISTS (SELECT 1 FROM pgmq.q_*)` sees invisible rows too. Rate-limit backoff returns early *without* disarming. All correct.
+
+The risk is attachment, not design. Migration `20260715180557` creates both triggers behind a `to_regclass()` guard that silently skips with a `RAISE NOTICE` if the queue tables don't exist yet, and `20260716180500` explicitly records *"KNOWN GAP: trigger attachment not captured."* If those triggers were skipped and never re-run, **nothing arms the cron**, and enqueued emails would sit until something else invoked the function directly.
+
+Empty queues are consistent with both "working perfectly" and "nothing ever enqueued." The Phase 0.2 query distinguishes them. If it returns zero rows, that is a live bug worth its own fix — re-run the trigger attachment unconditionally — and this plan should not copy an unproven pattern until it is resolved.
+
+### Not in this plan
 
 - **Invoice email error surfacing.** `InvoicesPage.tsx:250` and `InvoiceViewDialog.tsx:87` collapse every failure into supabase-js's generic "Edge Function returned a non-2xx status code". The send path itself works. Separate, small.
 - **Discounts under Campaigns.** Nav/IA change, cosmetic.
 - **Splitting `CampaignsPage.tsx`.** 1,655 lines. This plan adds only to new files; the split deserves its own pass.
+- **Sharing a cron between campaigns and email.** Rejected — see below.
+
+### Why the campaign worker gets its own dispatcher
+
+Keeping them separate, for four reasons:
+
+1. **Opposite latency goals.** Email arms at 5 seconds and wants to drain as fast as possible. Campaigns are deliberately slow — 30–60s between messages is the *feature*. One job cannot serve both without one of them compromising.
+2. **Blast radius.** A campaign-worker bug must not be able to stall password-reset or auth emails. Those are the highest-consequence messages in the system.
+3. **The disarm condition differs.** `email_queue_dispatch` unschedules when both *email* queues are empty. A shared job would need to reason about campaign run state too, turning two simple predicates into one compound one.
+4. **Wall-clock budget.** Sharing means campaign send time counts against the same invocation that delivers transactional email.
+
+They share the *pattern* and the vault auth shape — just not the job or the advisory lock key.
 
 ---
 
@@ -223,9 +303,10 @@ Tracked, not included — each is independent and would dilute this plan:
 
 1. A campaign with 50 recipients at 60s throttle takes ~50 minutes and never blocks the UI.
 2. Pause stops sending within one cron tick; queued messages survive; resume continues from where it stopped.
-3. A run paused for 24 hours flips to `cancelled` with `cancel_reason='expired'` and is visibly cancelled in the UI, not silently dropped.
-4. A customer who texts `stop` mid-run receives no further messages from that run.
-5. None of the five Phase 4 senders can message an opted-out customer.
-6. Choosing "later" schedules; it does not send immediately.
-7. Campaign sends appear in the Messages tab at send time, not on webhook echo.
-8. `npx tsc --noEmit -p tsconfig.app.json` clean; QA suite green.
+3. The cron job arms on run creation and disarms when no run is active — no standing job against an empty queue.
+4. A run paused for 24 hours flips to `cancelled` with `cancel_reason='expired'` and is visibly cancelled in the UI, not silently dropped.
+5. A customer who texts `stop` mid-run receives no further messages from that run.
+6. None of the five Phase 4 senders can message an opted-out customer.
+7. Choosing "later" schedules; it does not send immediately.
+8. Campaign sends appear in the Messages tab at send time, not on webhook echo.
+9. `npx tsc --noEmit -p tsconfig.app.json` clean; QA suite green.
