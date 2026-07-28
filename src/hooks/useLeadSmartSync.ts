@@ -61,6 +61,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
             .from('customers')
             .select('id, email, phone')
             .eq('organization_id', organizationId)
+            .order('id', { ascending: true })
             .range(from, from + PAGE_SIZE - 1);
 
           if (error) {
@@ -113,25 +114,40 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       let bookingsByCustomer = new Map<string, { id: string; booking_number: number; status: string; scheduled_at: string }[]>();
 
       if (customerIds.length > 0) {
-        const { data: bookings, error: bookingsError } = await supabase
-          .from('bookings')
-          .select('id, booking_number, status, scheduled_at, customer_id')
-          .eq('organization_id', organizationId)
-          .in('customer_id', customerIds);
+        // Paged for the same reason as customers, but the stakes are higher:
+        // this read drives a WRITE. A truncated page can drop the one live
+        // booking a lead has, making every remaining booking look cancelled —
+        // which reverts the lead to follow_up and appends an audit note
+        // asserting something untrue.
+        //
+        // Aborting on error matters here too: an empty result is
+        // indistinguishable from "this customer has no bookings", which is
+        // precisely the revert condition. A failed read must never drive a write.
+        let from = 0;
+        const PAGE_SIZE = 1000;
+        while (true) {
+          const { data: bookings, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('id, booking_number, status, scheduled_at, customer_id')
+            .eq('organization_id', organizationId)
+            .in('customer_id', customerIds)
+            .order('id', { ascending: true })
+            .range(from, from + PAGE_SIZE - 1);
 
-        // Abort for the same reason as above: an empty result here is
-        // indistinguishable from "this customer has no bookings", which
-        // reverts leads to follow_up. A failed read must never drive a write.
-        if (bookingsError) {
-          console.error('Smart sync: bookings fetch failed', bookingsError);
-          throw bookingsError;
+          if (bookingsError) {
+            console.error('Smart sync: bookings fetch failed', bookingsError);
+            throw bookingsError;
+          }
+
+          (bookings || []).forEach(b => {
+            const existing = bookingsByCustomer.get(b.customer_id) || [];
+            existing.push(b);
+            bookingsByCustomer.set(b.customer_id, existing);
+          });
+
+          if (!bookings || bookings.length < PAGE_SIZE) break;
+          from += PAGE_SIZE;
         }
-
-        (bookings || []).forEach(b => {
-          const existing = bookingsByCustomer.get(b.customer_id) || [];
-          existing.push(b);
-          bookingsByCustomer.set(b.customer_id, existing);
-        });
       }
 
       const now = format(new Date(), 'MMM d, yyyy h:mm a');
