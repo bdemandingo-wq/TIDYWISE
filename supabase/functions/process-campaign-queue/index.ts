@@ -376,6 +376,13 @@ Deno.serve(async (req) => {
 
 
       if (mine.length === 0) {
+        // Only conclude "no messages remain" when the read was not saturated.
+        // A full batch may simply have been filled by other runs' messages.
+        if (rows.length >= 50) {
+          console.log('[process-campaign-queue] Read saturated, deferring run', { run_id: run.id })
+          continue
+        }
+
         const { error: compErr } = await supabase
           .from('campaign_runs')
           .update({ status: 'completed', completed_at: nowIso })
