@@ -43,11 +43,35 @@ export function useLeadSmartSync(organizationId: string | undefined) {
         .map(l => l.phone?.replace(/\D/g, ''))
         .filter((p): p is string => !!p && p.length >= 7);
 
-      // Fetch all customers matching these emails/phones in this org
-      const { data: customers } = await supabase
-        .from('customers')
-        .select('id, email, phone')
-        .eq('organization_id', organizationId);
+      // Fetch all customers in this org. Paged: PostgREST caps at 1000 rows,
+      // and a partial map here makes every lead whose customer fell outside
+      // the window look unbooked. Same pattern as useBookings.
+      //
+      // A read failure ABORTS rather than continuing with an empty list —
+      // `customers = null` would otherwise produce an empty map and flag every
+      // converted lead as having no booking, silently on the auto-run. Throwing
+      // also leaves the previous flaggedLeadIds in place, since
+      // setFlaggedLeadIds below never runs.
+      const customers: { id: string; email: string | null; phone: string | null }[] = [];
+      {
+        let from = 0;
+        const PAGE_SIZE = 1000;
+        while (true) {
+          const { data, error } = await supabase
+            .from('customers')
+            .select('id, email, phone')
+            .eq('organization_id', organizationId)
+            .range(from, from + PAGE_SIZE - 1);
+
+          if (error) {
+            console.error('Smart sync: customers fetch failed', error);
+            throw error;
+          }
+          customers.push(...(data || []));
+          if (!data || data.length < PAGE_SIZE) break;
+          from += PAGE_SIZE;
+        }
+      }
 
       // email/phone -> ALL matching customer_ids (handle duplicate customer records)
       const customerMap = new Map<string, string[]>();
@@ -59,7 +83,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
           customerMap.set(key, [id]);
         }
       };
-      (customers || []).forEach(c => {
+      customers.forEach(c => {
         if (c.email) addToMap(c.email.toLowerCase(), c.id);
         if (c.phone) {
           const cleanPhone = c.phone.replace(/\D/g, '');
@@ -89,11 +113,19 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       let bookingsByCustomer = new Map<string, { id: string; booking_number: number; status: string; scheduled_at: string }[]>();
 
       if (customerIds.length > 0) {
-        const { data: bookings } = await supabase
+        const { data: bookings, error: bookingsError } = await supabase
           .from('bookings')
           .select('id, booking_number, status, scheduled_at, customer_id')
           .eq('organization_id', organizationId)
           .in('customer_id', customerIds);
+
+        // Abort for the same reason as above: an empty result here is
+        // indistinguishable from "this customer has no bookings", which
+        // reverts leads to follow_up. A failed read must never drive a write.
+        if (bookingsError) {
+          console.error('Smart sync: bookings fetch failed', bookingsError);
+          throw bookingsError;
+        }
 
         (bookings || []).forEach(b => {
           const existing = bookingsByCustomer.get(b.customer_id) || [];
@@ -142,10 +174,21 @@ export function useLeadSmartSync(organizationId: string | undefined) {
             ? `${lead.notes}\n${autoNote}`
             : autoNote;
 
-          await supabase
+          // supabase.update() resolves with { error } rather than throwing, so
+          // this was previously counted as reverted whether or not it landed —
+          // the toast reported reverts that never happened.
+          // organization_id filter matches every other write in the codebase;
+          // RLS already covers it, this is defence in depth.
+          const { error: updateError } = await supabase
             .from('leads')
             .update({ status: 'follow_up', notes: updatedNotes })
-            .eq('id', lead.id);
+            .eq('id', lead.id)
+            .eq('organization_id', organizationId);
+
+          if (updateError) {
+            console.error(`Smart sync: failed to revert lead ${lead.id}`, updateError);
+            continue;
+          }
 
           result.reverted++;
         }
