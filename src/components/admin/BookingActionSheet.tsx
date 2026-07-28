@@ -186,6 +186,10 @@ export function BookingActionSheet({
     completed: 'bg-success text-white',
     cancelled: 'bg-destructive text-white',
     no_show: 'bg-muted-foreground text-background',
+    // See statusConfig/statusLabels in BookingsPage — all three maps must agree.
+    // Omitting this made one status resolve to 'pending' via statusCfg and to
+    // info-blue via this map, in the same component, at the same time.
+    rescheduled: 'bg-info text-white',
   }[booking.status] || 'bg-info text-white';
 
   const paymentBadgeClass = {
