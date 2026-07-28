@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera, AlertCircle } from 'lucide-react';
+import { LogOut, Briefcase, CalendarCheck, Clock, DollarSign, Bell, History, Sparkles, Calendar, User, Star, FileText, PenLine, Banknote, Camera, AlertCircle, Loader2 } from 'lucide-react';
 import { PayoutRequirementsBanner } from '@/components/staff/PayoutRequirementsBanner';
 import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -507,6 +508,86 @@ export default function StaffPortal() {
     },
   });
 
+  // ── Photo stage nudge ────────────────────────────────────────────────────
+  // Fires AFTER completion, never before. The completion write (checkout,
+  // actual_hours_worked, hours_basis, cleaner_pay_expected, hours_capped_at)
+  // all happens inside mutationFn and is awaited, so onSuccess only runs once
+  // it has landed. That ordering is deliberate: a prompt that gated the write
+  // would lose the hours if the cleaner dismissed the app mid-prompt. This is
+  // a correction, structurally incapable of delaying or partially applying it.
+  const [photoNudge, setPhotoNudge] = useState<{
+    bookingId: string;
+    photos: { id: string; created_at: string | null }[];
+    currentType: 'before' | 'after';
+    moveCount: number;
+  } | null>(null);
+  const [applyingNudge, setApplyingNudge] = useState(false);
+
+  /** Photos are ordered oldest-first. Proposes how many trailing photos belong
+   *  to the other stage: the largest inter-photo gap when one is big enough to
+   *  be the cleaning itself, otherwise the midpoint. The midpoint fallback
+   *  carries the common case — cleaners who upload everything in one batch at
+   *  the end have no meaningful timestamp spread. */
+  const proposeSplit = (photos: { created_at: string | null }[]): number => {
+    const MEANINGFUL_GAP_MS = 20 * 60 * 1000;
+    const times = photos.map((p) => (p.created_at ? new Date(p.created_at).getTime() : NaN));
+    let bestIdx = -1;
+    let bestGap = 0;
+    for (let i = 1; i < times.length; i++) {
+      if (!Number.isFinite(times[i]) || !Number.isFinite(times[i - 1])) continue;
+      const gap = times[i] - times[i - 1];
+      if (gap > bestGap) { bestGap = gap; bestIdx = i; }
+    }
+    if (bestIdx > 0 && bestGap >= MEANINGFUL_GAP_MS) return photos.length - bestIdx;
+    return Math.floor(photos.length / 2);
+  };
+
+  const maybePromptPhotoStages = async (bookingId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('booking_photos')
+        .select('id, photo_type, created_at')
+        .eq('booking_id', bookingId)
+        .in('photo_type', ['before', 'after'])
+        .order('created_at', { ascending: true });
+      // A failed lookup must never surface on a job that completed fine.
+      if (error || !data) return;
+
+      const rows = data as { id: string; photo_type: string | null; created_at: string | null }[];
+      if (rows.length < 2) return;                       // nothing ambiguous
+      const types = new Set(rows.map((r) => r.photo_type));
+      if (types.size !== 1) return;                      // already in both columns
+
+      const currentType = rows[0].photo_type as 'before' | 'after';
+      const photos = rows.map((r) => ({ id: r.id, created_at: r.created_at }));
+      setPhotoNudge({ bookingId, photos, currentType, moveCount: proposeSplit(photos) });
+    } catch {
+      // Same rule — swallow. The job is already complete.
+    }
+  };
+
+  const applyPhotoNudge = async () => {
+    if (!photoNudge) return;
+    const target = photoNudge.currentType === 'before' ? 'after' : 'before';
+    const ids = photoNudge.photos.slice(photoNudge.photos.length - photoNudge.moveCount).map((p) => p.id);
+    if (ids.length === 0) { setPhotoNudge(null); return; }
+    setApplyingNudge(true);
+    try {
+      const { error } = await supabase
+        .from('booking_photos')
+        .update({ photo_type: target })
+        .in('id', ids);
+      if (error) throw error;
+      toast.success(`Moved ${ids.length} to ${target}`);
+      setPhotoNudge(null);
+    } catch (err) {
+      console.error(err);
+      toast.error('Could not move those photos');
+    } finally {
+      setApplyingNudge(false);
+    }
+  };
+
   // Update booking status mutation with timesheet tracking
   const updateStatus = useMutation({
     mutationFn: async ({ bookingId, status }: { bookingId: string; status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show' }) => {
@@ -707,6 +788,9 @@ export default function StaffPortal() {
           : 'Job completed!',
       };
       toast.success(statusMessages[variables.status] || 'Status updated');
+      if (variables.status === 'completed') {
+        void maybePromptPhotoStages(variables.bookingId);
+      }
     },
     onError: (error) => {
       toast.error('Failed to update status');
@@ -1107,6 +1191,78 @@ export default function StaffPortal() {
 
       </main>
     </div>
+
+    {/* Post-completion only. Dismissing, or killing the app, leaves the job
+        complete and the hours written — this can only change photo_type. */}
+    <Dialog open={!!photoNudge} onOpenChange={(open) => { if (!open) setPhotoNudge(null); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Check your photo stages</DialogTitle>
+          <DialogDescription>
+            All {photoNudge?.photos.length} photos on this job are marked{' '}
+            <span className="font-medium capitalize">{photoNudge?.currentType}</span>. If some were
+            taken {photoNudge?.currentType === 'before' ? 'after' : 'before'} the clean, move them
+            across — otherwise just keep them as they are.
+          </DialogDescription>
+        </DialogHeader>
+
+        {photoNudge && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-[44px] min-w-[44px]"
+                aria-label="Move fewer photos"
+                disabled={photoNudge.moveCount <= 0}
+                onClick={() => setPhotoNudge((n) => (n ? { ...n, moveCount: Math.max(0, n.moveCount - 1) } : n))}
+              >
+                −
+              </Button>
+              <div className="text-center">
+                <div className="text-2xl font-bold">{photoNudge.moveCount}</div>
+                <div className="text-xs text-muted-foreground">
+                  most recent {photoNudge.moveCount === 1 ? 'photo' : 'photos'}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-[44px] min-w-[44px]"
+                aria-label="Move more photos"
+                disabled={photoNudge.moveCount >= photoNudge.photos.length}
+                onClick={() => setPhotoNudge((n) => (n ? { ...n, moveCount: Math.min(n.photos.length, n.moveCount + 1) } : n))}
+              >
+                +
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                className="min-h-[44px]"
+                disabled={applyingNudge || photoNudge.moveCount === 0}
+                onClick={applyPhotoNudge}
+              >
+                {applyingNudge && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Move {photoNudge.moveCount} to {photoNudge.currentType === 'before' ? 'After' : 'Before'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-[44px]"
+                disabled={applyingNudge}
+                onClick={() => setPhotoNudge(null)}
+              >
+                Keep as is
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
