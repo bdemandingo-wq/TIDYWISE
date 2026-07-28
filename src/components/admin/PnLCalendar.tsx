@@ -286,7 +286,7 @@ export function PnLCalendar() {
                 Revenue
               </ToggleGroupItem>
               <ToggleGroupItem value="profit" className="text-xs px-3 min-h-[44px] data-[state=on]:bg-background data-[state=on]:shadow-sm rounded-md">
-                Profit
+                Gross Profit
               </ToggleGroupItem>
             </ToggleGroup>
 
@@ -348,6 +348,17 @@ export function PnLCalendar() {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+        )}
+
+        {/* getDayValue for 'profit' is revenue - cleanerPay. It deliberately
+            omits fees and expenses, so it is NOT the same figure as the Net
+            Profit card on /dashboard/finance. Say so rather than leaving it
+            to be discovered from a mismatch. */}
+        {metricMode === 'profit' && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Revenue minus cleaner pay only. Processing fees and expenses are not
+            taken out here — the Net Profit card includes those.
+          </p>
         )}
       </CardHeader>
 
