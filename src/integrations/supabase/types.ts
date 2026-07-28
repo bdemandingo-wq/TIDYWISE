@@ -1802,6 +1802,7 @@ export type Database = {
       }
       bookings: {
         Row: {
+          actual_hours_worked: number | null
           address: string | null
           ai_converted: boolean | null
           ai_source_conversation_id: string | null
@@ -1834,6 +1835,8 @@ export type Database = {
           extras: Json | null
           frequency: string | null
           has_pets: boolean
+          hours_basis: string | null
+          hours_capped_at: number | null
           id: string
           is_arrival_window: boolean
           is_draft: boolean | null
@@ -1872,6 +1875,7 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          actual_hours_worked?: number | null
           address?: string | null
           ai_converted?: boolean | null
           ai_source_conversation_id?: string | null
@@ -1904,6 +1908,8 @@ export type Database = {
           extras?: Json | null
           frequency?: string | null
           has_pets?: boolean
+          hours_basis?: string | null
+          hours_capped_at?: number | null
           id?: string
           is_arrival_window?: boolean
           is_draft?: boolean | null
@@ -1942,6 +1948,7 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          actual_hours_worked?: number | null
           address?: string | null
           ai_converted?: boolean | null
           ai_source_conversation_id?: string | null
@@ -1974,6 +1981,8 @@ export type Database = {
           extras?: Json | null
           frequency?: string | null
           has_pets?: boolean
+          hours_basis?: string | null
+          hours_capped_at?: number | null
           id?: string
           is_arrival_window?: boolean
           is_draft?: boolean | null
@@ -7201,6 +7210,8 @@ export type Database = {
       payroll_settings: {
         Row: {
           created_at: string
+          hours_absolute_ceiling: number
+          hours_overage_cap_ratio: number
           id: string
           include_taxes_in_pay_base: boolean
           include_tips_in_pay_base: boolean
@@ -7217,6 +7228,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hours_absolute_ceiling?: number
+          hours_overage_cap_ratio?: number
           id?: string
           include_taxes_in_pay_base?: boolean
           include_tips_in_pay_base?: boolean
@@ -7233,6 +7246,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hours_absolute_ceiling?: number
+          hours_overage_cap_ratio?: number
           id?: string
           include_taxes_in_pay_base?: boolean
           include_tips_in_pay_base?: boolean
