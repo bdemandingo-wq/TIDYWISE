@@ -280,6 +280,11 @@ Deno.serve(async (req) => {
 
   const runs = (runsData ?? []) as unknown as CampaignRun[]
 
+  // PHASE 1 — expire, start, skip paused, decide who is due.
+  // Nothing is read off the queue in this phase: expiry must be able to purge a
+  // run's messages while they are all still visible.
+  const dueRuns: CampaignRun[] = []
+
   for (const run of runs) {
     // Isolation: one run blowing up must never abort the others.
     try {
@@ -338,31 +343,37 @@ Deno.serve(async (req) => {
       // 5. THROTTLE — one message per run per tick, only when due.
       if (nextSendAt && new Date(nextSendAt) > now) continue
 
-      const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
-        queue_name: QUEUE,
-        batch_size: 50,
-        vt: VISIBILITY_TIMEOUT_SECONDS,
+      dueRuns.push({ ...run, status: 'running', next_send_at: nextSendAt })
+    } catch (err) {
+      console.error('[process-campaign-queue] Unhandled error preparing run', {
+        run_id: run.id,
+        error: err instanceof Error ? err.message : String(err),
       })
-      if (readErr) {
-        console.error('[process-campaign-queue] Queue read failed', {
-          run_id: run.id,
-          error: readErr.message,
-        })
-        continue
-      }
+    }
+  }
 
-      const rows = (readData ?? []) as QueueRow[]
+  // PHASE 2 — one queue read for the whole tick, grouped by run.
+  // Messages we claim but do not send in this tick simply return when the
+  // visibility timeout expires, exactly as process-email-queue relies on.
+  let rows: QueueRow[] = []
+  if (dueRuns.length > 0) {
+    const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
+      queue_name: QUEUE,
+      batch_size: 50,
+      vt: VISIBILITY_TIMEOUT_SECONDS,
+    })
+    if (readErr) {
+      console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
+    } else {
+      rows = (readData ?? []) as QueueRow[]
+    }
+  }
+
+  for (const run of dueRuns) {
+    try {
+      const nowIso = new Date().toISOString()
       const mine = rows.filter((r) => r?.message?.run_id === run.id)
 
-      // Messages belonging to other runs were made invisible by this read; release
-      // them immediately so another run's tick is not delayed by our claim.
-      for (const other of rows.filter((r) => r?.message?.run_id !== run.id)) {
-        await supabase.rpc('set_email_vt', {
-          queue_name: QUEUE,
-          message_id: other.msg_id,
-          vt: 0,
-        }).catch?.(() => {})
-      }
 
       if (mine.length === 0) {
         const { error: compErr } = await supabase
