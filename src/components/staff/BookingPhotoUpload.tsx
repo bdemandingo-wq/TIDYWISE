@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Camera, X, CheckCircle, Loader2, ImageIcon, Video } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
@@ -109,11 +110,21 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [photoType, setPhotoType] = useState<'before' | 'after'>('after');
+  // Inferred from job state on open, not hardcoded. The old default was
+  // 'after', so a cleaner photographing the mess on arrival filed it as
+  // 'after' unless they actively tapped Before — which is most of why
+  // everything ended up in one column.
+  const [photoType, setPhotoType] = useState<'before' | 'after'>('before');
+  const [typeInferred, setTypeInferred] = useState(true);
   const [mediaMode, setMediaMode] = useState<MediaMode>('photo');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+
+  // Ref mirrors typeInferred so the async inference above reads the current
+  // value rather than the one captured when the dialog opened.
+  const typeInferredRef = useRef(true);
+  typeInferredRef.current = typeInferred;
 
   const cameraPhotoInputRef = useRef<HTMLInputElement>(null);
   const libraryPhotoInputRef = useRef<HTMLInputElement>(null);
@@ -280,6 +291,27 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       onOpenChange={(open) => {
         setIsOpen(open);
         if (!open) clearPreview();
+        if (open) {
+          // Re-infer on every open. An override is an exception and must not
+          // silently become the default for the next job — that is the
+          // mechanism that produced the one-column problem. Within a single
+          // open session the override sticks, so batching still works.
+          setTypeInferred(true);
+          setPhotoType('before');
+          void (async () => {
+            const { data } = await supabase
+              .from('bookings')
+              .select('status, cleaner_checkout_at')
+              .eq('id', bookingId)
+              .maybeSingle();
+            const checkedOut =
+              !!(data as { cleaner_checkout_at?: string | null } | null)?.cleaner_checkout_at ||
+              (data as { status?: string } | null)?.status === 'completed';
+            // Only apply if the cleaner hasn't already chosen — never yank the
+            // control out from under a tap that landed while this was in flight.
+            setPhotoType((current) => (typeInferredRef.current ? (checkedOut ? 'after' : 'before') : current));
+          })();
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -323,25 +355,32 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
             </Button>
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={photoType === 'before' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setPhotoType('before')}
-              className="flex-1"
-            >
-              Before
-            </Button>
-            <Button
-              type="button"
-              variant={photoType === 'after' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setPhotoType('after')}
-              className="flex-1"
-            >
-              After
-            </Button>
+          <div>
+            <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Photo stage">
+              {(['before', 'after'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setPhotoType(t); setTypeInferred(false); }}
+                  aria-pressed={photoType === t}
+                  className={cn(
+                    'flex-1 rounded-md py-2 text-sm font-medium capitalize transition-colors min-h-[44px]',
+                    photoType === t
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-center text-xs text-muted-foreground">
+              {typeInferred
+                ? photoType === 'before'
+                  ? 'Job not finished yet — filing as Before. Tap After to change.'
+                  : 'Job is checked out — filing as After. Tap Before to change.'
+                : `Filing as ${photoType} for the rest of this upload.`}
+            </p>
           </div>
 
           {mediaMode === 'video' && (

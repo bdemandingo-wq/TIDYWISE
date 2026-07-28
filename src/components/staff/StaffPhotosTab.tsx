@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Camera, Upload, X, CheckCircle, Loader2, ImageIcon, Video, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -105,7 +106,11 @@ function getUploadErrorMessage(error: unknown, isVideo: boolean) {
 export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps) {
   const queryClient = useQueryClient();
   const [selectedBookingId, setSelectedBookingId] = useState<string>('');
-  const [photoType, setPhotoType] = useState<string>('after');
+  // Inferred from the selected booking rather than hardcoded 'after'. Re-infers
+  // whenever the booking changes, so an override on one job can't follow the
+  // cleaner to the next — that stickiness is why photos piled into one column.
+  const [photoType, setPhotoType] = useState<string>('before');
+  const [typeInferred, setTypeInferred] = useState(true);
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [previewItem, setPreviewItem] = useState<{ url: string; type: string } | null>(null);
@@ -133,7 +138,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
 
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_number, scheduled_at, customer:customers(first_name, last_name), service:services(name)')
+        .select('id, booking_number, scheduled_at, status, cleaner_checkout_at, customer:customers(first_name, last_name), service:services(name)')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId)
         .in('status', ['pending', 'confirmed', 'in_progress', 'completed'])
@@ -151,6 +156,15 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
       setSelectedBookingId(bookings[0].id);
     }
   }, [bookings, selectedBookingId]);
+
+  // Re-infer the stage whenever the selected booking changes.
+  useEffect(() => {
+    if (!selectedBookingId) return;
+    const b = (bookings as any[]).find((x) => x.id === selectedBookingId);
+    if (!b) return;
+    setTypeInferred(true);
+    setPhotoType(b.cleaner_checkout_at || b.status === 'completed' ? 'after' : 'before');
+  }, [selectedBookingId, bookings]);
 
 
   const { data: photos = [], isLoading: loadingPhotos } = useQuery({
@@ -369,16 +383,32 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             </SelectContent>
           </Select>
 
-          <div className="flex gap-2">
-            <Button type="button" variant={photoType === 'before' ? 'default' : 'outline'} size="sm" onClick={() => setPhotoType('before')} className="flex-1">
-              📷 Before
-            </Button>
-            <Button type="button" variant={photoType === 'after' ? 'default' : 'outline'} size="sm" onClick={() => setPhotoType('after')} className="flex-1">
-              ✅ After
-            </Button>
-            <Button type="button" variant={photoType === 'other' ? 'default' : 'outline'} size="sm" onClick={() => setPhotoType('other')} className="flex-1">
-              📝 Other
-            </Button>
+          <div>
+            <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Photo stage">
+              {(['before', 'after', 'other'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setPhotoType(t); setTypeInferred(false); }}
+                  aria-pressed={photoType === t}
+                  className={cn(
+                    'flex-1 rounded-md py-2 text-sm font-medium capitalize transition-colors min-h-[44px]',
+                    photoType === t
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-center text-xs text-muted-foreground">
+              {typeInferred
+                ? photoType === 'before'
+                  ? 'Job not finished yet — filing as Before.'
+                  : 'Job is checked out — filing as After.'
+                : `Filing as ${photoType}.`}
+            </p>
           </div>
 
           <input
