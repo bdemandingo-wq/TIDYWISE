@@ -23,12 +23,14 @@ export type Database = {
           first_name: string | null
           followup_sent: boolean | null
           followup_sent_at: string | null
+          form_snapshot: Json | null
           id: string
           last_name: string | null
           organization_id: string
           phone: string | null
           service_id: string | null
           session_token: string
+          sms_consent: boolean
           step_reached: number | null
           updated_at: string
         }
@@ -40,12 +42,14 @@ export type Database = {
           first_name?: string | null
           followup_sent?: boolean | null
           followup_sent_at?: string | null
+          form_snapshot?: Json | null
           id?: string
           last_name?: string | null
           organization_id: string
           phone?: string | null
           service_id?: string | null
           session_token: string
+          sms_consent?: boolean
           step_reached?: number | null
           updated_at?: string
         }
@@ -57,12 +61,14 @@ export type Database = {
           first_name?: string | null
           followup_sent?: boolean | null
           followup_sent_at?: string | null
+          form_snapshot?: Json | null
           id?: string
           last_name?: string | null
           organization_id?: string
           phone?: string | null
           service_id?: string | null
           session_token?: string
+          sms_consent?: boolean
           step_reached?: number | null
           updated_at?: string
         }
@@ -8853,6 +8859,38 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      sms_suppressions: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          phone: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          phone: string
+          source?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          phone?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_suppressions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sms_templates: {
         Row: {
