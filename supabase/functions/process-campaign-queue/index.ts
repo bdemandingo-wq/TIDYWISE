@@ -396,7 +396,9 @@ Deno.serve(async (req) => {
   const runIdStatuses = new Map<string, string>()
   let runStatusLookupOk = false
   if (rows.length > 0) {
-    const uniqueRunIds = [...new Set(rows.map((r) => r.message?.run_id).filter((id): id is string => Boolean(id)))]
+    const uniqueRunIds = [
+      ...new Set(rows.map((r) => r.message?.run_id).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ]
     const { data: runStatusData, error: runStatusErr } = await supabase
       .from('campaign_runs')
       .select('id, status')
