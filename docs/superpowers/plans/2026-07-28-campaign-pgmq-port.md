@@ -142,7 +142,22 @@ Applied and verified live:
 
 **Deployed 2026-07-28** — 2.1–2.3 are live. `marketing-guard.ts` fail-closed and org-scoped; `process-campaign-queue` expires and purges before any read, skips paused runs, sends one message per due run, re-checks opt-out at send time, mirrors into `sms_messages` keyed on `openphone_message_id`, DLQs after 5 attempts, per-run try/catch; dispatcher pair on advisory lock `7700000000000002` with vault auth, trigger attached unconditionally, `cron.job` correctly empty until a run exists.
 
-**Behavioural verification (2.4/2.5) still open** — deployment confirms the code shipped, not that it behaves. Run `docs/superpowers/specs/2026-07-28-phase2-verification.sql` blocks A–D before starting Phase 3.
+**Behavioural verification (2.4/2.5) still open** — deployment confirms the code shipped, not that it behaves. Run `docs/superpowers/specs/2026-07-28-phase2-verification.sql` blocks A–F before starting Phase 3.
+
+### 2.6 — Completion race found during verification (2026-07-28)
+
+Block C surfaced a real production race, not a test artifact. `campaign_queue_wake` fires `AFTER INSERT` on `campaign_runs`, so the dispatcher is armed the instant the run row commits — but recipients are enqueued *after* that insert, by the caller. The worker's first tick therefore always sees an empty queue, and completing on "queue empty" alone marked runs done before a single recipient was queued. Completed runs are then skipped forever, stranding every message.
+
+Fixes, deployed as 2.6:
+
+1. **An empty queue is not completion.** `progress = sent_count + failed_count + skipped_opted_out_count`. Complete only when `progress >= total_recipients`; otherwise leave the run `running` and retry on a later tick.
+2. **`total_recipients = 0` completes immediately** — falls out of the rule (`0 >= 0`). Guarded by a 30-second age check so a caller that inserts first and populates the count afterwards cannot be read as a genuine empty audience.
+3. **Stall timeout.** Fix 1 converts a failed enqueue from "wrongly completed" into "stuck running", which holds the cron armed at 15s ticks for 24h. So: `running` + empty queue + `progress < total_recipients` + `started_at` older than 5 minutes → `cancelled`, `cancel_reason='enqueue_stalled'`, purge orphans. Requires extending the `cancel_reason` check constraint; the constraint stays, it is not dropped.
+4. **`next_send_at` only advances after a real send attempt** — otherwise recovery from the empty-queue window waits a full `throttle_seconds` (up to an hour). Opt-out skips also do not consume throttle, capped at 50 per run per tick.
+
+**Caller requirement:** `total_recipients` must be set in the same INSERT that creates the run, never by a follow-up UPDATE. Phase 3's enqueue must honour this or the race reopens.
+
+Blocks E and F verify the new paths. F (partial enqueue — 2 of 5 queued) is the case a simple `enqueue_complete` boolean would have passed silently; the counter catches it because 2 of 5 delivered must never be reported as a completed campaign.
 
 - [x] **2.1** Create the shared opt-out guard first — Phase 4 reuses it.
 

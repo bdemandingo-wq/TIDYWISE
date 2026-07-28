@@ -88,30 +88,52 @@ select count(*) as job_still_armed from cron.job where jobname = 'process-campai
 -- Use a customer row whose phone is YOUR OWN number. Do not run this
 -- against a real customer. One message, one recipient.
 
--- C1. Create the run, then enqueue exactly one message by hand.
---     Payload shape must match what the worker expects:
---       { run_id, campaign_id, organization_id, customer_id,
---         phone, first_name, last_name, message_template }
+-- C1. Create the run with total_recipients SET IN THE INSERT.
+--     Never insert 0 and UPDATE afterwards — the AFTER INSERT trigger fires
+--     on this committed row, so whatever total_recipients holds right here
+--     is what the worker's first tick reads. An earlier version of this file
+--     inserted 0 then updated to 1, which widened the completion race.
+insert into public.campaign_runs
+  (campaign_id, organization_id, status, throttle_seconds, expires_at, total_recipients)
+values
+  ('<CAMPAIGN_ID>', '<ORG_ID>', 'pending', 30, now() + interval '24 hours', 1)
+returning id, status, total_recipients, created_at;
+
+-- C2. ⭐ RACE REGRESSION CHECK — run this BEFORE enqueueing anything.
+--     The trigger has already armed the dispatcher, so the worker has now
+--     ticked at least once against an empty queue. Wait ~20s, then:
+select id, status, total_recipients, sent_count, failed_count,
+       skipped_opted_out_count, started_at, completed_at
+from public.campaign_runs where id = '<RUN_ID>';
+-- Expect: status = 'running' (or 'pending'), completed_at IS NULL.
 --
--- select pgmq.send('campaign_sms', jsonb_build_object(
---   'run_id',           '<RUN_ID>',
---   'campaign_id',      '<CAMPAIGN_ID>',
---   'organization_id',  '<ORG_ID>',
---   'customer_id',      '<YOUR_TEST_CUSTOMER_ID>',
---   'phone',            '+1<YOUR_NUMBER>',
---   'first_name',       'Test',
---   'last_name',        'Run',
---   'message_template', 'Test from the campaign queue. Reply STOP to opt out.'
--- ));
+-- If status = 'completed' with sent_count = 0, the race fix did NOT take:
+-- the worker is still treating an empty queue as completion while progress
+-- (0) is below total_recipients (1). Stop — do not proceed to C3.
 
--- C2. Then update total_recipients to 1 and let it run.
--- update public.campaign_runs set total_recipients = 1 where id = '<RUN_ID>';
+-- C3. Now enqueue the single message. Payload shape must match the worker's
+--     contract exactly.
+select pgmq.send('campaign_sms', jsonb_build_object(
+  'run_id',           '<RUN_ID>',
+  'campaign_id',      '<CAMPAIGN_ID>',
+  'organization_id',  '<ORG_ID>',
+  'customer_id',      '<YOUR_TEST_CUSTOMER_ID>',
+  'phone',            '+1<YOUR_NUMBER>',
+  'first_name',       'Test',
+  'last_name',        'Run',
+  'message_template', 'Test from the campaign queue. Reply STOP to opt out.'
+));
 
--- C3. Outcome checks.
+-- C4. The run should now pick the message up on the next tick and send it,
+--     proving it recovered from the empty-queue window rather than being
+--     stranded in it.
+
+-- C5. Outcome checks.
 select id, status, total_recipients, sent_count, failed_count,
        skipped_opted_out_count, started_at, completed_at, next_send_at
 from public.campaign_runs where id = '<RUN_ID>';
 -- Expect: status 'completed', sent_count 1, failed_count 0.
+-- Completion is now legitimate: progress (1) >= total_recipients (1).
 
 -- Logged to campaign_sms_sends?
 select id, campaign_id, customer_id, phone_number, status, campaign_type, sent_at
@@ -158,3 +180,75 @@ from public.campaign_runs where id = '<RUN_ID>';
 -- If skipped_opted_out_count is 0 and sent_count is 2, the guard is running
 -- at enqueue instead of dequeue. That is the one failure mode that must not
 -- ship — stop and fix before Phase 3.
+--
+-- Note: progress here is sent(1) + skipped(1) = 2 = total_recipients, so the
+-- run still completes. A skipped recipient counts as accounted for.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- E. Stall timeout — simulates a failed enqueue (sends nothing)
+-- ═══════════════════════════════════════════════════════════════
+-- Safe: no messages are ever queued, so nothing can send. This is the
+-- counterpart to Fix 1 — having stopped the worker from wrongly completing,
+-- confirm it does not now hang forever instead.
+
+-- E1. Create a run claiming 5 recipients, and enqueue NOTHING. This is
+--     exactly what a crash between run creation and pgmq.send looks like.
+insert into public.campaign_runs
+  (campaign_id, organization_id, status, throttle_seconds, expires_at, total_recipients)
+values
+  ('<CAMPAIGN_ID>', '<ORG_ID>', 'pending', 30, now() + interval '24 hours', 5)
+returning id, status, total_recipients, created_at;
+
+-- E2. After ~1 minute: it must still be running, NOT completed.
+select id, status, sent_count, started_at, completed_at,
+       now() - started_at as running_for
+from public.campaign_runs where id = '<STALL_RUN_ID>';
+-- Expect: status 'running', completed_at NULL.
+-- 'completed' here means Fix 1 regressed.
+
+-- E3. After >5 minutes: the stall timeout must have fired.
+select id, status, cancel_reason, sent_count, total_recipients, completed_at
+from public.campaign_runs where id = '<STALL_RUN_ID>';
+-- Expect: status 'cancelled', cancel_reason 'enqueue_stalled'.
+-- Still 'running' after 6+ minutes means the stall check is not firing, and
+-- this run would hold the cron armed at 15s ticks until expires_at — 24h.
+
+-- E4. With no other active run, the dispatcher must disarm.
+select count(*) as job_still_armed from cron.job where jobname = 'process-campaign-queue';
+-- Expect: 0.
+
+-- E5. Nothing stranded.
+select
+  (select count(*) from pgmq.q_campaign_sms)     as queue_depth,
+  (select count(*) from pgmq.q_campaign_sms_dlq) as dlq_depth;
+-- Expect: 0 and 0.
+
+-- E6. Constraint accepts the new reason and still rejects junk.
+select conname, pg_get_constraintdef(oid) as definition
+from pg_constraint
+where conrelid = 'public.campaign_runs'::regclass
+  and pg_get_constraintdef(oid) ilike '%cancel_reason%';
+-- Expect: check listing 'expired', 'user_cancelled', 'enqueue_stalled'.
+-- The constraint must still EXIST — dropping it to allow the new value
+-- would leave the column unvalidated.
+
+
+-- ═══════════════════════════════════════════════════════════════
+-- F. Partial enqueue — the case the counter catches and a flag would not
+-- ═══════════════════════════════════════════════════════════════
+-- ⚠️ SENDS 2 REAL SMS to your own number. Optional but worth running: it is
+-- the scenario a simple "enqueue_complete" boolean would silently pass.
+
+-- F1. Claim 5 recipients, enqueue only 2 (partial enqueue failure).
+--     Create the run, then send exactly two messages to your own number.
+
+-- F2. Both send, then the run stalls rather than reporting success.
+select id, status, cancel_reason, sent_count, total_recipients
+from public.campaign_runs where id = '<PARTIAL_RUN_ID>';
+-- Expect: sent_count 2, then after 5 minutes status 'cancelled' with
+-- cancel_reason 'enqueue_stalled'.
+--
+-- The point: 2 of 5 delivered is a partial send that must NOT be reported as
+-- a completed campaign. progress (2) < total_recipients (5) keeps it open
+-- until the stall timeout names it as failed.
