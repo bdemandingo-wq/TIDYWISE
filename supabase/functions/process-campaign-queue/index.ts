@@ -10,6 +10,14 @@
 //   expire -> start -> skip paused -> throttle -> re-check opt-out -> send
 // Expiring before reading any message means a stale run structurally cannot
 // emit a message rather than relying on a check that might be skipped.
+//
+// CALLER CONTRACT: total_recipients MUST be set in the same INSERT that creates
+// the campaign_runs row, never by a follow-up UPDATE. campaign_queue_wake fires
+// AFTER INSERT, so this worker can observe the run before recipients are
+// enqueued; completion is decided by
+//   progress = sent_count + failed_count + skipped_opted_out_count
+// against total_recipients, and a placeholder count would complete or
+// stall-cancel the run before a single recipient was queued.
 
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { isOptedOut } from '../_shared/marketing-guard.ts'
