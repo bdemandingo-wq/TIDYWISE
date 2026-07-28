@@ -144,8 +144,13 @@ export function PnLCalendar() {
     const seenBookingIds = new Set<string>();
 
     bookings.forEach((b: any) => {
-      if (b.payment_status === 'refunded') return;
-      if (b.payment_status !== 'paid' && b.payment_status !== 'partial') return;
+      // Refunded jobs stay in the calendar with zero revenue rather than
+      // vanishing. The org refunded the customer but still paid the cleaner
+      // and Stripe still kept the processing fee, so the day should show that
+      // loss. Skipping the row made a refunded job look free — and made Gross
+      // Profit read high by exactly the cleaner pay.
+      const isRefunded = b.payment_status === 'refunded';
+      if (!isRefunded && b.payment_status !== 'paid' && b.payment_status !== 'partial') return;
       if (seenBookingIds.has(b.id)) return;
       seenBookingIds.add(b.id);
 
@@ -160,8 +165,13 @@ export function PnLCalendar() {
 
       const existing = map.get(dateKey) || { revenue: 0, expenses: 0, cleanerPay: 0, fees: 0, net: 0 };
 
-      const gross = Number(b.total_amount) || 0;
-      const fee = (gross * 0.029) + 0.30;
+      // `charged` is what the customer was originally billed; `gross` is what
+      // the org kept. They differ only on a refund. Fees and cleaner pay are
+      // both computed off `charged`: Stripe does not return its fee on a
+      // refunded charge, and cleaners keep their pay on a refunded job.
+      const charged = Number(b.total_amount) || 0;
+      const gross = isRefunded ? 0 : charged;
+      const fee = (charged * 0.029) + 0.30;
 
       let cleanerPay = 0;
       const teamPay = teamPaysByBooking.get(b.id);
@@ -175,7 +185,7 @@ export function PnLCalendar() {
         const wage = Number(b.cleaner_wage);
         const wageType = b.cleaner_wage_type || 'hourly';
         if (wageType === 'flat') cleanerPay = wage;
-        else if (wageType === 'percentage') cleanerPay = (gross * wage) / 100;
+        else if (wageType === 'percentage') cleanerPay = (charged * wage) / 100;
         else cleanerPay = wage * (b.cleaner_override_hours || (b.duration / 60));
       }
 
