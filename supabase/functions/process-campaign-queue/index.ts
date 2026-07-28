@@ -20,6 +20,14 @@ const VISIBILITY_TIMEOUT_SECONDS = 120
 const MAX_RETRIES = 5
 const PURGE_BATCH = 100
 const PURGE_MAX_BATCHES = 50
+// Completion race guards. campaign_queue_wake fires AFTER INSERT on
+// campaign_runs, so the first tick can land before the caller has enqueued any
+// recipients. An empty queue therefore is NOT completion — see the progress
+// check below. total_recipients MUST be set in the same INSERT that creates the
+// run, never by a follow-up UPDATE.
+const EMPTY_RUN_GRACE_MS = 30_000
+const STALL_TIMEOUT_MS = 5 * 60_000
+const MAX_SKIPS_PER_TICK = 50
 
 interface CampaignMessage {
   run_id: string
