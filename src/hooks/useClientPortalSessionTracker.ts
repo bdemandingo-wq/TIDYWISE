@@ -1,12 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
 import { useClientPortal } from '@/contexts/ClientPortalContext';
 
 const IDLE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes of inactivity = idle
 const UPDATE_INTERVAL_MS = 30 * 1000; // Update session every 30 seconds
 
 export function useClientPortalSessionTracker() {
-  const { user, customer, sessionToken } = useClientPortal();
+  const { user, customer, sessionToken, invokePortal } = useClientPortal();
   const sessionIdRef = useRef<string | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
   const sessionStartRef = useRef<number>(Date.now());
@@ -42,11 +41,11 @@ export function useClientPortalSessionTracker() {
     
     try {
       console.log('[CLIENT_PORTAL_SESSION] createSession start', { userId: user.id });
-      const { data, error } = await supabase.functions.invoke('client-portal-session-track', {
-        headers: { 'x-portal-session': sessionToken },
+      const { data, error, unauthorized } = await invokePortal<{ id?: string }>('client-portal-session-track', {
         body: { action: 'create' },
       });
 
+      if (unauthorized) return;
       if (error) throw error;
       const sessionId = (data as { id?: string } | null)?.id;
       if (!sessionId) throw new Error('Session id missing');
@@ -58,7 +57,7 @@ export function useClientPortalSessionTracker() {
     } catch (err) {
       console.error('[CLIENT_PORTAL_SESSION] createSession failed', err);
     }
-  }, [user, customer, sessionToken]);
+  }, [user, customer, sessionToken, invokePortal]);
 
   // Update session duration
   const updateSession = useCallback(async () => {
@@ -77,8 +76,7 @@ export function useClientPortalSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      const { error } = await supabase.functions.invoke('client-portal-session-track', {
-        headers: { 'x-portal-session': sessionToken },
+      const { error, unauthorized } = await invokePortal('client-portal-session-track', {
         body: {
           action: 'update',
           session_id: sessionIdRef.current,
@@ -86,11 +84,12 @@ export function useClientPortalSessionTracker() {
         },
       });
 
+      if (unauthorized) return;
       if (error) throw error;
     } catch (err) {
       console.error('[CLIENT_PORTAL_SESSION] updateSession failed', err);
     }
-  }, [user, sessionToken, checkIdle]);
+  }, [user, sessionToken, checkIdle, invokePortal]);
 
   // End the session
   const endSession = useCallback(async () => {
@@ -105,8 +104,7 @@ export function useClientPortalSessionTracker() {
     const durationSeconds = Math.floor(activeTimeRef.current / 1000);
     
     try {
-      const { error } = await supabase.functions.invoke('client-portal-session-track', {
-        headers: { 'x-portal-session': sessionToken },
+      const { error, unauthorized } = await invokePortal('client-portal-session-track', {
         body: {
           action: 'end',
           session_id: sessionIdRef.current,
@@ -114,13 +112,14 @@ export function useClientPortalSessionTracker() {
         },
       });
 
+      if (unauthorized) return;
       if (error) throw error;
     } catch (err) {
       console.error('[CLIENT_PORTAL_SESSION] endSession failed', err);
     }
     
     sessionIdRef.current = null;
-  }, [sessionToken]);
+  }, [sessionToken, invokePortal]);
 
   useEffect(() => {
     if (!user || !customer || !sessionToken) return;
