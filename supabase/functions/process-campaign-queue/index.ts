@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
   const { data: runsData, error: runsError } = await supabase
     .from('campaign_runs')
     .select(
-      'id, campaign_id, organization_id, status, throttle_seconds, scheduled_at, expires_at, next_send_at, sent_count, failed_count, skipped_opted_out_count',
+      'id, campaign_id, organization_id, status, throttle_seconds, scheduled_at, expires_at, next_send_at, created_at, started_at, total_recipients, sent_count, failed_count, skipped_opted_out_count',
     )
     .in('status', ['pending', 'running', 'paused'])
     .order('created_at', { ascending: true })
