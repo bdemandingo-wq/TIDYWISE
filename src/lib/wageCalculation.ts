@@ -100,13 +100,32 @@ export function getActualHours(booking: WageBooking, staff?: WageStaff | null): 
 }
 
 /**
- * Net revenue a percentage wage is taken from.
+ * Net revenue a percentage wage is taken from — the price actually charged.
  * Mirrors payroll-period-process.ts:bookingNetRevenue (nullish, not falsy —
  * a subtotal of 0 means 0, it does not fall through to total_amount).
  */
 function bookingNetRevenue(booking: WageBooking): number {
-  return Number(booking.subtotal ?? booking.total_amount ?? 0) -
-    Number(booking.discount_amount ?? 0);
+  // subtotal is PRE-discount; total_amount is POST-discount. The old form,
+  // `(subtotal ?? total_amount) - discount_amount`, only held when subtotal
+  // was populated — and nothing in the app ever populates it. BookingStepper
+  // writes total_amount = finalPrice, which is already
+  // `baseAmount - discountAmount`, and omits subtotal entirely, so the
+  // fallback subtracted the discount a second time and underpaid percentage
+  // cleaners by exactly (wageRate / 100) * discount_amount.
+  //
+  // Pay is on the discounted amount — the price actually charged. That
+  // matches the snapshot path, which is what nearly every booking uses:
+  // BookingStepper computes cleaner_pay_expected from finalPrice. Paying
+  // pre-discount here would have introduced a second convention for the
+  // fallback path only.
+  //
+  // Must stay identical to bookingNetRevenue in
+  // supabase/functions/_shared/payroll-period-process.ts — that copy is the
+  // one that actually pays people.
+  if (booking.subtotal != null) {
+    return Number(booking.subtotal) - Number(booking.discount_amount ?? 0);
+  }
+  return Number(booking.total_amount ?? 0);
 }
 
 /**
