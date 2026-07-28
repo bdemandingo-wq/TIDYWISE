@@ -141,10 +141,21 @@ function getActualHours(b: WageBooking, staff: WageStaff | null): number {
   return Number(b.duration ?? 0) / 60;
 }
 
-/** Net revenue for a booking, mirrors the dashboard's calcWeekForecast. */
+/** Net revenue for a booking — the price actually charged. */
 function bookingNetRevenue(b: WageBooking): number {
-  return Number(b.subtotal ?? b.total_amount ?? 0) -
-    Number(b.discount_amount ?? 0);
+  // subtotal is PRE-discount; total_amount is POST-discount. The old form,
+  // `(subtotal ?? total_amount) - discount_amount`, only held when subtotal
+  // was populated — and nothing in the app ever populates it. BookingStepper
+  // writes total_amount = finalPrice, which is already
+  // `baseAmount - discountAmount`, and omits subtotal entirely, so the
+  // fallback subtracted the discount a second time and underpaid percentage
+  // cleaners by exactly (wageRate / 100) * discount_amount.
+  //
+  // Must stay identical to bookingNetRevenue in src/lib/wageCalculation.ts.
+  if (b.subtotal != null) {
+    return Number(b.subtotal) - Number(b.discount_amount ?? 0);
+  }
+  return Number(b.total_amount ?? 0);
 }
 
 /** Mirrors src/lib/wageCalculation.ts:calculateBookingWage. */
