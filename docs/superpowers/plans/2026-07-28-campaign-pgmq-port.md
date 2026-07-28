@@ -140,7 +140,11 @@ Applied and verified live:
 
 ## Phase 2 — The drain worker (Lovable)
 
-- [ ] **2.1** Create the shared opt-out guard first — Phase 4 reuses it.
+**Deployed 2026-07-28** — 2.1–2.3 are live. `marketing-guard.ts` fail-closed and org-scoped; `process-campaign-queue` expires and purges before any read, skips paused runs, sends one message per due run, re-checks opt-out at send time, mirrors into `sms_messages` keyed on `openphone_message_id`, DLQs after 5 attempts, per-run try/catch; dispatcher pair on advisory lock `7700000000000002` with vault auth, trigger attached unconditionally, `cron.job` correctly empty until a run exists.
+
+**Behavioural verification (2.4/2.5) still open** — deployment confirms the code shipped, not that it behaves. Run `docs/superpowers/specs/2026-07-28-phase2-verification.sql` blocks A–D before starting Phase 3.
+
+- [x] **2.1** Create the shared opt-out guard first — Phase 4 reuses it.
 
 > **Lovable prompt:**
 >
