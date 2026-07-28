@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
   const projectUrl =
     Deno.env.get('APP_URL') || Deno.env.get('PROJECT_URL') || 'https://jointidywise.com'
 
-  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0 }
+  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0, stalled: 0 }
 
   // 1. Load candidate runs
   const { data: runsData, error: runsError } = await supabase
