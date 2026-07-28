@@ -162,6 +162,9 @@ const handler = async (req: Request): Promise<Response> => {
         .eq('organization_id', organizationId)
         .eq('marketing_status', 'active')
         .not('phone', 'is', null)
+        // Unique tiebreaker required: .range() paging is only deterministic
+        // with a total ordering. Do not remove.
+        .order('id', { ascending: true })
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
       if (targetAudience === 'cancelled_clients') {
@@ -176,8 +179,13 @@ const handler = async (req: Request): Promise<Response> => {
       const { data, error } = await query;
       if (error) {
         console.error("[run-inactive-campaign] Error fetching customers page:", error);
-        break;
+        // Abort the run: a partial customer list must never become the campaign audience.
+        return new Response(
+          JSON.stringify({ error: `Failed to fetch customers: ${error.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
+
       if (!data || data.length === 0) break;
       allCustomers = allCustomers.concat(data);
       if (data.length < pageSize) break;
