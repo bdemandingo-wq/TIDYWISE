@@ -72,18 +72,17 @@ pg_cron ≥ 1.5 accepts interval syntax, and this codebase relies on it. Sub-min
 
 **So the worker does not need to space sends inside a tick.** The design keeps the `next_send_at` cursor regardless, because a cursor is cadence-independent: it enforces the exact throttle whether cron fires every 5s or every 60s, and it survives a cadence change without a code change. Cron cadence only has to be *finer than the smallest throttle*. Use `'15 seconds'` — comfortably under the 30s minimum throttle, and no per-tick sleeping, so the ~150s wall-clock ceiling stops being a design constraint at all.
 
-- [ ] **0.1** ✅ Preflight run, results recorded above.
-- [ ] **0.2** **One residual check before Phase 1** — confirm the wake triggers are actually attached (see the note below; this is cheap and it gates whether the pattern we're copying is live at all):
+- [x] **0.1** ✅ Preflight run, results recorded above.
+- [x] **0.2** ✅ **Wake triggers confirmed attached and enabled** (2026-07-28):
 
-```sql
-select tgname, tgrelid::regclass as on_table, tgenabled
-from pg_trigger
-where tgname in ('email_queue_wake_auth','email_queue_wake_transactional');
-```
+| tgname | on_table | tgenabled |
+|---|---|---|
+| `email_queue_wake_auth` | `pgmq.q_auth_emails` | `O` (enabled) |
+| `email_queue_wake_transactional` | `pgmq.q_transactional_emails` | `O` (enabled) |
 
-Expect two rows with `tgenabled = 'O'`. **If it returns zero rows, stop** — see "Separately tracked" below, and treat the email-queue pattern as unproven before copying it.
+The `to_regclass()` guard in migration `20260715180557` did not silently skip, despite the KNOWN GAP note in `20260716180500`. **The self-arming dispatcher pattern is live and proven end-to-end in production**, so Phase 2 is copying something that demonstrably works rather than something inferred from source. No email-queue bug. Phase 1 is unblocked.
 
-- [ ] **0.3** Clean up the two `audit_probe` leftover queues (`pgmq.drop_queue`) so queue listings stay meaningful.
+- [ ] **0.3** Clean up the two `audit_probe` leftover queues (`pgmq.drop_queue`) so queue listings stay meaningful. Not blocking — can ride along with the Phase 1 migration.
 
 ---
 
@@ -269,15 +268,17 @@ Five marketing senders POST to OpenPhone without consulting `marketing_status`. 
 
 ## Separately tracked
 
-### Email wake-trigger attachment — verify, do not assume
+### Email wake-trigger attachment — ✅ RESOLVED, no bug
 
-Not folded into this plan, but it gates Phase 0.2 because we are copying this pattern.
+Checked and closed 2026-07-28. Recorded here because the reasoning is worth keeping.
 
-The queue drain design is sound: `email_queue_wake` arms a 5-second cron and `email_queue_dispatch` disarms it once both queues are empty, with an advisory lock serializing the two. Messages that fail and return via visibility-timeout keep the job armed, because `EXISTS (SELECT 1 FROM pgmq.q_*)` sees invisible rows too. Rate-limit backoff returns early *without* disarming. All correct.
+The queue drain design is sound: `email_queue_wake` arms a 5-second cron and `email_queue_dispatch` disarms it once both queues are empty, with an advisory lock serializing the two. Messages that fail and return via visibility-timeout keep the job armed, because `EXISTS (SELECT 1 FROM pgmq.q_*)` sees invisible rows too. Rate-limit backoff returns early *without* disarming.
 
-The risk is attachment, not design. Migration `20260715180557` creates both triggers behind a `to_regclass()` guard that silently skips with a `RAISE NOTICE` if the queue tables don't exist yet, and `20260716180500` explicitly records *"KNOWN GAP: trigger attachment not captured."* If those triggers were skipped and never re-run, **nothing arms the cron**, and enqueued emails would sit until something else invoked the function directly.
+The open risk was attachment, not design: migration `20260715180557` creates both triggers behind a `to_regclass()` guard that skips with a `RAISE NOTICE` if the queue tables don't exist yet, and `20260716180500` records *"KNOWN GAP: trigger attachment not captured."* Had the guard skipped, nothing would arm the cron and enqueued emails would sit indefinitely.
 
-Empty queues are consistent with both "working perfectly" and "nothing ever enqueued." The Phase 0.2 query distinguishes them. If it returns zero rows, that is a live bug worth its own fix — re-run the trigger attachment unconditionally — and this plan should not copy an unproven pattern until it is resolved.
+**Both triggers are present and enabled** (Phase 0.2). Queues sitting empty with no cron job is the system correctly at rest. Emails cannot silently strand through this path.
+
+Worth noting for future work: this held by luck of migration ordering, not by construction. A rebuild that creates the queues *after* this migration would skip the triggers again and the failure would be silent. Hence the Phase 2 instruction to attach the campaign trigger unconditionally.
 
 ### Not in this plan
 
