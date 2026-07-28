@@ -184,6 +184,20 @@ const queryClient = new QueryClient({
 // Reads work offline; writes (confirmations, emails) still need a connection
 // and the GlobalOfflineBanner explains that. Cache restores instantly on
 // launch, then refetches silently once online.
+// Map/Set instances don't survive the persister's JSON round-trip — they come
+// back as {} and throw on the next .get()/.has(). Reject query data that is a
+// Map/Set, or that holds one in a top-level property (the shape that broke the
+// Staff Portal). Deliberately shallow: this runs over the whole cache on every
+// throttled write, and one level covers the "batched lookups" object pattern
+// these queries actually use.
+const containsMapOrSet = (data: unknown): boolean => {
+  if (data instanceof Map || data instanceof Set) return true;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  return Object.values(data as Record<string, unknown>).some(
+    (v) => v instanceof Map || v instanceof Set,
+  );
+};
+
 const offlinePersister = createSyncStoragePersister({
   storage: typeof window !== 'undefined' ? window.localStorage : undefined,
   key: 'tw-offline-cache',
@@ -224,8 +238,10 @@ const App = () => (
             // and crashes on the next .get()/.has() (same class of bug as
             // service-pricing above; also hit customer-stats-for-dedupe,
             // teamPaysByBooking, enrollmentsByCustomer on 2026-07-20).
-            !(q.state.data instanceof Map) &&
-            !(q.state.data instanceof Set) &&
+            // The check is one level deep: staff-myjob-carddata returned an
+            // *object containing* a Set (onTheWaySent), which passed the
+            // top-level check and took down the Staff Portal on 2026-07-28.
+            !containsMapOrSet(q.state.data) &&
             !JSON.stringify(q.queryKey).includes('signed') &&
             !JSON.stringify(q.queryKey).includes('service-pricing'),
         },
