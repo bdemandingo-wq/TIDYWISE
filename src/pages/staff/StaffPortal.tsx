@@ -324,7 +324,7 @@ export default function StaffPortal() {
         const staffIds = [...new Set(allBookings.map(b => (b as any).staff_id).filter(Boolean))];
         const { data: primaryStaffData } = staffIds.length > 0
           ? await supabase.from('staff').select('id, name').in('id', staffIds)
-          : { data: [] };
+          : { data: [] as { id: string; name: string }[] };
 
         const primaryStaffMap = new Map((primaryStaffData || []).map(s => [s.id, s.name]));
 

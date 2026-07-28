@@ -131,7 +131,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     email: string, 
     password: string, 
     metadata?: { full_name?: string; phone?: string }
-  ) => {
+  ): Promise<{ data: { user: User | null } | null; error: Error | null }> => {
     try {
       const { data, error } = await supabaseNoSession.auth.signUp({
         email,

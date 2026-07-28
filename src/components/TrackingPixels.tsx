@@ -34,7 +34,7 @@ function isSafeGaId(id: string | null | undefined): id is string {
   return !!id && GA_ID_RE.test(id);
 }
 
-export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props) {
+export function TrackingPixels({ metaPixelId, googleAnalyticsId }: Props): null {
   useEffect(() => {
     if (!isSafeMetaPixel(metaPixelId)) return;
     const flagId = `meta-pixel-${metaPixelId}`;

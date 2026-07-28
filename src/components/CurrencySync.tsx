@@ -7,7 +7,7 @@ import { setActiveCurrency } from '@/lib/activeCurrency';
  * preference is mirrored into the module-level active currency.
  * Renders nothing.
  */
-export function CurrencySync() {
+export function CurrencySync(): null {
   const code = useOrgCurrency();
   useEffect(() => {
     setActiveCurrency(code);

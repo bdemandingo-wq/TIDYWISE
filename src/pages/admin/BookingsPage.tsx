@@ -127,6 +127,10 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   completed: { bg: 'bg-success/10', text: 'text-success', dot: 'bg-success' },
   cancelled: { bg: 'bg-destructive/10', text: 'text-destructive', dot: 'bg-destructive' },
   no_show: { bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground' },
+  // Live, actionable state — the job still needs doing, just on a new date.
+  // Info-coloured on purpose: it is what the action sheet already showed by
+  // accident, so nothing changes visually for anyone used to it.
+  rescheduled: { bg: 'bg-info/10', text: 'text-info', dot: 'bg-info' },
 };
 
 const statusLabels: Record<string, string> = {
@@ -136,6 +140,7 @@ const statusLabels: Record<string, string> = {
   completed: 'clean completed',
   cancelled: 'cancelled',
   no_show: 'no show',
+  rescheduled: 'rescheduled',
 };
 
 const getPaymentStatusInfo = (booking: BookingWithDetails) => {

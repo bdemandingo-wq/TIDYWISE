@@ -30,7 +30,7 @@ async function invokeAi(fn: string, body: unknown) {
     const handled = await handlePossibleAiCreditError(result.error);
     if (handled) {
       // Return a soft-null so callers show empty state instead of a red toast.
-      return { data: null, error: null, creditLimited: true } as const;
+      return { data: null as unknown, error: null as unknown, creditLimited: true } as const;
     }
   }
   return { ...result, creditLimited: false } as const;

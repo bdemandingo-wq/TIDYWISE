@@ -173,7 +173,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       first_name: customerData.first_name,
       last_name: customerData.last_name,
       email: '',
-      phone: null,
+      phone: null as string | null,
       property_type: customerData.property_type,
     };
     const tokenToStore = tokenOverride !== undefined ? tokenOverride : sessionToken;

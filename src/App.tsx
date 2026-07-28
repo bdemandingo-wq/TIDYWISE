@@ -190,7 +190,7 @@ const offlinePersister = createSyncStoragePersister({
   throttleTime: 2000,
 });
 
-const AppStateHandler = () => {
+const AppStateHandler = (): null => {
   useAppStateHandler();
   return null;
 };
