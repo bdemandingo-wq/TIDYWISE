@@ -187,6 +187,22 @@ describe('calculateBookingWage', () => {
       expect(calculateBookingWage(booking).calculatedPay).toBe(90);
     });
 
+    it('does not subtract the discount twice when subtotal is null', () => {
+      // The shape every booking this app creates actually has: BookingStepper
+      // writes total_amount = finalPrice (already discounted) and never writes
+      // subtotal. total_amount is therefore ALREADY net — subtracting
+      // discount_amount again underpaid by (rate/100) * discount_amount.
+      const booking = makeBooking({
+        cleaner_wage: 50,
+        cleaner_wage_type: 'percentage',
+        subtotal: null,
+        total_amount: 180,
+        discount_amount: 20,
+      });
+      // 50% of 180 — NOT 50% of (180 - 20) = 80.
+      expect(calculateBookingWage(booking).calculatedPay).toBe(90);
+    });
+
     it('honours an override of 0 hours instead of falling back to defaults', () => {
       const booking = makeBooking({ cleaner_override_hours: 0 });
       const staff = makeStaff({ default_hours: 6 });
