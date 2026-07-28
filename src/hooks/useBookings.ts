@@ -639,6 +639,37 @@ export function useServices() {
 export function useStaff() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const queryClient = useQueryClient();
+
+  // Realtime, not a wider invalidation. A cleaner editing their bio or address
+  // in CleanerProfile invalidates ['staff-profile'] in THEIR browser — query
+  // caches are per-client, so nothing that happens there can reach an admin's
+  // cache. With refetchOnWindowFocus disabled globally (App.tsx) and a 5-minute
+  // staleTime, an admin would otherwise keep serving a stale roster until the
+  // query aged out. This is the same pattern useBookings already uses.
+  useEffect(() => {
+    if (!organizationId) return;
+
+    const channel = supabase
+      .channel(`staff-realtime-${organizationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'staff',
+          filter: `organization_id=eq.${organizationId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['staff'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [organizationId, queryClient]);
 
   return useQuery({
     queryKey: ['staff', organizationId],
