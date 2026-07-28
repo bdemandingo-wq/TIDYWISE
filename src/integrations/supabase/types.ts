@@ -878,7 +878,9 @@ export type Database = {
           last_run_at: string | null
           name: string
           organization_id: string | null
+          scheduled_at: string | null
           subject: string
+          throttle_seconds: number
           type: string
           updated_at: string
         }
@@ -891,7 +893,9 @@ export type Database = {
           last_run_at?: string | null
           name: string
           organization_id?: string | null
+          scheduled_at?: string | null
           subject: string
+          throttle_seconds?: number
           type: string
           updated_at?: string
         }
@@ -904,7 +908,9 @@ export type Database = {
           last_run_at?: string | null
           name?: string
           organization_id?: string | null
+          scheduled_at?: string | null
           subject?: string
+          throttle_seconds?: number
           type?: string
           updated_at?: string
         }
@@ -2434,6 +2440,81 @@ export type Database = {
           },
           {
             foreignKeyName: "campaign_emails_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_runs: {
+        Row: {
+          campaign_id: string
+          cancel_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          failed_count: number
+          id: string
+          next_send_at: string | null
+          organization_id: string
+          paused_at: string | null
+          scheduled_at: string | null
+          sent_count: number
+          skipped_opted_out_count: number
+          started_at: string | null
+          status: string
+          throttle_seconds: number
+          total_recipients: number
+        }
+        Insert: {
+          campaign_id: string
+          cancel_reason?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          failed_count?: number
+          id?: string
+          next_send_at?: string | null
+          organization_id: string
+          paused_at?: string | null
+          scheduled_at?: string | null
+          sent_count?: number
+          skipped_opted_out_count?: number
+          started_at?: string | null
+          status?: string
+          throttle_seconds?: number
+          total_recipients?: number
+        }
+        Update: {
+          campaign_id?: string
+          cancel_reason?: string | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          failed_count?: number
+          id?: string
+          next_send_at?: string | null
+          organization_id?: string
+          paused_at?: string | null
+          scheduled_at?: string | null
+          sent_count?: number
+          skipped_opted_out_count?: number
+          started_at?: string | null
+          status?: string
+          throttle_seconds?: number
+          total_recipients?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_runs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "automated_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_runs_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -10468,6 +10549,7 @@ export type Database = {
         Returns: string
       }
       ai_daily_limit_for_tier: { Args: { _tier: string }; Returns: number }
+      campaign_queue_dispatch: { Args: never; Returns: undefined }
       change_client_portal_password: {
         Args: {
           p_current_password: string
@@ -10993,6 +11075,34 @@ export type Database = {
           expires_at: string
           target_url: string
         }[]
+      }
+      set_campaign_run_status: {
+        Args: { p_run_id: string; p_status: string }
+        Returns: {
+          campaign_id: string
+          cancel_reason: string | null
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          failed_count: number
+          id: string
+          next_send_at: string | null
+          organization_id: string
+          paused_at: string | null
+          scheduled_at: string | null
+          sent_count: number
+          skipped_opted_out_count: number
+          started_at: string | null
+          status: string
+          throttle_seconds: number
+          total_recipients: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaign_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
