@@ -87,6 +87,14 @@ interface BookingPayrollDetail {
   profit: number;
   margin_percent: number;
   isMissingPay: boolean;
+  /** Actual worked hours exceeded the cap, so pay was limited to hours_capped_at.
+   *  Surfaced here rather than queued for approval — the exception is visible
+   *  next to the numbers it affects. */
+  isHoursCapped: boolean;
+  /** Worked hours from the clock, when a valid check-in/out pair existed. */
+  actualHours: number | null;
+  /** The capped hours figure that was actually paid. */
+  cappedHours: number | null;
 }
 
 interface PayrollSettings {
@@ -630,6 +638,13 @@ export default function PayrollPage() {
           profit: financials.profit * share,
           margin_percent: financials.marginPercent,
           isMissingPay: wageInfo.isMissingPay,
+          // Cast until types.ts is regenerated for the hours-reconciliation
+          // migration; both columns are nullable and absent on older rows.
+          isHoursCapped: (b as { hours_capped_at?: number | null }).hours_capped_at != null,
+          actualHours: (b as { actual_hours_worked?: number | null }).actual_hours_worked != null
+            ? Number((b as { actual_hours_worked?: number | null }).actual_hours_worked) : null,
+          cappedHours: (b as { hours_capped_at?: number | null }).hours_capped_at != null
+            ? Number((b as { hours_capped_at?: number | null }).hours_capped_at) : null,
         });
       }
     }
@@ -644,6 +659,7 @@ export default function PayrollPage() {
     if (profitFilter === 'high_labor') filtered = filtered.filter((d) => d.labor_percent > settings.labor_percent_warning_threshold);
     if (profitFilter === 'low_margin') filtered = filtered.filter((d) => d.margin_percent < settings.margin_percent_good_threshold && d.profit >= 0);
     if (profitFilter === 'missing_pay') filtered = filtered.filter((d) => d.isMissingPay || d.calculated_pay === 0);
+    if (profitFilter === 'hours_capped') filtered = filtered.filter((d) => d.isHoursCapped);
     return filtered;
   }, [bookingPayrollDetails, staffFilterId, profitFilter, settings]);
 
@@ -779,6 +795,11 @@ export default function PayrollPage() {
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const negativeMarginCount = bookingPayrollDetails.filter(d => d.profit < 0).length;
   const missingPayCount = bookingPayrollDetails.filter(d => d.isMissingPay || (d.calculated_pay === 0 && d.staff_id)).length;
+  // Dedupe on booking_id: a multi-cleaner job produces one row per cleaner,
+  // and the cap is a property of the JOB, so counting rows would double it.
+  const hoursCappedCount = new Set(
+    bookingPayrollDetails.filter(d => d.isHoursCapped).map(d => d.booking_id)
+  ).size;
 
   // Filtered totals. revenue_net and profit are per-cleaner shares, so summing
   // rows counts each booking once — no dedupe needed here or in anything added
@@ -1130,6 +1151,25 @@ export default function PayrollPage() {
         </Card>
       )}
 
+      {hoursCappedCount > 0 && (
+        <Card className="mb-4 border-warning/30 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-warning">Hours Capped</h3>
+                <p className="text-sm text-warning mt-1">
+                  {hoursCappedCount} booking(s) ran over their scheduled duration by
+                  more than the allowed margin. Pay was capped — filter to
+                  &ldquo;Hours capped&rdquo; below to review, and raise the booking&rsquo;s
+                  pay manually if the extra time was justified.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {contractorsNeedingFiling > 0 && (
         <Card className="mb-6 border-warning/30 bg-warning/5">
           <CardContent className="p-4">
@@ -1340,6 +1380,7 @@ export default function PayrollPage() {
                     <SelectItem value="high_labor">🟡 High labor %</SelectItem>
                     <SelectItem value="low_margin">Low margin</SelectItem>
                     <SelectItem value="missing_pay">Missing pay</SelectItem>
+                    <SelectItem value="hours_capped">⏱ Hours capped</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1368,7 +1409,17 @@ export default function PayrollPage() {
                       <TableCell>#{b.booking_number}</TableCell>
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>
                       <TableCell>{maskName(b.customer_name)}</TableCell>
-                      <TableCell className="text-right">{isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        {isTestMode ? 'X.XX' : b.hours_worked.toFixed(2)}
+                        {/* Show both figures so a capped row is legible without
+                            opening the booking — otherwise the hours column
+                            silently reads as if the job took that long. */}
+                        {!isTestMode && b.isHoursCapped && b.actualHours != null && (
+                          <div className="text-[10px] text-warning whitespace-nowrap">
+                            ⏱ {b.actualHours.toFixed(2)}h actual · capped
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right font-medium text-success">
                         <div className="flex items-center justify-end gap-1.5">
                           {isTestMode ? '$XXX' : `${fmt(b.calculated_pay)}`}

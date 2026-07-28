@@ -1,4 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { ServiceDurationAccuracy } from '@/components/admin/ServiceDurationAccuracy';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff } from '@/hooks/useBookings';
@@ -394,6 +395,7 @@ export default function ReportsPage() {
           <TabsTrigger value="profit-margin">Profit Margin</TabsTrigger>
           <TabsTrigger value="cleaner-performance">Cleaner Performance</TabsTrigger>
           <TabsTrigger value="cleaner-availability">Availability</TabsTrigger>
+          <TabsTrigger value="service-duration">Service Duration</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -617,6 +619,10 @@ export default function ReportsPage() {
             staff={staff} 
             workingHours={workingHours}
           />
+        </TabsContent>
+
+        <TabsContent value="service-duration">
+          <ServiceDurationAccuracy />
         </TabsContent>
       </Tabs>
       </PlanFeatureGate>
