@@ -52,6 +52,7 @@ import {
 } from '@/lib/recurringDiscount';
 import { useCustomFrequencies, resolveCustomFrequencyDiscountPct } from '@/hooks/useCustomFrequencies';
 import { supabase } from '@/lib/supabase';
+import { isValidPhone } from '@/lib/errorHandling';
 import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
@@ -274,8 +275,23 @@ export default function PublicBookingPage() {
   const abandonedTrackedRef = useState({ tracked: false })[0];
 
   useEffect(() => {
-    // Track when user reaches step 3+ with contact info (they've provided name/phone)
-    if (step >= 3 && customerInfo.phone && organizationId && !abandonedTrackedRef.tracked) {
+    // Only write a row once there is a complete phone number to write.
+    //
+    // This used to test `customerInfo.phone` for truthiness, which is true on
+    // the FIRST digit typed, and latched `tracked` synchronously — so every
+    // prospect was stored with a phone of "2" or "7" and could never be
+    // contacted. The row was never corrected afterwards either: the update
+    // below only touches step_reached.
+    //
+    // Note isValidPhone('') returns true (it treats phone as an optional
+    // field), so the emptiness check has to come first.
+    if (step < 3 || !organizationId || abandonedTrackedRef.tracked) return;
+    if (!customerInfo.phone || !isValidPhone(customerInfo.phone)) return;
+
+    // Debounced: write once the number has stopped changing, not per keystroke.
+    const timer = setTimeout(() => {
+      if (abandonedTrackedRef.tracked) return;
+      if (!customerInfo.phone || !isValidPhone(customerInfo.phone)) return;
       abandonedTrackedRef.tracked = true;
       const nameParts = customerInfo.name.trim().split(/\s+/);
       supabase
@@ -291,11 +307,23 @@ export default function PublicBookingPage() {
           session_token: sessionTokenRef,
         })
         .then(({ error }) => {
-          if (error) console.log('Abandoned tracking skipped:', error.message);
+          if (error) {
+            // Unlatch so a later keystroke can retry rather than losing the
+            // prospect entirely.
+            abandonedTrackedRef.tracked = false;
+            console.log('Abandoned tracking skipped:', error.message);
+          }
         });
-    }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [step, customerInfo.phone, customerInfo.name, customerInfo.email, organizationId, selectedService]);
 
-    // Update step_reached if already tracked
+  // Update step_reached if already tracked.
+  // NOTE: this is currently a silent no-op for public visitors — the table's
+  // UPDATE policy is org-admins-only, so an anonymous booker matches zero rows
+  // and the error is swallowed. It starts working once the anon session-scoped
+  // UPDATE policy lands with the recovery migrations.
+  useEffect(() => {
     if (abandonedTrackedRef.tracked && step > 3) {
       supabase
         .from('abandoned_bookings')
@@ -303,7 +331,7 @@ export default function PublicBookingPage() {
         .eq('session_token', sessionTokenRef)
         .then(() => {});
     }
-  }, [step, customerInfo.phone]);
+  }, [step]);
 
   // Mark as converted when booking completes
   useEffect(() => {
