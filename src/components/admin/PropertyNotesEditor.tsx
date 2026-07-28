@@ -33,7 +33,7 @@ export function PropertyNotesEditor({ customerId, organizationId }: PropertyNote
       .eq('organization_id', organizationId)
       .eq('customer_id', customerId)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (data) {
           setExistingId(data.id);
           setNotes(data.notes || '');

@@ -45,7 +45,10 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     queryKey: ['onboarding-sigs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
-    queryFn: async () => {
+    // Returns [] when no documents are required and an object otherwise —
+    // the consumer at sigData branches on Array.isArray. Annotated rather
+    // than normalised, so this stays a pure typing change.
+    queryFn: async (): Promise<{ required: number; signed: number } | []> => {
       const { data: docs } = await supabase
         .from('staff_signable_documents')
         .select('id')

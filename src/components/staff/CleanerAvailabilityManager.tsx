@@ -67,7 +67,7 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
     if (existingHours) {
       // Create a full week with existing data or defaults
       const fullWeek: WorkingHour[] = DAYS.map((_, index) => {
-        const existing = existingHours.find((h) => h.day_of_week === index);
+        const existing = existingHours.find((h: WorkingHour) => h.day_of_week === index);
         return existing || {
           day_of_week: index,
           start_time: '09:00:00',

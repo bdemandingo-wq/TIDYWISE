@@ -1359,9 +1359,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     if (!booking) return;
     const duplicateBooking = {
       ...booking,
-      id: undefined,
-      booking_number: undefined,
-      payment_intent_id: null,
+      id: undefined as string | undefined,
+      booking_number: undefined as number | undefined,
+      payment_intent_id: null as string | null,
       payment_status: 'pending' as const,
     };
     onDuplicate?.(duplicateBooking as BookingWithDetails);
