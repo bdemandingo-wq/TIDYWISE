@@ -389,6 +389,14 @@ Deno.serve(async (req) => {
       const mine = rows.filter((r) => r?.message?.run_id === run.id)
 
 
+      // Progress is the only completion signal. An empty queue read means
+      // nothing on its own: campaign_queue_wake arms the dispatcher on the
+      // AFTER INSERT of campaign_runs, so the first tick reliably runs before
+      // the caller has finished enqueueing recipients.
+      const progress =
+        (run.sent_count ?? 0) + (run.failed_count ?? 0) + (run.skipped_opted_out_count ?? 0)
+      const totalRecipients = run.total_recipients ?? 0
+
       if (mine.length === 0) {
         // Only conclude "no messages remain" when the read was not saturated.
         // A full batch may simply have been filled by other runs' messages.
@@ -397,23 +405,118 @@ Deno.serve(async (req) => {
           continue
         }
 
-        const { error: compErr } = await supabase
-          .from('campaign_runs')
-          .update({ status: 'completed', completed_at: nowIso })
-          .eq('id', run.id)
-        if (compErr) {
-          console.error('[process-campaign-queue] Failed to complete run', {
-            run_id: run.id,
-            error: compErr.message,
-          })
-        } else {
-          summary.completed++
-          console.log('[process-campaign-queue] Run completed', { run_id: run.id })
+        if (progress >= totalRecipients) {
+          // Guard the degenerate case: a run inserted with total_recipients = 0
+          // that is only seconds old may still be having its count written by a
+          // caller that (incorrectly) updates after insert. Give it a grace
+          // window rather than completing it instantly.
+          const ageMs = Date.now() - new Date(run.created_at).getTime()
+          if (totalRecipients === 0 && ageMs < EMPTY_RUN_GRACE_MS) {
+            console.log('[process-campaign-queue] Empty run within grace window, deferring', {
+              run_id: run.id,
+              age_ms: ageMs,
+            })
+            continue
+          }
+
+          const { error: compErr } = await supabase
+            .from('campaign_runs')
+            .update({ status: 'completed', completed_at: nowIso })
+            .eq('id', run.id)
+          if (compErr) {
+            console.error('[process-campaign-queue] Failed to complete run', {
+              run_id: run.id,
+              error: compErr.message,
+            })
+          } else {
+            summary.completed++
+            console.log('[process-campaign-queue] Run completed', {
+              run_id: run.id,
+              progress,
+              total_recipients: totalRecipients,
+            })
+          }
+          continue
         }
+
+        // progress < total_recipients: the recipients have not landed yet.
+        // Stall timeout — the enqueue never finished.
+        const startedAtMs = run.started_at ? new Date(run.started_at).getTime() : null
+        if (startedAtMs !== null && Date.now() - startedAtMs > STALL_TIMEOUT_MS) {
+          const { error: stallErr } = await supabase
+            .from('campaign_runs')
+            .update({
+              status: 'cancelled',
+              cancel_reason: 'enqueue_stalled',
+              completed_at: nowIso,
+            })
+            .eq('id', run.id)
+          if (stallErr) {
+            console.error('[process-campaign-queue] Failed to mark run stalled', {
+              run_id: run.id,
+              error: stallErr.message,
+            })
+          }
+          const purged = await purgeRunMessages(supabase, run.id)
+          console.warn('[process-campaign-queue] Run cancelled: enqueue stalled', {
+            run_id: run.id,
+            progress,
+            total_recipients: totalRecipients,
+            purged,
+          })
+          summary.stalled++
+          continue
+        }
+
+        // Not finished, not stalled — leave it running and do NOT advance
+        // next_send_at. A later tick picks it up once the messages land.
+        console.log('[process-campaign-queue] Awaiting enqueue, run left running', {
+          run_id: run.id,
+          progress,
+          total_recipients: totalRecipients,
+        })
         continue
       }
 
-      const msg = mine[0]
+      // 6. RE-CHECK OPT-OUT AT SEND TIME. A five-hour campaign must honour a STOP
+      // sent at minute 20 for a message queued at minute 0. Fails closed.
+      // Skipping an opted-out recipient is not a send, so it must not consume
+      // throttle time: drop it and move to the next candidate in this same tick.
+      let chosen: QueueRow | null = null
+      let skippedThisTick = 0
+      for (const candidate of mine) {
+        if (skippedThisTick >= MAX_SKIPS_PER_TICK) break
+        const optedOut = await isOptedOut(
+          supabase,
+          run.organization_id,
+          candidate.message?.customer_id,
+        )
+        if (!optedOut) {
+          chosen = candidate
+          break
+        }
+        await deleteMessage(supabase, candidate.msg_id, run.id)
+        skippedThisTick++
+        summary.skipped_opted_out++
+        console.log('[process-campaign-queue] Skipped opted-out recipient', {
+          run_id: run.id,
+          customer_id: candidate.message?.customer_id,
+        })
+      }
+
+      if (skippedThisTick > 0) {
+        // Counter only — next_send_at deliberately untouched.
+        await supabase
+          .from('campaign_runs')
+          .update({
+            skipped_opted_out_count: (run.skipped_opted_out_count ?? 0) + skippedThisTick,
+          })
+          .eq('id', run.id)
+      }
+
+      if (!chosen) continue
+
+      const msg = chosen
       const payload = msg.message
 
       // Retry budget: once exhausted the message goes to the DLQ instead of
@@ -427,25 +530,6 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // 6. RE-CHECK OPT-OUT AT SEND TIME. A five-hour campaign must honour a STOP
-      // sent at minute 20 for a message queued at minute 0. Fails closed.
-      const optedOut = await isOptedOut(supabase, run.organization_id, payload.customer_id)
-      if (optedOut) {
-        await deleteMessage(supabase, msg.msg_id, run.id)
-        await supabase
-          .from('campaign_runs')
-          .update({
-            skipped_opted_out_count: (run.skipped_opted_out_count ?? 0) + 1,
-            next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-          })
-          .eq('id', run.id)
-        summary.skipped_opted_out++
-        console.log('[process-campaign-queue] Skipped opted-out recipient', {
-          run_id: run.id,
-          customer_id: payload.customer_id,
-        })
-        continue
-      }
 
       // 7. SEND — same credentials, tokens, tracked link and phone normalisation
       // as run-inactive-campaign.
