@@ -1495,42 +1495,16 @@ export default function CampaignsPage() {
             );
           })()}
 
-          {/* Re-send to Abandoned button */}
-          {(() => {
-            const abandonedRecipients = detailTracking.filter((t: any) => t.link_opened_at && !t.booking_completed_at);
-            if (abandonedRecipients.length === 0) return null;
-            return (
-              <Button
-                variant="outline"
-                className="gap-2 w-full"
-                onClick={async () => {
-                  if (!orgId || !detailCampaignId) return;
-                  const campaign = campaigns.find(c => c.id === detailCampaignId);
-                  const resendMessage = `Hi {first_name}! Just following up on the booking link we sent. Would you like to complete your booking? {booking_link} Reply STOP to opt out.`;
-                  try {
-                    const { data, error } = await supabase.functions.invoke("run-inactive-campaign", {
-                      body: {
-                        organizationId: orgId,
-                        campaignId: detailCampaignId,
-                        message: resendMessage,
-                        targetAudience: "active_clients",
-                        testMode: false,
-                      },
-                    });
-                    if (error) throw error;
-                    toast({ title: "Re-sent!", description: `Sent to ${abandonedRecipients.length} abandoned recipients` });
-                    queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
-                    queryClient.invalidateQueries({ queryKey: ["campaign-detail-tracking"] });
-                  } catch {
-                    toast({ title: "Error", description: "Failed to re-send campaign", variant: "destructive" });
-                  }
-                }}
-              >
-                <RefreshCw className="w-4 h-4" />
-                Re-send to {abandonedRecipients.length} Abandoned
-              </Button>
-            );
-          })()}
+          {/* REMOVED 2026-07-28: "Re-send to N Abandoned" button.
+              It computed the abandoned list (link opened, no booking) client-side
+              but then called run-inactive-campaign with targetAudience
+              "active_clients" and NO recipient list — so the function re-queried
+              from scratch and messaged every active client in the org, while the
+              toast reported the abandoned count. It also omitted
+              excludeAlreadyReceived, so repeat presses re-sent to everyone.
+              Deliberately deleted rather than patched: targeted re-send returns
+              with the PGMQ campaign queue, which can enqueue an explicit
+              recipient list. Do not reinstate this in its old form. */}
 
           {/* Recipients List */}
           <div className="space-y-2">
