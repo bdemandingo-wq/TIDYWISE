@@ -100,7 +100,49 @@ export default function StaffPortal() {
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(async () => {
     await queryClient.invalidateQueries();
   });
-  const [staffInfo, setStaffInfo] = useState<StaffInfo | null>(null);
+
+  // Get staff record for current user.
+  //
+  // A react-query query, not useState + useEffect: CleanerProfile invalidates
+  // ['staff-profile'] after a save, and with the old useState that key matched
+  // nothing, so the invalidation was a silent no-op. The cleaner's own screen
+  // kept showing the values loaded at mount — the form looked saved while the
+  // surrounding UI (e.g. "Location verified: lat, lng") stayed stale until they
+  // left and re-entered the portal.
+  const { data: staffInfo = null } = useQuery({
+    queryKey: ['staff-profile', user?.id],
+    queryFn: async (): Promise<StaffInfo | null> => {
+      const { data, error } = await (supabase as any)
+        .rpc('get_my_staff_profile')
+        .maybeSingle();
+      if (error) {
+        console.error('Error fetching staff record:', error);
+        toast.error('Could not find your staff profile');
+        return null;
+      }
+      // Returns null for a user with no staff record (e.g. an owner/admin who
+      // isn't also staff) — callers must keep tolerating null.
+      return (data as StaffInfo | null) ?? null;
+    },
+    enabled: !!user,
+  });
+
+  // Availability check depends on the resolved staff id, so it hangs off the
+  // query rather than living inside the fetch it used to share.
+  useEffect(() => {
+    if (!staffInfo?.id) return;
+    let cancelled = false;
+    (async () => {
+      const client: any = supabase;
+      const { data: hours } = await client
+        .from('working_hours')
+        .select('id')
+        .eq('staff_id', staffInfo.id)
+        .limit(1);
+      if (!cancelled) setHasSetAvailability(hours && hours.length > 0);
+    })();
+    return () => { cancelled = true; };
+  }, [staffInfo?.id]);
 
   // Push notifications: register this cleaner's device so job alerts can
   // ring even when the app is closed. Prompt once per install after login.
@@ -145,41 +187,6 @@ export default function StaffPortal() {
     }
   }, [searchParams]);
 
-  // Get staff record for current user
-  useEffect(() => {
-    const fetchStaffRecord = async () => {
-      if (!user) return;
-
-      const { data, error } = await (supabase as any)
-        .rpc('get_my_staff_profile')
-        .maybeSingle();
-
-
-      if (error) {
-        console.error('Error fetching staff record:', error);
-        toast.error('Could not find your staff profile');
-        return;
-      }
-
-      setStaffInfo(data);
-
-      // get_my_staff_profile returns null for a user with no staff record
-      // (e.g. an owner/admin who isn't also staff). Bail before touching
-      // data.id, which was throwing "null is not an object" on /staff/login.
-      if (!data) return;
-
-      // Check if staff has set their availability
-      const client: any = supabase;
-      const { data: hours } = await client
-        .from('working_hours')
-        .select('id')
-        .eq('staff_id', data.id)
-        .limit(1);
-      setHasSetAvailability(hours && hours.length > 0);
-    };
-
-    fetchStaffRecord();
-  }, [user]);
 
   // Real-time subscription for new unassigned bookings
   useEffect(() => {
