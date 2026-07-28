@@ -132,6 +132,9 @@ export default function PublicBookingPage() {
     latitude: null as number | null,
     longitude: null as number | null,
     notes: '',
+    // Opt-in for the abandoned-booking recovery text. Unticked by default and
+    // deliberately its own checkbox — never folded into the terms agreement.
+    smsConsent: false,
   });
 
   // Use organization-specific pricing
@@ -271,8 +274,41 @@ export default function PublicBookingPage() {
   }, [trackingRef, organizationId]);
 
   // Track abandoned bookings - save progress when user has contact info
-  const sessionTokenRef = useState(() => crypto.randomUUID())[0];
-  const abandonedTrackedRef = useState({ tracked: false })[0];
+  // Resuming from a recovery SMS reuses that session's token so we continue the
+  // existing row instead of opening a second one for the same person.
+  const resumeToken = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('resume') || null;
+  })[0];
+  const sessionTokenRef = useState(() => resumeToken || crypto.randomUUID())[0];
+  const abandonedTrackedRef = useState({ tracked: !!resumeToken })[0];
+  const consentSentRef = useState({ sent: false })[0];
+
+  // Everything needed to put the form back exactly where they left it. The six
+  // dedicated columns only cover contact details and service, which is nowhere
+  // near enough to rehydrate this form.
+  const buildFormSnapshot = () => {
+    // Consent is deliberately excluded: form_snapshot is client-writable, so
+    // anything in it is forgeable and must never be treated as permission.
+    const { smsConsent: _omitConsent, ...contact } = customerInfo;
+    return {
+    v: 1,
+    step,
+    selectedService,
+    selectedSqFtIndex,
+    selectedExtras,
+    selectedBedrooms,
+    selectedBathrooms,
+    hasPets,
+    selectedHomeCondition,
+    roomReductions,
+    selectedFrequency,
+    selectedDate: selectedDate ? selectedDate.toISOString() : null,
+    selectedTime,
+    schedulingMode,
+    customerInfo: contact,
+    };
+  };
 
   useEffect(() => {
     // Only write a row once there is a complete phone number to write.
@@ -285,38 +321,99 @@ export default function PublicBookingPage() {
     //
     // Note isValidPhone('') returns true (it treats phone as an optional
     // field), so the emptiness check has to come first.
-    if (step < 3 || !organizationId || abandonedTrackedRef.tracked) return;
+    if (step < 3 || !organizationId) return;
     if (!customerInfo.phone || !isValidPhone(customerInfo.phone)) return;
 
     // Debounced: write once the number has stopped changing, not per keystroke.
     const timer = setTimeout(() => {
-      if (abandonedTrackedRef.tracked) return;
       if (!customerInfo.phone || !isValidPhone(customerInfo.phone)) return;
-      abandonedTrackedRef.tracked = true;
       const nameParts = customerInfo.name.trim().split(/\s+/);
       supabase
         .from('abandoned_bookings')
-        .insert({
-          organization_id: organizationId,
-          first_name: nameParts[0] || null,
-          last_name: nameParts.slice(1).join(' ') || null,
-          email: customerInfo.email || null,
-          phone: customerInfo.phone,
-          service_id: selectedService || null,
-          step_reached: step,
-          session_token: sessionTokenRef,
-        })
+        .upsert(
+          {
+            organization_id: organizationId,
+            first_name: nameParts[0] || null,
+            last_name: nameParts.slice(1).join(' ') || null,
+            email: customerInfo.email || null,
+            phone: customerInfo.phone,
+            service_id: selectedService || null,
+            step_reached: step,
+            session_token: sessionTokenRef,
+            form_snapshot: buildFormSnapshot(),
+            // sms_consent is never sent from here: the INSERT policy requires
+            // it to be false and the BEFORE UPDATE trigger pins it to OLD for
+            // anon/authenticated. Consent is granted server-side only.
+          },
+          { onConflict: 'session_token' },
+        )
         .then(({ error }) => {
           if (error) {
-            // Unlatch so a later keystroke can retry rather than losing the
-            // prospect entirely.
-            abandonedTrackedRef.tracked = false;
             console.log('Abandoned tracking skipped:', error.message);
+            return;
           }
+          abandonedTrackedRef.tracked = true;
         });
     }, 800);
     return () => clearTimeout(timer);
-  }, [step, customerInfo.phone, customerInfo.name, customerInfo.email, organizationId, selectedService]);
+  }, [step, customerInfo, organizationId, selectedService, selectedSqFtIndex, selectedExtras,
+      selectedBedrooms, selectedBathrooms, hasPets, selectedHomeCondition, selectedFrequency,
+      selectedDate, selectedTime, schedulingMode, roomReductions]);
+
+  // Ask the server to record consent. The client cannot write sms_consent
+  // itself by design, so this is the only path that grants it — and if the
+  // endpoint is unavailable the failure mode is "no consent recorded", which
+  // means no text is ever sent. Fails safe.
+  useEffect(() => {
+    if (!customerInfo.smsConsent || !abandonedTrackedRef.tracked || consentSentRef.sent) return;
+    if (!organizationId) return;
+    consentSentRef.sent = true;
+    supabase.functions
+      .invoke('record-booking-consent', {
+        body: { session_token: sessionTokenRef, organization_id: organizationId },
+      })
+      .then(({ error }) => {
+        if (error) {
+          consentSentRef.sent = false;
+          console.log('Consent not recorded:', error.message);
+        }
+      });
+  }, [customerInfo.smsConsent, organizationId, step]);
+
+  // Rehydrate from a recovery SMS link: /book/{slug}?resume={token}.
+  // Anonymous visitors cannot SELECT this table, so the read goes through an
+  // edge function. Any failure — unknown token, expired, endpoint not deployed
+  // — silently starts a normal booking. Never surface an error here: that would
+  // tell a stranger whether a token is real.
+  useEffect(() => {
+    if (!resumeToken || !orgSlug) return;
+    let cancelled = false;
+    supabase.functions
+      .invoke('resume-abandoned-booking', { body: { slug: orgSlug, token: resumeToken } })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const snap = (data as { form_snapshot?: Record<string, unknown> } | null)?.form_snapshot;
+        if (!snap || snap.v !== 1) return;
+        const s = snap as ReturnType<typeof buildFormSnapshot>;
+        if (s.customerInfo) setCustomerInfo((prev) => ({ ...prev, ...s.customerInfo, smsConsent: prev.smsConsent }));
+        if (s.selectedService) setSelectedService(s.selectedService);
+        if (s.selectedSqFtIndex !== null && s.selectedSqFtIndex !== undefined) setSelectedSqFtIndex(s.selectedSqFtIndex);
+        if (Array.isArray(s.selectedExtras)) setSelectedExtras(s.selectedExtras);
+        if (s.selectedBedrooms) setSelectedBedrooms(s.selectedBedrooms);
+        if (s.selectedBathrooms) setSelectedBathrooms(s.selectedBathrooms);
+        if (typeof s.hasPets === 'boolean') setHasPets(s.hasPets);
+        if (s.selectedHomeCondition) setSelectedHomeCondition(s.selectedHomeCondition);
+        if (s.roomReductions) setRoomReductions(s.roomReductions);
+        if (s.selectedFrequency) setSelectedFrequency(s.selectedFrequency);
+        if (s.selectedTime) setSelectedTime(s.selectedTime);
+        if (s.schedulingMode) setSchedulingMode(s.schedulingMode);
+        // Date is intentionally NOT restored — a slot chosen days ago may no
+        // longer be available, and showing it as still selected is worse than
+        // asking again.
+        if (typeof s.step === 'number') setStep(Math.min(Math.max(s.step, 1), 3));
+      });
+    return () => { cancelled = true; };
+  }, [resumeToken, orgSlug]);
 
   // Update step_reached if already tracked.
   // NOTE: this is currently a silent no-op for public visitors — the table's
@@ -1297,6 +1394,23 @@ export default function PublicBookingPage() {
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input id="phone" required type="tel" inputMode="tel" autoComplete="tel" placeholder="(555) 123-4567" className="pl-9" value={customerInfo.phone} onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })} />
+                      </div>
+                      {/* Its own checkbox, unticked by default, and the label
+                          says a text is coming. This is the only record of
+                          permission we will ever have — it must not be bundled
+                          into the terms agreement below. */}
+                      <div className="flex items-start gap-2 pt-1">
+                        <Checkbox
+                          id="smsConsent"
+                          checked={customerInfo.smsConsent}
+                          onCheckedChange={(checked) =>
+                            setCustomerInfo({ ...customerInfo, smsConsent: checked === true })
+                          }
+                          className="mt-0.5"
+                        />
+                        <Label htmlFor="smsConsent" className="text-xs font-normal text-muted-foreground leading-snug cursor-pointer">
+                          If I don't finish booking, send me a text so I can pick up where I left off. Message and data rates may apply. Reply STOP to opt out.
+                        </Label>
                       </div>
                     </div>
                     <div className="space-y-2">

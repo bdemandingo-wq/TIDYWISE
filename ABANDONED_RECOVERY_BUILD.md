@@ -10,16 +10,29 @@ and one message ever — no sequences.
 | # | Step | Owner | Done |
 |---|------|-------|------|
 | 0 | Phone capture guard (`PublicBookingPage.tsx`) | Claude Code | ✅ |
-| 1 | Migrations | Lovable | ☐ |
+| 1 | Migrations | Lovable | ✅ |
 | 2 | Shared sender + cron function | Lovable | ☐ |
 | 3 | STOP for non-customers | Lovable | ☐ |
 | 4 | Mark conversions server-side | Lovable | ☐ |
 | 5 | Resume endpoint | Lovable | ☐ |
-| 6 | Frontend: consent checkbox, upsert, `?resume=`, automation registration | Claude Code | ☐ |
+| 5b | **Consent endpoint** — required, see below | Lovable | ☐ |
+| 6 | Frontend: consent checkbox, upsert, `form_snapshot`, `?resume=`, automation registration | Claude Code | ✅ |
 | 7 | Schedule the cron | Lovable | ☐ |
 
-**Order is not optional.** Step 1 blocks everything. Step 7 must not run until step 6 is
-live — schedule the cron early and the first run targets a backlog where nobody consented.
+**Order is not optional.** Step 7 must not run until 5b is live — without the consent
+endpoint no row can ever have `sms_consent = true`, so the cron would run against a table
+where nobody has consented.
+
+### Why 5b exists (gap found while building step 6)
+
+The migration made `sms_consent` unwritable by the client, on purpose and correctly: the
+INSERT policy requires `sms_consent = false`, and `guard_abandoned_booking_anon_update()`
+pins it to `OLD` on every anon/authenticated UPDATE. The original plan said "consent is set
+server-side only" but never said *which* server path sets it — and none of prompts 1–5
+does. **The checkbox is wired and shipped, but until 5b is deployed it grants nothing.**
+
+That failure mode is the safe one — no consent recorded means no text sent — so it is fine
+to sit here for a while. It just means the feature is not live yet.
 
 Paste prompts 1–5 into the Lovable project chat one at a time, confirming each before the
 next. A Lovable commit is not a deploy; every function prompt ends with the confirmation line.
@@ -216,7 +229,37 @@ Deploy the function and confirm it is deployed, not just committed.
 
 ---
 
-## Prompt 6 — Schedule the cron (LAST — only after the frontend consent checkbox is live)
+## Prompt 5b — Consent endpoint (REQUIRED — nothing can be sent without it)
+
+```
+Create supabase/functions/record-booking-consent/index.ts.
+
+Context: public.abandoned_bookings.sms_consent cannot be written by the browser by design —
+the INSERT policy forces it to false and guard_abandoned_booking_anon_update() pins it to
+OLD for anon/authenticated. This function is the ONLY path that grants consent. The booking
+page already calls it (PublicBookingPage.tsx) when a visitor ticks the opt-in checkbox.
+
+POST { session_token, organization_id }. With the service role:
+- Look up the abandoned_bookings row by session_token AND organization_id.
+- Reject (return success:false, 200) if: no row, the row is older than 1 hour, or the row's
+  phone is null or not 10-11 digits after stripping non-digits. Consent must belong to a
+  real, current, contactable capture — not an arbitrary token.
+- Otherwise set sms_consent = true and return success:true.
+- Never allow setting it back to false from here, and never accept a phone number in the
+  body — the phone must be the one already stored on the row.
+- Rate limit by IP. This is the endpoint that turns a stranger's phone number into a
+  textable target, so treat it as the sensitive one.
+- Log every grant with organization_id and session_token so consent is auditable. If we are
+  ever asked to prove someone opted in, this log is the evidence.
+
+No auth header required (the booking page is anonymous).
+
+Deploy the function and confirm it is deployed, not just committed.
+```
+
+---
+
+## Prompt 6 — Schedule the cron (LAST — only after 5b is live)
 
 ```
 Schedule the abandoned booking recovery cron, following

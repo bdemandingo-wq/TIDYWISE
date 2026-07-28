@@ -349,6 +349,12 @@ const activeAutomationsMeta: Record<string, {
     description: 'Auto-sends a follow-up SMS when a quote sits unbooked for 3 days',
     color: 'text-cyan-500',
   },
+  abandoned_booking_recovery: {
+    icon: RotateCcw,
+    emoji: '🔄',
+    description: 'Texts people who started booking and didn’t finish — only those who ticked the opt-in box. One message, never a second.',
+    color: 'text-orange-500',
+  },
 };
 
 const availableAutomations = [
@@ -492,7 +498,7 @@ export function AutomationsTab() {
       // Reengage each write one row per confirmed send to the shared
       // automation_fire_log (a row only exists on success — no sent/error flag
       // to filter on).
-      for (const type of ['seasonal_promo', 'weekly_summary', 'quote_stale_reengage']) {
+      for (const type of ['seasonal_promo', 'weekly_summary', 'quote_stale_reengage', 'abandoned_booking_recovery']) {
         const { count } = await supabase
           .from('automation_fire_log')
           .select('*', { count: 'exact', head: true })
