@@ -385,9 +385,14 @@ export default function StaffPortal() {
       for (const row of ((notesRes as any).data as any[]) || []) {
         propertyNoteByCustomer[row.customer_id] = row;
       }
-      const onTheWaySent = new Set<string>(
-        (((reminderRes as any).data as any[]) || []).map((r) => r.booking_id),
-      );
+      // Plain object, not a Set: this query's data is persisted to localStorage
+      // for offline mode, and a Set rehydrates from JSON as {} — the next
+      // .has() then throws. See App.tsx's shouldDehydrateQuery for the same
+      // class of bug (service-pricing, teamPaysByBooking).
+      const onTheWaySent: Record<string, true> = {};
+      for (const row of ((reminderRes as any).data as any[]) || []) {
+        onTheWaySent[row.booking_id] = true;
+      }
       return {
         photoReqs: {
           required: ((bizRes as any).data as any)?.require_clockout_photos ?? true,
@@ -1001,7 +1006,7 @@ export default function StaffPortal() {
                     photoReqs={cardPhotoReqs}
                     photoCount={cardData?.photoCountByBooking[booking.id] ?? 0}
                     propertyNote={cardData?.propertyNoteByCustomer[(booking as any).customer_id] ?? null}
-                    onTheWaySent={cardData?.onTheWaySent.has(booking.id) ?? false}
+                    onTheWaySent={cardData?.onTheWaySent?.[booking.id] ?? false}
                     onUpdateStatus={(id, status) => updateStatus.mutate({ bookingId: id, status })}
                     isUpdating={updateStatus.isPending}
                   />
