@@ -40,6 +40,20 @@ interface PortalInvokeResult<T = any> {
   unauthorized: boolean;
 }
 
+interface PortalInvokeOpts {
+  /**
+   * Detect a 401 and report it via `unauthorized`, but do NOT sign the user out
+   * or redirect. For background/telemetry calls only.
+   *
+   * Session tracking pings every 30 seconds. Routing that through the same
+   * handler that force-redirects on 401 means one transient auth blip ends a
+   * customer's session mid-visit — a heartbeat must never be able to do that.
+   * Foreground calls that actually render data still redirect, because there a
+   * 401 means the page genuinely cannot be shown.
+   */
+  silentUnauthorized?: boolean;
+}
+
 interface ClientPortalContextType {
   user: ClientPortalUser | null;
   customer: CustomerInfo | null;
@@ -50,7 +64,11 @@ interface ClientPortalContextType {
   signOut: () => void;
   refreshData: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
-  invokePortal: <T = any>(name: string, options?: FunctionInvokeOptions) => Promise<PortalInvokeResult<T>>;
+  invokePortal: <T = any>(
+    name: string,
+    options?: FunctionInvokeOptions,
+    portalOpts?: PortalInvokeOpts,
+  ) => Promise<PortalInvokeResult<T>>;
 }
 
 const ClientPortalContext = createContext<ClientPortalContextType | undefined>(undefined);
@@ -435,7 +453,11 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   }, [signOut]);
 
   const invokePortal = useCallback(
-    async <T = any,>(name: string, options: FunctionInvokeOptions = {}): Promise<PortalInvokeResult<T>> => {
+    async <T = any,>(
+      name: string,
+      options: FunctionInvokeOptions = {},
+      portalOpts: PortalInvokeOpts = {},
+    ): Promise<PortalInvokeResult<T>> => {
       const mergedHeaders = {
         ...(options.headers ?? {}),
         ...(sessionToken ? { 'x-portal-session': sessionToken } : {}),
@@ -468,7 +490,9 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       }
 
       if (status === 401) {
-        handleUnauthorized();
+        // Still reported as unauthorized so the caller can stand down — only
+        // the sign-out/redirect is suppressed.
+        if (!portalOpts.silentUnauthorized) handleUnauthorized();
         return { data: null, error: result.error ?? new Error(payloadError || 'unauthorized'), unauthorized: true };
       }
 
