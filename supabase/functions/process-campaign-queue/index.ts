@@ -47,6 +47,9 @@ interface CampaignRun {
   scheduled_at: string | null
   expires_at: string
   next_send_at: string | null
+  created_at: string
+  started_at: string | null
+  total_recipients: number | null
   sent_count: number
   failed_count: number
   skipped_opted_out_count: number
