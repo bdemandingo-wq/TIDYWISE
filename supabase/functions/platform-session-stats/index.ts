@@ -94,7 +94,10 @@ serve(async (req) => {
         .gte("session_start", startIso)
         .gt("duration_seconds", 0) // Exclude ghost/duplicate 0-duration sessions
         .order("session_start", { ascending: false })
+        // Unique tiebreaker required for deterministic .range() paging. Do not remove.
+        .order("id", { ascending: true })
         .range(from, to);
+
 
       if (error) throw error;
 
@@ -146,7 +149,10 @@ serve(async (req) => {
         .gte("session_start", startIso)
         .gt("duration_seconds", 0) // Exclude ghost/duplicate 0-duration sessions
         .order("session_start", { ascending: false })
+        // Unique tiebreaker required for deterministic .range() paging. Do not remove.
+        .order("id", { ascending: true })
         .range(from, to);
+
 
       if (error) throw error;
 
