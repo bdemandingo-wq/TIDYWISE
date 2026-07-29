@@ -985,6 +985,12 @@ const handler = async (req: Request): Promise<Response> => {
                 `this customer can still receive marketing SMS until manually fixed.`,
               );
             }
+          } else {
+            console.error(
+              `[openphone-webhook] CRITICAL: STOP RECEIVED BUT NOT RECORDED — inbound "${normalized}" ` +
+              `from phone ${customerPhone} (org ${organizationId}) could not be resolved to a customer ` +
+              `via conversation, campaign send, or phone lookup. This opt-out must be applied by hand.`,
+            );
           }
         } catch (optOutErr) {
           console.error('[openphone-webhook] Error processing opt-out:', optOutErr);
