@@ -62,7 +62,12 @@ select net.http_post(
   headers := jsonb_build_object(
     'Content-Type', 'application/json',
     'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets
-                                   where name = 'supabase_service_role_key')
+                                   where name = 'supabase_service_role_key'),
+    -- Required. run-inactive-campaign's auth gate accepts EITHER a valid
+    -- x-cron-secret OR an authenticated org admin. A service-role bearer is
+    -- neither — it has no auth.uid(), so verifyOrgAccess would reject it.
+    'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets
+                      where name = 'cron_secret')
   ),
   body := jsonb_build_object(
     'organizationId',  '<ORG_ID>',
@@ -175,7 +180,12 @@ select net.http_post(
   headers := jsonb_build_object(
     'Content-Type', 'application/json',
     'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets
-                                   where name = 'supabase_service_role_key')
+                                   where name = 'supabase_service_role_key'),
+    -- Required. run-inactive-campaign's auth gate accepts EITHER a valid
+    -- x-cron-secret OR an authenticated org admin. A service-role bearer is
+    -- neither — it has no auth.uid(), so verifyOrgAccess would reject it.
+    'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets
+                      where name = 'cron_secret')
   ),
   body := jsonb_build_object(
     'organizationId',        '<ORG_ID>',
