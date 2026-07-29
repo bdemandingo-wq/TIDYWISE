@@ -109,53 +109,6 @@ const INSPECTION_CATEGORY_CONFIG = {
   general:       { label: 'Note',          icon: ImageIcon,     chip: 'pv-chip-neutral' },
 } as const;
 
-function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }: {
-  customerId: string; organizationId: string; points: number; onRedeemed: () => void;
-}) {
-  const { invokePortal } = useClientPortal();
-  const [loading, setLoading] = useState(false);
-  const [redeemed, setRedeemed] = useState(false);
-  const inFlightRef = useRef(false);
-
-  const handleRedeem = async () => {
-    if (!customerId || !organizationId) return;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setLoading(true);
-    try {
-      const { data, error } = await invokePortal('redeem-loyalty-points', {
-        body: { customerId, organizationId, pointsToRedeem: 100 },
-      });
-      if (error || data?.error) throw new Error(data?.error || error?.message);
-      toast.success(`${fmt(data.creditAmount)} credit added to your account!`);
-      setRedeemed(true);
-      onRedeemed();
-    } catch (e: any) {
-      toast.error(e.message || 'Redemption failed');
-    } finally {
-      setLoading(false);
-      inFlightRef.current = false;
-    }
-  };
-
-  if (redeemed) {
-    return <p className="text-[13px] text-[hsl(var(--pv-success))] font-medium text-center">Credit applied.</p>;
-  }
-
-  return (
-    <button
-      onClick={handleRedeem}
-      disabled={loading}
-      className="w-full text-[13px] font-medium py-2.5 px-3 rounded-[10px] flex items-center justify-center gap-2
-                 bg-[hsl(var(--pv-brand-soft))] text-[hsl(var(--pv-brand))]
-                 hover:bg-[hsl(var(--pv-brand)/0.14)] transition-colors disabled:opacity-60"
-    >
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5 fill-current" />}
-      Redeem 100 pts for $10 credit
-    </button>
-  );
-}
-
 function InspectionPhoto({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -660,16 +613,6 @@ export default function PortalDashboardPage() {
           value={tierProgress}
           className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]"
         />
-        {displayLoyalty.points >= 100 && (
-          <div className="mt-3">
-            <LoyaltyRedeemButton
-              customerId={user?.customer_id || ''}
-              organizationId={user?.organization_id || ''}
-              points={displayLoyalty.points}
-              onRedeemed={refreshData}
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   );
