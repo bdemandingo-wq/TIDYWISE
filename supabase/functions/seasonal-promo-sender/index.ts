@@ -137,24 +137,33 @@ serve(async (req: Request): Promise<Response> => {
     const orgId = row.organization_id as string;
     summary.orgs += 1;
     try {
-      const { data: orgRow } = await supabase
+      const { data: orgRow, error: orgErr } = await supabase
         .from("organizations")
-        .select("id, name")
+        .select("id, name, slug")
         .eq("id", orgId)
         .maybeSingle();
+      if (orgErr) {
+        console.error(
+          `[seasonal-promo-sender] org=${orgId} table=organizations select failed, falling back: ${orgErr.message}`,
+        );
+      }
       const orgName = orgRow?.name ?? "Your cleaning team";
+      const orgSlug = (orgRow as { slug?: string } | null)?.slug ?? "";
 
-      const { data: bsRow } = await supabase
+      const { data: bsRow, error: bsErr } = await supabase
         .from("business_settings")
-        .select("company_name, booking_link, slug")
+        .select("company_name")
         .eq("organization_id", orgId)
         .maybeSingle();
+      if (bsErr) {
+        console.error(
+          `[seasonal-promo-sender] org=${orgId} table=business_settings select failed, falling back to organization name: ${bsErr.message}`,
+        );
+      }
       const companyName = (bsRow as { company_name?: string } | null)?.company_name ?? orgName;
-      const bookingLink =
-        (bsRow as { booking_link?: string; slug?: string } | null)?.booking_link ??
-        ((bsRow as { slug?: string } | null)?.slug
-          ? `https://app.jointidywise.com/book/${(bsRow as { slug: string }).slug}`
-          : "https://app.jointidywise.com");
+
+      const appUrl = (Deno.env.get("APP_URL") || "https://jointidywise.com").replace(/\/+$/, "");
+      const bookingLink = orgSlug ? `${appUrl}/book/${orgSlug}` : `${appUrl}/book`;
 
       // Customers: respect marketing_status opt-out, must have a phone, capped 200.
       const { data: customers } = await supabase
