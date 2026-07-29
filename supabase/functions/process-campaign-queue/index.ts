@@ -417,9 +417,15 @@ Deno.serve(async (req) => {
   }
 
   // PHASE 2 — one queue read for the whole tick, grouped by run.
-  // Messages we claim but do not send in this tick simply return when the
-  // visibility timeout expires, exactly as process-email-queue relies on.
+  // We claim up to 50 but deliberately send at most ONE per run per tick, so
+  // every claimed-but-unsent message is released (vt = 0) before this tick
+  // returns. Leaving them claimed would make the effective send interval
+  // max(throttle_seconds, VISIBILITY_TIMEOUT_SECONDS) and silently ignore any
+  // throttle below the VT. The VT itself must stay well above the longest
+  // possible send, otherwise an in-flight message is redelivered and the
+  // customer is texted twice.
   let rows: QueueRow[] = []
+  const claimed = new Set<number>()
   if (dueRuns.length > 0) {
     const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
       queue_name: QUEUE,
@@ -430,8 +436,10 @@ Deno.serve(async (req) => {
       console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
     } else {
       rows = (readData ?? []) as QueueRow[]
+      for (const row of rows) claimed.add(row.msg_id)
     }
   }
+
 
   // Purge messages that belong to runs already completed or cancelled. Without
   // this, race-condition orphans are re-read forever (or DLQ'd as false failures).
