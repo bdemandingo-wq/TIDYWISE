@@ -195,6 +195,28 @@ export default function CustomersPage() {
       toast.error('Customer has no phone number on file');
       return;
     }
+    // The (campaign_id, customer_id) unique constraint has been dropped so that
+    // campaign_sms_sends can retain full per-message send history. That
+    // constraint was also the only thing stopping a double-click here from
+    // enrolling the same person twice, so the check is now explicit.
+    const { data: existingEnrolment, error: existingErr } = await supabase
+      .from('campaign_sms_sends')
+      .select('id')
+      .eq('organization_id', organization.id)
+      .eq('campaign_id', campaign.id)
+      .eq('customer_id', customer.id)
+      .in('status', ['pending', 'queued', 'scheduled'])
+      .limit(1)
+      .maybeSingle();
+    if (existingErr) {
+      toast.error(`Could not verify campaign enrollment: ${existingErr.message}`);
+      return;
+    }
+    if (existingEnrolment) {
+      toast.info(`${customer.first_name} is already queued for "${campaign.name}"`);
+      return;
+    }
+
     const { error } = await supabase.from('campaign_sms_sends').insert({
       organization_id: organization.id,
       campaign_id: campaign.id,
