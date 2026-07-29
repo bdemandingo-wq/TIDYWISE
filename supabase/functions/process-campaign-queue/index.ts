@@ -148,6 +148,123 @@ async function bumpRunCounter(
   }
 }
 
+// ---------------------------------------------------------------------------
+// QUIET HOURS
+// Marketing SMS must never go out late at night in the CUSTOMER's local time,
+// which we approximate with the ORG's timezone from business_settings.
+// Default window: no sends between 20:00 and 09:00 local. Per-org overridable.
+// A run inside quiet hours is HELD (next_send_at pushed to the next opening),
+// never failed — the queued messages stay put and resume in the morning.
+// ---------------------------------------------------------------------------
+interface QuietHours {
+  enabled: boolean
+  start: number // hour local time sending stops (inclusive)
+  end: number // hour local time sending resumes
+  timezone: string
+}
+
+const DEFAULT_QUIET_HOURS: QuietHours = {
+  enabled: true,
+  start: 20,
+  end: 9,
+  timezone: 'America/New_York',
+}
+
+const quietHoursCache = new Map<string, QuietHours>()
+
+async function getQuietHours(supabase: Supa, organizationId: string): Promise<QuietHours> {
+  const cached = quietHoursCache.get(organizationId)
+  if (cached) return cached
+
+  const { data, error } = await supabase
+    .from('business_settings')
+    .select(
+      'timezone, campaign_quiet_hours_enabled, campaign_quiet_hours_start, campaign_quiet_hours_end',
+    )
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (error) {
+    // Fail CLOSED: if we cannot establish the org's window, use the safe default
+    // rather than sending at an unknown local hour.
+    console.error('[process-campaign-queue] Failed to load quiet hours, using defaults', {
+      organization_id: organizationId,
+      error: error.message,
+    })
+    quietHoursCache.set(organizationId, DEFAULT_QUIET_HOURS)
+    return DEFAULT_QUIET_HOURS
+  }
+
+  const row = (data ?? {}) as Record<string, unknown>
+  const hours: QuietHours = {
+    enabled: row.campaign_quiet_hours_enabled !== false,
+    start:
+      typeof row.campaign_quiet_hours_start === 'number'
+        ? row.campaign_quiet_hours_start
+        : DEFAULT_QUIET_HOURS.start,
+    end:
+      typeof row.campaign_quiet_hours_end === 'number'
+        ? row.campaign_quiet_hours_end
+        : DEFAULT_QUIET_HOURS.end,
+    timezone:
+      typeof row.timezone === 'string' && row.timezone
+        ? row.timezone
+        : DEFAULT_QUIET_HOURS.timezone,
+  }
+  quietHoursCache.set(organizationId, hours)
+  return hours
+}
+
+// Local wall-clock parts for a timezone, without pulling in a date library.
+function localParts(now: Date, timeZone: string): { hour: number; minute: number } {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(now)
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
+    const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+    return { hour: hour === 24 ? 0 : hour, minute }
+  } catch {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: DEFAULT_QUIET_HOURS.timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(now)
+    return {
+      hour: Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24,
+      minute: Number(parts.find((p) => p.type === 'minute')?.value ?? '0'),
+    }
+  }
+}
+
+// Returns null when sending is allowed, otherwise the UTC instant at which the
+// quiet window opens back up.
+function quietHoursHoldUntil(now: Date, hours: QuietHours): Date | null {
+  if (!hours.enabled) return null
+  if (hours.start === hours.end) return null // degenerate config = always allowed
+
+  const { hour, minute } = localParts(now, hours.timezone)
+  const inQuiet =
+    hours.start > hours.end
+      ? hour >= hours.start || hour < hours.end // window crosses midnight
+      : hour >= hours.start && hour < hours.end
+
+  if (!inQuiet) return null
+
+  // Hours from "now" until the local clock reads hours.end.
+  let hoursAhead = (hours.end - hour + 24) % 24
+  if (hoursAhead === 0) hoursAhead = 24
+  const resume = new Date(now.getTime() + hoursAhead * 3600_000 - minute * 60_000)
+  // Never move the cursor backwards.
+  return resume.getTime() > now.getTime() ? resume : new Date(now.getTime() + 60_000)
+}
+
 
 async function moveToDlq(
   supabase: Supa,
@@ -323,7 +440,7 @@ Deno.serve(async (req) => {
   const projectUrl =
     Deno.env.get('APP_URL') || Deno.env.get('PROJECT_URL') || 'https://jointidywise.com'
 
-  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0, stalled: 0 }
+  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0, stalled: 0, quiet_held: 0 }
 
   // 1. Load candidate runs
   const { data: runsData, error: runsError } = await supabase
@@ -431,11 +548,41 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // 4c. QUIET HOURS — hold, never fail. Messages stay queued; the cursor is
+      // pushed to the moment the org's window reopens so the run resumes then.
+      const quiet = await getQuietHours(supabase, run.organization_id)
+      const holdUntil = quietHoursHoldUntil(now, quiet)
+      if (holdUntil) {
+        if (!nextSendAt || new Date(nextSendAt) < holdUntil) {
+          const { error: holdErr } = await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: holdUntil.toISOString() })
+            .eq('id', run.id)
+            .eq('status', 'running')
+          if (holdErr) {
+            console.error('[process-campaign-queue] Failed to apply quiet-hours hold', {
+              run_id: run.id,
+              error: holdErr.message,
+            })
+          }
+        }
+        console.log('[process-campaign-queue] Run held for quiet hours', {
+          run_id: run.id,
+          organization_id: run.organization_id,
+          timezone: quiet.timezone,
+          window: `${quiet.start}:00-${quiet.end}:00`,
+          resumes_at: holdUntil.toISOString(),
+        })
+        summary.quiet_held++
+        continue
+      }
+
       // 5. THROTTLE — one message per run per tick, only when due.
       if (nextSendAt && new Date(nextSendAt) > now) continue
 
 
       dueRuns.push({ ...run, status: 'running', next_send_at: nextSendAt })
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error preparing run', {
         run_id: run.id,

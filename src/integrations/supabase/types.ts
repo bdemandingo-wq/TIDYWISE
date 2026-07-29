@@ -2176,6 +2176,9 @@ export type Database = {
           arrival_windows: Json
           benchmarks_opt_in: boolean
           booking_buffer_minutes: number | null
+          campaign_quiet_hours_enabled: boolean
+          campaign_quiet_hours_end: number
+          campaign_quiet_hours_start: number
           cancellation_policy: string | null
           cancellation_window_hours: number | null
           company_address: string | null
@@ -2246,6 +2249,9 @@ export type Database = {
           arrival_windows?: Json
           benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
+          campaign_quiet_hours_enabled?: boolean
+          campaign_quiet_hours_end?: number
+          campaign_quiet_hours_start?: number
           cancellation_policy?: string | null
           cancellation_window_hours?: number | null
           company_address?: string | null
@@ -2316,6 +2322,9 @@ export type Database = {
           arrival_windows?: Json
           benchmarks_opt_in?: boolean
           booking_buffer_minutes?: number | null
+          campaign_quiet_hours_enabled?: boolean
+          campaign_quiet_hours_end?: number
+          campaign_quiet_hours_start?: number
           cancellation_policy?: string | null
           cancellation_window_hours?: number | null
           company_address?: string | null
