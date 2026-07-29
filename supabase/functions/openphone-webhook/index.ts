@@ -413,8 +413,43 @@ const handler = async (req: Request): Promise<Response> => {
       //   - organization_id = this webhook's org
       //   - sent within the last 24h (a delivery receipt is never older)
       //   - the single most recent matching row
+      // Resolve the owning org from this receipt's phoneNumberId. The
+      // organizationId resolved above is scoped to the `!existingMsg` branch
+      // and is not available for receipts on messages we already have, so it
+      // is resolved independently here. If it cannot be resolved we do NOT
+      // fall back to an unscoped update — we skip, because an unscoped update
+      // is precisely the cross-tenant bug being fixed.
       const deliveredPhone = messageObj.to;
-      if (deliveredPhone && organizationId) {
+      const deliveryPhoneNumberId = messageObj.phoneNumberId;
+      let deliveryOrgId: string | null = null;
+      if (deliveredPhone && deliveryPhoneNumberId) {
+        const { data: exactSetting } = await supabase
+          .from('organization_sms_settings')
+          .select('organization_id')
+          .eq('openphone_phone_number_id', deliveryPhoneNumberId)
+          .maybeSingle();
+        deliveryOrgId = exactSetting?.organization_id ?? null;
+
+        if (!deliveryOrgId) {
+          const { data: allSettings } = await supabase
+            .from('organization_sms_settings')
+            .select('organization_id, openphone_phone_number_id');
+          const partial = (allSettings || []).find(s =>
+            s.openphone_phone_number_id?.includes(deliveryPhoneNumberId) ||
+            deliveryPhoneNumberId.includes(s.openphone_phone_number_id || '')
+          );
+          deliveryOrgId = partial?.organization_id ?? null;
+        }
+
+        if (!deliveryOrgId) {
+          console.warn(
+            `[openphone-webhook] Skipping campaign delivery update — no org for phoneNumberId ${deliveryPhoneNumberId}`,
+          );
+        }
+      }
+
+      if (deliveredPhone && deliveryOrgId) {
+        const organizationId = deliveryOrgId;
         // Normalize phone for matching
         const normalizedPhone = deliveredPhone.replace(/\D/g, '');
         const phoneVariants = [
