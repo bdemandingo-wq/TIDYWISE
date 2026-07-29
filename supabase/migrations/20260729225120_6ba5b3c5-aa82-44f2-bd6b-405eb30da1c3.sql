@@ -1,0 +1,1 @@
+COMMENT ON COLUMN public.customers.credits IS 'FROZEN 2026-07-29. Written by the deleted redeem-loyalty-points function and by the referral credit trigger; never read by any code path. Values are retained as evidence of credit promised to customers but never honoured. Do not write to this column. Do not zero it.';
