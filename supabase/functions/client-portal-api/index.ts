@@ -235,6 +235,140 @@ serve(async (req) => {
         return ok(data ?? []);
       }
 
+      case "change_password": {
+        const currentPassword = typeof body?.currentPassword === "string" ? body.currentPassword : "";
+        const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";
+        if (!currentPassword || !newPassword) {
+          return err("Current and new password are required", 400);
+        }
+        if (newPassword.length < 8) {
+          return err("New password must be at least 8 characters", 400);
+        }
+
+        // Rate limit: 5 FAILED attempts per portal user per 15 minutes.
+        // Stored in public.abuse_throttle (the existing shared rate-limit
+        // table) — an in-memory Map would reset when the instance recycles.
+        const bucket = `portal_password_change_fail:${portal_user_id}`;
+        const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+        const { count: failCount } = await supabase
+          .from("abuse_throttle")
+          .select("*", { count: "exact", head: true })
+          .eq("bucket", bucket)
+          .gte("created_at", since);
+        if ((failCount ?? 0) >= 5) {
+          console.warn(`[client-portal-api] change_password rate limited portal_user_id=${portal_user_id}`);
+          return err("Too many attempts. Try again in a few minutes.", 429);
+        }
+
+        const { data, error } = await supabase.rpc("change_client_portal_password", {
+          p_user_id: portal_user_id,
+          p_current_password: currentPassword,
+          p_new_password: newPassword,
+        });
+        if (error) return err(error.message, 500);
+
+        const result = (Array.isArray(data) ? data[0] : data) as
+          | { success?: boolean; error?: string }
+          | null;
+
+        if (!result?.success) {
+          // Collapse 'User not found' and 'Current password is incorrect'
+          // into one client-facing message — distinct strings are a
+          // user-enumeration oracle. Real distinction logged server-side.
+          console.warn(
+            `[client-portal-api] change_password failed portal_user_id=${portal_user_id} reason=${result?.error ?? "unknown"}`,
+          );
+          await supabase.from("abuse_throttle").insert({
+            bucket,
+            action: "portal_password_change_fail",
+          });
+          return ok({ success: false, error: "Current password is incorrect" });
+        }
+
+        // Success resets the failure counter.
+        await supabase.from("abuse_throttle").delete().eq("bucket", bucket);
+        return ok({ success: true });
+      }
+
+      case "cancel_booking": {
+        const bookingId = typeof body?.bookingId === "string" ? body.bookingId.trim() : "";
+        if (!bookingId) return err("bookingId is required", 400);
+        const { data, error } = await supabase.rpc("client_cancel_booking", {
+          p_booking_id: bookingId,
+          p_customer_id: customer_id,
+        });
+        if (error) return err(error.message, 500);
+        // Returned verbatim — the frontend reads success / error /
+        // within_48_hours off this shape.
+        return ok(data);
+      }
+
+      case "mark_notification_read": {
+        const notificationId = typeof body?.notificationId === "string" ? body.notificationId.trim() : "";
+        if (!notificationId) return err("notificationId is required", 400);
+        const { data, error } = await supabase.rpc("mark_client_notification_read", {
+          p_notification_id: notificationId,
+          p_client_user_id: portal_user_id,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data);
+      }
+
+      case "delete_notification": {
+        const notificationId = typeof body?.notificationId === "string" ? body.notificationId.trim() : "";
+        if (!notificationId) return err("notificationId is required", 400);
+        const { data, error } = await supabase.rpc("delete_client_portal_notification", {
+          p_notification_id: notificationId,
+          p_client_user_id: portal_user_id,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data);
+      }
+
+      case "delete_booking_request": {
+        const requestId = typeof body?.requestId === "string" ? body.requestId.trim() : "";
+        if (!requestId) return err("requestId is required", 400);
+        const { data, error } = await supabase.rpc("delete_client_booking_request", {
+          p_request_id: requestId,
+          p_client_user_id: portal_user_id,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data);
+      }
+
+      case "delete_location": {
+        const locationId = typeof body?.locationId === "string" ? body.locationId.trim() : "";
+        if (!locationId) return err("locationId is required", 400);
+        const { data, error } = await supabase.rpc("delete_client_portal_location", {
+          p_client_user_id: portal_user_id,
+          p_location_id: locationId,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data);
+      }
+
+      case "submit_booking_request": {
+        const requestedDate = typeof body?.requestedDate === "string" ? body.requestedDate.trim() : "";
+        if (!requestedDate || Number.isNaN(Date.parse(requestedDate))) {
+          return err("A valid requestedDate is required", 400);
+        }
+        const serviceId = typeof body?.serviceId === "string" && body.serviceId.trim() ? body.serviceId.trim() : null;
+        const notes = typeof body?.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+        const locationId = typeof body?.locationId === "string" && body.locationId.trim() ? body.locationId.trim() : null;
+        // 7-arg overload called explicitly.
+        const { data, error } = await supabase.rpc("submit_client_booking_request", {
+          p_client_user_id: portal_user_id,
+          p_customer_id: customer_id,
+          p_organization_id: organization_id,
+          p_requested_date: requestedDate,
+          p_service_id: serviceId,
+          p_notes: notes,
+          p_location_id: locationId,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data);
+      }
+
       default:
         return err(`Unknown action: ${action}`, 400);
     }
