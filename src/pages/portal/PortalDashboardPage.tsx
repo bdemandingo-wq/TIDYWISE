@@ -761,7 +761,17 @@ export default function PortalDashboardPage() {
 
       {/* Content */}
       <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 overflow-x-clip">
-        <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
+        {/* Tiers are per-org (client_tier_settings), keyed on LIFETIME SPEND.
+            Both inputs are still pending Task 3.3:
+              - lifetimeSpend: client-portal-api's get_user_data payload does not
+                yet return customer_loyalty.lifetime_spend (Task 3.3a, Lovable).
+              - tiers: fetched via client-portal-api action 'get_loyalty_tiers'
+                (Task 3.3b). The portal has no Supabase auth session, so it
+                cannot call get_org_tiers directly.
+            Passing undefined keeps the banner hidden until real data exists.
+            That is deliberate: it previously rendered TidyWise Cleaning's
+            hardcoded ladder for every org, and hidden beats wrong. */}
+        <LoyaltyTierBanner lifetimeSpend={undefined} tiers={undefined} />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
           {/* min-w-0: grid/flex children default to min-width:auto, so the
