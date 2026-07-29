@@ -358,24 +358,21 @@ Deno.serve(async (req) => {
   }, []);
 
   const estimateConversion = await safeQuery("Estimate conversion", async () => {
-    const { data: sent, error: e1 } = await supabase
+    const { count: sentCount, error: e1 } = await supabase
       .from("estimates")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .not("quote_sent_at", "is", null)
       .gte("quote_sent_at", thirtyDaysAgo);
     if (e1) throw e1;
-    const { data: approved, error: e2 } = await supabase
+    const { count: approvedCount, error: e2 } = await supabase
       .from("estimates")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .not("quote_approved_at", "is", null)
       .gte("quote_approved_at", thirtyDaysAgo);
     if (e2) throw e2;
-    const sentCount = (sent as any)?.length ?? 0;
-    const approvedCount = (approved as any)?.length ?? 0;
-    // Use count from headers if available
-    return { sent: sentCount, approved: approvedCount };
+    return { sent: sentCount ?? 0, approved: approvedCount ?? 0 };
   }, { sent: 0, approved: 0 });
 
   const abandonedBookings24h = await safeQuery("Abandoned bookings", async () => {
@@ -404,23 +401,23 @@ Deno.serve(async (req) => {
   }, []);
 
   const newCustomers7d = await safeQuery("New customers 7d", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .gte("created_at", sevenDaysAgo);
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const totalActiveCustomers = await safeQuery("Active customers", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("customer_status", "active");
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const churnRisk = await safeQuery("Churn risk", async () => {
