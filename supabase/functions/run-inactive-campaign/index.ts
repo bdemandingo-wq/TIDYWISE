@@ -127,10 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Get campaign template if provided, otherwise use provided message
     let messageTemplate = message || "Hi {first_name}! We miss you at {company_name}. It's been a while since your last clean. Book now and get 15% off! Reply STOP to opt out.";
     let campaignType = 'inactive_customer';
+    let campaignThrottle: number | null = null;
     if (campaignId) {
       const { data: campaign } = await supabase
         .from('automated_campaigns')
-        .select('body, name, type')
+        .select('body, name, type, throttle_seconds')
         .eq('id', campaignId)
         .eq('organization_id', organizationId)
         .single();
@@ -141,6 +142,43 @@ const handler = async (req: Request): Promise<Response> => {
       if (campaign?.type) {
         campaignType = campaign.type;
       }
+      if (campaign?.throttle_seconds != null) {
+        campaignThrottle = campaign.throttle_seconds;
+      }
+    }
+
+    const throttleSeconds = throttleSecondsBody ?? campaignThrottle ?? 60;
+    const scheduledAt: string | null = scheduledAtBody ?? null;
+
+    // Explicit recipient list: skip audience resolution entirely.
+    if (!testMode && Array.isArray(recipientCustomerIds) && recipientCustomerIds.length > 0) {
+      const { data: explicitCustomers, error: explicitErr } = await supabase
+        .from('customers')
+        .select('id, first_name, last_name, phone')
+        .eq('organization_id', organizationId)
+        .eq('marketing_status', 'active')
+        .not('phone', 'is', null)
+        .in('id', recipientCustomerIds)
+        .order('id', { ascending: true });
+
+      if (explicitErr) {
+        console.error('[run-inactive-campaign] Failed to load explicit recipients:', explicitErr);
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to load recipients: ${explicitErr.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return await createRunAndEnqueue({
+        supabase,
+        organizationId,
+        campaignId: campaignId || null,
+        messageTemplate,
+        recipients: explicitCustomers || [],
+        throttleSeconds,
+        scheduledAt,
+        corsHeaders,
+      });
     }
 
     // Get business settings for company name
@@ -151,6 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const companyName = businessSettings?.company_name || 'Your Cleaning Service';
+
 
     // Calculate the cutoff date
     const cutoffDate = new Date();
