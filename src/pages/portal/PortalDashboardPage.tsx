@@ -660,16 +660,6 @@ export default function PortalDashboardPage() {
           value={tierProgress}
           className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]"
         />
-        {displayLoyalty.points >= 100 && (
-          <div className="mt-3">
-            <LoyaltyRedeemButton
-              customerId={user?.customer_id || ''}
-              organizationId={user?.organization_id || ''}
-              points={displayLoyalty.points}
-              onRedeemed={refreshData}
-            />
-          </div>
-        )}
       </CardContent>
     </Card>
   );
