@@ -843,18 +843,24 @@ Deno.serve(async (req) => {
       const msg = chosen
       const payload = msg.message
 
-      // Retry budget: once exhausted the message goes to the DLQ instead of
-      // cycling forever on visibility-timeout redelivery.
-      if ((msg.read_ct ?? 0) > MAX_RETRIES) {
-        await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded`)
+      // Retry budget: gated on REAL attempts (payload.attempt_count), never on
+      // read_ct. A dead-lettered message here is a genuine repeated send
+      // failure, so it counts as a failure on the run — otherwise progress can
+      // never reach total_recipients and the run cannot complete.
+      if (attemptCount(msg) >= MAX_RETRIES) {
+        await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded`)
         claimed.delete(msg.msg_id)
-
-        await supabase
-          .from('campaign_runs')
-          .update({ next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString() })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'failed_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
+        summary.failed++
         continue
       }
+
 
 
       // 7. SEND — same credentials, tokens, tracked link and phone normalisation
