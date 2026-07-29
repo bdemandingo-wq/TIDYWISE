@@ -548,11 +548,41 @@ Deno.serve(async (req) => {
         continue
       }
 
+      // 4c. QUIET HOURS — hold, never fail. Messages stay queued; the cursor is
+      // pushed to the moment the org's window reopens so the run resumes then.
+      const quiet = await getQuietHours(supabase, run.organization_id)
+      const holdUntil = quietHoursHoldUntil(now, quiet)
+      if (holdUntil) {
+        if (!nextSendAt || new Date(nextSendAt) < holdUntil) {
+          const { error: holdErr } = await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: holdUntil.toISOString() })
+            .eq('id', run.id)
+            .eq('status', 'running')
+          if (holdErr) {
+            console.error('[process-campaign-queue] Failed to apply quiet-hours hold', {
+              run_id: run.id,
+              error: holdErr.message,
+            })
+          }
+        }
+        console.log('[process-campaign-queue] Run held for quiet hours', {
+          run_id: run.id,
+          organization_id: run.organization_id,
+          timezone: quiet.timezone,
+          window: `${quiet.start}:00-${quiet.end}:00`,
+          resumes_at: holdUntil.toISOString(),
+        })
+        summary.quiet_held++
+        continue
+      }
+
       // 5. THROTTLE — one message per run per tick, only when due.
       if (nextSendAt && new Date(nextSendAt) > now) continue
 
 
       dueRuns.push({ ...run, status: 'running', next_send_at: nextSendAt })
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error preparing run', {
         run_id: run.id,
