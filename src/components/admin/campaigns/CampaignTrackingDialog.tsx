@@ -3,6 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart3 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useCampaignDetailTracking, type CampaignTrackingStat } from "@/hooks/useCampaigns";
+import { CampaignRunControls } from "@/components/admin/campaigns/CampaignRunControls";
+import type { CampaignRun } from "@/components/admin/campaigns/campaignRunStatus";
 
 /**
  * Booking-link tracking detail for a single campaign: aggregate tiles plus the
@@ -16,12 +18,16 @@ export function CampaignTrackingDialog({
   campaignName,
   orgId,
   trackingStats,
+  run,
+  orgTimezone,
   onClose,
 }: {
   campaignId: string | null;
   campaignName: string;
   orgId: string | null;
   trackingStats: Record<string, CampaignTrackingStat>;
+  run: CampaignRun | null | undefined;
+  orgTimezone: string | null;
   onClose: () => void;
 }) {
   const { data: detailTracking = [] } = useCampaignDetailTracking(campaignId, orgId);
@@ -45,6 +51,8 @@ export function CampaignTrackingDialog({
             Booking link tracking for {campaignName || "campaign"}
           </DialogDescription>
         </DialogHeader>
+
+        <CampaignRunControls run={run} orgTimezone={orgTimezone} />
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="p-3 bg-muted/50 rounded-lg text-center">

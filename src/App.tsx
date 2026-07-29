@@ -243,7 +243,13 @@ const App = () => (
             // top-level check and took down the Staff Portal on 2026-07-28.
             !containsMapOrSet(q.state.data) &&
             !JSON.stringify(q.queryKey).includes('signed') &&
-            !JSON.stringify(q.queryKey).includes('service-pricing'),
+            !JSON.stringify(q.queryKey).includes('service-pricing') &&
+            // Campaign run progress is a live figure, not a cached fact.
+            // Restoring yesterday's "Sending 12 of 300" would show a stalled
+            // number that reads as current — worse than showing nothing,
+            // because the operator has no way to tell it is stale and may
+            // re-send thinking the run died. Always refetch this.
+            !JSON.stringify(q.queryKey).includes('campaign-runs'),
         },
       }}
     >

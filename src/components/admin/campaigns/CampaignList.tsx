@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { describeCampaignDispatch } from "@/components/admin/campaigns/campaignDispatch";
 import type { CampaignTrackingStat } from "@/hooks/useCampaigns";
+import { CampaignRunBadge } from "@/components/admin/campaigns/CampaignRunBadge";
+import type { CampaignRun } from "@/components/admin/campaigns/campaignRunStatus";
 
 type StatusFilter = "all" | "draft" | "scheduled" | "sent" | "active";
 
@@ -34,6 +36,8 @@ export function CampaignList({
   onStatusFilterChange,
   trackingStats,
   conversionStats,
+  runs,
+  orgTimezone,
   onOpenTracking,
   onEditCampaign,
   onNewCampaign,
@@ -44,6 +48,8 @@ export function CampaignList({
   onStatusFilterChange: (v: StatusFilter) => void;
   trackingStats: Record<string, CampaignTrackingStat>;
   conversionStats: { byCampaign?: Record<string, number> } | null | undefined;
+  runs: Record<string, CampaignRun>;
+  orgTimezone: string | null;
   onOpenTracking: (campaignId: string) => void;
   onEditCampaign: (campaign: Record<string, any>) => void;
   onNewCampaign: () => void;
@@ -133,7 +139,9 @@ export function CampaignList({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <p className="font-medium text-sm truncate">{campaign.name}</p>
-                          {getStatusBadge(campaign)}
+                          {runs[campaign.id]
+                            ? <CampaignRunBadge run={runs[campaign.id]} orgTimezone={orgTimezone} />
+                            : getStatusBadge(campaign)}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3" /> SMS</span>
@@ -201,7 +209,11 @@ export function CampaignList({
                             <MessageSquare className="w-3 h-3" /> SMS
                           </Badge>
                         </TableCell>
-                        <TableCell>{getStatusBadge(campaign)}</TableCell>
+                        <TableCell>
+                          {runs[campaign.id]
+                            ? <CampaignRunBadge run={runs[campaign.id]} orgTimezone={orgTimezone} />
+                            : getStatusBadge(campaign)}
+                        </TableCell>
                         <TableCell>
                           {(() => {
                             const sentCount = conversionStats?.byCampaign?.[campaign.id] || 0;

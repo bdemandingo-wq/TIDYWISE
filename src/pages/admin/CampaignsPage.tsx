@@ -31,6 +31,7 @@ import { CampaignEditDialog } from '@/components/admin/campaigns/CampaignEditDia
 import { CampaignWizard } from '@/components/admin/campaigns/CampaignWizard';
 import { CampaignList } from '@/components/admin/campaigns/CampaignList';
 import { useOptedOutCount } from '@/hooks/useOptOuts';
+import { useCampaignRuns } from '@/hooks/useCampaignRuns';
 import {
   useBusinessSettings,
   useCampaignList,
@@ -72,6 +73,8 @@ export default function CampaignsPage() {
 
   // Business settings
   const { data: businessSettings } = useBusinessSettings(orgId);
+  const { data: campaignRuns = {} } = useCampaignRuns(orgId);
+  const orgTimezone = businessSettings?.timezone ?? null;
 
   const { data: campaigns = [], isLoading } = useCampaignList(orgId);
 
@@ -169,6 +172,8 @@ export default function CampaignsPage() {
               onStatusFilterChange={setStatusFilter}
               trackingStats={campaignTrackingStats}
               conversionStats={conversionStats}
+              runs={campaignRuns}
+              orgTimezone={orgTimezone}
               onOpenTracking={setDetailCampaignId}
               onEditCampaign={setEditCampaign}
               onNewCampaign={() => setCreateOpen(true)}
@@ -196,6 +201,8 @@ export default function CampaignsPage() {
         campaignName={campaigns.find(c => c.id === detailCampaignId)?.name || ""}
         orgId={orgId}
         trackingStats={campaignTrackingStats}
+        run={detailCampaignId ? campaignRuns[detailCampaignId] : null}
+        orgTimezone={orgTimezone}
         onClose={() => setDetailCampaignId(null)}
       />
 

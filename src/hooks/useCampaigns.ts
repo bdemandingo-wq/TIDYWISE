@@ -17,9 +17,12 @@ export function useBusinessSettings(orgId: string | null) {
     queryKey: ["business-settings", orgId],
     queryFn: async () => {
       if (!orgId) return null;
+      // timezone drives how scheduled sends are shown and written. An owner
+      // scheduling from a different zone must not silently send at the wrong
+      // hour, so the org's zone wins over the browser's.
       const { data } = await supabase
         .from("business_settings")
-        .select("company_name")
+        .select("company_name, timezone")
         .eq("organization_id", orgId)
         .single();
       return data;
