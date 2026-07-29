@@ -271,11 +271,20 @@ async function moveToDlq(
   msg: QueueRow,
   reason: string,
 ): Promise<void> {
+  // Persist the reason INTO the payload — a DLQ row whose failure cause lives
+  // only in an expired log line is not diagnosable.
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    dlq_reason: reason,
+    dlq_at: new Date().toISOString(),
+    dlq_read_ct: msg.read_ct ?? 0,
+    dlq_attempt_count: attemptCount(msg),
+  }
   const { error } = await supabase.rpc('move_to_dlq', {
     source_queue: QUEUE,
     dlq_name: DLQ,
     message_id: msg.msg_id,
-    payload: msg.message as unknown as Record<string, unknown>,
+    payload,
   })
   if (error) {
     console.error('[process-campaign-queue] Failed to move message to DLQ', {
@@ -292,6 +301,39 @@ async function moveToDlq(
     })
   }
 }
+
+// Real attempt counter. read_ct is a CLAIM counter — it increments every time
+// the message is read, including reads that release it untouched because
+// another message won the tick's single send slot. Gating the DLQ on read_ct
+// dead-lettered perfectly healthy recipients for waiting their turn.
+function attemptCount(msg: QueueRow): number {
+  const n = (msg.message as unknown as Record<string, unknown>)?.attempt_count
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0
+}
+
+// Increment the attempt counter by re-enqueueing the payload. pgmq has no
+// in-place payload update, so a failed send is deleted and re-queued with
+// attempt_count + 1. The message goes to the back of the queue, which is the
+// correct behaviour: a failing recipient must not block the rest of the run.
+async function requeueWithAttempt(supabase: Supa, msg: QueueRow): Promise<boolean> {
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    attempt_count: attemptCount(msg) + 1,
+    last_attempt_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.rpc('enqueue_email', { queue_name: QUEUE, payload })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to re-enqueue for retry', {
+      run_id: msg.message?.run_id,
+      msg_id: msg.msg_id,
+      error: error.message,
+    })
+    return false
+  }
+  await deleteMessage(supabase, msg.msg_id, msg.message?.run_id ?? 'unknown')
+  return true
+}
+
 
 // Drain any queued messages that belong to a cancelled/expired run.
 // Messages for other runs are read with a 1s visibility timeout so they come
