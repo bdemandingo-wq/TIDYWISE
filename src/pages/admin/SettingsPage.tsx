@@ -36,6 +36,7 @@ import { SignedImage } from '@/components/ui/signed-image';
 import { toast } from 'sonner';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
+import { QuietHoursCard } from '@/components/admin/settings/QuietHoursCard';
 import { PricingSettingsCard } from '@/components/admin/PricingSettingsCard';
 import { RecurringDiscountSettingsCard } from '@/components/admin/RecurringDiscountSettingsCard';
 import { CustomFrequenciesManager } from '@/components/admin/CustomFrequenciesManager';
@@ -84,6 +85,9 @@ interface BusinessSettings {
   company_zip: string;
   timezone: string;
   currency: string;
+  campaign_quiet_hours_enabled: boolean;
+  campaign_quiet_hours_start: number;
+  campaign_quiet_hours_end: number;
   logo_url: string;
   booking_buffer_minutes: number;
   max_advance_booking_days: number;
@@ -129,6 +133,9 @@ const defaultSettings: BusinessSettings = {
   company_zip: '',
   timezone: 'America/New_York',
   currency: 'USD',
+  campaign_quiet_hours_enabled: true,
+  campaign_quiet_hours_start: 20,
+  campaign_quiet_hours_end: 9,
   logo_url: '',
   booking_buffer_minutes: 15,
   max_advance_booking_days: 60,
@@ -332,6 +339,10 @@ export default function SettingsPage() {
           company_zip: data.company_zip || '',
           timezone: data.timezone || 'America/New_York',
           currency: data.currency || 'USD',
+          // ?? not || — hour 0 is midnight, a legitimate value that || would discard.
+          campaign_quiet_hours_enabled: data.campaign_quiet_hours_enabled ?? true,
+          campaign_quiet_hours_start: data.campaign_quiet_hours_start ?? 20,
+          campaign_quiet_hours_end: data.campaign_quiet_hours_end ?? 9,
           logo_url: data.logo_url || '',
           booking_buffer_minutes: data.booking_buffer_minutes || 15,
           max_advance_booking_days: data.max_advance_booking_days || 60,
@@ -381,6 +392,9 @@ export default function SettingsPage() {
         company_zip: settings.company_zip,
         timezone: settings.timezone,
         currency: settings.currency,
+        campaign_quiet_hours_enabled: settings.campaign_quiet_hours_enabled,
+        campaign_quiet_hours_start: settings.campaign_quiet_hours_start,
+        campaign_quiet_hours_end: settings.campaign_quiet_hours_end,
         logo_url: settings.logo_url,
         booking_buffer_minutes: settings.booking_buffer_minutes,
         max_advance_booking_days: settings.max_advance_booking_days,
@@ -853,6 +867,13 @@ export default function SettingsPage() {
           <div data-tour-id="openphone-connect">
             <SMSSettingsCard />
           </div>
+          <QuietHoursCard
+            enabled={settings.campaign_quiet_hours_enabled}
+            startHour={settings.campaign_quiet_hours_start}
+            endHour={settings.campaign_quiet_hours_end}
+            timezone={settings.timezone}
+            onChange={(field, value) => updateField(field, value as never)}
+          />
           <OpenPhoneDebugTools />
         </TabsContent>
 
