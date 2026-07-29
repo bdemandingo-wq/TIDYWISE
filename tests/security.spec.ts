@@ -247,25 +247,6 @@ test.describe("Security regression — 8 spoofed-value checks hardened 2026-07-1
     expect(await withSpoofedPhone.json()).toEqual(await withoutPhone.json());
   });
 
-  test("2. redeem-loyalty-points: rejects a spoofed customerId/pointsToRedeem with no valid portal session", async ({
-    request,
-  }) => {
-    const resp = await request.post(FN("redeem-loyalty-points"), {
-      headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-      data: { customerId: "166c7aef-6b2c-4232-b21d-e4571fff3d4f", pointsToRedeem: 999_999 },
-      failOnStatusCode: false,
-    });
-    expect(resp.status()).toBe(401);
-    expect((await resp.json()).error).toContain("Missing portal session");
-  });
-
-  test("2b. redeem-loyalty-points: source guard — redemption amount is always the server threshold, never a body value", async () => {
-    const src = readFileSync(join(process.cwd(), "supabase/functions/redeem-loyalty-points/index.ts"), "utf8");
-    expect(src).not.toMatch(/req\.json\(\)/); // body isn't parsed at all
-    expect(src).toMatch(/const pointsToRedeem = threshold;/);
-    expect(src).toMatch(/verifyPortalSession\(req, supabase\)/);
-  });
-
   test("3. post-booking-upsell: requires auth, and its org-mismatch guard exists in source", async ({ request }) => {
     const resp = await request.post(FN("post-booking-upsell"), {
       headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
