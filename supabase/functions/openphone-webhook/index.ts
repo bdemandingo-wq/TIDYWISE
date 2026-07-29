@@ -926,8 +926,21 @@ const handler = async (req: Request): Promise<Response> => {
       // "stop texting me" must count too — check the first word as well as
       // the whole string, so multi-word requests aren't silently ignored.
       const firstWord = (upper.split(/\s+/)[0] || '').replace(/[^A-Z]/g, '');
+      // Also check the last word, but only for short messages (≤3 words).
+      // Catches trailing keywords like "please stop" and "stop please" without
+      // flagging ordinary longer questions such as "what time do you stop".
+      const words = upper
+        .split(/\s+/)
+        .map(w => w.replace(/[^A-Z]/g, ''))
+        .filter(w => w.length > 0);
+      const wordCount = words.length;
+      const lastWord = wordCount > 0 ? words[wordCount - 1] : '';
       const OPT_OUT_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT'];
-      if (OPT_OUT_KEYWORDS.includes(normalized) || OPT_OUT_KEYWORDS.includes(firstWord)) {
+      if (
+        OPT_OUT_KEYWORDS.includes(normalized) ||
+        OPT_OUT_KEYWORDS.includes(firstWord) ||
+        (wordCount <= 3 && OPT_OUT_KEYWORDS.includes(lastWord))
+      ) {
         optOutDetected = true;
         try {
           // Find most recent campaign send to this phone for attribution
