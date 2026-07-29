@@ -36,6 +36,12 @@ const PURGE_MAX_BATCHES = 50
 const EMPTY_RUN_GRACE_MS = 30_000
 const STALL_TIMEOUT_MS = 5 * 60_000
 const MAX_SKIPS_PER_TICK = 50
+// Messages claimed per due run per tick: one send slot plus a small allowance
+// for skipping opted-out recipients in the same tick. Deliberately tiny —
+// every claim increments read_ct, and over-claiming is what dead-lettered
+// healthy recipients for waiting their turn.
+const CLAIM_PER_RUN = 4
+
 
 interface CampaignMessage {
   run_id: string
@@ -148,17 +154,143 @@ async function bumpRunCounter(
   }
 }
 
+// ---------------------------------------------------------------------------
+// QUIET HOURS
+// Marketing SMS must never go out late at night in the CUSTOMER's local time,
+// which we approximate with the ORG's timezone from business_settings.
+// Default window: no sends between 20:00 and 09:00 local. Per-org overridable.
+// A run inside quiet hours is HELD (next_send_at pushed to the next opening),
+// never failed — the queued messages stay put and resume in the morning.
+// ---------------------------------------------------------------------------
+interface QuietHours {
+  enabled: boolean
+  start: number // hour local time sending stops (inclusive)
+  end: number // hour local time sending resumes
+  timezone: string
+}
+
+const DEFAULT_QUIET_HOURS: QuietHours = {
+  enabled: true,
+  start: 20,
+  end: 9,
+  timezone: 'America/New_York',
+}
+
+const quietHoursCache = new Map<string, QuietHours>()
+
+async function getQuietHours(supabase: Supa, organizationId: string): Promise<QuietHours> {
+  const cached = quietHoursCache.get(organizationId)
+  if (cached) return cached
+
+  const { data, error } = await supabase
+    .from('business_settings')
+    .select(
+      'timezone, campaign_quiet_hours_enabled, campaign_quiet_hours_start, campaign_quiet_hours_end',
+    )
+    .eq('organization_id', organizationId)
+    .maybeSingle()
+
+  if (error) {
+    // Fail CLOSED: if we cannot establish the org's window, use the safe default
+    // rather than sending at an unknown local hour.
+    console.error('[process-campaign-queue] Failed to load quiet hours, using defaults', {
+      organization_id: organizationId,
+      error: error.message,
+    })
+    quietHoursCache.set(organizationId, DEFAULT_QUIET_HOURS)
+    return DEFAULT_QUIET_HOURS
+  }
+
+  const row = (data ?? {}) as Record<string, unknown>
+  const hours: QuietHours = {
+    enabled: row.campaign_quiet_hours_enabled !== false,
+    start:
+      typeof row.campaign_quiet_hours_start === 'number'
+        ? row.campaign_quiet_hours_start
+        : DEFAULT_QUIET_HOURS.start,
+    end:
+      typeof row.campaign_quiet_hours_end === 'number'
+        ? row.campaign_quiet_hours_end
+        : DEFAULT_QUIET_HOURS.end,
+    timezone:
+      typeof row.timezone === 'string' && row.timezone
+        ? row.timezone
+        : DEFAULT_QUIET_HOURS.timezone,
+  }
+  quietHoursCache.set(organizationId, hours)
+  return hours
+}
+
+// Local wall-clock parts for a timezone, without pulling in a date library.
+function localParts(now: Date, timeZone: string): { hour: number; minute: number } {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(now)
+    const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
+    const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? '0')
+    return { hour: hour === 24 ? 0 : hour, minute }
+  } catch {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: DEFAULT_QUIET_HOURS.timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = fmt.formatToParts(now)
+    return {
+      hour: Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24,
+      minute: Number(parts.find((p) => p.type === 'minute')?.value ?? '0'),
+    }
+  }
+}
+
+// Returns null when sending is allowed, otherwise the UTC instant at which the
+// quiet window opens back up.
+function quietHoursHoldUntil(now: Date, hours: QuietHours): Date | null {
+  if (!hours.enabled) return null
+  if (hours.start === hours.end) return null // degenerate config = always allowed
+
+  const { hour, minute } = localParts(now, hours.timezone)
+  const inQuiet =
+    hours.start > hours.end
+      ? hour >= hours.start || hour < hours.end // window crosses midnight
+      : hour >= hours.start && hour < hours.end
+
+  if (!inQuiet) return null
+
+  // Hours from "now" until the local clock reads hours.end.
+  let hoursAhead = (hours.end - hour + 24) % 24
+  if (hoursAhead === 0) hoursAhead = 24
+  const resume = new Date(now.getTime() + hoursAhead * 3600_000 - minute * 60_000)
+  // Never move the cursor backwards.
+  return resume.getTime() > now.getTime() ? resume : new Date(now.getTime() + 60_000)
+}
+
 
 async function moveToDlq(
   supabase: Supa,
   msg: QueueRow,
   reason: string,
 ): Promise<void> {
+  // Persist the reason INTO the payload — a DLQ row whose failure cause lives
+  // only in an expired log line is not diagnosable.
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    dlq_reason: reason,
+    dlq_at: new Date().toISOString(),
+    dlq_read_ct: msg.read_ct ?? 0,
+    dlq_attempt_count: attemptCount(msg),
+  }
   const { error } = await supabase.rpc('move_to_dlq', {
     source_queue: QUEUE,
     dlq_name: DLQ,
     message_id: msg.msg_id,
-    payload: msg.message as unknown as Record<string, unknown>,
+    payload,
   })
   if (error) {
     console.error('[process-campaign-queue] Failed to move message to DLQ', {
@@ -175,6 +307,39 @@ async function moveToDlq(
     })
   }
 }
+
+// Real attempt counter. read_ct is a CLAIM counter — it increments every time
+// the message is read, including reads that release it untouched because
+// another message won the tick's single send slot. Gating the DLQ on read_ct
+// dead-lettered perfectly healthy recipients for waiting their turn.
+function attemptCount(msg: QueueRow): number {
+  const n = (msg.message as unknown as Record<string, unknown>)?.attempt_count
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0
+}
+
+// Increment the attempt counter by re-enqueueing the payload. pgmq has no
+// in-place payload update, so a failed send is deleted and re-queued with
+// attempt_count + 1. The message goes to the back of the queue, which is the
+// correct behaviour: a failing recipient must not block the rest of the run.
+async function requeueWithAttempt(supabase: Supa, msg: QueueRow): Promise<boolean> {
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    attempt_count: attemptCount(msg) + 1,
+    last_attempt_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.rpc('enqueue_email', { queue_name: QUEUE, payload })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to re-enqueue for retry', {
+      run_id: msg.message?.run_id,
+      msg_id: msg.msg_id,
+      error: error.message,
+    })
+    return false
+  }
+  await deleteMessage(supabase, msg.msg_id, msg.message?.run_id ?? 'unknown')
+  return true
+}
+
 
 // Drain any queued messages that belong to a cancelled/expired run.
 // Messages for other runs are read with a 1s visibility timeout so they come
@@ -323,7 +488,7 @@ Deno.serve(async (req) => {
   const projectUrl =
     Deno.env.get('APP_URL') || Deno.env.get('PROJECT_URL') || 'https://jointidywise.com'
 
-  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0, stalled: 0 }
+  const summary = { expired: 0, started: 0, sent: 0, failed: 0, skipped_opted_out: 0, completed: 0, stalled: 0, quiet_held: 0 }
 
   // 1. Load candidate runs
   const { data: runsData, error: runsError } = await supabase
@@ -404,10 +569,68 @@ Deno.serve(async (req) => {
 
       if (status !== 'running') continue
 
+      // 4b. COMPLETION IS NOT THROTTLED — a run whose progress has reached its
+      // recipient total has nothing left to do, so finish it now rather than
+      // waiting for the throttle cursor to come due.
+      const progressNow =
+        (run.sent_count ?? 0) + (run.failed_count ?? 0) + (run.skipped_opted_out_count ?? 0)
+      if ((run.total_recipients ?? 0) > 0 && progressNow >= (run.total_recipients ?? 0)) {
+        const { error: compErr } = await supabase
+          .from('campaign_runs')
+          .update({ status: 'completed', completed_at: nowIso })
+          .eq('id', run.id)
+          .eq('status', 'running')
+        if (compErr) {
+          console.error('[process-campaign-queue] Failed to complete run early', {
+            run_id: run.id,
+            error: compErr.message,
+          })
+        } else {
+          summary.completed++
+          console.log('[process-campaign-queue] Run completed (progress reached total)', {
+            run_id: run.id,
+            progress: progressNow,
+            total_recipients: run.total_recipients,
+          })
+        }
+        continue
+      }
+
+      // 4c. QUIET HOURS — hold, never fail. Messages stay queued; the cursor is
+      // pushed to the moment the org's window reopens so the run resumes then.
+      const quiet = await getQuietHours(supabase, run.organization_id)
+      const holdUntil = quietHoursHoldUntil(now, quiet)
+      if (holdUntil) {
+        if (!nextSendAt || new Date(nextSendAt) < holdUntil) {
+          const { error: holdErr } = await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: holdUntil.toISOString() })
+            .eq('id', run.id)
+            .eq('status', 'running')
+          if (holdErr) {
+            console.error('[process-campaign-queue] Failed to apply quiet-hours hold', {
+              run_id: run.id,
+              error: holdErr.message,
+            })
+          }
+        }
+        console.log('[process-campaign-queue] Run held for quiet hours', {
+          run_id: run.id,
+          organization_id: run.organization_id,
+          timezone: quiet.timezone,
+          window: `${quiet.start}:00-${quiet.end}:00`,
+          resumes_at: holdUntil.toISOString(),
+        })
+        summary.quiet_held++
+        continue
+      }
+
       // 5. THROTTLE — one message per run per tick, only when due.
       if (nextSendAt && new Date(nextSendAt) > now) continue
 
+
       dueRuns.push({ ...run, status: 'running', next_send_at: nextSendAt })
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error preparing run', {
         run_id: run.id,
@@ -417,21 +640,22 @@ Deno.serve(async (req) => {
   }
 
   // PHASE 2 — one queue read for the whole tick, grouped by run.
-  // We claim up to 50 but deliberately send at most ONE per run per tick, so
-  // every claimed-but-unsent message is released (vt = 0) before this tick
-  // returns. Leaving them claimed would make the effective send interval
-  // max(throttle_seconds, VISIBILITY_TIMEOUT_SECONDS) and silently ignore any
-  // throttle below the VT. The VT itself must stay well above the longest
-  // possible send, otherwise an in-flight message is redelivered and the
-  // customer is texted twice.
+  // Claim ONLY what this tick can actually act on: at most one send per due
+  // run, plus a small allowance so opted-out recipients can be skipped past
+  // without waiting a whole throttle period. Claiming a large batch and
+  // releasing the remainder was the root cause of false dead-lettering: every
+  // release still increments read_ct, so a healthy message exhausted its retry
+  // budget purely by waiting its turn.
   let rows: QueueRow[] = []
   const claimed = new Set<number>()
   if (dueRuns.length > 0) {
+    const batchSize = Math.min(50, Math.max(1, dueRuns.length * CLAIM_PER_RUN))
     const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
       queue_name: QUEUE,
-      batch_size: 50,
+      batch_size: batchSize,
       vt: VISIBILITY_TIMEOUT_SECONDS,
     })
+
     if (readErr) {
       console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
     } else {
@@ -625,18 +849,24 @@ Deno.serve(async (req) => {
       const msg = chosen
       const payload = msg.message
 
-      // Retry budget: once exhausted the message goes to the DLQ instead of
-      // cycling forever on visibility-timeout redelivery.
-      if ((msg.read_ct ?? 0) > MAX_RETRIES) {
-        await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded`)
+      // Retry budget: gated on REAL attempts (payload.attempt_count), never on
+      // read_ct. A dead-lettered message here is a genuine repeated send
+      // failure, so it counts as a failure on the run — otherwise progress can
+      // never reach total_recipients and the run cannot complete.
+      if (attemptCount(msg) >= MAX_RETRIES) {
+        await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded`)
         claimed.delete(msg.msg_id)
-
-        await supabase
-          .from('campaign_runs')
-          .update({ next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString() })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'failed_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
+        summary.failed++
         continue
       }
+
 
 
       // 7. SEND — same credentials, tokens, tracked link and phone normalisation
@@ -829,31 +1059,39 @@ Deno.serve(async (req) => {
           msg_id: msg.msg_id,
         })
       } else {
-        // 9. ON FAILURE — leave the message to return via visibility timeout,
-        // unless the retry budget is exhausted (then DLQ).
+        // 9. ON FAILURE — record a REAL attempt by re-enqueueing with
+        // attempt_count + 1 (pgmq cannot update a payload in place). Only the
+        // terminal attempt increments failed_count, so one recipient counts
+        // once towards progress no matter how many times it was retried.
+        const attempts = attemptCount(msg) + 1
         console.error('[process-campaign-queue] Send failed', {
           run_id: run.id,
           msg_id: msg.msg_id,
+          attempt_count: attempts,
           read_ct: msg.read_ct,
           customer_id: payload.customer_id,
           error: sendError,
         })
 
-        if ((msg.read_ct ?? 0) >= MAX_RETRIES) {
-          await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded: ${sendError}`)
+        const nextSendAt = new Date(Date.now() + run.throttle_seconds * 1000).toISOString()
+
+        if (attempts >= MAX_RETRIES) {
+          await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded: ${sendError}`)
           claimed.delete(msg.msg_id)
+          await bumpRunCounter(supabase, run.id, 'failed_count', 1, nextSendAt)
+          summary.failed++
+        } else {
+          const requeued = await requeueWithAttempt(supabase, msg)
+          if (requeued) claimed.delete(msg.msg_id)
+          // A consumed send slot still costs throttle time.
+          await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: nextSendAt })
+            .eq('id', run.id)
+          summary.failed++
         }
-
-        await bumpRunCounter(
-          supabase,
-          run.id,
-          'failed_count',
-          1,
-          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-        )
-
-        summary.failed++
       }
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error processing run', {
         run_id: run.id,
