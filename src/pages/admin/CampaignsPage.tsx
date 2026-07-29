@@ -40,6 +40,12 @@ import { SEOHead } from '@/components/SEOHead';
 import { ReferralDashboard } from '@/components/admin/ReferralDashboard';
 import { describeCampaignDispatch, type CampaignDispatchResult } from '@/components/admin/campaigns/campaignDispatch';
 import { StatCard } from '@/components/admin/campaigns/StatCard';
+import {
+  useOptOutCustomerSearch,
+  useOptedOutCount,
+  useOptedOutList,
+  useSetOptOutStatus,
+} from '@/hooks/useOptOuts';
 
 interface AITemplate {
   name: string;
@@ -70,23 +76,7 @@ function ManualOptOutForm({ orgId, isPending, onSubmit }: {
   onSubmit: (customerId: string) => void;
 }) {
   const [search, setSearch] = useState("");
-  const { data: results = [] } = useQuery({
-    queryKey: ["customer-search-optout", orgId, search],
-    queryFn: async () => {
-      if (!orgId || search.trim().length < 2) return [];
-      const term = `%${search.trim()}%`;
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, first_name, last_name, phone, email")
-        .eq("organization_id", orgId)
-        .eq("marketing_status", "active")
-        .or(`first_name.ilike.${term},last_name.ilike.${term},phone.ilike.${term},email.ilike.${term}`)
-        .limit(8);
-      if (error) return [];
-      return data || [];
-    },
-    enabled: !!orgId && search.trim().length >= 2,
-  });
+  const { data: results = [] } = useOptOutCustomerSearch(orgId, search);
 
   return (
     <Card className="mt-4">
@@ -280,38 +270,8 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Opted-out count
-  const { data: optedOutCount = 0 } = useQuery({
-    queryKey: ["opted-out-count", orgId],
-    queryFn: async () => {
-      if (!orgId) return 0;
-      const { count, error } = await supabase
-        .from("customers")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", orgId)
-        .eq("marketing_status", "opted_out");
-      if (error) return 0;
-      return count || 0;
-    },
-    enabled: !!orgId,
-  });
-
-  // Opted-out customer list
-  const { data: optedOutList = [] } = useQuery({
-    queryKey: ["opted-out-list", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from("customers")
-        .select("id, first_name, last_name, phone, email, opted_out_at, opted_out_method, opted_out_campaign_id, updated_at")
-        .eq("organization_id", orgId)
-        .eq("marketing_status", "opted_out")
-        .order("opted_out_at", { ascending: false, nullsFirst: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const { data: optedOutCount = 0 } = useOptedOutCount(orgId);
+  const { data: optedOutList = [] } = useOptedOutList(orgId);
 
   // Map of campaign id -> name for opt-out attribution
   const campaignNameMap = useMemo(() => {
@@ -320,21 +280,7 @@ export default function CampaignsPage() {
     return m;
   }, [campaigns]);
 
-  const setOptOutStatus = useMutation({
-    mutationFn: async ({ customerId, optedOut }: { customerId: string; optedOut: boolean }) => {
-      const update: any = optedOut
-        ? { marketing_status: "opted_out", opted_out_at: new Date().toISOString(), opted_out_method: "manual" }
-        : { marketing_status: "active", opted_out_at: null, opted_out_method: null, opted_out_campaign_id: null };
-      const { error } = await supabase.from("customers").update(update).eq("id", customerId);
-      if (error) throw error;
-    },
-    onSuccess: (_d, vars) => {
-      queryClient.invalidateQueries({ queryKey: ["opted-out-list"] });
-      queryClient.invalidateQueries({ queryKey: ["opted-out-count"] });
-      toast({ title: vars.optedOut ? "Marked as opted out" : "Opted back in" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
+  const setOptOutStatus = useSetOptOutStatus();
 
   // Campaign link tracking stats (aggregated per campaign)
   const { data: campaignTrackingStats = {} } = useQuery({
