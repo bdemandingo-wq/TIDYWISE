@@ -34,13 +34,14 @@ import {
   UserX, Zap, Star, RefreshCw, ChevronDown, ChevronUp, Eye,
   Link2, AlertTriangle, X,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SEOHead } from '@/components/SEOHead';
 import { ReferralDashboard } from '@/components/admin/ReferralDashboard';
 import { describeCampaignDispatch, type CampaignDispatchResult } from '@/components/admin/campaigns/campaignDispatch';
 import { StatCard } from '@/components/admin/campaigns/StatCard';
 import { OptedOutPanel } from '@/components/admin/campaigns/OptedOutPanel';
+import { CampaignTrackingDialog } from '@/components/admin/campaigns/CampaignTrackingDialog';
 import { useOptedOutCount } from '@/hooks/useOptOuts';
 import {
   useBusinessSettings,
@@ -48,7 +49,6 @@ import {
   useOrgAutomations,
   useCampaignConversionStats,
   useCampaignTrackingStats,
-  useCampaignDetailTracking,
 } from '@/hooks/useCampaigns';
 
 interface AITemplate {
@@ -159,7 +159,6 @@ export default function CampaignsPage() {
 
   const { data: campaignTrackingStats = {} } = useCampaignTrackingStats(orgId);
 
-  const { data: detailTracking = [] } = useCampaignDetailTracking(detailCampaignId, orgId);
 
   // Filtered campaigns
   const filteredCampaigns = useMemo(() => {
@@ -1137,98 +1136,13 @@ export default function CampaignsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Campaign Tracking Detail Dialog */}
-      <Dialog open={!!detailCampaignId} onOpenChange={(open) => { if (!open) setDetailCampaignId(null); }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
-              Campaign Tracking
-            </DialogTitle>
-            <DialogDescription>
-              Booking link tracking for {campaigns.find(c => c.id === detailCampaignId)?.name || "campaign"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Stats Cards */}
-          {(() => {
-            const stats = detailCampaignId ? campaignTrackingStats[detailCampaignId] : null;
-            const sent = stats?.sent || 0;
-            const opened = stats?.opened || 0;
-            const completed = stats?.completed || 0;
-            const abandoned = stats?.abandoned || 0;
-            const convRate = sent > 0 ? Math.round((completed / sent) * 100) : 0;
-            return (
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xl font-bold">{sent}</p>
-                  <p className="text-xs text-muted-foreground">Sent</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xl font-bold text-amber-600">{opened}</p>
-                  <p className="text-xs text-muted-foreground">Opened</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xl font-bold text-green-600">{completed}</p>
-                  <p className="text-xs text-muted-foreground">Completed</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xl font-bold text-destructive">{abandoned}</p>
-                  <p className="text-xs text-muted-foreground">Abandoned</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded-lg text-center">
-                  <p className="text-xl font-bold">{convRate}%</p>
-                  <p className="text-xs text-muted-foreground">Conversion</p>
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* REMOVED 2026-07-28: "Re-send to N Abandoned" button.
-              It computed the abandoned list (link opened, no booking) client-side
-              but then called run-inactive-campaign with targetAudience
-              "active_clients" and NO recipient list — so the function re-queried
-              from scratch and messaged every active client in the org, while the
-              toast reported the abandoned count. It also omitted
-              excludeAlreadyReceived, so repeat presses re-sent to everyone.
-              Deliberately deleted rather than patched: targeted re-send returns
-              with the PGMQ campaign queue, which can enqueue an explicit
-              recipient list. Do not reinstate this in its old form. */}
-
-          {/* Recipients List */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Recipients</h4>
-            {detailTracking.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">No tracked links for this campaign yet. Include {"{booking_link}"} in your message to enable tracking.</p>
-            ) : (
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {detailTracking.map((track: any) => (
-                  <div key={track.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{track.customer_name || "Unknown"}</p>
-                      <p className="text-xs text-muted-foreground">{track.customer_phone || track.customer_email || ""}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {track.link_opened_at && (
-                        <span className="text-xs text-muted-foreground">
-                          Opened {formatDistanceToNow(new Date(track.link_opened_at), { addSuffix: true })}
-                        </span>
-                      )}
-                      <Badge variant={
-                        track.booking_completed_at ? "default" :
-                        track.link_opened_at ? "destructive" : "secondary"
-                      } className="text-xs">
-                        {track.booking_completed_at ? "Completed" :
-                         track.link_opened_at ? "Abandoned" : "Sent"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CampaignTrackingDialog
+        campaignId={detailCampaignId}
+        campaignName={campaigns.find(c => c.id === detailCampaignId)?.name || ""}
+        orgId={orgId}
+        trackingStats={campaignTrackingStats}
+        onClose={() => setDetailCampaignId(null)}
+      />
 
       {/* Edit Campaign Dialog */}
       <Dialog open={!!editCampaign} onOpenChange={(open) => { if (!open) setEditCampaign(null); }}>
