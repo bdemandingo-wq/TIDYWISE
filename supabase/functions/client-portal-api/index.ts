@@ -369,6 +369,16 @@ serve(async (req) => {
         return ok(data);
       }
 
+      case "get_loyalty_tiers": {
+        // organization_id comes from the VERIFIED SESSION, never the body.
+        const { data, error } = await supabase.rpc("get_loyalty_tier_info", {
+          p_organization_id: organization_id,
+        });
+        if (error) return err(error.message, 500);
+        return ok(data ?? []);
+      }
+
+
       default:
         return err(`Unknown action: ${action}`, 400);
     }
