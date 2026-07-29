@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -42,6 +42,14 @@ import { describeCampaignDispatch, type CampaignDispatchResult } from '@/compone
 import { StatCard } from '@/components/admin/campaigns/StatCard';
 import { OptedOutPanel } from '@/components/admin/campaigns/OptedOutPanel';
 import { useOptedOutCount } from '@/hooks/useOptOuts';
+import {
+  useBusinessSettings,
+  useCampaignList,
+  useOrgAutomations,
+  useCampaignConversionStats,
+  useCampaignTrackingStats,
+  useCampaignDetailTracking,
+} from '@/hooks/useCampaigns';
 
 interface AITemplate {
   name: string;
@@ -131,86 +139,13 @@ export default function CampaignsPage() {
   } | null>(null);
 
   // Business settings
-  const { data: businessSettings } = useQuery({
-    queryKey: ["business-settings", orgId],
-    queryFn: async () => {
-      if (!orgId) return null;
-      const { data } = await supabase.from("business_settings").select("company_name").eq("organization_id", orgId).single();
-      return data;
-    },
-    enabled: !!orgId,
-  });
+  const { data: businessSettings } = useBusinessSettings(orgId);
 
-  // Campaigns
-  const { data: campaigns = [], isLoading } = useQuery({
-    queryKey: ["campaigns", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from("automated_campaigns")
-        .select("*")
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const { data: campaigns = [], isLoading } = useCampaignList(orgId);
 
-  // Automations
-  const { data: automations = [] } = useQuery({
-    queryKey: ["org-automations", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from("organization_automations")
-        .select("*")
-        .eq("organization_id", orgId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!orgId,
-  });
+  const { data: automations = [] } = useOrgAutomations(orgId);
 
-  // Conversion stats + per-campaign sent counts.
-  // campaign_sms_sends holds one row per MESSAGE (send history is retained for
-  // compliance evidence), so a customer messaged twice by the same campaign has
-  // two rows. Reach figures must therefore count DISTINCT customers, otherwise
-  // re-sends inflate the audience and double-count a single conversion.
-  const { data: conversionStats } = useQuery({
-    queryKey: ["campaign-conversions", orgId],
-    queryFn: async () => {
-      if (!orgId) return null;
-      const { data: sends } = await supabase
-        .from("campaign_sms_sends")
-        .select("id, customer_id, converted, campaign_type, campaign_id")
-        .eq("organization_id", orgId);
-      if (!sends) return { total: 0, converted: 0, rate: 0, byCampaign: {} as Record<string, number> };
-
-      // Distinct people reached, and distinct people who converted.
-      const reached = new Set<string>();
-      const convertedPeople = new Set<string>();
-      const perCampaign: Record<string, Set<string>> = {};
-      sends.forEach(s => {
-        // Rows with no customer_id (e.g. ad-hoc referral sends) still count
-        // once each — key them by row id so they are never merged together.
-        const personKey = s.customer_id || `row:${s.id}`;
-        reached.add(personKey);
-        if (s.converted) convertedPeople.add(personKey);
-        if (s.campaign_id) {
-          (perCampaign[s.campaign_id] ||= new Set<string>()).add(personKey);
-        }
-      });
-
-      const total = reached.size;
-      const converted = convertedPeople.size;
-      const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
-      const byCampaign: Record<string, number> = {};
-      Object.entries(perCampaign).forEach(([cid, people]) => { byCampaign[cid] = people.size; });
-      return { total, converted, rate, byCampaign };
-    },
-    enabled: !!orgId,
-  });
+  const { data: conversionStats } = useCampaignConversionStats(orgId);
 
   const { data: optedOutCount = 0 } = useOptedOutCount(orgId);
 
@@ -222,47 +157,9 @@ export default function CampaignsPage() {
   }, [campaigns]);
 
 
-  // Campaign link tracking stats (aggregated per campaign)
-  const { data: campaignTrackingStats = {} } = useQuery({
-    queryKey: ["campaign-tracking-stats", orgId],
-    queryFn: async () => {
-      if (!orgId) return {};
-      const { data, error } = await supabase
-        .from("booking_link_tracking" as any)
-        .select("campaign_id, status, link_opened_at, booking_completed_at")
-        .eq("organization_id", orgId)
-        .not("campaign_id", "is", null);
-      if (error) return {};
-      const stats: Record<string, { sent: number; opened: number; completed: number; abandoned: number }> = {};
-      (data || []).forEach((row: any) => {
-        if (!row.campaign_id) return;
-        if (!stats[row.campaign_id]) stats[row.campaign_id] = { sent: 0, opened: 0, completed: 0, abandoned: 0 };
-        stats[row.campaign_id].sent++;
-        if (row.link_opened_at) stats[row.campaign_id].opened++;
-        if (row.booking_completed_at) stats[row.campaign_id].completed++;
-        if (row.link_opened_at && !row.booking_completed_at) stats[row.campaign_id].abandoned++;
-      });
-      return stats;
-    },
-    enabled: !!orgId,
-  });
+  const { data: campaignTrackingStats = {} } = useCampaignTrackingStats(orgId);
 
-  // Detail tracking for selected campaign
-  const { data: detailTracking = [] } = useQuery({
-    queryKey: ["campaign-detail-tracking", detailCampaignId, orgId],
-    queryFn: async () => {
-      if (!detailCampaignId || !orgId) return [];
-      const { data, error } = await supabase
-        .from("booking_link_tracking" as any)
-        .select("*")
-        .eq("organization_id", orgId)
-        .eq("campaign_id", detailCampaignId)
-        .order("created_at", { ascending: false });
-      if (error) return [];
-      return data || [];
-    },
-    enabled: !!detailCampaignId && !!orgId,
-  });
+  const { data: detailTracking = [] } = useCampaignDetailTracking(detailCampaignId, orgId);
 
   // Filtered campaigns
   const filteredCampaigns = useMemo(() => {
