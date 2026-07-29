@@ -3908,6 +3908,7 @@ export type Database = {
           customer_id: string | null
           id: string
           lifetime_points: number | null
+          lifetime_spend: number
           organization_id: string | null
           points: number | null
           tier: string | null
@@ -3918,6 +3919,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          lifetime_spend?: number
           organization_id?: string | null
           points?: number | null
           tier?: string | null
@@ -3928,6 +3930,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           lifetime_points?: number | null
+          lifetime_spend?: number
           organization_id?: string | null
           points?: number | null
           tier?: string | null
@@ -5564,6 +5567,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      loyalty_tier_correction_audit: {
+        Row: {
+          captured_at: string
+          completed_spend: number | null
+          correct_tier: string | null
+          customer_id: string
+          id: string
+          organization_id: string | null
+          phase: string
+          stored_tier: string | null
+        }
+        Insert: {
+          captured_at?: string
+          completed_spend?: number | null
+          correct_tier?: string | null
+          customer_id: string
+          id?: string
+          organization_id?: string | null
+          phase: string
+          stored_tier?: string | null
+        }
+        Update: {
+          captured_at?: string
+          completed_spend?: number | null
+          correct_tier?: string | null
+          customer_id?: string
+          id?: string
+          organization_id?: string | null
+          phase?: string
+          stored_tier?: string | null
+        }
+        Relationships: []
       }
       loyalty_transactions: {
         Row: {
@@ -10917,6 +10953,17 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_org_tiers: {
+        Args: { p_organization_id: string }
+        Returns: {
+          benefits: Json
+          color: string
+          max_spending: number
+          min_spending: number
+          tier_name: string
+          tier_order: number
+        }[]
+      }
       get_public_booking_settings: { Args: { p_org_id: string }; Returns: Json }
       get_review_request_by_token: {
         Args: { p_token: string }
@@ -11087,6 +11134,10 @@ export type Database = {
         Returns: boolean
       }
       reset_daily_tasks: { Args: never; Returns: undefined }
+      resolve_customer_tier: {
+        Args: { p_customer_id: string }
+        Returns: string
+      }
       resolve_short_url: {
         Args: { p_code: string }
         Returns: {
