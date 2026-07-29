@@ -490,24 +490,27 @@ Deno.serve(async (req) => {
   // ════════════════════════════════════════════════════
   // SECTION 6: MARKETING & CAMPAIGNS
   // ════════════════════════════════════════════════════
+  // NOTE: these two used `{ count: 'exact', head: true }` and then read
+  // `data?.length`. With head:true no rows are returned, so both figures were
+  // hard-zero in every brief ever sent. Read `count` instead.
   const emailsSent24h = await safeQuery("Emails sent 24h", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("campaign_emails")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .gte("sent_at", twentyFourAgo);
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const smsSent24h = await safeQuery("SMS sent 24h", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("campaign_sms_sends")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .gte("sent_at", twentyFourAgo);
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const activeAutomations = await safeQuery("Active automations", async () => {
