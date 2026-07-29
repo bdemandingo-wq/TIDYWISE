@@ -298,47 +298,73 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[run-inactive-campaign] Found ${targetCustomers.length} target customers`);
 
-    // Build set of customers who already received this campaign
+    // Build set of customers who already received this campaign.
+    //
+    // This used to select every campaign_sms_sends row for the campaign with
+    // no pagination, which silently truncated at PostgREST's 1000-row cap.
+    // A truncated exclusion list FAILS OPEN — customers past row 1000 look
+    // like they were never messaged and get the campaign again. Now that the
+    // table keeps one row per message rather than one per person, that cap
+    // would be reached several times sooner.
+    //
+    // Instead: an EXISTS-style check scoped to the candidate batch only.
+    // We ask "which of THESE customers already got it" in chunks, so the
+    // result set is bounded by the audience size, not by send history.
     let sentCustomerIds = new Set<string>();
     if (campaignId || excludeAlreadyReceived) {
       const filterCampaignId = campaignId;
       if (filterCampaignId) {
-        const { data: previousSends, error: previousSendsErr } = await supabase
-          .from('campaign_sms_sends')
-          .select('customer_id')
-          .eq('campaign_id', filterCampaignId);
-        if (previousSendsErr) {
-          // Fail closed: an unreadable exclusion list must not be treated
-          // as "nobody was sent to yet" — that's how this campaign would
-          // re-message everyone who already got it.
-          console.error('[run-inactive-campaign] Failed to load previous sends, aborting to avoid duplicate sends:', previousSendsErr);
-          return new Response(
-            JSON.stringify({ success: false, error: 'Could not verify prior sends for this campaign, please retry' }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+        const candidateIds = targetCustomers.map(c => c.id).filter(Boolean);
+        const CHUNK = 200;
+        for (let i = 0; i < candidateIds.length; i += CHUNK) {
+          const chunk = candidateIds.slice(i, i + CHUNK);
+          const { data: previousSends, error: previousSendsErr } = await supabase
+            .from('campaign_sms_sends')
+            .select('customer_id')
+            .eq('campaign_id', filterCampaignId)
+            .in('customer_id', chunk);
+          if (previousSendsErr) {
+            // Fail closed: an unreadable exclusion list must not be treated
+            // as "nobody was sent to yet" — that's how this campaign would
+            // re-message everyone who already got it.
+            console.error('[run-inactive-campaign] Failed to load previous sends, aborting to avoid duplicate sends:', previousSendsErr);
+            return new Response(
+              JSON.stringify({ success: false, error: 'Could not verify prior sends for this campaign, please retry' }),
+              { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+          (previousSends || []).forEach(s => { if (s.customer_id) sentCustomerIds.add(s.customer_id); });
         }
-        (previousSends || []).forEach(s => { if (s.customer_id) sentCustomerIds.add(s.customer_id); });
       }
     }
 
-    // Build set of customers who received ANY campaign recently
+    // Build set of customers who received ANY campaign recently.
+    // Same unbounded-select hazard as the per-campaign exclusion above, and
+    // the same fail-open consequence, so it gets the same chunked treatment
+    // scoped to the candidate batch.
     let recentlySentIds = new Set<string>();
     if (excludeRecentDays > 0) {
       const recentCutoff = new Date();
       recentCutoff.setDate(recentCutoff.getDate() - excludeRecentDays);
-      const { data: recentSends, error: recentSendsErr } = await supabase
-        .from('campaign_sms_sends')
-        .select('customer_id')
-        .eq('organization_id', organizationId)
-        .gte('sent_at', recentCutoff.toISOString());
-      if (recentSendsErr) {
-        console.error('[run-inactive-campaign] Failed to load recently-sent list, aborting to avoid duplicate sends:', recentSendsErr);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Could not verify recent sends, please retry' }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      const candidateIds = targetCustomers.map(c => c.id).filter(Boolean);
+      const CHUNK = 200;
+      for (let i = 0; i < candidateIds.length; i += CHUNK) {
+        const chunk = candidateIds.slice(i, i + CHUNK);
+        const { data: recentSends, error: recentSendsErr } = await supabase
+          .from('campaign_sms_sends')
+          .select('customer_id')
+          .eq('organization_id', organizationId)
+          .in('customer_id', chunk)
+          .gte('sent_at', recentCutoff.toISOString());
+        if (recentSendsErr) {
+          console.error('[run-inactive-campaign] Failed to load recently-sent list, aborting to avoid duplicate sends:', recentSendsErr);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Could not verify recent sends, please retry' }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
       }
-      (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
     }
 
     // Mark and filter
