@@ -115,9 +115,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const booking of abandonedBookings || []) {
       try {
+        // MARKETING CONSENT: abandoned_bookings has no customer_id, so match on
+        // the phone number. Fails closed. Mark followup_sent so an opted-out
+        // row is not reconsidered on every subsequent run.
+        if (await isPhoneOptedOut(supabase, organizationId, booking.phone)) {
+          console.info(
+            `[followup-abandoned-booking] Skipping opted-out recipient | org:${organizationId} phone:${booking.phone}`,
+          );
+          skippedOptedOut++;
+          await supabase
+            .from('abandoned_bookings')
+            .update({ followup_sent: true, followup_sent_at: new Date().toISOString() })
+            .eq('id', booking.id);
+          continue;
+        }
+
         const personalizedMessage = messageTemplate
           .replace(/{first_name}/g, booking.first_name || 'there')
           .replace(/{company_name}/g, companyName);
+
 
         let toPhone = booking.phone.replace(/\D/g, '');
         if (!toPhone.startsWith('1') && toPhone.length === 10) {
