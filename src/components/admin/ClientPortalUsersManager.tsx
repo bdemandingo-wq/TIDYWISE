@@ -242,12 +242,18 @@ export function ClientPortalUsersManager() {
       // The function distinguishes "not found" from "not your organisation"
       // from "password too short". Read the body so those survive instead of
       // collapsing into supabase-js's generic non-2xx string.
+      //
+      // Note: on a non-2xx, supabase-js sets `data` to null and leaves the body
+      // unread on error.context. Reading `data?.error` on the error path (as an
+      // earlier version did) therefore always yields undefined and falls back to
+      // the generic wrapper.
       if (error) throw new Error(await readEdgeFunctionError(error, 'Failed to reset password'));
-      if (data && data.success === false) {
-        throw new Error(String(data.error ?? 'Failed to reset password'));
+      if (data && (data as { success?: boolean }).success === false) {
+        throw new Error(String((data as { error?: string }).error ?? 'Failed to reset password'));
       }
       return data;
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-portal-users'] });
       toast.success('Password reset successfully! User will be prompted to change it on next login.');
