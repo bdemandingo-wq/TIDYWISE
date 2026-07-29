@@ -247,6 +247,46 @@ test.describe("Security regression — 8 spoofed-value checks hardened 2026-07-1
     expect(await withSpoofedPhone.json()).toEqual(await withoutPhone.json());
   });
 
+  // Slot 2 previously held two spoofed-value checks against redeem-loyalty-points.
+  // That function was deleted 2026-07-29 when loyalty became tiers-only, so both
+  // were removed — one called the endpoint, the other readFileSync'd its source.
+  //
+  // What replaces them is a DIFFERENT kind of check: not input spoofing, but
+  // deployment state. In this project a git push deploys nothing, so "the
+  // directory is gone" and "the endpoint stops responding" are independent
+  // facts, and the gap between them has cost real time repeatedly. A removed
+  // function that is still deployed is still callable — and this one moved
+  // money (it deducted loyalty points and wrote store credit).
+  test("2. redeem-loyalty-points is UNDEPLOYED, not merely deleted from the repo", async ({ request }) => {
+    const resp = await request.post(FN("redeem-loyalty-points"), {
+      headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      data: {},
+      failOnStatusCode: false,
+    });
+
+    // 404 = gateway has no such function. Anything else means it is still live:
+    // 401/400 in particular mean it is deployed and merely rejecting this call.
+    expect(
+      resp.status(),
+      `expected 404 (undeployed) but got ${resp.status()}. The directory was ` +
+        `deleted from the repo, but a deleted directory does not undeploy a ` +
+        `function — ask Lovable to undeploy redeem-loyalty-points.`,
+    ).toBe(404);
+  });
+
+  test("2c. no client code references the removed redemption endpoint", async () => {
+    // Source-level guard: if src/ still invokes it, deleting the function
+    // turned a working button into a silent 404 for customers.
+    const srcDir = join(process.cwd(), "src");
+    const { execSync } = await import("node:child_process");
+    // grep exits 1 when there are no matches, which is the passing case here.
+    const hits = execSync(
+      `grep -rl "redeem-loyalty-points" "${srcDir}" || true`,
+      { encoding: "utf8" },
+    ).split("\n").filter(Boolean);
+    expect(hits, `src/ still references redeem-loyalty-points:\n${hits.join("\n")}`).toEqual([]);
+  });
+
   test("3. post-booking-upsell: requires auth, and its org-mismatch guard exists in source", async ({ request }) => {
     const resp = await request.post(FN("post-booking-upsell"), {
       headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
