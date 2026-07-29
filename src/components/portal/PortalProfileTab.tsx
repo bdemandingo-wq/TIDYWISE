@@ -106,8 +106,10 @@ export function PortalProfileTab() {
 
     const fetchTiers = async () => {
       setLoadingTiers(true);
-      const { data, error } = await supabase.rpc("get_loyalty_tier_info", {
-        p_organization_id: user.organization_id,
+      // Goes through the proxy: organization_id is taken from the verified
+      // portal session server-side, not sent from here.
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: { action: "get_loyalty_tiers" },
       });
 
       if (!error && data) {
