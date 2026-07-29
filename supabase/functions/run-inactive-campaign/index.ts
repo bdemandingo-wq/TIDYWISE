@@ -37,6 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const body = await req.json();
     const {
       organizationId,
       campaignId,
@@ -47,7 +48,11 @@ const handler = async (req: Request): Promise<Response> => {
       excludeAlreadyReceived = false,
       excludeRecentDays = 0,
       onlyAfterDate = null,
-    } = await req.json();
+      recipientCustomerIds = null,
+      throttleSeconds: throttleSecondsBody = null,
+      scheduledAt: scheduledAtBody = null,
+    } = body;
+
 
     // Auth gate: allow either cron secret (scheduled runs) OR an authenticated
     // admin/owner of the target organization (manual runs from the admin UI).
