@@ -30,7 +30,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   MessageSquare, Phone, Send, Users, Clock, Trash2, Play, Loader2,
   Sparkles, Copy, Check, BarChart3, AlertCircle, Plus, Mail,
-  MoreHorizontal, Edit, CalendarDays, TrendingUp, TrendingDown,
+  MoreHorizontal, Edit, CalendarDays, TrendingUp,
   UserX, Zap, Star, RefreshCw, ChevronDown, ChevronUp, Eye,
   Link2, AlertTriangle, X,
 } from "lucide-react";
@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { SEOHead } from '@/components/SEOHead';
 import { ReferralDashboard } from '@/components/admin/ReferralDashboard';
 import { describeCampaignDispatch, type CampaignDispatchResult } from '@/components/admin/campaigns/campaignDispatch';
+import { StatCard } from '@/components/admin/campaigns/StatCard';
 
 interface AITemplate {
   name: string;
@@ -1636,25 +1637,3 @@ export default function CampaignsPage() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, trend }: {
-  icon: typeof Send;
-  label: string;
-  value: string | number;
-  trend?: "up" | "down";
-}) {
-  return (
-    <Card>
-      <CardContent className="p-3 md:p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <Icon className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground truncate">{label}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <p className="text-xl md:text-2xl font-bold">{value}</p>
-          {trend === "up" && <TrendingUp className="w-4 h-4 text-emerald-500" />}
-          {trend === "down" && <TrendingDown className="w-4 h-4 text-destructive" />}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
