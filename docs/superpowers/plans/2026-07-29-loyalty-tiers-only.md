@@ -1166,6 +1166,25 @@ This means `get_org_tiers` (built in 3.1) **overlaps `get_loyalty_tier_info`**. 
 
 Keep both, but do not add a third. The existing portal endpoint should have been found before specifying `get_org_tiers`.
 
+#### Process note: this was the same duplication bug, from our side
+
+Worth stating plainly, because it is the exact failure this whole engagement has been cataloguing:
+
+**I specified a new function without first checking whether one already existed.** `get_loyalty_tier_info` was already written, already granted, already wired to the portal through `client-portal-api` action `get_loyalty_tiers` — and I had *read that file* earlier in the investigation. I still put `get_org_tiers` in the Task 3.1 prompt, and Lovable dutifully built it.
+
+That is structurally identical to the defects found in the codebase:
+
+| Instance | Shape |
+|---|---|
+| `automation_steps` + `AutomationEditorDialog` | a complete second system built beside the senders, wired to nothing |
+| `invoice_branding`, `reminder_email_body`, `customers.credits` | written, never read |
+| three overlapping code reviewers, three security reviewers, `claude-mem` beside native memory | tools installed without checking what was already there |
+| **`get_org_tiers` beside `get_loyalty_tier_info`** | **a second function specified without checking for the first** |
+
+The cost here was small — the two differ in grants, so both have a caller and nothing is dead. But the mechanism was luck, not judgement.
+
+**The habit that prevents it:** before specifying any new function, table, column, or hook, grep for an existing one and check who calls it. "Does this already exist?" comes before "how should this work?" In this repo that check is cheap and the failure mode is expensive — it is how a codebase accumulates six homes for message copy.
+
 #### Correction 2: Task 3.3 needs an edge-function change, not just frontend
 
 The portal's tier comes from a **direct column read**, not a computed value:
