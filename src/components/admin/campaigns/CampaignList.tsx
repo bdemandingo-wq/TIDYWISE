@@ -81,21 +81,61 @@ export function CampaignList({
       queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-runs"] });
-      toast(describeCampaignDispatch(data));
+      toast(describeCampaignDispatch(data, { orgTimezone }));
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
   });
 
+  /**
+   * Deleting a campaign cascades its runs and their queued messages away. If a
+   * run is still live, that silently destroys a send the operator scheduled —
+   * so refuse, and say how many recipients were about to be messaged. Cancel
+   * the run first (which purges the queue on purpose) and the delete goes
+   * through.
+   */
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
+      const { data: liveRuns, error: runErr } = await supabase
+        .from("campaign_runs")
+        .select("id, status, total_recipients, sent_count")
+        .eq("campaign_id", id)
+        .in("status", ["pending", "running", "paused"]);
+      // Never delete on an unreadable guard — a failed check is not an all-clear.
+      if (runErr) throw new Error(`Could not check for scheduled sends: ${runErr.message}`);
+      if (liveRuns && liveRuns.length > 0) {
+        const remaining = liveRuns.reduce(
+          (n, r) => n + Math.max(0, (r.total_recipients ?? 0) - (r.sent_count ?? 0)),
+          0,
+        );
+        throw new Error(
+          `This campaign has a ${liveRuns[0].status} send with ${remaining} recipient${remaining === 1 ? "" : "s"} still queued. Cancel the run first, then delete.`,
+        );
+      }
       const { error } = await supabase.from("automated_campaigns").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-runs"] });
       toast({ title: "Campaign deleted" });
     },
+    onError: (error: Error) =>
+      toast({ title: "Campaign not deleted", description: error.message, variant: "destructive" }),
   });
+
+  const confirmDelete = (campaign: Record<string, any>) => {
+    const run = runs[campaign.id];
+    const live = run && ["pending", "running", "paused"].includes(run.status);
+    const remaining = live ? Math.max(0, (run.total_recipients ?? 0) - (run.sent_count ?? 0)) : 0;
+    const message = live
+      ? `"${campaign.name}" has a ${run.status} send with ${remaining} recipient${remaining === 1 ? "" : "s"} still queued. Deleting would destroy that send.\n\nCancel the run first, then delete.`
+      : `Delete "${campaign.name}"? This cannot be undone.`;
+    if (live) {
+      window.alert(message);
+      return;
+    }
+    if (window.confirm(message)) deleteCampaign.mutate(campaign.id);
+  };
 
 
 
@@ -169,7 +209,7 @@ export function CampaignList({
                           <DropdownMenuItem onClick={() => setPendingSend(campaign)}>
                             <Play className="w-4 h-4 mr-2" /> Send Now
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
+                          <DropdownMenuItem className="text-destructive" onClick={() => confirmDelete(campaign)}>
                             <Trash2 className="w-4 h-4 mr-2" /> Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -277,7 +317,7 @@ export function CampaignList({
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => setPendingSend(campaign)} disabled={runCampaign.isPending}>
                               <Play className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8 text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
+                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8 text-destructive" onClick={() => confirmDelete(campaign)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
