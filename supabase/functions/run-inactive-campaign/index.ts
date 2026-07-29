@@ -562,7 +562,7 @@ async function createRunAndEnqueue({
   console.log(`[run-inactive-campaign] Run ${run.id} enqueued ${enqueued}/${totalRecipients} recipients`);
 
   return new Response(
-    JSON.stringify({ success: true, runId: run.id, totalRecipients, skippedInvalidPhone }),
+    JSON.stringify({ success: true, runId: run.id, totalRecipients, skippedInvalidPhone, scheduledAt }),
     { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
