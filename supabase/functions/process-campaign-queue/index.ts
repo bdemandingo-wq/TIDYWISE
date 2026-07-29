@@ -404,8 +404,36 @@ Deno.serve(async (req) => {
 
       if (status !== 'running') continue
 
+      // 4b. COMPLETION IS NOT THROTTLED — a run whose progress has reached its
+      // recipient total has nothing left to do, so finish it now rather than
+      // waiting for the throttle cursor to come due.
+      const progressNow =
+        (run.sent_count ?? 0) + (run.failed_count ?? 0) + (run.skipped_opted_out_count ?? 0)
+      if ((run.total_recipients ?? 0) > 0 && progressNow >= (run.total_recipients ?? 0)) {
+        const { error: compErr } = await supabase
+          .from('campaign_runs')
+          .update({ status: 'completed', completed_at: nowIso })
+          .eq('id', run.id)
+          .eq('status', 'running')
+        if (compErr) {
+          console.error('[process-campaign-queue] Failed to complete run early', {
+            run_id: run.id,
+            error: compErr.message,
+          })
+        } else {
+          summary.completed++
+          console.log('[process-campaign-queue] Run completed (progress reached total)', {
+            run_id: run.id,
+            progress: progressNow,
+            total_recipients: run.total_recipients,
+          })
+        }
+        continue
+      }
+
       // 5. THROTTLE — one message per run per tick, only when due.
       if (nextSendAt && new Date(nextSendAt) > now) continue
+
 
       dueRuns.push({ ...run, status: 'running', next_send_at: nextSendAt })
     } catch (err) {
