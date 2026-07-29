@@ -1139,6 +1139,57 @@ tiers. Tiers are per-org in client_tier_settings, keyed on lifetime spending."
 
 ---
 
+### ⚠️ Task 3.1 RESULTS + two corrections to Task 3.3 (recorded 2026-07-29)
+
+**3.1 ran successfully.** `wrong_tier_before = 153`, `wrong_tier_after = 0`. Migration gap: **1 customer / $600** of spend the loyalty system could not see. Three **demotions** where an org's thresholds are stricter than the old hardcoded 500/2000/5000 ladder.
+
+Lovable also **dropped `customer_loyalty_tier_check`** — not in the prompt, but necessary and correct: that CHECK constrained `tier` to `bronze|silver|gold|platinum`, which would reject org-defined tier names. Consequence to note: nothing now validates tier values at the DB layer, which is acceptable while `tier` is frozen and derived, but means a future writer could put anything there.
+
+**Open business decision — the three demotions.** Three real customers now show a lower tier than yesterday. Their org's thresholds were always stricter; the hardcoded ladder had been over-promoting them. Options: let it stand (their tier is now correct), or grandfather them by nudging that org's `min_spending`. This is the owner's call, not a code decision, and it should be made before the frontend surfaces tier more prominently.
+
+#### Correction 1: the portal cannot call `get_org_tiers` — it has no auth session
+
+`client-portal-api:11-13` documents that the client portal uses a custom `client_portal_users` table and has **no Supabase Auth session**, so every portal browser request is `anon`. `get_org_tiers` is granted to `authenticated` and would 401.
+
+A plumbed path already exists — `client-portal-api:372-378`, action `get_loyalty_tiers`, which calls `get_loyalty_tier_info` with `organization_id` from the **verified session**. The portal hook must use:
+
+```ts
+invokePortal('client-portal-api', { action: 'get_loyalty_tiers' })
+```
+
+This means `get_org_tiers` (built in 3.1) **overlaps `get_loyalty_tier_info`**. They are not interchangeable — they differ in grants:
+
+| Function | Granted to | Used by |
+|---|---|---|
+| `get_loyalty_tier_info` | `service_role` only | the portal, via `client-portal-api` action `get_loyalty_tiers` |
+| `get_org_tiers` | `authenticated` | the **admin** app (Tasks 3.4, 3.6) |
+
+Keep both, but do not add a third. The existing portal endpoint should have been found before specifying `get_org_tiers`.
+
+#### Correction 2: Task 3.3 needs an edge-function change, not just frontend
+
+The portal's tier comes from a **direct column read**, not a computed value:
+
+```ts
+// client-portal-api:199-202
+.from("customer_loyalty").select("points, lifetime_points, tier")
+// client-portal-api:222
+loyalty_tier: loyalty?.tier ?? null,
+```
+
+Good news: this is why 3.1's one-time `tier` correction **did** reach customers — all 153 are live now. (My earlier hypothesis that `get_client_portal_user_data` computed the tier was wrong; `client-portal-api:22-26` shows that RPC is deliberately bypassed because it was an email-enumeration primitive.)
+
+Bad news: `tier` is now **frozen**, so the portal will go stale the moment an org edits its thresholds. `:222` must become `resolve_customer_tier(customer_id)`. That is `supabase/functions/`, so it ships as a **Lovable prompt** — Task 3.3 is no longer frontend-only.
+
+Revised Task 3.3 shape:
+- **3.3a (Lovable)** — `client-portal-api:222` → `resolve_customer_tier`; grant that function to `service_role` too if not already.
+- **3.3b (local)** — `useOrgTiers` via `invokePortal('client-portal-api', { action: 'get_loyalty_tiers' })`, mapping `tier_name`/`min_spending` → `TierDef`; exclude from persisted cache.
+- **3.3c (local)** — rewrite `LoyaltyTierBanner` per the code below.
+
+The `supabase.rpc('get_org_tiers')` call in the hook below is **wrong for the portal** — keep that form only for admin-side callers in 3.4/3.6.
+
+---
+
 ### Task 3.3: `useOrgTiers` hook + fix `LoyaltyTierBanner`
 
 **Files:**
