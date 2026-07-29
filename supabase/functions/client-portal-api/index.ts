@@ -197,13 +197,24 @@ serve(async (req) => {
             .maybeSingle(),
           supabase
             .from("customer_loyalty")
-            .select("points, lifetime_points, tier")
+            .select("points, lifetime_points, tier, lifetime_spend")
             .eq("customer_id", customer_id)
             .maybeSingle(),
         ]);
         if (cpuErr) return err(cpuErr.message, 500);
         if (custErr) return err(custErr.message, 500);
         if (!cpu || !cust) return err("Portal account not found", 404);
+
+        // Tier is DERIVED — customer_loyalty.tier is frozen and goes stale as
+        // soon as an org edits its thresholds. A NULL from the resolver means
+        // the customer is below the org's lowest min_spending; pass it through.
+        // On resolver failure, fail visibly rather than serving a stale or
+        // silently-missing tier.
+        const { data: derivedTier, error: tierErr } = await supabase.rpc(
+          "resolve_customer_tier",
+          { p_customer_id: customer_id },
+        );
+        if (tierErr) return err(`Failed to resolve loyalty tier: ${tierErr.message}`, 500);
 
         return ok([{
           user_id: cpu.id,
@@ -219,7 +230,8 @@ serve(async (req) => {
           share_referral_code: (cust as any).referral_code ?? null,
           loyalty_points: loyalty?.points ?? null,
           loyalty_lifetime_points: loyalty?.lifetime_points ?? null,
-          loyalty_tier: loyalty?.tier ?? null,
+          loyalty_tier: derivedTier ?? null,
+          loyalty_lifetime_spend: (loyalty as any)?.lifetime_spend ?? null,
           property_type: null,
         }]);
       }
