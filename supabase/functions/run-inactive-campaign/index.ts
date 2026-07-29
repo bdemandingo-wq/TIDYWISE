@@ -37,6 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const body = await req.json();
     const {
       organizationId,
       campaignId,
@@ -47,7 +48,11 @@ const handler = async (req: Request): Promise<Response> => {
       excludeAlreadyReceived = false,
       excludeRecentDays = 0,
       onlyAfterDate = null,
-    } = await req.json();
+      recipientCustomerIds = null,
+      throttleSeconds: throttleSecondsBody = null,
+      scheduledAt: scheduledAtBody = null,
+    } = body;
+
 
     // Auth gate: allow either cron secret (scheduled runs) OR an authenticated
     // admin/owner of the target organization (manual runs from the admin UI).
@@ -122,10 +127,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Get campaign template if provided, otherwise use provided message
     let messageTemplate = message || "Hi {first_name}! We miss you at {company_name}. It's been a while since your last clean. Book now and get 15% off! Reply STOP to opt out.";
     let campaignType = 'inactive_customer';
+    let campaignThrottle: number | null = null;
     if (campaignId) {
       const { data: campaign } = await supabase
         .from('automated_campaigns')
-        .select('body, name, type')
+        .select('body, name, type, throttle_seconds')
         .eq('id', campaignId)
         .eq('organization_id', organizationId)
         .single();
@@ -136,6 +142,43 @@ const handler = async (req: Request): Promise<Response> => {
       if (campaign?.type) {
         campaignType = campaign.type;
       }
+      if (campaign?.throttle_seconds != null) {
+        campaignThrottle = campaign.throttle_seconds;
+      }
+    }
+
+    const throttleSeconds = throttleSecondsBody ?? campaignThrottle ?? 60;
+    const scheduledAt: string | null = scheduledAtBody ?? null;
+
+    // Explicit recipient list: skip audience resolution entirely.
+    if (!testMode && Array.isArray(recipientCustomerIds) && recipientCustomerIds.length > 0) {
+      const { data: explicitCustomers, error: explicitErr } = await supabase
+        .from('customers')
+        .select('id, first_name, last_name, phone')
+        .eq('organization_id', organizationId)
+        .eq('marketing_status', 'active')
+        .not('phone', 'is', null)
+        .in('id', recipientCustomerIds)
+        .order('id', { ascending: true });
+
+      if (explicitErr) {
+        console.error('[run-inactive-campaign] Failed to load explicit recipients:', explicitErr);
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to load recipients: ${explicitErr.message}` }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return await createRunAndEnqueue({
+        supabase,
+        organizationId,
+        campaignId: campaignId || null,
+        messageTemplate,
+        recipients: explicitCustomers || [],
+        throttleSeconds,
+        scheduledAt,
+        corsHeaders,
+      });
     }
 
     // Get business settings for company name
@@ -146,6 +189,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     const companyName = businessSettings?.company_name || 'Your Cleaning Service';
+
 
     // Calculate the cutoff date
     const cutoffDate = new Date();
@@ -326,130 +370,18 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get org's booking slug for tracked links
-    const { data: orgData } = await supabase
-      .from('organizations')
-      .select('slug')
-      .eq('id', organizationId)
-      .maybeSingle();
-    
-    const orgSlug = orgData?.slug || organizationId;
-    const projectUrl = Deno.env.get("APP_URL") || Deno.env.get("PROJECT_URL") || "https://jointidywise.com";
+    // Enqueue-only: create the run and hand delivery to process-campaign-queue.
+    return await createRunAndEnqueue({
+      supabase,
+      organizationId,
+      campaignId: campaignId || null,
+      messageTemplate,
+      recipients: customersToContact,
+      throttleSeconds,
+      scheduledAt,
+      corsHeaders,
+    });
 
-    // Send SMS to each customer
-    let sentCount = 0;
-    let failedCount = 0;
-    const errors: string[] = [];
-
-    for (const customer of customersToContact) {
-      try {
-        // Generate tracking ref for this recipient
-        const trackingRef = crypto.randomUUID().replace(/-/g, '').substring(0, 12);
-        const trackedBookingLink = `${projectUrl}/book/${orgSlug}?ref=${trackingRef}`;
-
-        // Personalize message
-        const personalizedMessage = messageTemplate
-          .replace(/{first_name}/g, customer.first_name)
-          .replace(/{last_name}/g, customer.last_name)
-          .replace(/{company_name}/g, companyName)
-          .replace(/{booking_link}/g, trackedBookingLink);
-
-        // Format phone number
-        let toPhone = customer.phone.replace(/\D/g, '');
-        if (!toPhone.startsWith('1') && toPhone.length === 10) {
-          toPhone = '1' + toPhone;
-        }
-        toPhone = '+' + toPhone;
-
-        // Send via OpenPhone
-        const response = await fetch('https://api.openphone.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Authorization': smsSettings!.openphone_api_key,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from: smsSettings!.openphone_phone_number_id,
-            to: [toPhone],
-            content: personalizedMessage,
-          }),
-        });
-
-        if (response.ok) {
-          sentCount++;
-
-          // Record the send
-          const { error: sendLogErr } = await supabase
-            .from('campaign_sms_sends')
-            .insert({
-              campaign_id: campaignId || null,
-              customer_id: customer.id,
-              organization_id: organizationId,
-              phone_number: toPhone,
-              message_content: personalizedMessage,
-              status: 'sent',
-              campaign_type: targetAudience,
-            });
-          if (sendLogErr) {
-            console.error(`[run-inactive-campaign] SMS sent but campaign_sms_sends insert failed for customer ${customer.id} — dedupe will not catch this next run:`, sendLogErr);
-          }
-
-          // Insert booking link tracking record if message contained {booking_link}
-          if (messageTemplate.includes('{booking_link}')) {
-            await supabase
-              .from('booking_link_tracking')
-              .insert({
-                organization_id: organizationId,
-                customer_id: customer.id,
-                tracking_ref: trackingRef,
-                customer_name: `${customer.first_name} ${customer.last_name}`,
-                customer_phone: customer.phone,
-                customer_email: customer.email || null,
-                campaign_id: campaignId || null,
-                link_sent_at: new Date().toISOString(),
-                status: 'sent',
-                link_type: 'booking',
-              })
-              .then(({ error: trackErr }) => {
-                if (trackErr) console.log('Link tracking insert skipped:', trackErr.message);
-              });
-          }
-        } else {
-          const errorData = await response.json();
-          console.error(`[run-inactive-campaign] Failed to send to ${customer.id}:`, errorData);
-          failedCount++;
-          errors.push(`${customer.first_name}: ${errorData.message || 'Unknown error'}`);
-        }
-
-        // Rate limiting
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-      } catch (error) {
-        console.error(`[run-inactive-campaign] Error sending to ${customer.id}:`, error);
-        failedCount++;
-      }
-    }
-
-    // Update campaign last_run_at if provided
-    if (campaignId) {
-      await supabase
-        .from('automated_campaigns')
-        .update({ last_run_at: new Date().toISOString() })
-        .eq('id', campaignId);
-    }
-
-    console.log(`[run-inactive-campaign] Complete. Sent: ${sentCount}, Failed: ${failedCount}`);
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        sentCount, 
-        failedCount,
-        totalInactive: targetCustomers.length,
-        errors: errors.slice(0, 5)
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -462,4 +394,107 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+/**
+ * Creates the campaign_runs row (with total_recipients set in the SAME INSERT —
+ * the AFTER INSERT trigger arms the worker and it reads total_recipients on its
+ * first tick) and enqueues one campaign_sms message per recipient.
+ * Delivery, token substitution and tracking refs are the worker's job.
+ */
+async function createRunAndEnqueue({
+  supabase,
+  organizationId,
+  campaignId,
+  messageTemplate,
+  recipients,
+  throttleSeconds,
+  scheduledAt,
+  corsHeaders,
+}: {
+  supabase: any;
+  organizationId: string;
+  campaignId: string | null;
+  messageTemplate: string;
+  recipients: Array<{ id: string; first_name: string; last_name: string; phone: string }>;
+  throttleSeconds: number;
+  scheduledAt: string | null;
+  corsHeaders: Record<string, string>;
+}): Promise<Response> {
+  const totalRecipients = recipients.length;
+  const base = scheduledAt ? new Date(scheduledAt) : new Date();
+  const expiresAt = new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: run, error: runErr } = await supabase
+    .from('campaign_runs')
+    .insert({
+      campaign_id: campaignId,
+      organization_id: organizationId,
+      status: 'pending',
+      throttle_seconds: throttleSeconds,
+      scheduled_at: scheduledAt,
+      expires_at: expiresAt,
+      total_recipients: totalRecipients,
+    })
+    .select('id')
+    .single();
+
+  if (runErr || !run) {
+    console.error('[run-inactive-campaign] Failed to create campaign run:', runErr);
+    return new Response(
+      JSON.stringify({ success: false, error: `Failed to create campaign run: ${runErr?.message || 'unknown'}` }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let enqueued = 0;
+  for (const customer of recipients) {
+    let toPhone = String(customer.phone || '').replace(/\D/g, '');
+    if (!toPhone.startsWith('1') && toPhone.length === 10) toPhone = '1' + toPhone;
+    toPhone = '+' + toPhone;
+
+    const { error: qErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'campaign_sms',
+      payload: {
+        run_id: run.id,
+        campaign_id: campaignId,
+        organization_id: organizationId,
+        customer_id: customer.id,
+        phone: toPhone,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        message_template: messageTemplate,
+      },
+    });
+
+    if (qErr) {
+      console.error(`[run-inactive-campaign] Enqueue failed after ${enqueued} messages (run ${run.id}):`, qErr);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Enqueue failed after ${enqueued} of ${totalRecipients} messages: ${qErr.message}`,
+          runId: run.id,
+          enqueued,
+          totalRecipients,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    enqueued++;
+  }
+
+  if (campaignId) {
+    await supabase
+      .from('automated_campaigns')
+      .update({ last_run_at: new Date().toISOString() })
+      .eq('id', campaignId);
+  }
+
+  console.log(`[run-inactive-campaign] Run ${run.id} enqueued ${enqueued}/${totalRecipients} recipients`);
+
+  return new Response(
+    JSON.stringify({ success: true, runId: run.id, totalRecipients }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 serve(handler);
+
