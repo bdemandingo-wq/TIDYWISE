@@ -43,6 +43,26 @@ const toneOptions = [
   { value: "seasonal", label: "Seasonal" },
 ];
 
+/** The curated day counts offered in the Days Inactive picker. */
+const DAYS_INACTIVE_OPTIONS = [7, 14, 30, 60, 90];
+
+/**
+ * The picker must be able to display whatever days_inactive actually holds.
+ *
+ * A deep link can carry any value (?days=45), and a Radix Select whose `value`
+ * matches no SelectItem renders an EMPTY trigger — so the form silently showed
+ * a blank field while the audience preview was resolving against 45. The
+ * operator then sees a recipient count computed from a number they cannot see.
+ *
+ * Snapping to the nearest curated value would be worse: it would quietly widen
+ * or narrow the audience relative to what the link asked for. So instead, an
+ * off-list value is added to the list, in order.
+ */
+function daysInactiveOptions(current: number): number[] {
+  if (DAYS_INACTIVE_OPTIONS.includes(current)) return DAYS_INACTIVE_OPTIONS;
+  return [...DAYS_INACTIVE_OPTIONS, current].sort((a, b) => a - b);
+}
+
 /**
  * The three-step "New Campaign" wizard: audience, message, review.
  *
@@ -368,11 +388,9 @@ export function CampaignWizard({
                   <Select value={campaignForm.days_inactive.toString()} onValueChange={v => setCampaignForm(prev => ({ ...prev, days_inactive: parseInt(v) }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 days</SelectItem>
-                      <SelectItem value="14">14 days</SelectItem>
-                      <SelectItem value="30">30 days</SelectItem>
-                      <SelectItem value="60">60 days</SelectItem>
-                      <SelectItem value="90">90 days</SelectItem>
+                      {daysInactiveOptions(campaignForm.days_inactive).map(d => (
+                        <SelectItem key={d} value={d.toString()}>{d} days</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <div className="mt-2 flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-xs">
