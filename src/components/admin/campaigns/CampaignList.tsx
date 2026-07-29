@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { describeCampaignDispatch } from "@/components/admin/campaigns/campaignD
 import type { CampaignTrackingStat } from "@/hooks/useCampaigns";
 import { CampaignRunBadge } from "@/components/admin/campaigns/CampaignRunBadge";
 import type { CampaignRun } from "@/components/admin/campaigns/campaignRunStatus";
+import { CampaignSendConfirmDialog } from "@/components/admin/campaigns/CampaignSendConfirmDialog";
 
 type StatusFilter = "all" | "draft" | "scheduled" | "sent" | "active";
 
@@ -57,6 +59,8 @@ export function CampaignList({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  // Nothing sends without passing through this dialog first.
+  const [pendingSend, setPendingSend] = useState<Record<string, any> | null>(null);
   const filteredCampaigns = campaigns;
   const campaignTrackingStats = trackingStats;
   const setDetailCampaignId = onOpenTracking;
@@ -105,6 +109,7 @@ export function CampaignList({
 
 
   return (
+        <>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold">Campaign Library</h2>
@@ -161,7 +166,7 @@ export function CampaignList({
                           }}>
                             <Edit className="w-4 h-4 mr-2" /> Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => runCampaign.mutate(campaign.id)}>
+                          <DropdownMenuItem onClick={() => setPendingSend(campaign)}>
                             <Play className="w-4 h-4 mr-2" /> Send Now
                           </DropdownMenuItem>
                           <DropdownMenuItem className="text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
@@ -269,7 +274,7 @@ export function CampaignList({
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => runCampaign.mutate(campaign.id)} disabled={runCampaign.isPending}>
+                            <Button variant="ghost" size="icon" className="min-h-[44px] w-8" onClick={() => setPendingSend(campaign)} disabled={runCampaign.isPending}>
                               <Play className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="icon" className="min-h-[44px] w-8 text-destructive" onClick={() => deleteCampaign.mutate(campaign.id)}>
@@ -284,5 +289,13 @@ export function CampaignList({
               </div>
             )}
           </div>
+
+          <CampaignSendConfirmDialog
+            campaign={pendingSend as { id: string; name: string; throttle_seconds?: number | null } | null}
+            orgId={orgId}
+            onConfirm={(campaignId) => { setPendingSend(null); runCampaign.mutate(campaignId); }}
+            onClose={() => setPendingSend(null)}
+          />
+        </>
   );
 }
