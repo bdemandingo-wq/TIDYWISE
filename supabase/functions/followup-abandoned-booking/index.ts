@@ -111,6 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     let sentCount = 0;
     let failedCount = 0;
+    let skippedOptedOut = 0;
     const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
     for (const booking of abandonedBookings || []) {
