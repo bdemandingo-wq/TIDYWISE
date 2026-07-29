@@ -97,3 +97,67 @@ test("isInPast distinguishes past from future", () => {
   assert.equal(isInPast("2026-07-29T12:01:00Z", now), false);
   assert.equal(isInPast("2026-07-29T12:00:00Z", now), true, "exactly now counts as past");
 });
+
+// ── same-day scheduling: a day is selectable if ANY time on it is future ─────
+
+import { isDayFullyPast, earliestTimeOnDay, clampTimeToDay, wallClockInZone } from "./scheduleTime.ts";
+
+const TZ = "America/New_York";
+// 11:39 local New York on 29 July 2026 = 15:39 UTC (EDT, UTC-4).
+const NOW = new Date("2026-07-29T15:39:00Z");
+
+test("the reported bug: today is NOT fully past at 11:39am", () => {
+  assert.equal(isDayFullyPast(day(2026, 7, 29), TZ, NOW), false);
+});
+
+test("yesterday is fully past; tomorrow is not", () => {
+  assert.equal(isDayFullyPast(day(2026, 7, 28), TZ, NOW), true);
+  assert.equal(isDayFullyPast(day(2026, 7, 30), TZ, NOW), false);
+});
+
+test("today stays selectable until the last minute of the day", () => {
+  const lateNight = new Date("2026-07-30T03:50:00Z"); // 23:50 NY on the 29th
+  assert.equal(isDayFullyPast(day(2026, 7, 29), TZ, lateNight), false);
+});
+
+test("today becomes unselectable only once the day is actually over", () => {
+  const afterMidnight = new Date("2026-07-30T04:05:00Z"); // 00:05 NY on the 30th
+  assert.equal(isDayFullyPast(day(2026, 7, 29), TZ, afterMidnight), true);
+});
+
+test("earliest slot today rounds up to the next quarter hour", () => {
+  assert.equal(earliestTimeOnDay(day(2026, 7, 29), TZ, NOW), "11:45");
+});
+
+test("a wholly future day starts at midnight", () => {
+  assert.equal(earliestTimeOnDay(day(2026, 7, 30), TZ, NOW), "00:00");
+});
+
+test("exactly on a boundary advances to the next slot, never to now", () => {
+  const onTheDot = new Date("2026-07-29T15:45:00Z"); // 11:45 NY exactly
+  assert.equal(earliestTimeOnDay(day(2026, 7, 29), TZ, onTheDot), "12:00");
+});
+
+test("late enough in the day, no slot remains", () => {
+  const almostMidnight = new Date("2026-07-30T03:52:00Z"); // 23:52 NY
+  assert.equal(earliestTimeOnDay(day(2026, 7, 29), TZ, almostMidnight), null);
+});
+
+test("clamping pushes a past time forward and leaves a future one alone", () => {
+  // The 09:00 default is behind 11:39 and must not silently resolve to the past.
+  assert.equal(clampTimeToDay(day(2026, 7, 29), "09:00", TZ, NOW), "11:45");
+  assert.equal(clampTimeToDay(day(2026, 7, 29), "18:00", TZ, NOW), "18:00");
+  assert.equal(clampTimeToDay(day(2026, 7, 30), "09:00", TZ, NOW), "09:00");
+});
+
+test("the org's zone decides which day is still open, not the browser's", () => {
+  // 02:00 UTC on the 30th is still 22:00 on the 29th in New York.
+  const lateUtc = new Date("2026-07-30T02:00:00Z");
+  assert.equal(isDayFullyPast(day(2026, 7, 29), TZ, lateUtc), false, "NY can still send");
+  assert.equal(isDayFullyPast(day(2026, 7, 29), "Europe/Berlin", lateUtc), true, "Berlin cannot");
+});
+
+test("wallClockInZone reads the hour the zone is showing", () => {
+  assert.deepEqual(wallClockInZone(NOW, TZ), { hour: 11, minute: 39 });
+  assert.deepEqual(wallClockInZone(NOW, "UTC"), { hour: 15, minute: 39 });
+});

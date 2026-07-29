@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { describeCampaignDispatch, type CampaignDispatchResult } from "@/components/admin/campaigns/campaignDispatch";
 import { ThrottleSelect, THROTTLE_OPTIONS } from "@/components/admin/campaigns/ThrottleSelect";
 import { describeDuration } from "@/components/admin/campaigns/CampaignSendConfirmDialog";
-import { zonedWallClockToIso, describeScheduledInstant, isInPast } from "@/components/admin/campaigns/scheduleTime";
+import { zonedWallClockToIso, describeScheduledInstant, isInPast, isDayFullyPast, earliestTimeOnDay, clampTimeToDay } from "@/components/admin/campaigns/scheduleTime";
 
 type AudienceType = "active_clients" | "inactive_clients" | "leads" | "all_customers";
 
@@ -336,6 +336,10 @@ export function CampaignWizard({
     campaignForm.schedule === "later" && campaignForm.scheduledDate
       ? zonedWallClockToIso(campaignForm.scheduledDate, campaignForm.scheduledTime, orgTimezone)
       : null;
+  const earliestSlotToday = campaignForm.scheduledDate
+    ? earliestTimeOnDay(campaignForm.scheduledDate, orgTimezone)
+    : null;
+
   const scheduleIsIncomplete = campaignForm.schedule === "later" && !scheduledAtIso;
   const scheduleIsPast = !!scheduledAtIso && isInPast(scheduledAtIso);
 
@@ -522,8 +526,15 @@ export function CampaignWizard({
                         <Calendar
                           mode="single"
                           selected={campaignForm.scheduledDate}
-                          onSelect={d => setCampaignForm(prev => ({ ...prev, scheduledDate: d }))}
-                          disabled={d => d < new Date()}
+                          onSelect={d => setCampaignForm(prev => ({
+                            ...prev,
+                            scheduledDate: d,
+                            // Picking today with the 09:00 default would resolve to
+                            // the past; move it to the next open slot instead of
+                            // silently leaving an unsendable time in the field.
+                            scheduledTime: d ? (clampTimeToDay(d, prev.scheduledTime, orgTimezone) ?? prev.scheduledTime) : prev.scheduledTime,
+                          }))}
+                          disabled={d => isDayFullyPast(d, orgTimezone)}
                           className={cn("p-3 pointer-events-auto")}
                         />
                       </PopoverContent>
@@ -531,6 +542,7 @@ export function CampaignWizard({
                     <Input
                       type="time"
                       value={campaignForm.scheduledTime}
+                      min={earliestSlotToday ?? undefined}
                       onChange={e => setCampaignForm(prev => ({ ...prev, scheduledTime: e.target.value }))}
                       className="w-[130px]"
                     />

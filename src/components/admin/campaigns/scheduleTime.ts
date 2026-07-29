@@ -105,3 +105,80 @@ export function isInPast(iso: string, now: Date = new Date()): boolean {
   const date = new Date(iso);
   return !Number.isNaN(date.getTime()) && date.getTime() <= now.getTime();
 }
+
+/** The wall-clock hour and minute a zone is showing at that instant. */
+export function wallClockInZone(instant: Date, timeZone: string | null | undefined): { hour: number; minute: number } {
+  const zone = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone, hour12: false, hour: "2-digit", minute: "2-digit",
+    }).formatToParts(instant);
+    const get = (t: string) => Number(parts.find(p => p.type === t)?.value ?? 0);
+    return { hour: get("hour") % 24, minute: get("minute") };
+  } catch {
+    return { hour: instant.getHours(), minute: instant.getMinutes() };
+  }
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Is every possible time on this calendar day already behind us?
+ *
+ * This is the correct predicate for disabling a day in the picker: a day is
+ * selectable if ANY time on it is still in the future. Comparing the day's
+ * midnight against now — which the picker used to do — disables today from
+ * 00:01 onwards, so same-day scheduling was impossible all day.
+ *
+ * Evaluated in the organisation's zone, so a browser in a different zone
+ * cannot grey out a day the business can still send on.
+ */
+export function isDayFullyPast(
+  day: Date,
+  timeZone: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  const endOfDay = zonedWallClockToIso(day, "23:59", timeZone);
+  if (!endOfDay) return false; // never disable on a conversion failure
+  return isInPast(endOfDay, now);
+}
+
+/**
+ * The earliest time still schedulable on this day, as "HH:MM", rounded up to
+ * the next `stepMinutes` boundary. Returns "00:00" for a wholly future day and
+ * null when the day has no remaining slot.
+ */
+export function earliestTimeOnDay(
+  day: Date,
+  timeZone: string | null | undefined,
+  now: Date = new Date(),
+  stepMinutes = 15,
+): string | null {
+  const startOfDay = zonedWallClockToIso(day, "00:00", timeZone);
+  if (!startOfDay) return null;
+  if (!isInPast(startOfDay, now)) return "00:00";
+  if (isDayFullyPast(day, timeZone, now)) return null;
+
+  // Today in the org's zone: round the current wall clock up to the next slot.
+  const { hour, minute } = wallClockInZone(now, timeZone);
+  let slot = Math.ceil((minute + 1) / stepMinutes) * stepMinutes;
+  let h = hour;
+  if (slot >= 60) { h += Math.floor(slot / 60); slot %= 60; }
+  if (h > 23) return null;
+  return `${pad(h)}:${pad(slot)}`;
+}
+
+/** Clamp a chosen time forward to the day's earliest remaining slot. */
+export function clampTimeToDay(
+  day: Date,
+  timeOfDay: string,
+  timeZone: string | null | undefined,
+  now: Date = new Date(),
+  stepMinutes = 15,
+): string | null {
+  const earliest = earliestTimeOnDay(day, timeZone, now, stepMinutes);
+  if (!earliest) return null;
+  const chosen = zonedWallClockToIso(day, timeOfDay, timeZone);
+  if (!chosen) return earliest;
+  return isInPast(chosen, now) ? earliest : timeOfDay;
+}
