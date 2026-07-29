@@ -401,23 +401,23 @@ Deno.serve(async (req) => {
   }, []);
 
   const newCustomers7d = await safeQuery("New customers 7d", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .gte("created_at", sevenDaysAgo);
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const totalActiveCustomers = await safeQuery("Active customers", async () => {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", orgId)
       .eq("customer_status", "active");
     if (error) throw error;
-    return (data as any)?.length ?? 0;
+    return count ?? 0;
   }, 0);
 
   const churnRisk = await safeQuery("Churn risk", async () => {
