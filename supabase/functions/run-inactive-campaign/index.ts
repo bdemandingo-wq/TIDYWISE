@@ -395,6 +395,20 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 /**
+ * Normalises a raw phone to E.164, or returns null when it is unsendable.
+ * Unsendable data must never be queued — it would fail 5 times and land in
+ * the DLQ looking like a delivery failure.
+ */
+function normalizePhone(raw: unknown): string | null {
+  let digits = String(raw ?? '').replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10) digits = '1' + digits;
+  if (digits.length < 11 || digits.length > 15) return null;
+  if (/^0+$/.test(digits)) return null;
+  return '+' + digits;
+}
+
+/**
  * Creates the campaign_runs row (with total_recipients set in the SAME INSERT —
  * the AFTER INSERT trigger arms the worker and it reads total_recipients on its
  * first tick) and enqueues one campaign_sms message per recipient.
@@ -419,9 +433,41 @@ async function createRunAndEnqueue({
   scheduledAt: string | null;
   corsHeaders: Record<string, string>;
 }): Promise<Response> {
-  const totalRecipients = recipients.length;
+  // Drop unsendable phone numbers BEFORE the run is created so
+  // total_recipients reflects what can actually be delivered.
+  const sendable: Array<{ id: string; first_name: string; last_name: string; phone: string }> = [];
+  const skippedInvalidPhoneIds: string[] = [];
+  for (const c of recipients) {
+    const normalized = normalizePhone(c.phone);
+    if (!normalized) {
+      skippedInvalidPhoneIds.push(c.id);
+      continue;
+    }
+    sendable.push({ ...c, phone: normalized });
+  }
+  const skippedInvalidPhone = skippedInvalidPhoneIds.length;
+  if (skippedInvalidPhone > 0) {
+    console.warn(
+      `[run-inactive-campaign] Skipping ${skippedInvalidPhone} recipient(s) with unsendable phone numbers:`,
+      skippedInvalidPhoneIds.slice(0, 20)
+    );
+  }
+
+  const totalRecipients = sendable.length;
   const base = scheduledAt ? new Date(scheduledAt) : new Date();
   const expiresAt = new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+  if (totalRecipients === 0) {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'No recipients with a sendable phone number',
+        totalRecipients: 0,
+        skippedInvalidPhone,
+      }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 
   const { data: run, error: runErr } = await supabase
     .from('campaign_runs')
@@ -446,10 +492,9 @@ async function createRunAndEnqueue({
   }
 
   let enqueued = 0;
-  for (const customer of recipients) {
-    let toPhone = String(customer.phone || '').replace(/\D/g, '');
-    if (!toPhone.startsWith('1') && toPhone.length === 10) toPhone = '1' + toPhone;
-    toPhone = '+' + toPhone;
+  for (const customer of sendable) {
+    const toPhone = customer.phone;
+
 
     const { error: qErr } = await supabase.rpc('enqueue_email', {
       queue_name: 'campaign_sms',
