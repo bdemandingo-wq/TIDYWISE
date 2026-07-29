@@ -399,9 +399,22 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
-      // Also update campaign_sms_sends delivery status if this message matches a campaign send
+      // Also update campaign_sms_sends delivery status if this message matches a campaign send.
+      //
+      // CROSS-TENANT SAFETY: this update was previously scoped ONLY by phone
+      // number and status='sent', with no organization, recency or row limit.
+      // A delivery webhook for one organization would rewrite EVERY historical
+      // 'sent' row for that phone number in EVERY organization — the same
+      // person is frequently a customer of more than one org on this platform.
+      // It also rewrote send history going back to the beginning of time.
+      // campaign_sms_sends is the legal record of what was sent to whom and
+      // when, so it must only ever be narrowed to the single row this
+      // particular delivery receipt actually refers to:
+      //   - organization_id = this webhook's org
+      //   - sent within the last 24h (a delivery receipt is never older)
+      //   - the single most recent matching row
       const deliveredPhone = messageObj.to;
-      if (deliveredPhone) {
+      if (deliveredPhone && organizationId) {
         // Normalize phone for matching
         const normalizedPhone = deliveredPhone.replace(/\D/g, '');
         const phoneVariants = [
@@ -410,14 +423,44 @@ const handler = async (req: Request): Promise<Response> => {
           `+1${normalizedPhone.length === 10 ? normalizedPhone : ''}`,
         ].filter(Boolean);
 
-        const { error: campaignUpdateErr } = await supabase
-          .from('campaign_sms_sends')
-          .update({ status: 'delivered' })
-          .in('phone_number', phoneVariants)
-          .eq('status', 'sent');
+        const deliveryCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-        if (!campaignUpdateErr) {
-          console.log(`[openphone-webhook] Updated campaign_sms_sends delivery status for ${deliveredPhone}`);
+        // Resolve the single most recent matching send first, then update it
+        // by primary key. Never issue a blind multi-row update on this table.
+        const { data: matchingSend, error: matchLookupErr } = await supabase
+          .from('campaign_sms_sends')
+          .select('id')
+          .eq('organization_id', organizationId)
+          .in('phone_number', phoneVariants)
+          .eq('status', 'sent')
+          .gte('sent_at', deliveryCutoff)
+          .order('sent_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (matchLookupErr) {
+          console.error('[openphone-webhook] Failed to resolve campaign send for delivery receipt', {
+            organization_id: organizationId,
+            error: matchLookupErr.message,
+          });
+        } else if (matchingSend?.id) {
+          const { error: campaignUpdateErr } = await supabase
+            .from('campaign_sms_sends')
+            .update({ status: 'delivered' })
+            .eq('id', matchingSend.id)
+            .eq('organization_id', organizationId);
+
+          if (campaignUpdateErr) {
+            console.error('[openphone-webhook] Failed to mark campaign send delivered', {
+              organization_id: organizationId,
+              send_id: matchingSend.id,
+              error: campaignUpdateErr.message,
+            });
+          } else {
+            console.log(
+              `[openphone-webhook] Marked campaign send ${matchingSend.id} delivered for org ${organizationId}`,
+            );
+          }
         }
       }
 
