@@ -491,8 +491,9 @@ Deno.serve(async (req) => {
     })
   }
 
-
+  try {
   for (const run of dueRuns) {
+
     try {
       const nowIso = new Date().toISOString()
       const mine = rows.filter((r) => r?.message?.run_id === run.id)
