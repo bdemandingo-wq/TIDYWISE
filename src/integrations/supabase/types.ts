@@ -10961,6 +10961,15 @@ export type Database = {
         Args: { p_password: string }
         Returns: string
       }
+      increment_campaign_run_counter: {
+        Args: {
+          p_amount?: number
+          p_counter: string
+          p_next_send_at?: string
+          p_run_id: string
+        }
+        Returns: undefined
+      }
       increment_coupon_use: {
         Args: { p_discount_id: string }
         Returns: boolean
@@ -11076,6 +11085,10 @@ export type Database = {
           target_url: string
         }[]
       }
+      send_to_dlq: {
+        Args: { dlq_name: string; payload: Json }
+        Returns: number
+      }
       set_campaign_run_status: {
         Args: { p_run_id: string; p_status: string }
         Returns: {
@@ -11103,6 +11116,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_message_vt: {
+        Args: { message_id: number; queue_name: string; vt_seconds?: number }
+        Returns: boolean
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
