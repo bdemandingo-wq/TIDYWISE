@@ -107,6 +107,48 @@ async function deleteMessage(supabase: Supa, msgId: number, runId: string): Prom
   }
 }
 
+// Release a claimed-but-unsent message so it is immediately visible again
+// instead of sitting out the visibility timeout. Claiming must not gate
+// sending — throttle_seconds/next_send_at is the only send gate.
+async function releaseMessage(supabase: Supa, msgId: number): Promise<void> {
+  const { error } = await supabase.rpc('set_message_vt', {
+    queue_name: QUEUE,
+    message_id: msgId,
+    vt_seconds: 0,
+  })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to release message visibility', {
+      msg_id: msgId,
+      error: error.message,
+    })
+  }
+}
+
+// Atomic counter bump — never a read-modify-write from a value loaded at the
+// start of the tick, since overlapping invocations would lose increments.
+async function bumpRunCounter(
+  supabase: Supa,
+  runId: string,
+  counter: 'sent_count' | 'failed_count' | 'skipped_opted_out_count',
+  amount: number,
+  nextSendAt: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('increment_campaign_run_counter', {
+    p_run_id: runId,
+    p_counter: counter,
+    p_amount: amount,
+    p_next_send_at: nextSendAt,
+  })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to increment run counter', {
+      run_id: runId,
+      counter,
+      error: error.message,
+    })
+  }
+}
+
+
 async function moveToDlq(
   supabase: Supa,
   msg: QueueRow,
