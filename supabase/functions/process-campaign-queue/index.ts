@@ -36,6 +36,12 @@ const PURGE_MAX_BATCHES = 50
 const EMPTY_RUN_GRACE_MS = 30_000
 const STALL_TIMEOUT_MS = 5 * 60_000
 const MAX_SKIPS_PER_TICK = 50
+// Messages claimed per due run per tick: one send slot plus a small allowance
+// for skipping opted-out recipients in the same tick. Deliberately tiny —
+// every claim increments read_ct, and over-claiming is what dead-lettered
+// healthy recipients for waiting their turn.
+const CLAIM_PER_RUN = 4
+
 
 interface CampaignMessage {
   run_id: string
