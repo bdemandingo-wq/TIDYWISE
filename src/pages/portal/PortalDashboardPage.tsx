@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatInTimezone, getDateInTimezone } from "@/lib/timezoneUtils";
 import {
@@ -58,7 +58,6 @@ import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
 
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { fmt } from '@/lib/activeCurrency';
 
 interface Booking {
   id: string;
@@ -109,50 +108,44 @@ const INSPECTION_CATEGORY_CONFIG = {
   general:       { label: 'Note',          icon: ImageIcon,     chip: 'pv-chip-neutral' },
 } as const;
 
-function LoyaltyRedeemButton({ customerId, organizationId, points, onRedeemed }: {
-  customerId: string; organizationId: string; points: number; onRedeemed: () => void;
-}) {
-  const { invokePortal } = useClientPortal();
-  const [loading, setLoading] = useState(false);
-  const [redeemed, setRedeemed] = useState(false);
-  const inFlightRef = useRef(false);
+// Loyalty is tiers-only. There is no points redemption, no credit balance, and
+// no Redeem button — tier benefits are applied by the business, not claimed
+// here. The previous LoyaltyRedeemButton lived at this spot.
+//
+// NOTE: this component is deliberately defined at MODULE scope, not inside the
+// page component. When it was an inline `const LoyaltyCard = () => (...)`, every
+// parent re-render created a new component identity, so React unmounted and
+// remounted the whole subtree — which reset the redeem button's in-flight guard
+// and let the same customer redeem repeatedly. Keep it out here.
+const tierProgressMap: Record<string, number> = { bronze: 25, silver: 50, gold: 75, platinum: 100 };
 
-  const handleRedeem = async () => {
-    if (!customerId || !organizationId) return;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setLoading(true);
-    try {
-      const { data, error } = await invokePortal('redeem-loyalty-points', {
-        body: { customerId, organizationId, pointsToRedeem: 100 },
-      });
-      if (error || data?.error) throw new Error(data?.error || error?.message);
-      toast.success(`${fmt(data.creditAmount)} credit added to your account!`);
-      setRedeemed(true);
-      onRedeemed();
-    } catch (e: any) {
-      toast.error(e.message || 'Redemption failed');
-    } finally {
-      setLoading(false);
-      inFlightRef.current = false;
-    }
-  };
-
-  if (redeemed) {
-    return <p className="text-[13px] text-[hsl(var(--pv-success))] font-medium text-center">Credit applied.</p>;
-  }
+function PortalLoyaltyCard({ points, tier }: { points: number; tier: string | null }) {
+  // TODO(Part 3): tierProgressMap hardcodes TidyWise Cleaning's four tier
+  // names. Orgs with custom tiers in client_tier_settings fall through to 25%.
+  // Fixed when the banner and card move to useOrgTiers.
+  const tierProgress = tierProgressMap[tier?.toLowerCase() ?? ''] ?? 25;
 
   return (
-    <button
-      onClick={handleRedeem}
-      disabled={loading}
-      className="w-full text-[13px] font-medium py-2.5 px-3 rounded-[10px] flex items-center justify-center gap-2
-                 bg-[hsl(var(--pv-brand-soft))] text-[hsl(var(--pv-brand))]
-                 hover:bg-[hsl(var(--pv-brand)/0.14)] transition-colors disabled:opacity-60"
-    >
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Star className="w-3.5 h-3.5 fill-current" />}
-      Redeem 100 pts for $10 credit
-    </button>
+    <Card className="pv-quiet" data-testid="portal-loyalty-card">
+      <CardContent className="px-4 sm:px-2 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="pv-eyebrow mb-1">Loyalty</p>
+            <p className="text-[13.5px] text-[hsl(var(--pv-ink-2))] capitalize">
+              <span className="text-[hsl(var(--pv-ink))] font-medium">{points}</span> pts
+              {tier ? (
+                <>
+                  <span className="text-[hsl(var(--pv-ink-4))] mx-1.5">·</span>
+                  {tier} member
+                </>
+              ) : null}
+            </p>
+          </div>
+          <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
+        </div>
+        <Progress value={tierProgress} className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]" />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -571,8 +564,6 @@ export default function PortalDashboardPage() {
     ? upcomingBookings.slice().sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
     : null;
 
-  const tierProgressMap: Record<string, number> = { bronze: 25, silver: 50, gold: 75, platinum: 100 };
-  const tierProgress = tierProgressMap[displayLoyalty.tier?.toLowerCase()] ?? 25;
   const firstName = customer.first_name || 'there';
 
   /* ─────────────────────────── SHARED SECTIONS ─────────────────────────── */
@@ -642,37 +633,7 @@ export default function PortalDashboardPage() {
   );
 
 
-  const LoyaltyCard = () => (
-    <Card className="pv-quiet">
-      <CardContent className="px-4 sm:px-2 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="pv-eyebrow mb-1">Loyalty</p>
-            <p className="text-[13.5px] text-[hsl(var(--pv-ink-2))] capitalize">
-              <span className="text-[hsl(var(--pv-ink))] font-medium">{displayLoyalty.points}</span> pts
-              <span className="text-[hsl(var(--pv-ink-4))] mx-1.5">·</span>
-              {displayLoyalty.tier} member
-            </p>
-          </div>
-          <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
-        </div>
-        <Progress
-          value={tierProgress}
-          className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]"
-        />
-        {displayLoyalty.points >= 100 && (
-          <div className="mt-3">
-            <LoyaltyRedeemButton
-              customerId={user?.customer_id || ''}
-              organizationId={user?.organization_id || ''}
-              points={displayLoyalty.points}
-              onRedeemed={refreshData}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+  // PortalLoyaltyCard is defined at module scope — see the note beside it.
 
   const QuickActions = () => (
     <Card className="pv-quiet">
@@ -1088,7 +1049,7 @@ export default function PortalDashboardPage() {
           {/* Right rail — hidden on mobile, sticky on desktop */}
           <aside className="hidden lg:block space-y-4">
             <div className="sticky top-24 space-y-4">
-              <LoyaltyCard />
+              <PortalLoyaltyCard points={displayLoyalty.points} tier={displayLoyalty.tier} />
               <QuickActions />
             </div>
           </aside>
@@ -1096,7 +1057,7 @@ export default function PortalDashboardPage() {
 
         {/* Loyalty + quick actions on mobile appear inline below */}
         <div className="lg:hidden mt-5 space-y-4">
-          <LoyaltyCard />
+          <PortalLoyaltyCard points={displayLoyalty.points} tier={displayLoyalty.tier} />
           <QuickActions />
         </div>
       </div>
