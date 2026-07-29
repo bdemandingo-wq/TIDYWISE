@@ -1,3 +1,5 @@
+import { formatInOrgTime } from "@/components/admin/campaigns/campaignRunStatus";
+
 /**
  * Response shape from `run-inactive-campaign`, and how to describe it honestly
  * in a toast.
@@ -19,6 +21,8 @@ export interface CampaignDispatchResult {
   /** New (queued) shape. */
   runId?: string;
   totalRecipients?: number;
+  /** ISO instant the run is scheduled for. Null/absent means "send now". */
+  scheduledAt?: string | null;
   /** Legacy (synchronous) shape — remove once the enqueue refactor is live. */
   sentCount?: number;
 }
@@ -28,10 +32,16 @@ export interface CampaignDispatchToast {
   description: string;
 }
 
+export interface DescribeOptions {
+  /** IANA zone from business_settings.timezone, so a scheduled time is unambiguous. */
+  orgTimezone?: string | null;
+}
+
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export function describeCampaignDispatch(
   data: CampaignDispatchResult | null | undefined,
+  options: DescribeOptions = {},
 ): CampaignDispatchToast {
   // Queued path — the run is scheduled, not finished. Say so.
   if (data?.runId) {
@@ -40,6 +50,16 @@ export function describeCampaignDispatch(
       return {
         title: "No recipients matched",
         description: "Nothing was queued — no customers matched this audience.",
+      };
+    }
+    // A scheduled run must name its send time. Saying "starts now" for a run
+    // that fires hours later contradicts the review screen the operator just
+    // confirmed, and is how a send gets triggered twice.
+    const scheduled = data.scheduledAt ? new Date(data.scheduledAt) : null;
+    if (scheduled && !Number.isNaN(scheduled.getTime()) && scheduled.getTime() > Date.now()) {
+      return {
+        title: "Campaign scheduled",
+        description: `${plural(total, "message")} queued. Sending starts ${formatInOrgTime(data.scheduledAt as string, options.orgTimezone)} and continues at your configured pace.`,
       };
     }
     return {
