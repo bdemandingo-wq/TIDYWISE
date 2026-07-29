@@ -391,6 +391,55 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Purge messages that belong to runs already completed or cancelled. Without
+  // this, race-condition orphans are re-read forever (or DLQ'd as false failures).
+  const runIdStatuses = new Map<string, string>()
+  let runStatusLookupOk = false
+  if (rows.length > 0) {
+    const uniqueRunIds = [
+      ...new Set(rows.map((r) => r.message?.run_id).filter((id): id is string => typeof id === 'string' && id.length > 0)),
+    ]
+    const { data: runStatusData, error: runStatusErr } = await supabase
+      .from('campaign_runs')
+      .select('id, status')
+      .in('id', uniqueRunIds)
+    if (runStatusErr) {
+      console.error('[process-campaign-queue] Failed to look up run statuses for orphan purge', {
+        error: runStatusErr.message,
+      })
+    } else {
+      for (const runRow of (runStatusData ?? []) as { id: string; status: string }[]) {
+        runIdStatuses.set(runRow.id, runRow.status)
+      }
+      runStatusLookupOk = true
+    }
+  }
+
+  const remainingRows: QueueRow[] = []
+  let purgedOrphans = 0
+  const orphanRunIds = new Set<string>()
+  for (const row of rows) {
+    const runId = row.message?.run_id
+    if (runStatusLookupOk) {
+      const status = runId ? runIdStatuses.get(runId) : undefined
+      if (status === 'completed' || status === 'cancelled' || status === undefined) {
+        await deleteMessage(supabase, row.msg_id, runId || 'unknown')
+        purgedOrphans++
+        orphanRunIds.add(runId || 'unknown')
+        continue
+      }
+    }
+    remainingRows.push(row)
+  }
+  rows = remainingRows
+  if (purgedOrphans > 0) {
+    console.warn('[process-campaign-queue] Purged orphan messages for completed/cancelled runs', {
+      run_ids: [...orphanRunIds],
+      purged: purgedOrphans,
+    })
+  }
+
+
   for (const run of dueRuns) {
     try {
       const nowIso = new Date().toISOString()
