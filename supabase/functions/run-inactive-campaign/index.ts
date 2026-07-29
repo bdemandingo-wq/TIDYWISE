@@ -394,4 +394,107 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
+/**
+ * Creates the campaign_runs row (with total_recipients set in the SAME INSERT —
+ * the AFTER INSERT trigger arms the worker and it reads total_recipients on its
+ * first tick) and enqueues one campaign_sms message per recipient.
+ * Delivery, token substitution and tracking refs are the worker's job.
+ */
+async function createRunAndEnqueue({
+  supabase,
+  organizationId,
+  campaignId,
+  messageTemplate,
+  recipients,
+  throttleSeconds,
+  scheduledAt,
+  corsHeaders,
+}: {
+  supabase: any;
+  organizationId: string;
+  campaignId: string | null;
+  messageTemplate: string;
+  recipients: Array<{ id: string; first_name: string; last_name: string; phone: string }>;
+  throttleSeconds: number;
+  scheduledAt: string | null;
+  corsHeaders: Record<string, string>;
+}): Promise<Response> {
+  const totalRecipients = recipients.length;
+  const base = scheduledAt ? new Date(scheduledAt) : new Date();
+  const expiresAt = new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: run, error: runErr } = await supabase
+    .from('campaign_runs')
+    .insert({
+      campaign_id: campaignId,
+      organization_id: organizationId,
+      status: 'pending',
+      throttle_seconds: throttleSeconds,
+      scheduled_at: scheduledAt,
+      expires_at: expiresAt,
+      total_recipients: totalRecipients,
+    })
+    .select('id')
+    .single();
+
+  if (runErr || !run) {
+    console.error('[run-inactive-campaign] Failed to create campaign run:', runErr);
+    return new Response(
+      JSON.stringify({ success: false, error: `Failed to create campaign run: ${runErr?.message || 'unknown'}` }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let enqueued = 0;
+  for (const customer of recipients) {
+    let toPhone = String(customer.phone || '').replace(/\D/g, '');
+    if (!toPhone.startsWith('1') && toPhone.length === 10) toPhone = '1' + toPhone;
+    toPhone = '+' + toPhone;
+
+    const { error: qErr } = await supabase.rpc('enqueue_email', {
+      queue_name: 'campaign_sms',
+      payload: {
+        run_id: run.id,
+        campaign_id: campaignId,
+        organization_id: organizationId,
+        customer_id: customer.id,
+        phone: toPhone,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        message_template: messageTemplate,
+      },
+    });
+
+    if (qErr) {
+      console.error(`[run-inactive-campaign] Enqueue failed after ${enqueued} messages (run ${run.id}):`, qErr);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Enqueue failed after ${enqueued} of ${totalRecipients} messages: ${qErr.message}`,
+          runId: run.id,
+          enqueued,
+          totalRecipients,
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    enqueued++;
+  }
+
+  if (campaignId) {
+    await supabase
+      .from('automated_campaigns')
+      .update({ last_run_at: new Date().toISOString() })
+      .eq('id', campaignId);
+  }
+
+  console.log(`[run-inactive-campaign] Run ${run.id} enqueued ${enqueued}/${totalRecipients} recipients`);
+
+  return new Response(
+    JSON.stringify({ success: true, runId: run.id, totalRecipients }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
 serve(handler);
+
