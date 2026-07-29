@@ -945,7 +945,11 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('id', conversationId)
             .maybeSingle();
 
-          const customerIdToOptOut = convData?.customer_id || lastSend?.customer_id;
+          // Fall back to a phone lookup before giving up entirely.
+          const customerIdToOptOut =
+            convData?.customer_id ||
+            lastSend?.customer_id ||
+            (await findCustomerIdByPhone(supabase, organizationId, customerPhone));
           if (customerIdToOptOut) {
             // Retry inline rather than rely on OpenPhone redelivering the
             // webhook: the message-dedup check earlier in this function
