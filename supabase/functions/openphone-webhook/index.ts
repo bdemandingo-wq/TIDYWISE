@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { findCustomerIdByPhone } from "../_shared/marketing-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -920,9 +921,13 @@ const handler = async (req: Request): Promise<Response> => {
     // so this can't be a best-effort log-and-continue.
     let optOutDetected = false;
     if (direction === 'inbound' && content) {
-      const normalized = content.trim().toUpperCase().replace(/[^A-Z]/g, '');
+      const upper = content.trim().toUpperCase();
+      const normalized = upper.replace(/[^A-Z]/g, '');
+      // "stop texting me" must count too — check the first word as well as
+      // the whole string, so multi-word requests aren't silently ignored.
+      const firstWord = (upper.split(/\s+/)[0] || '').replace(/[^A-Z]/g, '');
       const OPT_OUT_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT'];
-      if (OPT_OUT_KEYWORDS.includes(normalized)) {
+      if (OPT_OUT_KEYWORDS.includes(normalized) || OPT_OUT_KEYWORDS.includes(firstWord)) {
         optOutDetected = true;
         try {
           // Find most recent campaign send to this phone for attribution
@@ -941,7 +946,11 @@ const handler = async (req: Request): Promise<Response> => {
             .eq('id', conversationId)
             .maybeSingle();
 
-          const customerIdToOptOut = convData?.customer_id || lastSend?.customer_id;
+          // Fall back to a phone lookup before giving up entirely.
+          const customerIdToOptOut =
+            convData?.customer_id ||
+            lastSend?.customer_id ||
+            (await findCustomerIdByPhone(supabase, organizationId, customerPhone));
           if (customerIdToOptOut) {
             // Retry inline rather than rely on OpenPhone redelivering the
             // webhook: the message-dedup check earlier in this function
@@ -977,6 +986,12 @@ const handler = async (req: Request): Promise<Response> => {
                 `this customer can still receive marketing SMS until manually fixed.`,
               );
             }
+          } else {
+            console.error(
+              `[openphone-webhook] CRITICAL: STOP RECEIVED BUT NOT RECORDED — inbound "${normalized}" ` +
+              `from phone ${customerPhone} (org ${organizationId}) could not be resolved to a customer ` +
+              `via conversation, campaign send, or phone lookup. This opt-out must be applied by hand.`,
+            );
           }
         } catch (optOutErr) {
           console.error('[openphone-webhook] Error processing opt-out:', optOutErr);
