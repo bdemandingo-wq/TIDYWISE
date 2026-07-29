@@ -36,6 +36,12 @@ const PURGE_MAX_BATCHES = 50
 const EMPTY_RUN_GRACE_MS = 30_000
 const STALL_TIMEOUT_MS = 5 * 60_000
 const MAX_SKIPS_PER_TICK = 50
+// Messages claimed per due run per tick: one send slot plus a small allowance
+// for skipping opted-out recipients in the same tick. Deliberately tiny —
+// every claim increments read_ct, and over-claiming is what dead-lettered
+// healthy recipients for waiting their turn.
+const CLAIM_PER_RUN = 4
+
 
 interface CampaignMessage {
   run_id: string
@@ -271,11 +277,20 @@ async function moveToDlq(
   msg: QueueRow,
   reason: string,
 ): Promise<void> {
+  // Persist the reason INTO the payload — a DLQ row whose failure cause lives
+  // only in an expired log line is not diagnosable.
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    dlq_reason: reason,
+    dlq_at: new Date().toISOString(),
+    dlq_read_ct: msg.read_ct ?? 0,
+    dlq_attempt_count: attemptCount(msg),
+  }
   const { error } = await supabase.rpc('move_to_dlq', {
     source_queue: QUEUE,
     dlq_name: DLQ,
     message_id: msg.msg_id,
-    payload: msg.message as unknown as Record<string, unknown>,
+    payload,
   })
   if (error) {
     console.error('[process-campaign-queue] Failed to move message to DLQ', {
@@ -292,6 +307,39 @@ async function moveToDlq(
     })
   }
 }
+
+// Real attempt counter. read_ct is a CLAIM counter — it increments every time
+// the message is read, including reads that release it untouched because
+// another message won the tick's single send slot. Gating the DLQ on read_ct
+// dead-lettered perfectly healthy recipients for waiting their turn.
+function attemptCount(msg: QueueRow): number {
+  const n = (msg.message as unknown as Record<string, unknown>)?.attempt_count
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0
+}
+
+// Increment the attempt counter by re-enqueueing the payload. pgmq has no
+// in-place payload update, so a failed send is deleted and re-queued with
+// attempt_count + 1. The message goes to the back of the queue, which is the
+// correct behaviour: a failing recipient must not block the rest of the run.
+async function requeueWithAttempt(supabase: Supa, msg: QueueRow): Promise<boolean> {
+  const payload = {
+    ...(msg.message as unknown as Record<string, unknown>),
+    attempt_count: attemptCount(msg) + 1,
+    last_attempt_at: new Date().toISOString(),
+  }
+  const { error } = await supabase.rpc('enqueue_email', { queue_name: QUEUE, payload })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to re-enqueue for retry', {
+      run_id: msg.message?.run_id,
+      msg_id: msg.msg_id,
+      error: error.message,
+    })
+    return false
+  }
+  await deleteMessage(supabase, msg.msg_id, msg.message?.run_id ?? 'unknown')
+  return true
+}
+
 
 // Drain any queued messages that belong to a cancelled/expired run.
 // Messages for other runs are read with a 1s visibility timeout so they come
@@ -592,21 +640,22 @@ Deno.serve(async (req) => {
   }
 
   // PHASE 2 — one queue read for the whole tick, grouped by run.
-  // We claim up to 50 but deliberately send at most ONE per run per tick, so
-  // every claimed-but-unsent message is released (vt = 0) before this tick
-  // returns. Leaving them claimed would make the effective send interval
-  // max(throttle_seconds, VISIBILITY_TIMEOUT_SECONDS) and silently ignore any
-  // throttle below the VT. The VT itself must stay well above the longest
-  // possible send, otherwise an in-flight message is redelivered and the
-  // customer is texted twice.
+  // Claim ONLY what this tick can actually act on: at most one send per due
+  // run, plus a small allowance so opted-out recipients can be skipped past
+  // without waiting a whole throttle period. Claiming a large batch and
+  // releasing the remainder was the root cause of false dead-lettering: every
+  // release still increments read_ct, so a healthy message exhausted its retry
+  // budget purely by waiting its turn.
   let rows: QueueRow[] = []
   const claimed = new Set<number>()
   if (dueRuns.length > 0) {
+    const batchSize = Math.min(50, Math.max(1, dueRuns.length * CLAIM_PER_RUN))
     const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
       queue_name: QUEUE,
-      batch_size: 50,
+      batch_size: batchSize,
       vt: VISIBILITY_TIMEOUT_SECONDS,
     })
+
     if (readErr) {
       console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
     } else {
@@ -800,18 +849,24 @@ Deno.serve(async (req) => {
       const msg = chosen
       const payload = msg.message
 
-      // Retry budget: once exhausted the message goes to the DLQ instead of
-      // cycling forever on visibility-timeout redelivery.
-      if ((msg.read_ct ?? 0) > MAX_RETRIES) {
-        await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded`)
+      // Retry budget: gated on REAL attempts (payload.attempt_count), never on
+      // read_ct. A dead-lettered message here is a genuine repeated send
+      // failure, so it counts as a failure on the run — otherwise progress can
+      // never reach total_recipients and the run cannot complete.
+      if (attemptCount(msg) >= MAX_RETRIES) {
+        await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded`)
         claimed.delete(msg.msg_id)
-
-        await supabase
-          .from('campaign_runs')
-          .update({ next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString() })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'failed_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
+        summary.failed++
         continue
       }
+
 
 
       // 7. SEND — same credentials, tokens, tracked link and phone normalisation
@@ -1004,31 +1059,39 @@ Deno.serve(async (req) => {
           msg_id: msg.msg_id,
         })
       } else {
-        // 9. ON FAILURE — leave the message to return via visibility timeout,
-        // unless the retry budget is exhausted (then DLQ).
+        // 9. ON FAILURE — record a REAL attempt by re-enqueueing with
+        // attempt_count + 1 (pgmq cannot update a payload in place). Only the
+        // terminal attempt increments failed_count, so one recipient counts
+        // once towards progress no matter how many times it was retried.
+        const attempts = attemptCount(msg) + 1
         console.error('[process-campaign-queue] Send failed', {
           run_id: run.id,
           msg_id: msg.msg_id,
+          attempt_count: attempts,
           read_ct: msg.read_ct,
           customer_id: payload.customer_id,
           error: sendError,
         })
 
-        if ((msg.read_ct ?? 0) >= MAX_RETRIES) {
-          await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded: ${sendError}`)
+        const nextSendAt = new Date(Date.now() + run.throttle_seconds * 1000).toISOString()
+
+        if (attempts >= MAX_RETRIES) {
+          await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded: ${sendError}`)
           claimed.delete(msg.msg_id)
+          await bumpRunCounter(supabase, run.id, 'failed_count', 1, nextSendAt)
+          summary.failed++
+        } else {
+          const requeued = await requeueWithAttempt(supabase, msg)
+          if (requeued) claimed.delete(msg.msg_id)
+          // A consumed send slot still costs throttle time.
+          await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: nextSendAt })
+            .eq('id', run.id)
+          summary.failed++
         }
-
-        await bumpRunCounter(
-          supabase,
-          run.id,
-          'failed_count',
-          1,
-          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-        )
-
-        summary.failed++
       }
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error processing run', {
         run_id: run.id,
