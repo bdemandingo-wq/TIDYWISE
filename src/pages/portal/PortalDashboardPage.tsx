@@ -50,6 +50,7 @@ import { Progress } from "@/components/ui/progress";
 import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
@@ -379,13 +380,12 @@ export default function PortalDashboardPage() {
 
   const markNotificationRead = async (id: string) => {
     if (!user) return;
-    const { error } = await supabase.rpc("mark_client_notification_read", {
-      p_notification_id: id,
-      p_client_user_id: user.id,
+    const { error } = await invokePortal("client-portal-api", {
+      body: { action: "mark_notification_read", notificationId: id },
     });
     if (error) {
       console.error("[portal] markNotificationRead failed", error);
-      toast.error("Couldn't mark as read. Please try again.");
+      toast.error(await readEdgeFunctionError(error, "Couldn't mark as read. Please try again."));
       return;
     }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
@@ -394,18 +394,23 @@ export default function PortalDashboardPage() {
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
-    const { error: markError } = await supabase.rpc("mark_client_notification_read", {
-      p_notification_id: id,
-      p_client_user_id: user.id,
+    // The mark-read step used to log to the console and continue, so a failure
+    // here was invisible: the delete proceeded and the toast still said
+    // "Notification deleted". Surface it and stop.
+    const { error: markError } = await invokePortal("client-portal-api", {
+      body: { action: "mark_notification_read", notificationId: id },
     });
-    if (markError) console.error("[portal] mark-as-read step of delete failed", markError);
-    const { data, error: deleteError } = await supabase.rpc("delete_client_portal_notification", {
-      p_notification_id: id,
-      p_client_user_id: user.id,
+    if (markError) {
+      console.error("[portal] mark-as-read step of delete failed", markError);
+      toast.error(await readEdgeFunctionError(markError, "Couldn't delete that notification. Please try again."));
+      return;
+    }
+    const { data, error: deleteError } = await invokePortal("client-portal-api", {
+      body: { action: "delete_notification", notificationId: id },
     });
     if (deleteError) {
       console.error("[portal] deleteNotification failed", deleteError);
-      toast.error("Couldn't delete that notification. Please try again.");
+      toast.error(await readEdgeFunctionError(deleteError, "Couldn't delete that notification. Please try again."));
       return;
     }
     if (data) {
@@ -418,10 +423,16 @@ export default function PortalDashboardPage() {
 
   const deleteRequest = async (id: string) => {
     if (!user) return;
-    const { data } = await supabase.rpc("delete_client_booking_request", {
-      p_request_id: id,
-      p_client_user_id: user.id,
+    // `error` was previously not destructured at all: a failure left the row on
+    // screen with no message, which is the worst way for this to break.
+    const { data, error } = await invokePortal("client-portal-api", {
+      body: { action: "delete_booking_request", requestId: id },
     });
+    if (error) {
+      console.error("[portal] deleteRequest failed", error);
+      toast.error(await readEdgeFunctionError(error, "Couldn't delete that request. Please try again."));
+      return;
+    }
     if (data) {
       setRequests((prev) => prev.filter((r) => r.id !== id));
       toast.success("Request deleted");
@@ -437,11 +448,13 @@ export default function PortalDashboardPage() {
     if (!user || !bookingToCancel) return;
     setCancelling(true);
     try {
-      const { data, error } = await supabase.rpc("client_cancel_booking" as any, {
-        p_booking_id: bookingToCancel.id,
-        p_customer_id: user.customer_id,
+      // The proxy returns the function's JSONB verbatim, so result.success,
+      // result.error and result.within_48_hours are read exactly as before —
+      // the 48-hour fee warning depends on that field surviving unflattened.
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: { action: "cancel_booking", bookingId: bookingToCancel.id },
       });
-      if (error) { toast.error("Failed to cancel booking"); return; }
+      if (error) { toast.error(await readEdgeFunctionError(error, "Failed to cancel booking")); return; }
       const result = (data && typeof data === 'object' ? data : null) as {
         success?: boolean; error?: string; within_48_hours?: boolean;
       } | null;

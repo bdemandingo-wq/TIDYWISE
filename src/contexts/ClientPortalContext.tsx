@@ -7,6 +7,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from 'sonner';
 import type { FunctionInvokeOptions } from '@supabase/functions-js';
 
@@ -400,15 +401,21 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const { data, error } = await supabase.rpc('change_client_portal_password' as any, {
-        p_user_id: user.id,
-        p_current_password: currentPassword,
-        p_new_password: newPassword,
+      // Identity comes from the verified session inside client-portal-api —
+      // p_user_id is no longer sent from here.
+      //
+      // invokePortal is declared further down this file, so the session header
+      // is attached directly rather than reordering the provider.
+      const { data, error } = await supabase.functions.invoke('client-portal-api', {
+        body: { action: 'change_password', currentPassword, newPassword },
+        headers: sessionToken ? { 'x-portal-session': sessionToken } : undefined,
       });
 
       if (error) {
-        console.error('Password change error:', error);
-        return { error: 'Failed to change password' };
+        // The proxy returns real messages — a collapsed "Current password is
+        // incorrect" and a 429 "Too many attempts" — and they are the whole
+        // point of the caller seeing something specific.
+        return { error: await readEdgeFunctionError(error, 'Failed to change password') };
       }
 
       const result = data as { success: boolean; error?: string } | null;

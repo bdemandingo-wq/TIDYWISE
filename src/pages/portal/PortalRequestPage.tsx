@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { SEOHead } from '@/components/SEOHead';
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { cn } from "@/lib/utils";
 import { selectedDateTimeToUTCISO } from "@/lib/timezoneUtils";
 
@@ -247,11 +248,23 @@ export default function PortalRequestPage() {
       if (combinedNotes) rpcArgs.p_notes = combinedNotes;
       if (selectedLocation && !isSyntheticPrimaryAddress) rpcArgs.p_location_id = selectedLocation;
 
-      const { data, error } = await supabase.rpc("submit_client_booking_request", rpcArgs);
+      // Identity (portal user, customer, organization) now comes from the
+      // verified session inside the proxy — only the request's own fields are
+      // sent. p_location_id stays optional: omitting it means the primary
+      // address, which the proxy passes through as null.
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: {
+          action: "submit_booking_request",
+          requestedDate: rpcArgs.p_requested_date,
+          serviceId: rpcArgs.p_service_id ?? null,
+          notes: rpcArgs.p_notes ?? null,
+          locationId: rpcArgs.p_location_id ?? null,
+        },
+      });
 
       if (error) {
-        console.error("RPC error:", error);
-        throw error;
+        console.error("Booking request failed:", error);
+        throw new Error(await readEdgeFunctionError(error, "Couldn't submit your request. Please try again."));
       }
 
       const serviceName = services.find((s) => s.id === selectedService)?.name;

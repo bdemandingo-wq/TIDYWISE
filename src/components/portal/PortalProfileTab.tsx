@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
 import { supabase } from "@/lib/supabase";
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { fmt } from '@/lib/activeCurrency';
 
 const ADDRESS_LABELS = ["Home", "Office", "Airbnb", "Rental", "Other"];
@@ -225,18 +226,17 @@ export function PortalProfileTab() {
     if (!user) return;
 
     try {
-      const { error } = await supabase.rpc("delete_client_portal_location", {
-        p_client_user_id: user.id,
-        p_location_id: locationId,
+      const { error } = await invokePortal("client-portal-api", {
+        body: { action: "delete_location", locationId },
       });
 
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to delete address"));
 
       toast.success("Address deleted");
       setLocations((prev) => prev.filter((l) => l.id !== locationId));
     } catch (err) {
       console.error("Delete location error:", err);
-      toast.error("Failed to delete address");
+      toast.error(err instanceof Error ? err.message : "Failed to delete address");
     }
   };
   const handleSetDefault = async (locationId: string) => {
