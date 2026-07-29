@@ -338,24 +338,33 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Build set of customers who received ANY campaign recently
+    // Build set of customers who received ANY campaign recently.
+    // Same unbounded-select hazard as the per-campaign exclusion above, and
+    // the same fail-open consequence, so it gets the same chunked treatment
+    // scoped to the candidate batch.
     let recentlySentIds = new Set<string>();
     if (excludeRecentDays > 0) {
       const recentCutoff = new Date();
       recentCutoff.setDate(recentCutoff.getDate() - excludeRecentDays);
-      const { data: recentSends, error: recentSendsErr } = await supabase
-        .from('campaign_sms_sends')
-        .select('customer_id')
-        .eq('organization_id', organizationId)
-        .gte('sent_at', recentCutoff.toISOString());
-      if (recentSendsErr) {
-        console.error('[run-inactive-campaign] Failed to load recently-sent list, aborting to avoid duplicate sends:', recentSendsErr);
-        return new Response(
-          JSON.stringify({ success: false, error: 'Could not verify recent sends, please retry' }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      const candidateIds = targetCustomers.map(c => c.id).filter(Boolean);
+      const CHUNK = 200;
+      for (let i = 0; i < candidateIds.length; i += CHUNK) {
+        const chunk = candidateIds.slice(i, i + CHUNK);
+        const { data: recentSends, error: recentSendsErr } = await supabase
+          .from('campaign_sms_sends')
+          .select('customer_id')
+          .eq('organization_id', organizationId)
+          .in('customer_id', chunk)
+          .gte('sent_at', recentCutoff.toISOString());
+        if (recentSendsErr) {
+          console.error('[run-inactive-campaign] Failed to load recently-sent list, aborting to avoid duplicate sends:', recentSendsErr);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Could not verify recent sends, please retry' }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
       }
-      (recentSends || []).forEach(s => { if (s.customer_id) recentlySentIds.add(s.customer_id); });
     }
 
     // Mark and filter
