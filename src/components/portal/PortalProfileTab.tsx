@@ -79,6 +79,7 @@ export function PortalProfileTab() {
   
   const [tiers, setTiers] = useState<TierInfo[]>([]);
   const [loadingTiers, setLoadingTiers] = useState(true);
+  const [tiersError, setTiersError] = useState<string | null>(null);
 
   useEffect(() => {
     if (customer) {
@@ -108,11 +109,23 @@ export function PortalProfileTab() {
       setLoadingTiers(true);
       // Goes through the proxy: organization_id is taken from the verified
       // portal session server-side, not sent from here.
+      setTiersError(null);
       const { data, error } = await invokePortal("client-portal-api", {
         body: { action: "get_loyalty_tiers" },
       });
 
-      if (!error && data) {
+      // Previously `if (!error && data)` with no else. When the anon grant was
+      // revoked in May this call started failing with 42501 and the section
+      // simply rendered empty — a customer-facing feature was dead for three
+      // months because nothing said so. A failure has to be visible.
+      if (error) {
+        console.error("[PortalProfileTab] loyalty tiers failed to load", error);
+        setTiersError(await readEdgeFunctionError(error, "Couldn't load loyalty tiers."));
+        setLoadingTiers(false);
+        return;
+      }
+
+      if (data) {
         const tiersData = (data as any[]).map((t) => {
           // benefits is stored as either jsonb (already an array) or a stringified
           // JSON array. Bad data shouldn't crash the entire profile tab.
@@ -568,6 +581,14 @@ export function PortalProfileTab() {
             <div className="flex justify-center py-4">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : tiersError ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              {tiersError} Your points are still being tracked.
+            </p>
+          ) : tiers.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              This business hasn't set up loyalty tiers yet.
+            </p>
           ) : (
             <div className="space-y-3">
               {tiers.map((tier, index) => {
