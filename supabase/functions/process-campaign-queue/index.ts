@@ -606,6 +606,7 @@ Deno.serve(async (req) => {
           break
         }
         await deleteMessage(supabase, candidate.msg_id, run.id)
+        claimed.delete(candidate.msg_id)
         skippedThisTick++
         summary.skipped_opted_out++
         console.log('[process-campaign-queue] Skipped opted-out recipient', {
@@ -616,12 +617,7 @@ Deno.serve(async (req) => {
 
       if (skippedThisTick > 0) {
         // Counter only — next_send_at deliberately untouched.
-        await supabase
-          .from('campaign_runs')
-          .update({
-            skipped_opted_out_count: (run.skipped_opted_out_count ?? 0) + skippedThisTick,
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(supabase, run.id, 'skipped_opted_out_count', skippedThisTick, null)
       }
 
       if (!chosen) continue
@@ -633,6 +629,8 @@ Deno.serve(async (req) => {
       // cycling forever on visibility-timeout redelivery.
       if ((msg.read_ct ?? 0) > MAX_RETRIES) {
         await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded`)
+        claimed.delete(msg.msg_id)
+
         await supabase
           .from('campaign_runs')
           .update({ next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString() })
