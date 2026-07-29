@@ -21,6 +21,9 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { describeCampaignDispatch, type CampaignDispatchResult } from "@/components/admin/campaigns/campaignDispatch";
+import { ThrottleSelect, THROTTLE_OPTIONS } from "@/components/admin/campaigns/ThrottleSelect";
+import { describeDuration } from "@/components/admin/campaigns/CampaignSendConfirmDialog";
+import { zonedWallClockToIso, describeScheduledInstant, isInPast } from "@/components/admin/campaigns/scheduleTime";
 
 type AudienceType = "active_clients" | "inactive_clients" | "leads" | "all_customers";
 
@@ -84,7 +87,7 @@ export function CampaignWizard({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string | null;
-  businessSettings: { company_name: string | null } | null | undefined;
+  businessSettings: { company_name: string | null; timezone?: string | null } | null | undefined;
   optedOutCount: number;
 }) {
   const { toast } = useToast();
@@ -120,6 +123,7 @@ export function CampaignWizard({
     emailSubject: "",
     emailBody: "",
     days_inactive: 30,
+    throttleSeconds: 60,
     excludeAlreadyReceived: false,
     excludeRecentDays: 0,
     onlyAfterDate: undefined as Date | undefined,
@@ -177,6 +181,8 @@ export function CampaignWizard({
           ? campaignForm.emailSubject : "SMS Campaign",
         body: campaignForm.channel === "sms" ? campaignForm.smsBody : campaignForm.emailBody,
         is_active: campaignForm.schedule === "now",
+        throttle_seconds: campaignForm.throttleSeconds,
+        scheduled_at: scheduledAtIso,
       });
       if (error) throw error;
     },
@@ -259,6 +265,8 @@ export function CampaignWizard({
             message: campaignForm.smsBody,
             targetAudience: campaignForm.audience,
             testMode: false,
+            throttleSeconds: campaignForm.throttleSeconds,
+            scheduledAt: scheduledAtIso,
             excludeAlreadyReceived: campaignForm.excludeAlreadyReceived,
             excludeRecentDays: campaignForm.excludeRecentDays,
             onlyAfterDate: campaignForm.onlyAfterDate?.toISOString() || null,
@@ -308,7 +316,7 @@ export function CampaignWizard({
       name: "", channel: "sms", audience: "active_clients", schedule: "now",
       scheduledDate: undefined, scheduledTime: "09:00",
       smsBody: 'Hi {first_name}! This is {company_name}. We wanted to reach out — we\'d love to have you back! Reply STOP to opt out.',
-      emailSubject: "", emailBody: "", days_inactive: 30,
+      emailSubject: "", emailBody: "", days_inactive: 30, throttleSeconds: 60,
       excludeAlreadyReceived: false, excludeRecentDays: 0, onlyAfterDate: undefined,
     });
     setCreateStep(1);
@@ -320,6 +328,16 @@ export function CampaignWizard({
     setCampaignForm(prev => ({ ...prev, smsBody: template.message, emailBody: template.message }));
     toast({ title: "Template applied!" });
   };
+
+  const orgTimezone = businessSettings?.timezone ?? null;
+
+  // The picker collects wall-clock values; the org's zone decides the instant.
+  const scheduledAtIso =
+    campaignForm.schedule === "later" && campaignForm.scheduledDate
+      ? zonedWallClockToIso(campaignForm.scheduledDate, campaignForm.scheduledTime, orgTimezone)
+      : null;
+  const scheduleIsIncomplete = campaignForm.schedule === "later" && !scheduledAtIso;
+  const scheduleIsPast = !!scheduledAtIso && isInPast(scheduledAtIso);
 
   const charCount = campaignForm.smsBody.length;
   const segments = Math.ceil(charCount / 160) || 1;
@@ -518,7 +536,24 @@ export function CampaignWizard({
                     />
                   </div>
                 )}
+                {campaignForm.schedule === "later" && (
+                  <p className={cn("text-xs mt-1", scheduleIsPast ? "text-destructive" : "text-muted-foreground")}>
+                    {!campaignForm.scheduledDate
+                      ? "Pick a date and time."
+                      : scheduleIsIncomplete
+                        ? "That time could not be read. Use HH:MM."
+                        : scheduleIsPast
+                          ? `${describeScheduledInstant(scheduledAtIso!, orgTimezone)} is in the past — it would send immediately.`
+                          : `Sends ${describeScheduledInstant(scheduledAtIso!, orgTimezone)}.`}
+                  </p>
+                )}
               </div>
+
+              <ThrottleSelect
+                value={campaignForm.throttleSeconds}
+                onChange={(seconds) => setCampaignForm(prev => ({ ...prev, throttleSeconds: seconds }))}
+                recipientCount={testResult?.contactable ?? null}
+              />
             </div>
           )}
 
@@ -643,7 +678,18 @@ export function CampaignWizard({
                   <div>
                     <p className="text-muted-foreground text-xs">Schedule</p>
                     <p className="font-medium">
-                      {campaignForm.schedule === "now" ? "Send Immediately" : campaignForm.scheduledDate ? format(campaignForm.scheduledDate, "PPP") + " at " + campaignForm.scheduledTime : "Not set"}
+                      {campaignForm.schedule === "now"
+                        ? "Send immediately"
+                        : scheduledAtIso
+                          ? describeScheduledInstant(scheduledAtIso, orgTimezone)
+                          : "Not set"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {THROTTLE_OPTIONS.find(o => o.value === campaignForm.throttleSeconds)?.label
+                        ?? `One every ${campaignForm.throttleSeconds} seconds`}
+                      {testResult?.contactable && testResult.contactable > 1
+                        ? ` · ${describeDuration(testResult.contactable, campaignForm.throttleSeconds)}`
+                        : ""}
                     </p>
                   </div>
                 </div>
@@ -741,10 +787,18 @@ export function CampaignWizard({
                   {createCampaign.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Save as Draft
                 </Button>
-                <Button onClick={() => sendCampaignNow.mutate()} disabled={sendCampaignNow.isPending}>
+                <Button
+                  onClick={() => sendCampaignNow.mutate()}
+                  // A schedule that cannot be resolved, or that is already in the
+                  // past, must not be sendable — the old build showed the chosen
+                  // date and then sent immediately anyway.
+                  disabled={sendCampaignNow.isPending || scheduleIsIncomplete || scheduleIsPast}
+                >
                   {sendCampaignNow.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  <Send className="w-4 h-4 mr-2" />
-                  Send Campaign
+                  {campaignForm.schedule === "later"
+                    ? <CalendarDays className="w-4 h-4 mr-2" />
+                    : <Send className="w-4 h-4 mr-2" />}
+                  {campaignForm.schedule === "later" ? "Schedule Campaign" : "Send Campaign"}
                 </Button>
               </div>
             )}
