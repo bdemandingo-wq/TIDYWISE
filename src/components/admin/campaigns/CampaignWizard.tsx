@@ -301,9 +301,11 @@ export function CampaignWizard({
       // still sends synchronously. Collapsing them into one "N delivered"
       // number would overstate what has actually gone out.
       const parts: string[] = [];
-      if (data.isSMS) parts.push(describeCampaignDispatch(data.smsResult).description);
+      if (data.isSMS) parts.push(describeCampaignDispatch(data.smsResult, { orgTimezone: businessSettings?.timezone ?? null }).description);
       if (data.isEmail) parts.push(`${data.emailSentCount} email${data.emailSentCount === 1 ? "" : "s"} sent`);
-      toast({ title: "Campaign started", description: parts.join(" · ") });
+      const scheduledSms = data.isSMS && data.smsResult?.scheduledAt
+        && new Date(data.smsResult.scheduledAt as string).getTime() > Date.now();
+      toast({ title: scheduledSms ? "Campaign scheduled" : "Campaign started", description: parts.join(" · ") });
 
       setCreateOpen(false);
       resetForm();
