@@ -31,6 +31,8 @@
   ],
   "exclude": [
     "src/lib/generate-sitemap.ts",
-    "src/lib/prerender-routes.ts"
+    "src/lib/prerender-routes.ts",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ]
 }
