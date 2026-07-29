@@ -239,21 +239,41 @@ export default function CampaignsPage() {
     enabled: !!orgId,
   });
 
-  // Conversion stats + per-campaign sent counts
+  // Conversion stats + per-campaign sent counts.
+  // campaign_sms_sends holds one row per MESSAGE (send history is retained for
+  // compliance evidence), so a customer messaged twice by the same campaign has
+  // two rows. Reach figures must therefore count DISTINCT customers, otherwise
+  // re-sends inflate the audience and double-count a single conversion.
   const { data: conversionStats } = useQuery({
     queryKey: ["campaign-conversions", orgId],
     queryFn: async () => {
       if (!orgId) return null;
       const { data: sends } = await supabase
         .from("campaign_sms_sends")
-        .select("id, converted, campaign_type, campaign_id")
+        .select("id, customer_id, converted, campaign_type, campaign_id")
         .eq("organization_id", orgId);
       if (!sends) return { total: 0, converted: 0, rate: 0, byCampaign: {} as Record<string, number> };
-      const total = sends.length;
-      const converted = sends.filter(s => s.converted).length;
+
+      // Distinct people reached, and distinct people who converted.
+      const reached = new Set<string>();
+      const convertedPeople = new Set<string>();
+      const perCampaign: Record<string, Set<string>> = {};
+      sends.forEach(s => {
+        // Rows with no customer_id (e.g. ad-hoc referral sends) still count
+        // once each — key them by row id so they are never merged together.
+        const personKey = s.customer_id || `row:${s.id}`;
+        reached.add(personKey);
+        if (s.converted) convertedPeople.add(personKey);
+        if (s.campaign_id) {
+          (perCampaign[s.campaign_id] ||= new Set<string>()).add(personKey);
+        }
+      });
+
+      const total = reached.size;
+      const converted = convertedPeople.size;
       const rate = total > 0 ? Math.round((converted / total) * 100) : 0;
       const byCampaign: Record<string, number> = {};
-      sends.forEach(s => { if (s.campaign_id) { byCampaign[s.campaign_id] = (byCampaign[s.campaign_id] || 0) + 1; } });
+      Object.entries(perCampaign).forEach(([cid, people]) => { byCampaign[cid] = people.size; });
       return { total, converted, rate, byCampaign };
     },
     enabled: !!orgId,
