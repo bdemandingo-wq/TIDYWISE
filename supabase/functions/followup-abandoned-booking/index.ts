@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
+import { isPhoneOptedOut } from "../_shared/marketing-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -110,13 +111,30 @@ const handler = async (req: Request): Promise<Response> => {
 
     let sentCount = 0;
     let failedCount = 0;
+    let skippedOptedOut = 0;
     const authHeader = smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, '');
 
     for (const booking of abandonedBookings || []) {
       try {
+        // MARKETING CONSENT: abandoned_bookings has no customer_id, so match on
+        // the phone number. Fails closed. Mark followup_sent so an opted-out
+        // row is not reconsidered on every subsequent run.
+        if (await isPhoneOptedOut(supabase, organizationId, booking.phone)) {
+          console.info(
+            `[followup-abandoned-booking] Skipping opted-out recipient | org:${organizationId} phone:${booking.phone}`,
+          );
+          skippedOptedOut++;
+          await supabase
+            .from('abandoned_bookings')
+            .update({ followup_sent: true, followup_sent_at: new Date().toISOString() })
+            .eq('id', booking.id);
+          continue;
+        }
+
         const personalizedMessage = messageTemplate
           .replace(/{first_name}/g, booking.first_name || 'there')
           .replace(/{company_name}/g, companyName);
+
 
         let toPhone = booking.phone.replace(/\D/g, '');
         if (!toPhone.startsWith('1') && toPhone.length === 10) {
@@ -156,10 +174,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`[followup-abandoned-booking] Complete. Sent: ${sentCount}, Failed: ${failedCount}`);
+    console.log(`[followup-abandoned-booking] Complete. Sent: ${sentCount}, Failed: ${failedCount}, SkippedOptedOut: ${skippedOptedOut}`);
 
     return new Response(
-      JSON.stringify({ success: true, sentCount, failedCount, totalAbandoned: abandonedBookings?.length || 0 }),
+      JSON.stringify({ success: true, sentCount, failedCount, skippedOptedOut, totalAbandoned: abandonedBookings?.length || 0 }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

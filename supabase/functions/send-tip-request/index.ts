@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logAudit, AuditActions } from "../_shared/audit-log.ts";
+import { isOptedOut } from "../_shared/marketing-guard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('bookings')
       .select(`
         id, booking_number, organization_id,
-        customer:customers(first_name, last_name, phone)
+        customer:customers(id, first_name, last_name, phone)
       `)
       .eq('id', bookingId)
       .eq('organization_id', organizationId)
@@ -58,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const customerData = booking.customer as unknown;
     const customer = Array.isArray(customerData) ? customerData[0] : customerData;
-    const typedCustomer = customer as { first_name: string; last_name: string; phone: string | null } | null;
+    const typedCustomer = customer as { id: string; first_name: string; last_name: string; phone: string | null } | null;
 
     if (!typedCustomer?.phone) {
       return new Response(
@@ -66,6 +67,20 @@ const handler = async (req: Request): Promise<Response> => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // MARKETING CONSENT: a tip request is a solicitation, not a transactional
+    // message. Skipping is a normal outcome, so answer 200 with skipped:true.
+    if (await isOptedOut(supabase, organizationId, typedCustomer.id)) {
+      console.info(
+        `[send-tip-request] Skipping opted-out customer | org:${organizationId} customer:${typedCustomer.id}`,
+      );
+      return new Response(
+        JSON.stringify({ success: true, skipped: true, reason: "customer_opted_out" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+
 
     // Create tip record
     const { data: tip, error: tipError } = await supabase
