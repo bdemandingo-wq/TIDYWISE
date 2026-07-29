@@ -634,21 +634,22 @@ Deno.serve(async (req) => {
   }
 
   // PHASE 2 — one queue read for the whole tick, grouped by run.
-  // We claim up to 50 but deliberately send at most ONE per run per tick, so
-  // every claimed-but-unsent message is released (vt = 0) before this tick
-  // returns. Leaving them claimed would make the effective send interval
-  // max(throttle_seconds, VISIBILITY_TIMEOUT_SECONDS) and silently ignore any
-  // throttle below the VT. The VT itself must stay well above the longest
-  // possible send, otherwise an in-flight message is redelivered and the
-  // customer is texted twice.
+  // Claim ONLY what this tick can actually act on: at most one send per due
+  // run, plus a small allowance so opted-out recipients can be skipped past
+  // without waiting a whole throttle period. Claiming a large batch and
+  // releasing the remainder was the root cause of false dead-lettering: every
+  // release still increments read_ct, so a healthy message exhausted its retry
+  // budget purely by waiting its turn.
   let rows: QueueRow[] = []
   const claimed = new Set<number>()
   if (dueRuns.length > 0) {
+    const batchSize = Math.min(50, Math.max(1, dueRuns.length * CLAIM_PER_RUN))
     const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
       queue_name: QUEUE,
-      batch_size: 50,
+      batch_size: batchSize,
       vt: VISIBILITY_TIMEOUT_SECONDS,
     })
+
     if (readErr) {
       console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
     } else {
