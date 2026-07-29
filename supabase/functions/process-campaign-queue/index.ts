@@ -1053,31 +1053,39 @@ Deno.serve(async (req) => {
           msg_id: msg.msg_id,
         })
       } else {
-        // 9. ON FAILURE — leave the message to return via visibility timeout,
-        // unless the retry budget is exhausted (then DLQ).
+        // 9. ON FAILURE — record a REAL attempt by re-enqueueing with
+        // attempt_count + 1 (pgmq cannot update a payload in place). Only the
+        // terminal attempt increments failed_count, so one recipient counts
+        // once towards progress no matter how many times it was retried.
+        const attempts = attemptCount(msg) + 1
         console.error('[process-campaign-queue] Send failed', {
           run_id: run.id,
           msg_id: msg.msg_id,
+          attempt_count: attempts,
           read_ct: msg.read_ct,
           customer_id: payload.customer_id,
           error: sendError,
         })
 
-        if ((msg.read_ct ?? 0) >= MAX_RETRIES) {
-          await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded: ${sendError}`)
+        const nextSendAt = new Date(Date.now() + run.throttle_seconds * 1000).toISOString()
+
+        if (attempts >= MAX_RETRIES) {
+          await moveToDlq(supabase, msg, `Max attempts (${MAX_RETRIES}) exceeded: ${sendError}`)
           claimed.delete(msg.msg_id)
+          await bumpRunCounter(supabase, run.id, 'failed_count', 1, nextSendAt)
+          summary.failed++
+        } else {
+          const requeued = await requeueWithAttempt(supabase, msg)
+          if (requeued) claimed.delete(msg.msg_id)
+          // A consumed send slot still costs throttle time.
+          await supabase
+            .from('campaign_runs')
+            .update({ next_send_at: nextSendAt })
+            .eq('id', run.id)
+          summary.failed++
         }
-
-        await bumpRunCounter(
-          supabase,
-          run.id,
-          'failed_count',
-          1,
-          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-        )
-
-        summary.failed++
       }
+
     } catch (err) {
       console.error('[process-campaign-queue] Unhandled error processing run', {
         run_id: run.id,
