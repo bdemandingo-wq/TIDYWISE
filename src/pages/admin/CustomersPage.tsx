@@ -270,7 +270,28 @@ export default function CustomersPage() {
       toast.error('None of the selected customers have a phone number');
       return;
     }
-    const rows = selected.map(c => ({
+    // Same reasoning as the single-customer path: with the unique constraint
+    // gone, re-running a bulk add would silently queue everyone a second time.
+    // Filter out anyone who already has an open enrollment for this campaign.
+    const { data: alreadyQueued, error: alreadyQueuedErr } = await supabase
+      .from('campaign_sms_sends')
+      .select('customer_id')
+      .eq('organization_id', organization.id)
+      .eq('campaign_id', campaign.id)
+      .in('customer_id', selected.map(c => c.id))
+      .in('status', ['pending', 'queued', 'scheduled']);
+    if (alreadyQueuedErr) {
+      toast.error(`Could not verify campaign enrollments: ${alreadyQueuedErr.message}`);
+      return;
+    }
+    const alreadyQueuedIds = new Set((alreadyQueued || []).map(r => r.customer_id).filter(Boolean));
+    const toEnroll = selected.filter(c => !alreadyQueuedIds.has(c.id));
+    if (toEnroll.length === 0) {
+      toast.info(`All selected customers are already queued for "${campaign.name}"`);
+      return;
+    }
+
+    const rows = toEnroll.map(c => ({
       organization_id: organization.id,
       campaign_id: campaign.id,
       campaign_type: campaign.type,
@@ -285,8 +306,9 @@ export default function CustomersPage() {
       return;
     }
     toast.success(
-      `Added ${selected.length} customer${selected.length === 1 ? '' : 's'} to "${campaign.name}"` +
-      (skipped > 0 ? ` (${skipped} skipped — no phone)` : '')
+      `Added ${toEnroll.length} customer${toEnroll.length === 1 ? '' : 's'} to "${campaign.name}"` +
+      (skipped > 0 ? ` (${skipped} skipped — no phone)` : '') +
+      (alreadyQueuedIds.size > 0 ? ` (${alreadyQueuedIds.size} already queued)` : '')
     );
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: ['customer-campaign-enrollments', organization.id] });
