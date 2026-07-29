@@ -227,13 +227,19 @@ export function ClientPortalUsersManager() {
   // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
-      const { data, error } = await supabase.rpc('reset_client_portal_password', {
-        p_user_id: userId,
-        p_new_password: newPassword,
+      const { data, error } = await supabase.functions.invoke('admin-reset-portal-password', {
+        body: { portalUserId: userId, newPassword },
       });
-      if (error) throw error;
+      if (error) {
+        const message = (data as { error?: string } | null)?.error;
+        throw new Error(message || error.message);
+      }
+      if (data && (data as { success?: boolean }).success === false) {
+        throw new Error((data as { error?: string }).error || 'Failed to reset password');
+      }
       return data;
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-portal-users'] });
       toast.success('Password reset successfully! User will be prompted to change it on next login.');

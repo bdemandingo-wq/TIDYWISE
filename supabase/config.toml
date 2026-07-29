@@ -238,3 +238,10 @@ verify_jwt = true
     verify_jwt = false
   [functions.notify-invoice-paid]
     verify_jwt = false
+
+  # Admin-only portal password reset. Requires a real authenticated caller:
+  # the org is resolved from the portal user server-side, then requireOrgAdmin
+  # validates the bearer token against THAT org.
+  [functions.admin-reset-portal-password]
+    verify_jwt = true
+
