@@ -38,6 +38,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { SEOHead } from '@/components/SEOHead';
 import { ReferralDashboard } from '@/components/admin/ReferralDashboard';
+import { describeCampaignDispatch, type CampaignDispatchResult } from '@/components/admin/campaigns/campaignDispatch';
 
 interface AITemplate {
   name: string;
@@ -435,7 +436,8 @@ export default function CampaignsPage() {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
-      toast({ title: "Campaign sent!", description: `Sent ${data.sentCount || 0} messages` });
+      queryClient.invalidateQueries({ queryKey: ["campaign-runs"] });
+      toast(describeCampaignDispatch(data));
     },
     onError: (error: Error) => toast({ title: "Error", description: error.message, variant: "destructive" }),
   });
@@ -548,7 +550,7 @@ export default function CampaignsPage() {
       }).select("id").single();
       if (insertError) throw insertError;
 
-      let smsSentCount = 0;
+      let smsResult: CampaignDispatchResult | null = null;
       let emailSentCount = 0;
 
       // SMS leg — run-inactive-campaign handles SMS only
@@ -567,7 +569,7 @@ export default function CampaignsPage() {
           },
         });
         if (smsError) throw smsError;
-        smsSentCount = smsData?.sentCount || 0;
+        smsResult = smsData ?? null;
       }
 
       // Email leg — send-followup-campaign handles email
@@ -582,14 +584,23 @@ export default function CampaignsPage() {
         emailSentCount = emailData?.sentCount || 0;
       }
 
-      return { smsSentCount, emailSentCount };
+      return { smsResult, emailSentCount, isSMS, isEmail };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-conversions"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-tracking-stats"] });
-      const total = data.smsSentCount + data.emailSentCount;
-      toast({ title: "Sent!", description: `${total} messages delivered` });
+      queryClient.invalidateQueries({ queryKey: ["campaign-runs"] });
+
+      // SMS and email report differently on purpose: SMS is queued and
+      // delivered over minutes/hours by process-campaign-queue, while email
+      // still sends synchronously. Collapsing them into one "N delivered"
+      // number would overstate what has actually gone out.
+      const parts: string[] = [];
+      if (data.isSMS) parts.push(describeCampaignDispatch(data.smsResult).description);
+      if (data.isEmail) parts.push(`${data.emailSentCount} email${data.emailSentCount === 1 ? "" : "s"} sent`);
+      toast({ title: "Campaign started", description: parts.join(" · ") });
+
       setCreateOpen(false);
       resetForm();
     },
