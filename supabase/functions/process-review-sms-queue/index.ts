@@ -56,7 +56,27 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("automation_type", "review_request");
       const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
 
-    for (const item of pendingItems) {
+      // MARKETING CONSENT: review requests are marketing, so drop opted-out
+      // customers before the send loop. filterOptedIn is org-scoped and fails
+      // closed (empty list) on error, so group the batch by organization.
+      const sendable: typeof pendingItems = [];
+      for (const orgId of orgIds) {
+        const orgItems = pendingItems.filter(i => i.organization_id === orgId);
+        const optedIn = await filterOptedIn(
+          supabase,
+          orgId,
+          orgItems.map(i => ({ id: i.customer_id, item: i })),
+        );
+        const keptIds = new Set(optedIn.map(r => r.id));
+        for (const dropped of orgItems.filter(i => !keptIds.has(i.customer_id))) {
+          console.info(
+            `[process-review-sms-queue] Skipping opted-out customer | org:${orgId} customer:${dropped.customer_id}`,
+          );
+        }
+        sendable.push(...optedIn.map(r => r.item));
+      }
+
+    for (const item of sendable) {
       try {
         // Check if automation is enabled for this org
         if (automationMap.has(item.organization_id) && !automationMap.get(item.organization_id)) {
