@@ -920,9 +920,13 @@ const handler = async (req: Request): Promise<Response> => {
     // so this can't be a best-effort log-and-continue.
     let optOutDetected = false;
     if (direction === 'inbound' && content) {
-      const normalized = content.trim().toUpperCase().replace(/[^A-Z]/g, '');
+      const upper = content.trim().toUpperCase();
+      const normalized = upper.replace(/[^A-Z]/g, '');
+      // "stop texting me" must count too — check the first word as well as
+      // the whole string, so multi-word requests aren't silently ignored.
+      const firstWord = (upper.split(/\s+/)[0] || '').replace(/[^A-Z]/g, '');
       const OPT_OUT_KEYWORDS = ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'OPTOUT'];
-      if (OPT_OUT_KEYWORDS.includes(normalized)) {
+      if (OPT_OUT_KEYWORDS.includes(normalized) || OPT_OUT_KEYWORDS.includes(firstWord)) {
         optOutDetected = true;
         try {
           // Find most recent campaign send to this phone for attribution
