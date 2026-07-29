@@ -107,6 +107,48 @@ async function deleteMessage(supabase: Supa, msgId: number, runId: string): Prom
   }
 }
 
+// Release a claimed-but-unsent message so it is immediately visible again
+// instead of sitting out the visibility timeout. Claiming must not gate
+// sending — throttle_seconds/next_send_at is the only send gate.
+async function releaseMessage(supabase: Supa, msgId: number): Promise<void> {
+  const { error } = await supabase.rpc('set_message_vt', {
+    queue_name: QUEUE,
+    message_id: msgId,
+    vt_seconds: 0,
+  })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to release message visibility', {
+      msg_id: msgId,
+      error: error.message,
+    })
+  }
+}
+
+// Atomic counter bump — never a read-modify-write from a value loaded at the
+// start of the tick, since overlapping invocations would lose increments.
+async function bumpRunCounter(
+  supabase: Supa,
+  runId: string,
+  counter: 'sent_count' | 'failed_count' | 'skipped_opted_out_count',
+  amount: number,
+  nextSendAt: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc('increment_campaign_run_counter', {
+    p_run_id: runId,
+    p_counter: counter,
+    p_amount: amount,
+    p_next_send_at: nextSendAt,
+  })
+  if (error) {
+    console.error('[process-campaign-queue] Failed to increment run counter', {
+      run_id: runId,
+      counter,
+      error: error.message,
+    })
+  }
+}
+
+
 async function moveToDlq(
   supabase: Supa,
   msg: QueueRow,
@@ -375,9 +417,15 @@ Deno.serve(async (req) => {
   }
 
   // PHASE 2 — one queue read for the whole tick, grouped by run.
-  // Messages we claim but do not send in this tick simply return when the
-  // visibility timeout expires, exactly as process-email-queue relies on.
+  // We claim up to 50 but deliberately send at most ONE per run per tick, so
+  // every claimed-but-unsent message is released (vt = 0) before this tick
+  // returns. Leaving them claimed would make the effective send interval
+  // max(throttle_seconds, VISIBILITY_TIMEOUT_SECONDS) and silently ignore any
+  // throttle below the VT. The VT itself must stay well above the longest
+  // possible send, otherwise an in-flight message is redelivered and the
+  // customer is texted twice.
   let rows: QueueRow[] = []
+  const claimed = new Set<number>()
   if (dueRuns.length > 0) {
     const { data: readData, error: readErr } = await supabase.rpc('read_email_batch', {
       queue_name: QUEUE,
@@ -388,8 +436,10 @@ Deno.serve(async (req) => {
       console.error('[process-campaign-queue] Queue read failed', { error: readErr.message })
     } else {
       rows = (readData ?? []) as QueueRow[]
+      for (const row of rows) claimed.add(row.msg_id)
     }
   }
+
 
   // Purge messages that belong to runs already completed or cancelled. Without
   // this, race-condition orphans are re-read forever (or DLQ'd as false failures).
@@ -424,6 +474,8 @@ Deno.serve(async (req) => {
       const status = runId ? runIdStatuses.get(runId) : undefined
       if (status === 'completed' || status === 'cancelled' || status === undefined) {
         await deleteMessage(supabase, row.msg_id, runId || 'unknown')
+        claimed.delete(row.msg_id)
+
         purgedOrphans++
         orphanRunIds.add(runId || 'unknown')
         continue
@@ -439,8 +491,9 @@ Deno.serve(async (req) => {
     })
   }
 
-
+  try {
   for (const run of dueRuns) {
+
     try {
       const nowIso = new Date().toISOString()
       const mine = rows.filter((r) => r?.message?.run_id === run.id)
@@ -553,6 +606,7 @@ Deno.serve(async (req) => {
           break
         }
         await deleteMessage(supabase, candidate.msg_id, run.id)
+        claimed.delete(candidate.msg_id)
         skippedThisTick++
         summary.skipped_opted_out++
         console.log('[process-campaign-queue] Skipped opted-out recipient', {
@@ -563,12 +617,7 @@ Deno.serve(async (req) => {
 
       if (skippedThisTick > 0) {
         // Counter only — next_send_at deliberately untouched.
-        await supabase
-          .from('campaign_runs')
-          .update({
-            skipped_opted_out_count: (run.skipped_opted_out_count ?? 0) + skippedThisTick,
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(supabase, run.id, 'skipped_opted_out_count', skippedThisTick, null)
       }
 
       if (!chosen) continue
@@ -580,6 +629,8 @@ Deno.serve(async (req) => {
       // cycling forever on visibility-timeout redelivery.
       if ((msg.read_ct ?? 0) > MAX_RETRIES) {
         await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded`)
+        claimed.delete(msg.msg_id)
+
         await supabase
           .from('campaign_runs')
           .update({ next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString() })
@@ -672,10 +723,12 @@ Deno.serve(async (req) => {
       }
 
       if (sendOk) {
-        // 8. ON SUCCESS
-        await deleteMessage(supabase, msg.msg_id, run.id)
-
-        const { error: sendLogErr } = await supabase.from('campaign_sms_sends').insert({
+        // 8. ON SUCCESS — the SMS is already out, so the message must never be
+        // left in the queue to retry (that would text the customer twice).
+        // Order: send → write the dedupe/compliance row (3 inline attempts) →
+        // delete from the queue. If the row cannot be written, delete anyway
+        // but push a replayable DLQ record so nothing is silently lost.
+        const sendRow = {
           campaign_id: payload.campaign_id || null,
           customer_id: payload.customer_id,
           organization_id: run.organization_id,
@@ -683,13 +736,54 @@ Deno.serve(async (req) => {
           message_content: personalizedMessage,
           status: 'sent',
           campaign_type: 'queued_campaign',
-        })
-        if (sendLogErr) {
+        }
+
+        let sendLogged = false
+        let lastSendLogError = ''
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error: sendLogErr } = await supabase.from('campaign_sms_sends').insert(sendRow)
+          if (!sendLogErr) {
+            sendLogged = true
+            break
+          }
+          lastSendLogError = sendLogErr.message
           console.error('[process-campaign-queue] campaign_sms_sends insert failed', {
             run_id: run.id,
             customer_id: payload.customer_id,
+            attempt,
             error: sendLogErr.message,
           })
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 250 * attempt))
+        }
+
+        await deleteMessage(supabase, msg.msg_id, run.id)
+        claimed.delete(msg.msg_id)
+
+        if (!sendLogged) {
+          console.error('[process-campaign-queue] CRITICAL: dedupe row lost', {
+            run_id: run.id,
+            customer_id: payload.customer_id,
+            openphone_message_id: openphoneMessageId,
+            error: lastSendLogError,
+          })
+          const { error: dlqErr } = await supabase.rpc('send_to_dlq', {
+            dlq_name: DLQ,
+            payload: {
+              ...(payload as unknown as Record<string, unknown>),
+              reason: 'dedupe_insert_failed',
+              openphone_message_id: openphoneMessageId,
+              campaign_sms_send: sendRow,
+              error: lastSendLogError,
+              failed_at: new Date().toISOString(),
+            },
+          })
+          if (dlqErr) {
+            console.error('[process-campaign-queue] Failed to record dedupe loss in DLQ', {
+              run_id: run.id,
+              customer_id: payload.customer_id,
+              error: dlqErr.message,
+            })
+          }
         }
 
         if (template.includes('{booking_link}')) {
@@ -720,13 +814,13 @@ Deno.serve(async (req) => {
           run.id,
         )
 
-        await supabase
-          .from('campaign_runs')
-          .update({
-            sent_count: (run.sent_count ?? 0) + 1,
-            next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'sent_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
 
         summary.sent++
         console.log('[process-campaign-queue] Sent campaign SMS', {
@@ -747,15 +841,16 @@ Deno.serve(async (req) => {
 
         if ((msg.read_ct ?? 0) >= MAX_RETRIES) {
           await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded: ${sendError}`)
+          claimed.delete(msg.msg_id)
         }
 
-        await supabase
-          .from('campaign_runs')
-          .update({
-            failed_count: (run.failed_count ?? 0) + 1,
-            next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'failed_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
 
         summary.failed++
       }
@@ -766,6 +861,14 @@ Deno.serve(async (req) => {
       })
     }
   }
+  } finally {
+    // Release every message claimed but not sent/deleted this tick so it is
+    // immediately visible again — claiming must never gate the throttle.
+    for (const msgId of claimed) {
+      await releaseMessage(supabase, msgId)
+    }
+  }
+
 
   return new Response(JSON.stringify({ runs: runs.length, ...summary }), {
     headers: { 'Content-Type': 'application/json' },
