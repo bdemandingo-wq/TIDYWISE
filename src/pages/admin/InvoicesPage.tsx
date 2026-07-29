@@ -102,6 +102,18 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelled', variant: 'outline', icon: X },
 };
 
+/**
+ * Why Edit is unavailable. Only drafts are editable — an invoice the customer
+ * has already received must not change under them. The reason names Duplicate
+ * because that control is right there in the same row, so the message points
+ * at a real next step instead of being a dead end.
+ */
+function editBlockedReason(status: Invoice['status']): string {
+  if (status === 'cancelled') return "Cancelled invoices can't be edited — duplicate it instead.";
+  if (status === 'paid') return "Paid invoices can't be edited — duplicate it instead.";
+  return "Sent invoices can't be edited — duplicate it instead.";
+}
+
 export default function InvoicesPage() {
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -222,17 +234,47 @@ export default function InvoicesPage() {
     onError: (error: any) => toast.error(error.message),
   });
 
+  // Marking paid is otherwise one-way: nothing else in the UI can move an
+  // invoice out of 'paid'. Rather than putting a confirm() in front of a
+  // routine action — which mostly trains people to dismiss the Cancel and
+  // Delete confirms that matter — the action stays one click and becomes
+  // undoable. That also addresses the real mistake, which is clicking the
+  // wrong row rather than not meaning to click at all.
+  const undoMarkPaidMutation = useMutation({
+    mutationFn: async ({ id, previousStatus }: { id: string; previousStatus: Invoice['status'] }) => {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: previousStatus, paid_at: null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast.success('Payment undone');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const markPaidMutation = useMutation({
-    mutationFn: async (id: string) => {
+    // The previous status is captured at click time so undo restores what was
+    // actually there — an overdue invoice must not come back as merely sent.
+    mutationFn: async ({ id }: { id: string; previousStatus: Invoice['status'] }) => {
       const { error } = await supabase
         .from('invoices')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      toast.success('Invoice marked as paid');
+      toast.success('Invoice marked as paid', {
+        // Longer than the default so there is time to notice and react.
+        duration: 8000,
+        action: {
+          label: 'Undo',
+          onClick: () => undoMarkPaidMutation.mutate(variables),
+        },
+      });
     },
     onError: (error: any) => toast.error(error.message),
   });
@@ -376,15 +418,23 @@ export default function InvoicesPage() {
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }} title="View invoice"><Eye className="w-4 h-4" /></Button>
+                            {['sent', 'overdue'].includes(invoice.status) && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending} title="Mark as paid"><CheckCircle2 className="w-4 h-4" /></Button>
+                            )}
                             {['draft', 'sent', 'overdue'].includes(invoice.status) && (
-                              <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id} title={invoice.status === 'draft' ? 'Send invoice email' : 'Resend invoice email'}>
-                                  {sendingInvoice === invoice.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                                </Button>
-                                {invoice.status === 'draft' && (
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingInvoice(invoice); setFormDialogOpen(true); }} title="Edit invoice"><Edit className="w-4 h-4" /></Button>
-                                )}
-                              </>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id} title={invoice.status === 'draft' ? 'Send invoice email' : 'Resend invoice email'}>
+                                {sendingInvoice === invoice.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              </Button>
+                            )}
+                            {invoice.status === 'draft' ? (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingInvoice(invoice); setFormDialogOpen(true); }} title="Edit invoice"><Edit className="w-4 h-4" /></Button>
+                            ) : (
+                              // A disabled button fires no mouse events, so the title has to
+                              // live on a wrapper or the explanation never appears — which
+                              // would leave a greyed-out control with no stated reason.
+                              <span title={editBlockedReason(invoice.status)} className="inline-flex">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" disabled><Edit className="w-4 h-4" /></Button>
+                              </span>
                             )}
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => duplicateInvoice(invoice)} title="Duplicate invoice"><Copy className="w-4 h-4" /></Button>
                             {['draft', 'sent'].includes(invoice.status) && (
@@ -429,7 +479,7 @@ export default function InvoicesPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }}><Eye className="w-4 h-4 mr-2" />View</Button>
                       {['sent', 'overdue'].includes(invoice.status) && (
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white border-0" onClick={() => markPaidMutation.mutate(invoice.id)} disabled={markPaidMutation.isPending}><CheckCircle2 className="w-4 h-4 mr-2" />Mark Paid</Button>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white border-0" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending}><CheckCircle2 className="w-4 h-4 mr-2" />Mark Paid</Button>
                       )}
                       {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                         <Button variant="outline" size="sm" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id}>
@@ -437,8 +487,12 @@ export default function InvoicesPage() {
                           {invoice.status === 'draft' ? 'Send' : 'Resend'}
                         </Button>
                       )}
-                      {invoice.status === 'draft' && (
+                      {invoice.status === 'draft' ? (
                         <Button variant="outline" size="sm" onClick={() => { setEditingInvoice(invoice); setFormDialogOpen(true); }}><Edit className="w-4 h-4 mr-2" />Edit</Button>
+                      ) : (
+                        <span title={editBlockedReason(invoice.status)} className="inline-flex">
+                          <Button variant="outline" size="sm" disabled><Edit className="w-4 h-4 mr-2" />Edit</Button>
+                        </span>
                       )}
                       <Button variant="outline" size="sm" onClick={() => duplicateInvoice(invoice)}><Copy className="w-4 h-4 mr-2" />Duplicate</Button>
                       {['draft', 'sent'].includes(invoice.status) && (
