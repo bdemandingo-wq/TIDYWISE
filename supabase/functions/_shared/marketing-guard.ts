@@ -99,3 +99,105 @@ export async function filterOptedIn<T extends { id: string }>(
     return [];
   }
 }
+
+/** Last 10 digits of a phone, or null when it cannot be normalised. */
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  return digits.slice(-10);
+}
+
+type PhoneRow = { id: string; phone: string | null; marketing_status: string | null };
+
+/**
+ * Loads the org's customers that have a phone number. Throws on error so
+ * callers can fail closed. Paged with a unique tiebreaker.
+ */
+async function loadOrgPhoneRows(
+  supabase: SupabaseClient,
+  organizationId: string,
+): Promise<PhoneRow[]> {
+  const pageSize = 1000;
+  const rows: PhoneRow[] = [];
+  for (let page = 0; ; page++) {
+    const { data, error } = await supabase
+      .from("customers")
+      .select("id, phone, marketing_status")
+      .eq("organization_id", organizationId)
+      .not("phone", "is", null)
+      .order("id")
+      .range(page * pageSize, page * pageSize + pageSize - 1);
+
+    if (error) throw new Error(error.message);
+    const batch = (data ?? []) as PhoneRow[];
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+  }
+  return rows;
+}
+
+/**
+ * Phone-based opt-out check for paths with no customer_id (abandoned bookings,
+ * STOP webhook fallback). Matches on the last 10 digits, digits only.
+ *
+ * Returns TRUE (do not send) on any error, on a null/unusable phone, and when
+ * ANY customer in the org sharing that number is opted out.
+ */
+export async function isPhoneOptedOut(
+  supabase: SupabaseClient,
+  organizationId: string,
+  phone: string | null | undefined,
+): Promise<boolean> {
+  const target = normalizePhone(phone);
+  if (!target) {
+    console.error(
+      `[marketing-guard] isPhoneOptedOut got an unusable phone — failing closed | org:${organizationId}`,
+    );
+    return true;
+  }
+
+  try {
+    const rows = await loadOrgPhoneRows(supabase, organizationId);
+    const matches = rows.filter((r) => normalizePhone(r.phone) === target);
+    // No matching customer record: nothing says this person opted out.
+    if (matches.length === 0) return false;
+    // Any single opt-out among duplicates is enough.
+    return matches.some((r) => r.marketing_status === OPTED_OUT);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[marketing-guard] isPhoneOptedOut lookup failed — failing closed | org:${organizationId} | ${message}`,
+    );
+    return true;
+  }
+}
+
+/**
+ * Resolves a phone number to a customer id within the org, matching on the
+ * last 10 digits. Returns null on error or when nothing matches. When several
+ * records share the number, an opted-out one is preferred so callers acting on
+ * a STOP request update the record that already reflects it.
+ */
+export async function findCustomerIdByPhone(
+  supabase: SupabaseClient,
+  organizationId: string,
+  phone: string | null | undefined,
+): Promise<string | null> {
+  const target = normalizePhone(phone);
+  if (!target) return null;
+
+  try {
+    const rows = await loadOrgPhoneRows(supabase, organizationId);
+    const matches = rows.filter((r) => normalizePhone(r.phone) === target);
+    if (matches.length === 0) return null;
+    const optedOut = matches.find((r) => r.marketing_status === OPTED_OUT);
+    return (optedOut ?? matches[0]).id;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[marketing-guard] findCustomerIdByPhone lookup failed | org:${organizationId} | ${message}`,
+    );
+    return null;
+  }
+}
