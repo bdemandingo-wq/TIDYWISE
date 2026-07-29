@@ -57,6 +57,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface ClientPortalUser {
@@ -225,13 +226,26 @@ export function ClientPortalUsersManager() {
   });
 
   // Reset password mutation
+  //
+  // Goes through the admin-reset-portal-password edge function, not the RPC
+  // directly. reset_client_portal_password has no authorization of its own —
+  // no auth.uid(), no org scoping — so it stays revoked and service-role only.
+  // The edge function resolves which organisation owns the portal user from
+  // the portal user id server-side, then checks the caller is an admin of THAT
+  // organisation. Passing an org id from here would defeat the check: an admin
+  // of one org could name their own org alongside another org's portal user.
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ userId, newPassword }: { userId: string; newPassword: string }) => {
-      const { data, error } = await supabase.rpc('reset_client_portal_password', {
-        p_user_id: userId,
-        p_new_password: newPassword,
+      const { data, error } = await supabase.functions.invoke('admin-reset-portal-password', {
+        body: { portalUserId: userId, newPassword },
       });
-      if (error) throw error;
+      // The function distinguishes "not found" from "not your organisation"
+      // from "password too short". Read the body so those survive instead of
+      // collapsing into supabase-js's generic non-2xx string.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Failed to reset password'));
+      if (data && data.success === false) {
+        throw new Error(String(data.error ?? 'Failed to reset password'));
+      }
       return data;
     },
     onSuccess: () => {
