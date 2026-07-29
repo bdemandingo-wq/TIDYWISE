@@ -17,7 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  MessageSquare, Send, Clock, Loader2, BarChart3, Plus, Mail, CalendarDays, TrendingUp, UserX, Zap, Star, RefreshCw,
+  MessageSquare, Send, Loader2, BarChart3, Plus, Mail, TrendingUp, UserX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,6 @@ import { useOptedOutCount } from '@/hooks/useOptOuts';
 import {
   useBusinessSettings,
   useCampaignList,
-  useOrgAutomations,
   useCampaignConversionStats,
   useCampaignTrackingStats,
 } from '@/hooks/useCampaigns';
@@ -63,7 +62,6 @@ export default function CampaignsPage() {
   }, []);
 
   // Automations expand
-  const [expandedAutomation, setExpandedAutomation] = useState<string | null>(null);
 
   // Campaign detail dialog
   const [detailCampaignId, setDetailCampaignId] = useState<string | null>(null);
@@ -77,7 +75,6 @@ export default function CampaignsPage() {
 
   const { data: campaigns = [], isLoading } = useCampaignList(orgId);
 
-  const { data: automations = [] } = useOrgAutomations(orgId);
 
   const { data: conversionStats } = useCampaignConversionStats(orgId);
 
@@ -109,36 +106,6 @@ export default function CampaignsPage() {
   // Mutations
 
 
-
-
-  const toggleAutomation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) => {
-      const { error } = await supabase
-        .from("organization_automations")
-        .update({ is_enabled: enabled })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["org-automations"] });
-      toast({ title: "Automation updated" });
-    },
-  });
-
-
-
-
-  const getAutomationMeta = (type: string) => {
-    const map: Record<string, { label: string; description: string; icon: typeof Zap }> = {
-      winback_60day: { label: "Win Back Inactive", description: "Fires after 60+ days of no booking", icon: RefreshCw },
-      review_request: { label: "Post-Clean Review Request", description: "Fires 30 min after booking marked complete", icon: Star },
-      appointment_reminder: { label: "Appointment Reminder", description: "Fires 24 hours before scheduled cleaning", icon: CalendarDays },
-      
-      rebooking_reminder: { label: "Recurring Reminder", description: "Fires 28 days after completed cleaning", icon: Clock },
-      recurring_upsell: { label: "Recurring Service Upsell", description: "Fires 2 hours after completed cleaning", icon: TrendingUp },
-    };
-    return map[type] || { label: type.replace(/_/g, " "), description: "", icon: Zap };
-  };
 
 
   if (isLoading) {
