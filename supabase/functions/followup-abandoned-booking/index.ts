@@ -174,10 +174,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`[followup-abandoned-booking] Complete. Sent: ${sentCount}, Failed: ${failedCount}`);
+    console.log(`[followup-abandoned-booking] Complete. Sent: ${sentCount}, Failed: ${failedCount}, SkippedOptedOut: ${skippedOptedOut}`);
 
     return new Response(
-      JSON.stringify({ success: true, sentCount, failedCount, totalAbandoned: abandonedBookings?.length || 0 }),
+      JSON.stringify({ success: true, sentCount, failedCount, skippedOptedOut, totalAbandoned: abandonedBookings?.length || 0 }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
