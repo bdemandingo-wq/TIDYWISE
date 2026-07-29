@@ -723,10 +723,12 @@ Deno.serve(async (req) => {
       }
 
       if (sendOk) {
-        // 8. ON SUCCESS
-        await deleteMessage(supabase, msg.msg_id, run.id)
-
-        const { error: sendLogErr } = await supabase.from('campaign_sms_sends').insert({
+        // 8. ON SUCCESS — the SMS is already out, so the message must never be
+        // left in the queue to retry (that would text the customer twice).
+        // Order: send → write the dedupe/compliance row (3 inline attempts) →
+        // delete from the queue. If the row cannot be written, delete anyway
+        // but push a replayable DLQ record so nothing is silently lost.
+        const sendRow = {
           campaign_id: payload.campaign_id || null,
           customer_id: payload.customer_id,
           organization_id: run.organization_id,
@@ -734,13 +736,54 @@ Deno.serve(async (req) => {
           message_content: personalizedMessage,
           status: 'sent',
           campaign_type: 'queued_campaign',
-        })
-        if (sendLogErr) {
+        }
+
+        let sendLogged = false
+        let lastSendLogError = ''
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const { error: sendLogErr } = await supabase.from('campaign_sms_sends').insert(sendRow)
+          if (!sendLogErr) {
+            sendLogged = true
+            break
+          }
+          lastSendLogError = sendLogErr.message
           console.error('[process-campaign-queue] campaign_sms_sends insert failed', {
             run_id: run.id,
             customer_id: payload.customer_id,
+            attempt,
             error: sendLogErr.message,
           })
+          if (attempt < 3) await new Promise((r) => setTimeout(r, 250 * attempt))
+        }
+
+        await deleteMessage(supabase, msg.msg_id, run.id)
+        claimed.delete(msg.msg_id)
+
+        if (!sendLogged) {
+          console.error('[process-campaign-queue] CRITICAL: dedupe row lost', {
+            run_id: run.id,
+            customer_id: payload.customer_id,
+            openphone_message_id: openphoneMessageId,
+            error: lastSendLogError,
+          })
+          const { error: dlqErr } = await supabase.rpc('send_to_dlq', {
+            dlq_name: DLQ,
+            payload: {
+              ...(payload as unknown as Record<string, unknown>),
+              reason: 'dedupe_insert_failed',
+              openphone_message_id: openphoneMessageId,
+              campaign_sms_send: sendRow,
+              error: lastSendLogError,
+              failed_at: new Date().toISOString(),
+            },
+          })
+          if (dlqErr) {
+            console.error('[process-campaign-queue] Failed to record dedupe loss in DLQ', {
+              run_id: run.id,
+              customer_id: payload.customer_id,
+              error: dlqErr.message,
+            })
+          }
         }
 
         if (template.includes('{booking_link}')) {
@@ -771,13 +814,13 @@ Deno.serve(async (req) => {
           run.id,
         )
 
-        await supabase
-          .from('campaign_runs')
-          .update({
-            sent_count: (run.sent_count ?? 0) + 1,
-            next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'sent_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
 
         summary.sent++
         console.log('[process-campaign-queue] Sent campaign SMS', {
@@ -798,15 +841,16 @@ Deno.serve(async (req) => {
 
         if ((msg.read_ct ?? 0) >= MAX_RETRIES) {
           await moveToDlq(supabase, msg, `Max retries (${MAX_RETRIES}) exceeded: ${sendError}`)
+          claimed.delete(msg.msg_id)
         }
 
-        await supabase
-          .from('campaign_runs')
-          .update({
-            failed_count: (run.failed_count ?? 0) + 1,
-            next_send_at: new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
-          })
-          .eq('id', run.id)
+        await bumpRunCounter(
+          supabase,
+          run.id,
+          'failed_count',
+          1,
+          new Date(Date.now() + run.throttle_seconds * 1000).toISOString(),
+        )
 
         summary.failed++
       }
@@ -817,6 +861,14 @@ Deno.serve(async (req) => {
       })
     }
   }
+  } finally {
+    // Release every message claimed but not sent/deleted this tick so it is
+    // immediately visible again — claiming must never gate the throttle.
+    for (const msgId of claimed) {
+      await releaseMessage(supabase, msgId)
+    }
+  }
+
 
   return new Response(JSON.stringify({ runs: runs.length, ...summary }), {
     headers: { 'Content-Type': 'application/json' },
