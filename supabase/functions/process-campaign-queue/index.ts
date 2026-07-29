@@ -474,6 +474,8 @@ Deno.serve(async (req) => {
       const status = runId ? runIdStatuses.get(runId) : undefined
       if (status === 'completed' || status === 'cancelled' || status === undefined) {
         await deleteMessage(supabase, row.msg_id, runId || 'unknown')
+        claimed.delete(row.msg_id)
+
         purgedOrphans++
         orphanRunIds.add(runId || 'unknown')
         continue
