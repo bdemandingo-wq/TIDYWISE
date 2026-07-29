@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 import {
   isRunActive,
   type CampaignRun,
   type CancelReason,
+  type RunAction,
   type RunStatus,
 } from "@/components/admin/campaigns/campaignRunStatus";
 
@@ -60,5 +62,80 @@ export function useCampaignRuns(orgId: string | null) {
       if (!runs) return false;
       return Object.values(runs).some(isRunActive) ? ACTIVE_POLL_MS : false;
     },
+  });
+}
+
+/** The status each control writes. Kept next to the actions it mirrors. */
+const ACTION_STATUS: Record<RunAction, RunStatus> = {
+  pause: "paused",
+  resume: "running",
+  cancel: "cancelled",
+};
+
+const ACTION_PAST_TENSE: Record<RunAction, string> = {
+  pause: "Campaign paused",
+  resume: "Campaign resumed",
+  cancel: "Campaign cancelled",
+};
+
+/**
+ * Pause, resume and cancel, via the set_campaign_run_status RPC.
+ *
+ * The RPC is the only sanctioned way to change run state — `authenticated`
+ * has SELECT but no UPDATE on campaign_runs — and it authorises the caller
+ * internally and rejects illegal transitions. So its errors are meaningful:
+ * they are surfaced verbatim rather than replaced with a generic failure
+ * message. A non-admin needs to learn they were refused, not that something
+ * broke.
+ *
+ * The RPC returns the updated row, so the cache is written directly instead
+ * of invalidated. The UI settles on the same tick rather than flickering
+ * through a refetch.
+ */
+export function useCampaignRunAction(orgId: string | null) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ runId, action }: { runId: string; action: RunAction }) => {
+      const { data, error } = await supabase.rpc("set_campaign_run_status", {
+        p_run_id: runId,
+        p_status: ACTION_STATUS[action],
+      });
+      if (error) throw error;
+      return { row: data as unknown as Record<string, unknown> | null, action };
+    },
+    onSuccess: ({ row, action }) => {
+      if (row && typeof row.campaign_id === "string") {
+        queryClient.setQueryData<Record<string, CampaignRun>>(
+          ["campaign-runs", orgId],
+          (prev) => ({
+            ...(prev ?? {}),
+            [row.campaign_id as string]: {
+              id: row.id as string,
+              status: row.status as RunStatus,
+              cancel_reason: (row.cancel_reason as CancelReason | null) ?? null,
+              scheduled_at: (row.scheduled_at as string | null) ?? null,
+              total_recipients: (row.total_recipients as number) ?? 0,
+              sent_count: (row.sent_count as number) ?? 0,
+              failed_count: (row.failed_count as number) ?? 0,
+              skipped_opted_out_count: (row.skipped_opted_out_count as number) ?? 0,
+            },
+          }),
+        );
+      } else {
+        // Shouldn't happen, but never leave the UI showing the old state.
+        queryClient.invalidateQueries({ queryKey: ["campaign-runs", orgId] });
+      }
+      toast({ title: ACTION_PAST_TENSE[action] });
+    },
+    onError: (error: Error) =>
+      toast({
+        title: "Could not update this campaign",
+        // Verbatim: the RPC says whether it was a permissions refusal or an
+        // illegal transition, and the operator needs to know which.
+        description: error.message,
+        variant: "destructive",
+      }),
   });
 }

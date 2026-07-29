@@ -52,7 +52,7 @@ export function CampaignTrackingDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <CampaignRunControls run={run} orgTimezone={orgTimezone} />
+        <CampaignRunControls run={run} orgId={orgId} orgTimezone={orgTimezone} />
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="p-3 bg-muted/50 rounded-lg text-center">
