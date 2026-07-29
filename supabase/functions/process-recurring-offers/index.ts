@@ -57,7 +57,27 @@ serve(async (req: Request) => {
         .eq("automation_type", "recurring_upsell");
       const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
 
-    for (const item of batch) {
+      // MARKETING CONSENT: this is a promotional upsell, so drop opted-out
+      // customers before the send loop. filterOptedIn is org-scoped and fails
+      // closed (empty list) on error, so group the batch by organization.
+      const sendable: typeof batch = [];
+      for (const orgId of orgIds) {
+        const orgItems = batch.filter(i => i.organization_id === orgId);
+        const optedIn = await filterOptedIn(
+          supabase,
+          orgId,
+          orgItems.map(i => ({ id: i.customer_id, item: i })),
+        );
+        const keptIds = new Set(optedIn.map(r => r.id));
+        for (const dropped of orgItems.filter(i => !keptIds.has(i.customer_id))) {
+          console.info(
+            `[process-recurring-offers] Skipping opted-out customer | org:${orgId} customer:${dropped.customer_id}`,
+          );
+        }
+        sendable.push(...optedIn.map(r => r.item));
+      }
+
+    for (const item of sendable) {
       try {
         // Check if automation is enabled for this org
         if (automationMap.has(item.organization_id) && !automationMap.get(item.organization_id)) {
