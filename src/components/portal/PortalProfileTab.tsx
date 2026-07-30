@@ -52,6 +52,19 @@ export function PortalProfileTab() {
   const [phone, setPhone] = useState(customer?.phone || "");
   const [propertyType, setPropertyType] = useState(customer?.property_type || "residential");
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Email-change REQUEST, deliberately not a self-serve edit.
+  //
+  // Email is the portal login credential — client-portal-login resolves identity
+  // by it — so changing it rotates the credential rather than editing a display
+  // field. Doing that safely needs verification of the new address, the old one
+  // staying valid until confirmed, collision handling inside the org, and a
+  // recovery path for someone who typos and locks themselves out. Instead the
+  // customer asks, and an admin makes the change where they can see collisions
+  // and confirm identity another way.
+  const [showEmailRequest, setShowEmailRequest] = useState(false);
+  const [requestedEmail, setRequestedEmail] = useState("");
+  const [sendingEmailRequest, setSendingEmailRequest] = useState(false);
   
   const [locations, setLocations] = useState<Location[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
@@ -101,6 +114,45 @@ export function PortalProfileTab() {
 
     fetchLocations();
   }, [user]);
+
+  const handleRequestEmailChange = async () => {
+    const next = requestedEmail.trim().toLowerCase();
+    const current = (customer?.email ?? "").trim().toLowerCase();
+
+    // Format check is deliberately loose — the admin confirms the address before
+    // acting on it, so rejecting an unusual-but-valid address here would be worse
+    // than passing it along.
+    if (!next || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) {
+      toast.error("Enter a valid email address");
+      return;
+    }
+    if (!current) {
+      toast.error("Still loading your details — please refresh the page and try again.");
+      return;
+    }
+    if (next === current) {
+      toast.error("That's already your email address");
+      return;
+    }
+
+    setSendingEmailRequest(true);
+    try {
+      const { data, error } = await invokePortal("client-portal-api", {
+        body: { action: "request_email_change", p_new_email: next },
+      });
+      if (error) throw error;
+      if (data && (data as { success?: boolean }).success === false) {
+        throw new Error("Request was not accepted");
+      }
+      toast.success("Request sent — we'll be in touch to confirm the change.");
+      setShowEmailRequest(false);
+      setRequestedEmail("");
+    } catch (err) {
+      toast.error(await readEdgeFunctionError(err, "Couldn't send your request. Please try again."));
+    } finally {
+      setSendingEmailRequest(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user || !firstName.trim() || !lastName.trim()) {
@@ -296,9 +348,62 @@ export function PortalProfileTab() {
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" value={customer?.email || ""} disabled />
-            <p className="text-xs text-muted-foreground">
-              Contact support to change your email
-            </p>
+            {!showEmailRequest ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  This is also your sign-in address.
+                </p>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs"
+                  onClick={() => setShowEmailRequest(true)}
+                  disabled={!customer?.email}
+                >
+                  Request email change
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                <Label htmlFor="requested-email" className="text-xs">
+                  New email address
+                </Label>
+                <Input
+                  id="requested-email"
+                  type="email"
+                  autoComplete="email"
+                  value={requestedEmail}
+                  onChange={(e) => setRequestedEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  disabled={sendingEmailRequest}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Because this address signs you in, we confirm the change with you
+                  before it takes effect. Keep using your current address until then.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleRequestEmailChange}
+                    disabled={sendingEmailRequest || !requestedEmail.trim()}
+                  >
+                    {sendingEmailRequest && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                    Send request
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setShowEmailRequest(false); setRequestedEmail(""); }}
+                    disabled={sendingEmailRequest}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
