@@ -1124,7 +1124,14 @@ export default function PortalDashboardPage() {
                   <strong>{formatInTimezone(bookingToCancel.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</strong>?
                   <br /><br />
                   <span className="text-muted-foreground text-sm">
-                    Note: Same day or next day cancellations (within 48 hours) may incur a fee unless you are a Platinum member.
+                    {/* Deliberately names no tier. "Platinum" is one org's tier
+                        name, and this dialog is shown to every org's customers —
+                        a business with tiers called Copper and Diamond was
+                        promising a Platinum benefit. It cannot read the org's own
+                        tiers either: no tier-to-fee-waiver rule exists in data
+                        (client_tier_settings.benefits is free text), so naming
+                        the top tier would invent a promise nobody configured. */}
+                    Note: Same day or next day cancellations (within 48 hours) may incur a fee.
                   </span>
                 </>
               )}
