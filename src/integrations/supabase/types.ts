@@ -5150,6 +5150,7 @@ export type Database = {
           address: string | null
           cc_emails: string[]
           created_at: string
+          created_by: string | null
           customer_id: string | null
           discount_amount: number | null
           discount_percent: number | null
@@ -5179,6 +5180,7 @@ export type Database = {
           address?: string | null
           cc_emails?: string[]
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
@@ -5208,6 +5210,7 @@ export type Database = {
           address?: string | null
           cc_emails?: string[]
           created_at?: string
+          created_by?: string | null
           customer_id?: string | null
           discount_amount?: number | null
           discount_percent?: number | null
