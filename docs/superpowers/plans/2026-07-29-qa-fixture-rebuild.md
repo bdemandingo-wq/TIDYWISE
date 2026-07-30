@@ -1,6 +1,81 @@
-# QA fixture rebuild — setup plan (NOT YET EXECUTED)
+# QA fixture rebuild — ⛔ PARKED 2026-07-29
 
-**Status:** planning only. Nothing has been created.
+> **PARKED. Do not start executing this plan.** Both load-bearing mechanisms were
+> ruled out by the owner on 2026-07-29, and every phase below depends on one or
+> the other. The analysis is kept because it is correct and the constraints are
+> worth not rediscovering — but the *approach* needs replacing, not resuming.
+>
+> ### Constraint 1 — `@tidywise1.com` is not usable
+>
+> Ownership of that domain **could not be confirmed**. It may not belong to us.
+> So the `has_active_subscription()` owner-email allowlist branch is off the
+> table, and with it Phase 1 and everything gated on Org A being non-trial
+> (3.1, 3.2, 3.4, 3.6, 3.9, the admin half of 9.1).
+>
+> The only other way past that gate is fabricating a `stripe_subscriptions` row
+> with `status='active'`, which is **explicitly rejected**: it would make the
+> database claim a Stripe subscription that does not exist upstream, visible to
+> `stripe-analytics-sync`, `reconcile-checkout-session`, and
+> `stripe-isolation-audit`. Not an acceptable blast radius for a test fixture.
+>
+> ### Constraint 2 — no synthetic rows in TIDYWISE
+>
+> The owner will not accept `QA-TEST-DELETE` customers in the real customer list.
+> That removes Phases 4 and 5, and with them the pinned cross-org leak marker —
+> so 1.9 falls back to `limit=1` grabbing an arbitrary, probably real, probably
+> different-each-run customer. Which was one of the two problems this plan set
+> out to fix.
+>
+> ### What a rethink has to solve
+>
+> Any replacement approach needs an answer to all four:
+>
+> 1. **How does a fixture org pass `has_active_subscription()`** without a fake
+>    Stripe row and without a domain we cannot verify? Options worth exploring:
+>    add a dedicated, clearly-named test org to the explicit allowlist inside the
+>    function (a migration to security-relevant code — needs its own review); or
+>    change the affected specs to seed via an edge function running as
+>    `service_role`, which bypasses RLS entirely and sidesteps the gate.
+> 2. **Where does the cross-org leak marker live** if not in TIDYWISE? A third
+>    disposable org would keep TIDYWISE clean, but then Org B is no longer a real
+>    tenant with real data, which is precisely what made
+>    `cross-org-isolation.spec.ts` a genuine probe rather than a synthetic one.
+>    That trade-off is the crux and should be decided deliberately.
+> 3. **Do the two existing auth users still exist?** Never established — Phase 0
+>    was not run. Until it is, "rebuild" vs "reset a password" is unknown, and
+>    they are very different amounts of production change.
+> 4. **Why did the credentials stop working?** Also unknown. If the accounts were
+>    deliberately cleaned up, anything recreated may be cleaned up again, and the
+>    suite breaks a third time.
+>
+> ### What stays true regardless of approach
+>
+> These are findings, not plan steps, and they survive the park:
+>
+> - **1.8's owner-side half passes vacuously** whenever Org A is empty —
+>   `for (const row of rows)` over an empty array asserts nothing. Any fixture
+>   design must give Org A real rows, and the spec needs a
+>   `rows.length > 0` guard so it can never silently do this again.
+> - **`tests/README.md`'s stated fix is wrong.** It says set `plan_type`; the gate
+>   is `has_active_subscription()`, reading `stripe_subscriptions` OR an
+>   owner-email allowlist. Correct that whenever the README is next touched.
+> - **`CLIENT` is not an auth user.** It is a `client_portal_users` row with its
+>   own `password_hash`, so its `invalid_credentials` from `/auth/v1/token` says
+>   nothing about whether the portal account works. Any portal fixture must be
+>   created through the app's own hashing path, not a raw insert.
+> - **1.9's marker is runtime-fetched, not in the repo** — the problem is that
+>   `limit=1` has no `.order()`, so it is arbitrary and unstable between runs.
+>
+> ### Cost of leaving it parked
+>
+> The entire `tests/` QA suite stays unrunnable, including the only cross-tenant
+> isolation coverage. Everything on the `loyalty-tiers-only` branch has been
+> verified by typecheck, lint, and direct `tsx` execution — **nothing has been
+> exercised in a browser.** That is the standing risk this park accepts.
+
+---
+
+**Original status:** planning only. Nothing was created.
 **Why:** all three fixture accounts in `tests/fixtures.ts` fail against the Auth REST API (`invalid_credentials`, verified 2026-07-29), so the entire `tests/` QA suite is unrunnable — including `cross-org-isolation.spec.ts`, the only cross-tenant coverage.
 
 **Decisions taken by the owner (2026-07-29):**
@@ -243,3 +318,98 @@ Best case (both auth users still exist): **three new rows, no new auth users, no
 - **Fixture couples to a security allowlist** (Phase 1) — mitigate with the loud `beforeAll` gate assertion.
 - **The portal password hash** is the most likely thing to get wrong; a raw insert produces an account that exists but cannot log in.
 - **`QA-TEST-DELETE` rows in a real org** could be swept by a future cleanup script, silently re-breaking the suite.
+
+---
+
+## Appendix — leftover QA-TEST-DELETE data (cleanup requested 2026-07-29)
+
+The cleanup surface is **wider than customers**. `e2e/signup-onboarding.spec.ts:5-11`
+states it outright:
+
+> "This test creates one real account + organization (Supabase Auth has no 'dry
+> run' mode) … This account is NOT cleaned up automatically — the test session
+> running this suite has no database write/service-role access."
+
+So every run of that spec leaks an `auth.users` row **and an `organizations` row**,
+plus whatever the 6-step onboarding persists on submit. Identifiers are
+timestamped (`RUN_ID = Date.now()`), so they are pattern-matchable but not
+predictable.
+
+Known synthetic identifiers across the suites:
+
+| Source | Leaves behind |
+|---|---|
+| `e2e/signup-onboarding.spec.ts:22-24` | auth user `bdemandingo+e2eonboarding<ts>@gmail.com`, org `QA-TEST-DELETE E2E Onboarding <ts>` |
+| `tests/booking-ui.spec.ts:16` | customer `bdemandingo+qabookingfixture@gmail.com` |
+| `tests/booking-ui.spec.ts:138,256` / `e2e/admin-bookings.spec.ts:105` | cancelled bookings with `QA-TEST-DELETE` cancel reasons |
+| `tests/security.spec.ts:159` | deletion-request row `QA-TEST-DELETE Regression Probe` / `bdemandingo+qaprobe@gmail.com` |
+
+### Step 1 — DISCOVERY (read-only, run this first)
+
+Deleting an organization cascades widely, so see the list before removing
+anything.
+
+```sql
+-- Synthetic orgs
+select id, name, owner_id, created_at
+from public.organizations
+where name ilike 'QA-TEST-DELETE%'
+order by created_at;
+
+-- Synthetic auth users
+select id, email, created_at, last_sign_in_at
+from auth.users
+where email ilike 'bdemandingo+e2eonboarding%@gmail.com'
+   or email ilike 'bdemandingo+qa%@gmail.com'
+order by created_at;
+
+-- Synthetic customers, and WHICH org each sits in
+select c.id, c.first_name, c.last_name, c.email, c.organization_id, o.name as org, c.created_at
+from public.customers c
+left join public.organizations o on o.id = c.organization_id
+where c.first_name ilike 'QA-TEST-DELETE%'
+   or c.last_name  ilike 'QA-TEST-DELETE%'
+   or c.email ilike 'bdemandingo+qa%'
+order by c.created_at;
+
+-- Bookings tagged by the suites
+select b.id, b.organization_id, o.name as org, b.status, b.cancellation_reason, b.created_at
+from public.bookings b
+left join public.organizations o on o.id = b.organization_id
+where b.cancellation_reason ilike '%QA-TEST-DELETE%'
+order by b.created_at;
+
+-- What a QA org deletion would cascade into (run per org id found above)
+select 'customers' as t, count(*) from public.customers where organization_id = '<QA_ORG_ID>'
+union all select 'bookings',        count(*) from public.bookings        where organization_id = '<QA_ORG_ID>'
+union all select 'org_memberships', count(*) from public.org_memberships where organization_id = '<QA_ORG_ID>';
+```
+
+### Step 2 — DELETION (only after reviewing Step 1)
+
+**Check every id against the discovery output before running.** Do not
+pattern-delete organizations blind — a real business with an unlucky name would
+cascade away.
+
+Order matters: bookings → customers → memberships → org → auth user.
+
+```sql
+-- Cancelled test bookings (safe: identified by their own cancel reason)
+delete from public.bookings where cancellation_reason ilike '%QA-TEST-DELETE%';
+
+-- Synthetic customers, by explicit id list from Step 1
+delete from public.customers where id in ('<id>', '<id>');
+
+-- Synthetic orgs, by explicit id list from Step 1 (cascades)
+delete from public.organizations where id in ('<id>', '<id>');
+
+-- Synthetic auth users, by explicit id list from Step 1
+-- Prefer the Supabase admin API / dashboard over a raw delete from auth.users.
+```
+
+### Fix the leak, not just the spill
+
+Cleaning up is a one-off; the spec will leak again on its next run.
+`e2e/signup-onboarding.spec.ts` needs either a service-role teardown, or to be
+marked `test.skip` by default and run deliberately. Otherwise this appendix gets
+written again in three months.
