@@ -144,7 +144,7 @@ const faqs = [
 
 // Comparison data for competitors
 const competitorComparison = [
-  { name: "TIDYWISE", price: "$49/mo", users: "Unlimited", trial: "30 days", cleaning: true, mobile: true, rating: "4.9/5" },
+  { name: "TIDYWISE", price: "$49/mo", users: "Unlimited", trial: "14 days", cleaning: true, mobile: true, rating: "4.9/5" },
   { name: "Jobber", price: "$349/mo", users: "Up to 15", trial: "14 days", cleaning: false, mobile: true, rating: "4.5/5" },
   { name: "Booking Koala", price: "$197/mo", users: "Unlimited", trial: "14 days", cleaning: true, mobile: true, rating: "4.3/5" },
   { name: "Housecall Pro", price: "$129/mo", users: "1 user", trial: "14 days", cleaning: false, mobile: true, rating: "4.5/5" },

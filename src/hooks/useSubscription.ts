@@ -72,7 +72,7 @@ export function useSubscription(): SubscriptionAccess {
   //   • running on a native build (paywall doesn't apply there).
   const hasFullAccess = isNativeApp || isFreeAccount || isSubscribed;
 
-  // Tier-aware Pro-feature gate. Even during the 7-day trial, the
+  // Tier-aware Pro-feature gate. Even during the 14-day trial, the
   // user only gets access to the FEATURES of the plan they selected.
   // Basic-plan users (paid or trialing) must NOT see Pro-only modules
   // like AI, Campaigns, Reports, Inventory, etc.

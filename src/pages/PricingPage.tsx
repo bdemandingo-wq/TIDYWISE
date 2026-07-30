@@ -951,8 +951,8 @@ export default function PricingPage() {
                 a: 'Yes. Upgrade any time and the new features unlock instantly. Downgrade and the new plan kicks in at the end of your current billing month — no partial refunds, but no lost access either.',
               },
               {
-                q: 'Is there a money-back guarantee?',
-                a: 'No trial — you pay from day one, but you can cancel any time and you keep access until the end of the month you paid for.',
+                q: 'How does the free trial work?',
+                a: 'Every plan starts with a 14-day free trial. A card is required up front, but you are not charged until the trial ends — cancel before then and you pay nothing. Cancel later and you keep access until the end of the month you paid for.',
               },
               {
                 q: 'What happens at the end of my paid month if I cancel?',

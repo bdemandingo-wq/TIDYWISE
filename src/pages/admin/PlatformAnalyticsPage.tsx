@@ -832,7 +832,7 @@ export default function PlatformAnalyticsPage() {
                 <AlertDialogDescription>
                   This will email{' '}
                   <span className="font-medium text-foreground">{resubTarget?.email}</span>{' '}
-                  a Stripe checkout link to restart the TidyWise Pro ($50/mo) subscription.
+                  a Stripe checkout link to restart the TidyWise Pro subscription.
                   They&apos;ll need to complete checkout themselves.
                 </AlertDialogDescription>
               </AlertDialogHeader>
