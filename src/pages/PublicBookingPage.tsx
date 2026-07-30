@@ -44,7 +44,6 @@ import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { calculateBasePrice } from '@/lib/pricingEngine';
 import { isUsHoliday } from '@/lib/usHolidays';
-import { Sentry } from '@/lib/sentry';
 import {
   configFromBusinessSettings,
   getFrequencyDiscountMultiplier,
@@ -648,12 +647,16 @@ export default function PublicBookingPage() {
           ? webhookResult.total_amount
           : null;
 
-        if (serverTotal === null) {
-          Sentry.captureMessage(
-            '[PublicBookingPage] webhook returned no total_amount; Purchase pixel fell back to the client estimate',
-            { level: 'warning', extra: { confirmationNumber: newConfirmationNumber } },
-          );
-        }
+        // NOTE: external-booking-webhook does not return total_amount yet — the
+        // Lovable prompt for that is queued, not deployed
+        // (docs/superpowers/prompts/, "webhook returns the total"). So this
+        // fallback is currently the ONLY path, on every booking in every org.
+        //
+        // The Sentry warning that was here fired on all of them. A warning that
+        // is always true is not a signal, it is noise that buries the real ones,
+        // so it is removed until the webhook actually returns the value — at
+        // which point a fallback becomes genuinely exceptional and worth
+        // reporting again. Re-add it in the same change that deploys the webhook.
 
         trackConversion('Purchase', {
           value: serverTotal ?? calculateTotal(),

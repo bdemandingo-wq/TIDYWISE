@@ -324,18 +324,24 @@ export function PortalProfileTab() {
     }
     setSavingCorrection(true);
     try {
+      // Body keys are the DEPLOYED action's names, not the RPC's p_-prefixed
+      // parameter names. The two are different languages and this call spoke the
+      // wrong one: every field arrived as undefined, the RPC COALESCEd them all,
+      // and the UPDATE became a bare updated_at bump that still returned true —
+      // so the portal said "Address corrected" and changed nothing.
+      // `node scripts/verify-portal-proxy.mjs` catches exactly this; run it.
       const { error } = await invokePortal("client-portal-api", {
         body: {
           action: "update_location",
           locationId: editingLocationId,
-          p_name: editLocation.name.trim(),
-          p_address: editLocation.address.trim(),
-          p_apt_suite: editLocation.apt_suite.trim() || null,
-          p_city: editLocation.city.trim() || null,
-          p_state: editLocation.state.trim() || null,
-          p_zip_code: editLocation.zip_code.trim() || null,
-          p_latitude: editLocation.latitude,
-          p_longitude: editLocation.longitude,
+          name: editLocation.name.trim(),
+          address: editLocation.address.trim(),
+          apt_suite: editLocation.apt_suite.trim() || null,
+          city: editLocation.city.trim() || null,
+          state: editLocation.state.trim() || null,
+          zip_code: editLocation.zip_code.trim() || null,
+          latitude: editLocation.latitude,
+          longitude: editLocation.longitude,
         },
       });
       if (error) throw error;

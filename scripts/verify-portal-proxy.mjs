@@ -35,6 +35,7 @@ const CALLERS = [
   "src/pages/portal/PortalDashboardPage.tsx",
   "src/components/portal/PortalProfileTab.tsx",
   "src/pages/portal/PortalRequestPage.tsx",
+  "src/hooks/useOrgTiers.ts",
 ];
 
 /** Identity must come from the verified session, never from the request body. */
@@ -101,7 +102,13 @@ for (const file of CALLERS) {
       else if (src[i] === "}" && --depth === 0) break;
     }
     const head = src.slice(Math.max(0, m.index - 300), m.index);
-    const targets = [...head.matchAll(/(?:invokePortal|functions\.invoke)\(\s*['"]([a-z-]+)['"]/g)];
+    // The optional <...> handles invokePortal<T>('client-portal-api', …). Without
+    // it a generic type argument made the target unresolvable and the check
+    // reported "target is ??" forever — a permanently-red check is one nobody
+    // runs, which is how the update_location mismatch reached production.
+    const targets = [...head.matchAll(
+      /(?:invokePortal|functions\.invoke)\s*(?:<[\s\S]{0,300}?>)?\s*\(\s*['"]([a-z-]+)['"]/g,
+    )];
     calls.push({
       file: file.split("/").pop(),
       line: src.slice(0, m.index).split("\n").length,
