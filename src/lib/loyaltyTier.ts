@@ -17,8 +17,21 @@
 
 export interface TierDef {
   name: string;
-  /** Lifetime spend in dollars at which this tier starts. */
+  /** Lifetime spend in dollars at which this tier starts. Inclusive. */
   minSpending: number;
+  /**
+   * Upper bound in dollars, INCLUSIVE, or null for an open-ended top tier.
+   *
+   * This is not optional and must not be dropped when mapping. Omitting it is
+   * what made the client disagree with the server: the client tested only
+   * `spend >= minSpending`, so a customer above a bounded tier's ceiling — or in
+   * a sub-dollar hole such as $4,999.50 on a 2000-4999 / 5000-null ladder — was
+   * shown a tier that resolve_customer_tier() returns NULL for. The banner said
+   * "You're currently Gold" beside a card showing no tier at all.
+   */
+  maxSpending: number | null;
+  /** Ordering from client_tier_settings.tier_order. Used as the tie-break. */
+  tierOrder: number;
 }
 
 export interface TierProgress {
@@ -58,19 +71,35 @@ export function computeTierProgress(
     );
   }
 
-  const sorted = [...tiers].sort((a, b) => a.minSpending - b.minSpending);
+  // This predicate is a deliberate mirror of resolve_customer_tier()
+  // (migration 20260729231023):
+  //
+  //   WHERE  v_spend >= cts.min_spending
+  //     AND (cts.max_spending IS NULL OR v_spend <= cts.max_spending)
+  //   ORDER BY cts.tier_order DESC
+  //   LIMIT 1
+  //
+  // The server is the authority; anything the client shows must agree with what
+  // it would return, including returning NOTHING. Both bounds are inclusive, and
+  // a spend that matches no tier yields null rather than the nearest tier below.
+  const matching = tiers.filter(
+    (t) =>
+      lifetimeSpend >= t.minSpending &&
+      (t.maxSpending === null || lifetimeSpend <= t.maxSpending),
+  );
+  const current =
+    matching.length > 0
+      ? [...matching].sort((a, b) => b.tierOrder - a.tierOrder)[0]
+      : null;
 
-  // No zero-floor assumption: `current` stays null until a threshold is met.
-  let current: TierDef | null = null;
-  for (const t of sorted) {
-    if (lifetimeSpend >= t.minSpending) current = t;
-  }
-
-  // With no tier yet, the "next" milestone is the lowest tier — so the UI can
-  // still say "$150 more to reach Regular".
-  const next = current
-    ? sorted.find((t) => t.minSpending > current!.minSpending) ?? null
-    : sorted[0];
+  // The next milestone is the cheapest tier the customer has not reached. This
+  // is correct whether they hold a tier, sit in a gap between two, or are below
+  // the lowest threshold — in every case it is the smallest minSpending above
+  // their current spend.
+  const above = tiers
+    .filter((t) => t.minSpending > lifetimeSpend)
+    .sort((a, b) => a.minSpending - b.minSpending);
+  const next = above[0] ?? null;
 
   const amountAway = next ? Math.max(0, next.minSpending - lifetimeSpend) : 0;
 
@@ -272,7 +301,12 @@ export function normalizeOrgTierRows(raw: unknown[] | null | undefined): OrgTier
 
 /** Reduce full rows to what the tier-math helpers take. */
 export function toTierDefs(tiers: OrgTier[] | undefined): TierDef[] | undefined {
-  return tiers?.map((t) => ({ name: t.tier_name, minSpending: t.min_spending }));
+  return tiers?.map((t) => ({
+    name: t.tier_name,
+    minSpending: t.min_spending,
+    maxSpending: t.max_spending,
+    tierOrder: t.tier_order,
+  }));
 }
 
 /**

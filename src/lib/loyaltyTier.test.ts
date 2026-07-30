@@ -19,16 +19,18 @@ import {
 // by direct execution via `npx tsx`; see the Task 3.2 notes in
 // docs/superpowers/plans/2026-07-29-loyalty-tiers-only.md.
 
+// Contiguous, so every dollar lands in exactly one tier — the shape an org
+// should have. Bounds are inclusive on both sides, matching resolve_customer_tier.
 const ORG_TIERS: TierDef[] = [
-  { name: 'Starter', minSpending: 0 },
-  { name: 'Regular', minSpending: 1200 },
-  { name: 'VIP', minSpending: 4000 },
+  { name: 'Starter', minSpending: 0,    maxSpending: 1199, tierOrder: 1 },
+  { name: 'Regular', minSpending: 1200, maxSpending: 3999, tierOrder: 2 },
+  { name: 'VIP',     minSpending: 4000, maxSpending: null, tierOrder: 3 },
 ];
 
 // An org whose lowest tier does NOT start at $0.
 const NO_ZERO_FLOOR: TierDef[] = [
-  { name: 'Regular', minSpending: 200 },
-  { name: 'VIP', minSpending: 1000 },
+  { name: 'Regular', minSpending: 200,  maxSpending: 999,  tierOrder: 1 },
+  { name: 'VIP',     minSpending: 1000, maxSpending: null, tierOrder: 2 },
 ];
 
 describe('computeTierProgress', () => {
@@ -70,13 +72,51 @@ describe('computeTierProgress', () => {
 
   it('is insensitive to the order tiers arrive in', () => {
     const shuffled: TierDef[] = [
-      { name: 'VIP', minSpending: 4000 },
-      { name: 'Starter', minSpending: 0 },
-      { name: 'Regular', minSpending: 1200 },
+      { name: 'VIP',     minSpending: 4000, maxSpending: null, tierOrder: 3 },
+      { name: 'Starter', minSpending: 0,    maxSpending: 1199, tierOrder: 1 },
+      { name: 'Regular', minSpending: 1200, maxSpending: 3999, tierOrder: 2 },
     ];
     const r = computeTierProgress(1500, shuffled);
     expect(r.current?.name).toBe('Regular');
     expect(r.next?.name).toBe('VIP');
+  });
+
+  // These are the cases the client used to get wrong by ignoring max_spending.
+  it('respects an inclusive upper bound, as the resolver does', () => {
+    expect(computeTierProgress(3999, ORG_TIERS).current?.name).toBe('Regular');
+    expect(computeTierProgress(4000, ORG_TIERS).current?.name).toBe('VIP');
+  });
+
+  it('returns no tier above a BOUNDED top tier, matching resolve_customer_tier', () => {
+    const bounded: TierDef[] = [
+      { name: 'Base', minSpending: 0,    maxSpending: 1999, tierOrder: 1 },
+      { name: 'Top',  minSpending: 2000, maxSpending: 4999, tierOrder: 2 },
+    ];
+    expect(computeTierProgress(4999, bounded).current?.name).toBe('Top');
+    // Above the ceiling with nothing open-ended above it: the server returns
+    // NULL, so the client must too rather than showing 'Top' forever.
+    expect(computeTierProgress(6000, bounded).current).toBeNull();
+  });
+
+  it('returns no tier inside a sub-dollar gap between tiers', () => {
+    // The default ladder's 4999 / 5000 boundary leaves 4999.01-4999.99 uncovered.
+    const ladder: TierDef[] = [
+      { name: 'Gold',     minSpending: 2000, maxSpending: 4999, tierOrder: 3 },
+      { name: 'Platinum', minSpending: 5000, maxSpending: null, tierOrder: 4 },
+    ];
+    const r = computeTierProgress(4999.5, ladder);
+    expect(r.current).toBeNull();
+    expect(r.next?.name).toBe('Platinum');
+  });
+
+  it('breaks ties on tier_order, not on threshold, as the resolver does', () => {
+    // Overlapping ranges should not exist, but if one is saved the client must
+    // pick the same row the server would.
+    const overlapping: TierDef[] = [
+      { name: 'Lower', minSpending: 0, maxSpending: 5000, tierOrder: 1 },
+      { name: 'Upper', minSpending: 0, maxSpending: 5000, tierOrder: 9 },
+    ];
+    expect(computeTierProgress(100, overlapping).current?.name).toBe('Upper');
   });
 
   it('lands exactly on a threshold as the higher tier', () => {
@@ -87,13 +127,13 @@ describe('computeTierProgress', () => {
 
 describe('tierProgressPercent', () => {
   const P: TierDef[] = [
-    { name: 'A', minSpending: 0 },
-    { name: 'B', minSpending: 1000 },
-    { name: 'C', minSpending: 3000 },
+    { name: 'A', minSpending: 0,    maxSpending: 999,  tierOrder: 1 },
+    { name: 'B', minSpending: 1000, maxSpending: 2999, tierOrder: 2 },
+    { name: 'C', minSpending: 3000, maxSpending: null, tierOrder: 3 },
   ];
   const NO_FLOOR: TierDef[] = [
-    { name: 'R', minSpending: 200 },
-    { name: 'V', minSpending: 1000 },
+    { name: 'R', minSpending: 200,  maxSpending: 999,  tierOrder: 1 },
+    { name: 'V', minSpending: 1000, maxSpending: null, tierOrder: 2 },
   ];
 
   it('is 0 at a tier floor and 50 halfway to the next', () => {
