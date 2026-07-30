@@ -87,11 +87,17 @@ export function LoyaltyProgramSettings() {
 
   const addBonusPoints = useMutation({
     mutationFn: async ({ customerId, points }: { customerId: string; points: number }) => {
-      // Add transaction
+      // organization_id was previously omitted here. loyalty_transactions has an
+      // INSERT policy using is_org_member(organization_id), and
+      // is_org_member(NULL) is false, so this insert should be rejected with
+      // 42501 — meaning this button was very likely failing outright. It fails
+      // cleanly rather than half-applying: this insert runs first and throws
+      // below, before customer_loyalty is touched.
       const { error: txError } = await supabase
         .from('loyalty_transactions')
         .insert({
           customer_id: customerId,
+          organization_id: organizationId,
           points,
           transaction_type: 'bonus',
           description: 'Bonus points awarded by admin',
@@ -99,7 +105,6 @@ export function LoyaltyProgramSettings() {
 
       if (txError) throw txError;
 
-      // Update customer loyalty
       const { data: current, error: fetchError } = await supabase
         .from('customer_loyalty')
         .select('points, lifetime_points')
@@ -108,16 +113,22 @@ export function LoyaltyProgramSettings() {
 
       if (fetchError) throw fetchError;
 
-      const newPoints = (current?.points || 0) + points;
-      const newLifetime = (current?.lifetime_points || 0) + points;
-      const newTier = calculateTier(newLifetime);
-
+      // tier is deliberately NOT written here.
+      //
+      // It used to be set from calculateTier(lifetime_points), which hardcoded
+      // 500/2000/5000 point thresholds and ignored client_tier_settings — so for
+      // the 29 orgs with their own dollar thresholds this wrote the wrong tier,
+      // and worse, it OVERWROTE the one-time correction the 3.1 migration applied
+      // to 153 customers. Every bonus award silently undid part of that fix.
+      //
+      // Tier is now derived: resolve_customer_tier(customer_id) server-side, from
+      // lifetime_spend against the org's own thresholds. Bonus points are not
+      // spending, so they must not move anyone's tier at all.
       const { error: updateError } = await supabase
         .from('customer_loyalty')
-        .update({ 
-          points: newPoints, 
-          lifetime_points: newLifetime,
-          tier: newTier 
+        .update({
+          points: (current?.points || 0) + points,
+          lifetime_points: (current?.lifetime_points || 0) + points,
         })
         .eq('customer_id', customerId);
 
@@ -134,13 +145,6 @@ export function LoyaltyProgramSettings() {
       toast.error('Failed to add bonus points');
     },
   });
-
-  const calculateTier = (lifetimePoints: number): string => {
-    if (lifetimePoints >= 5000) return 'platinum';
-    if (lifetimePoints >= 2000) return 'gold';
-    if (lifetimePoints >= 500) return 'silver';
-    return 'bronze';
-  };
 
   const getTierIcon = (tier: string) => {
     switch (tier) {
