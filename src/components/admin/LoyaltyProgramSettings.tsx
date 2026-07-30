@@ -42,7 +42,11 @@ export function LoyaltyProgramSettings() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerLoyalty | null>(null);
   const [bonusPoints, setBonusPoints] = useState('');
 
-  const { tiers: orgTiers, tierDefs } = useAdminOrgTiers();
+  // error is consumed, not discarded. Without it a failed get_org_tiers renders
+  // identically to an org where nobody has earned a tier: every badge reads
+  // "No tier yet" and both stat cards read 0. The hook throws correctly; the
+  // consumer has to say so.
+  const { tiers: orgTiers, tierDefs, error: tiersError } = useAdminOrgTiers();
 
   const { data: loyaltyMembers = [], isLoading } = useQuery({
     queryKey: ['loyalty-members', organizationId],
@@ -210,6 +214,20 @@ export function LoyaltyProgramSettings() {
 
   return (
     <div className="space-y-6">
+      {tiersError && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-destructive">
+              Couldn't load this organisation's loyalty tiers.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {tiersError.message} Member tiers and the counts below are unavailable —
+              they are not zero, they are unknown.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

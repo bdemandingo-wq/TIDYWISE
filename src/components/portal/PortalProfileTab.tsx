@@ -46,7 +46,7 @@ interface Location {
 }
 
 export function PortalProfileTab() {
-  const { user, customer, loyalty, refreshData, invokePortal } = useClientPortal();
+  const { user, customer, loyalty, refreshData, invokePortal, contactsError, retryContacts } = useClientPortal();
   const [firstName, setFirstName] = useState(customer?.first_name || "");
   const [lastName, setLastName] = useState(customer?.last_name || "");
   const [phone, setPhone] = useState(customer?.phone || "");
@@ -143,7 +143,11 @@ export function PortalProfileTab() {
       return;
     }
     if (!current) {
-      toast.error("Still loading your details — please refresh the page and try again.");
+      toast.error(
+        contactsError
+          ? `${contactsError} Tap "Try again" above, or contact us if it persists.`
+          : "Still loading your details — one moment.",
+      );
       return;
     }
     if (next === current) {
@@ -191,7 +195,13 @@ export function PortalProfileTab() {
     // until that RPC uses COALESCE(p_phone, phone).
     const contactsHydrated = !!customer?.email;
     if (!contactsHydrated) {
-      toast.error("Still loading your details — please refresh the page and try again.");
+      // Distinguish a failure from a load in progress. Telling someone to refresh
+      // when the call is failing every time leaves them with no way out.
+      toast.error(
+        contactsError
+          ? `${contactsError} Tap "Try again" above, or contact us if it persists.`
+          : "Still loading your details — one moment.",
+      );
       return;
     }
 
@@ -418,6 +428,19 @@ export function PortalProfileTab() {
               />
             </div>
           </div>
+
+          {contactsError && (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+              <p className="text-sm text-destructive">{contactsError}</p>
+              <p className="text-xs text-muted-foreground">
+                Your email and phone can't be shown right now, so profile changes are
+                paused to avoid overwriting them with blanks.
+              </p>
+              <Button type="button" size="sm" variant="outline" onClick={retryContacts}>
+                Try again
+              </Button>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>

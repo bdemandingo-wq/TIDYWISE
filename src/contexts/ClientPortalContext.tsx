@@ -8,6 +8,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { Sentry } from '@/lib/sentry';
 import { toast } from 'sonner';
 import type { FunctionInvokeOptions } from '@supabase/functions-js';
 
@@ -80,6 +81,14 @@ interface ClientPortalContextType {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => void;
   refreshData: () => Promise<void>;
+  /**
+   * Non-null when re-hydrating contact details FAILED. Distinct from "not yet
+   * hydrated": callers gate on customer.email, and without this they cannot tell
+   * a load in progress from a load that will never succeed.
+   */
+  contactsError: string | null;
+  /** Retry contact re-hydration after a failure. */
+  retryContacts: () => void;
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: string | null }>;
   invokePortal: <T = any>(
     name: string,
@@ -98,6 +107,8 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   const [loyalty, setLoyalty] = useState<LoyaltyInfo | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [contactsAttempt, setContactsAttempt] = useState(0);
 
   // Load session from storage on mount
   useEffect(() => {
@@ -541,23 +552,57 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
   // An empty email is the reliable tell that PII was stripped rather than absent:
   // email is the portal login identifier (client-portal-login resolves by it), so
   // it is never legitimately blank.
+  // The error is captured and surfaced, never swallowed. PortalProfileTab gates
+  // both Save and the email-change request on customer.email being present, so a
+  // silent failure here left a customer permanently stuck behind "Still loading
+  // your details — please refresh", where refreshing re-ran the same failing
+  // call. They need to be able to tell a failure from a load, and to retry.
   useEffect(() => {
     if (!sessionToken || !user?.customer_id) return;
     if (customer?.email) return; // already hydrated
 
     let cancelled = false;
     (async () => {
-      const { data } = await invokePortal<Array<{
+      const { data, error } = await invokePortal<Array<{
         email: string | null;
         phone: string | null;
       }>>('client-portal-api', { body: { action: 'get_user_data' } });
+
+      if (cancelled) return;
+
+      if (error) {
+        const msg = await readEdgeFunctionError(error, "Couldn't load your contact details.");
+        Sentry.captureException(error, {
+          tags: { area: 'client-portal', op: 'hydrate-contacts' },
+          extra: { customerId: user.customer_id },
+        });
+        if (!cancelled) setContactsError(msg);
+        return;
+      }
+
       const row = data?.[0];
-      if (cancelled || !row?.email) return;
+      if (!row?.email) {
+        // A 200 with no email is not a load-in-progress either — treat it as a
+        // failure so the UI stops claiming it is still loading.
+        Sentry.captureMessage(
+          '[ClientPortal] get_user_data returned no email; contact details cannot be hydrated',
+          { level: 'warning', extra: { customerId: user.customer_id } },
+        );
+        if (!cancelled) setContactsError("Couldn't load your contact details.");
+        return;
+      }
+
+      setContactsError(null);
       setCustomer((prev) => (prev ? { ...prev, email: row.email!, phone: row.phone } : prev));
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionToken, user?.customer_id, customer?.email]);
+  }, [sessionToken, user?.customer_id, customer?.email, contactsAttempt]);
+
+  const retryContacts = useCallback(() => {
+    setContactsError(null);
+    setContactsAttempt((n) => n + 1);
+  }, []);
 
   const refreshData = async () => {
     if (!user) return;
@@ -590,10 +635,29 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     //
     // Only the loyalty portion moved. The customer/property_type queries above
     // stay as direct reads because get_user_data returns property_type as null.
-    const { data: loyaltyRows } = await invokePortal<UserDataLoyaltyRow[]>(
+    const { data: loyaltyRows, error: loyaltyErr } = await invokePortal<UserDataLoyaltyRow[]>(
       'client-portal-api',
       { body: { action: 'get_user_data' } },
     );
+
+    // Do NOT swallow this. client-portal-api returns 500 when
+    // resolve_customer_tier fails, deliberately, so a stale or missing tier is
+    // visible rather than silent. Discarding it here would persist null loyalty
+    // to localStorage via saveSession below, and the portal would render "0 pts"
+    // with no tier — indistinguishable from a genuine new customer.
+    if (loyaltyErr) {
+      Sentry.captureException(loyaltyErr, {
+        tags: { area: 'client-portal', op: 'refresh-loyalty' },
+        extra: { customerId: user.customer_id },
+      });
+      toast.error(
+        await readEdgeFunctionError(loyaltyErr, "Couldn't refresh your loyalty details."),
+      );
+      // Leave existing loyalty state and the stored session untouched rather than
+      // overwriting good data with null.
+      return;
+    }
+
     const loyaltyRow = loyaltyRows?.[0];
     const loyaltyData: LoyaltyInfo | null =
       loyaltyRow && loyaltyRow.loyalty_points !== null
@@ -629,6 +693,8 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         signIn,
         signOut,
         refreshData,
+        contactsError,
+        retryContacts,
         changePassword,
         invokePortal,
       }}
