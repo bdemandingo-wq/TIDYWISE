@@ -1,9 +1,10 @@
 # Sending a quote SMS twice creates two quotes — and can create two customers
 
 **Found:** 2026-07-30, while scoping the `estimate.sent` rebuild.
-**Status:** logged, not fixed. Independent of that rebuild — do not let it wait on it.
+**Status:** customer half **FIXED** 2026-07-30. Quote half deliberately left alone — see below.
 **File:** `src/components/admin/booking-form/BookingStepper.tsx` (`handleSendQuoteSms`)
-**Severity:** MEDIUM. Needs a repeat action to trigger, but the repeat is a normal thing to do and nothing warns.
+**Severity as originally logged:** MEDIUM, "needs a repeat action".
+**Corrected on fixing: it fired on the FIRST save, every time.** See the correction below.
 
 ---
 
@@ -43,12 +44,25 @@ if (customerTab === 'new' && newCustomer.first_name && newCustomer.last_name && 
 file for `setSelectedCustomerId` returns **zero** matches. So `selectedCustomerId`
 stays empty and `customerTab` stays `'new'`.
 
-If the function runs a second time within the same stepper session — the save flow
-throws partway and the admin retries, which is the obvious thing to do — it takes
-the same branch again and **creates a second customer record**, then attaches the
-second quote to that one. The customer also receives a second text.
+### Correction — this was worse than first logged
 
-That feeds directly into backlog item #1: duplicate customers get merged, and
+The original write-up said a repeat needed a retry. That was wrong, and the
+verification done before fixing found why.
+
+Both creates run **inside a single `executeSubmit`**:
+
+- `:924` → `buildBookingData` → `:629` `createCustomer.mutateAsync` → **customer #1**
+- `:1370` → `handleSendQuoteSms` → `:355` `createCustomer.mutateAsync` → **customer #2**
+
+Because `selectedCustomerId` was never written back and `customerTab` stayed
+`'new'`, the second branch's guard was still satisfied. So **one save with "send
+quote SMS" ticked created two customer records on the first attempt** — no retry
+needed. The quote was then attached to the duplicate rather than to the customer
+the booking referenced.
+
+A retry made it worse still, adding another pair.
+
+That fed directly into backlog item #1: duplicate customers get merged, and
 `merge_customers` orphans the portal login
 (`docs/superpowers/prompts/2026-07-30-merge-customers-orphans-portal-login.md`).
 This is one of the ways duplicates get created in the first place.
@@ -85,10 +99,14 @@ tolerating.
 
 ## Fix directions — not decided
 
-1. **Write the new customer id back to state.** `setSelectedCustomerId(customer.id)`
-   and switch `customerTab` to `'existing'` after a successful create. Cheapest
-   change, and it removes the customer-duplication half outright. Arguably correct
-   regardless of what is decided about quotes.
+1. ~~**Write the new customer id back to state.**~~ **DONE.** But a state write-back
+   *alone* would not have worked, which is worth recording: `handleSendQuoteSms`
+   reads `customerTab` / `selectedCustomerId` from its **render closure**, and a
+   `setState` in `buildBookingData` cannot update those locals mid-flow. The
+   same-submit duplication needed an explicit hand-off — `handleSendQuoteSms` now
+   takes a `resolvedCustomerId`, and `executeSubmit` passes the
+   `bookingData.customer_id` it already resolved. The state write-back was still
+   added, and is what fixes the *retry* case on a still-open dialog.
 2. **Make the quote insert idempotent per job.** Needs a decision about what
    identity means here — same customer + same address + same amount within some
    window? There is no natural key on `quotes` today.
@@ -96,9 +114,13 @@ tolerating.
    and address, ask before creating another. Preserves the legitimate case (a
    genuinely revised price) while making the accidental one visible.
 
-(1) is nearly free and strictly an improvement. (2) and (3) need a product view on
-whether two quotes for one job is ever legitimate — it plainly is when the price
-has been renegotiated, so a blind dedupe would be wrong.
+**Decided 2026-07-30: (1) only.** (2) and (3) are explicitly NOT being done.
+
+Two quotes for one job is legitimate when a price has been renegotiated, so a
+blind dedupe would break a real workflow. If repeat quotes ever need handling it
+should be a **"supersede the previous quote"** action with real semantics — the
+earlier quote marked superseded, the pipeline counting one — not deduplication.
+That is a feature, not a bug fix, and is not currently scheduled.
 
 ## Related
 

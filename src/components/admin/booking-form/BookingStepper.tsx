@@ -248,7 +248,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
   const {
     customerTab,
+    setCustomerTab,
     selectedCustomerId,
+    setSelectedCustomerId,
     newCustomer,
     address,
     aptSuite,
@@ -328,8 +330,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     return false;
   };
 
-  // Send quote SMS handler - also creates a quote record
-  const handleSendQuoteSms = async () => {
+  // Send quote SMS handler - also creates a quote record.
+  //
+  // `resolvedCustomerId` is the id the caller has ALREADY created or selected.
+  // executeSubmit passes it because buildBookingData ran first in the same
+  // submit and may have just created this customer; a setState there cannot be
+  // seen from this closure, so without the hand-off this function would create
+  // the same person a second time and attach the quote to the duplicate.
+  const handleSendQuoteSms = async (resolvedCustomerId?: string) => {
     if (!customerPhone) {
       toast.error('Customer phone number is required to send a quote');
       return;
@@ -343,11 +351,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
     setSendingQuoteSms(true);
     try {
-      // First, ensure we have a customer ID (create new customer if needed)
-      let customerId = selectedCustomerId;
-      if (customerTab === 'new' && newCustomer.first_name && newCustomer.last_name && newCustomer.email) {
+      // First, ensure we have a customer ID (create new customer if needed).
+      // A caller-supplied id short-circuits this entirely — see the note above.
+      let customerId = resolvedCustomerId || selectedCustomerId;
+      if (!customerId && customerTab === 'new' && newCustomer.first_name && newCustomer.last_name && newCustomer.email) {
         const customer = await createCustomer.mutateAsync(newCustomer);
         customerId = customer.id;
+        setSelectedCustomerId(customer.id);
+        setCustomerTab('existing');
       }
 
       // Send the SMS FIRST, and only record the quote as 'sent' once it has
@@ -628,6 +639,19 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       if (!customerData.zip_code && zipCode) customerData.zip_code = zipCode;
       const customer = await createCustomer.mutateAsync(customerData);
       customerId = customer.id;
+      // Write the new id back into form state so nothing creates this person
+      // a SECOND time. Without it, selectedCustomerId stays empty and
+      // customerTab stays 'new', so handleSendQuoteSms's own create-if-new
+      // branch runs again later in this very same submit.
+      //
+      // This alone does NOT fix the same-submit case — handleSendQuoteSms
+      // reads customerTab/selectedCustomerId from its render closure, which a
+      // setState cannot update mid-flow. The explicit hand-off in
+      // executeSubmit covers that. What this DOES fix is the retry: when a
+      // submit fails partway and the admin presses save again on the still-open
+      // dialog, the form is now pointing at the customer that already exists.
+      setSelectedCustomerId(customer.id);
+      setCustomerTab('existing');
     }
 
     // Sync property address back to existing customer record so it shows in Customers tab
@@ -1346,7 +1370,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           if (sendQuoteSms) {
             if (customerPhone) {
               try {
-                await handleSendQuoteSms();
+                await handleSendQuoteSms(bookingData.customer_id ?? undefined);
               } catch (quoteError: any) {
                 console.error('Auto quote SMS error:', quoteError);
                 toast.error('Failed to send quote SMS');
