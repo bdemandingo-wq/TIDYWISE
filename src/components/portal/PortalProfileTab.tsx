@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
+import { useOrgTiers } from "@/hooks/useOrgTiers";
 import { supabase } from "@/lib/supabase";
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { fmt } from '@/lib/activeCurrency';
@@ -44,15 +45,6 @@ interface Location {
   is_primary: boolean;
 }
 
-interface TierInfo {
-  tier_name: string;
-  tier_order: number;
-  min_spending: number;
-  max_spending: number | null;
-  benefits: string[];
-  color: string;
-}
-
 export function PortalProfileTab() {
   const { user, customer, loyalty, refreshData, invokePortal } = useClientPortal();
   const [firstName, setFirstName] = useState(customer?.first_name || "");
@@ -77,9 +69,11 @@ export function PortalProfileTab() {
   });
   const [savingLocation, setSavingLocation] = useState(false);
   
-  const [tiers, setTiers] = useState<TierInfo[]>([]);
-  const [loadingTiers, setLoadingTiers] = useState(true);
-  const [tiersError, setTiersError] = useState<string | null>(null);
+  // Tiers come from the shared hook, not a local fetch. This component used to
+  // run its own useState/useEffect copy of the same request; two independent
+  // fetchers meant two caches and two places to keep the error handling right.
+  const { tiers = [], isLoading: loadingTiers, error: tiersErrorObj } = useOrgTiers();
+  const tiersError = tiersErrorObj?.message ?? null;
 
   useEffect(() => {
     if (customer) {
@@ -105,55 +99,31 @@ export function PortalProfileTab() {
       setLoadingLocations(false);
     };
 
-    const fetchTiers = async () => {
-      setLoadingTiers(true);
-      // Goes through the proxy: organization_id is taken from the verified
-      // portal session server-side, not sent from here.
-      setTiersError(null);
-      const { data, error } = await invokePortal("client-portal-api", {
-        body: { action: "get_loyalty_tiers" },
-      });
-
-      // Previously `if (!error && data)` with no else. When the anon grant was
-      // revoked in May this call started failing with 42501 and the section
-      // simply rendered empty — a customer-facing feature was dead for three
-      // months because nothing said so. A failure has to be visible.
-      if (error) {
-        console.error("[PortalProfileTab] loyalty tiers failed to load", error);
-        setTiersError(await readEdgeFunctionError(error, "Couldn't load loyalty tiers."));
-        setLoadingTiers(false);
-        return;
-      }
-
-      if (data) {
-        const tiersData = (data as any[]).map((t) => {
-          // benefits is stored as either jsonb (already an array) or a stringified
-          // JSON array. Bad data shouldn't crash the entire profile tab.
-          let benefits: unknown[] = [];
-          if (Array.isArray(t.benefits)) {
-            benefits = t.benefits;
-          } else if (typeof t.benefits === "string") {
-            try {
-              benefits = JSON.parse(t.benefits);
-            } catch (err) {
-              console.warn(`[PortalProfileTab] corrupt benefits for tier ${t.id ?? "(no id)"}`, err);
-              benefits = [];
-            }
-          }
-          return { ...t, benefits };
-        });
-        setTiers(tiersData);
-      }
-      setLoadingTiers(false);
-    };
-
     fetchLocations();
-    fetchTiers();
   }, [user]);
 
   const handleSaveProfile = async () => {
     if (!user || !firstName.trim() || !lastName.trim()) {
       toast.error("First and last name are required");
+      return;
+    }
+
+    // Never send a phone we did not load.
+    //
+    // saveSession() strips email and phone before persisting, so on a restored
+    // session this input starts EMPTY even though the customer has a number.
+    // Saving to fix a name typo then sent p_phone: null and destroyed it — and
+    // phone is the channel every SMS uses (arrival, on-the-way, review request).
+    //
+    // An empty email is the reliable tell that contact details have not been
+    // re-hydrated yet: email is the portal login identifier, so it is never
+    // legitimately blank. Refuse rather than write, because
+    // update_client_portal_profile does `phone = p_phone` UNCONDITIONALLY —
+    // omitting the field would still null the column, so omission is not a fix
+    // until that RPC uses COALESCE(p_phone, phone).
+    const contactsHydrated = !!customer?.email;
+    if (!contactsHydrated) {
+      toast.error("Still loading your details — please refresh the page and try again.");
       return;
     }
 
@@ -279,11 +249,18 @@ export function PortalProfileTab() {
     }
   };
 
-  const currentPoints = loyalty?.lifetime_points || 0;
-  const currentTierName = loyalty?.tier?.toLowerCase() || "bronze";
-  const currentTierIndex = tiers.findIndex(
-    (t) => t.tier_name.toLowerCase() === currentTierName
-  );
+  // Tiers are keyed on lifetime SPEND in dollars (client_tier_settings.
+  // min_spending), so the value compared against them must be spend — not
+  // lifetime_points. Those were previously conflated here, which only looked
+  // right because the award trigger happens to grant 1 point per dollar; it is
+  // wrong for any customer whose history was imported (their points are 0 while
+  // their spend is real).
+  const currentSpend = loyalty?.lifetime_spend ?? 0;
+
+  // No "bronze" fallback: tier is null when the customer is below this org's
+  // lowest threshold, which is a real state. Defaulting would highlight a tier
+  // they have not reached — and "bronze" is one org's tier name, not a universal.
+  const currentTierName = loyalty?.tier?.toLowerCase() ?? null;
 
   return (
     <div className="space-y-4 mt-4">
@@ -573,7 +550,7 @@ export function PortalProfileTab() {
             <CardTitle>Loyalty Tiers</CardTitle>
           </div>
           <CardDescription>
-            Your progress: {currentPoints} lifetime points
+            Your progress: {fmt(currentSpend)} lifetime spend
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -594,18 +571,18 @@ export function PortalProfileTab() {
               {tiers.map((tier, index) => {
                 const isCurrentTier =
                   tier.tier_name.toLowerCase() === currentTierName;
-                const isAchieved = currentPoints >= tier.min_spending;
+                const isAchieved = currentSpend >= tier.min_spending;
                 const progressToNext =
-                  tier.max_spending !== null && currentPoints >= tier.min_spending
+                  tier.max_spending !== null && currentSpend >= tier.min_spending
                     ? Math.min(
-                        ((currentPoints - tier.min_spending) /
+                        ((currentSpend - tier.min_spending) /
                           (tier.max_spending - tier.min_spending)) *
                           100,
                         100
                       )
-                    : tier.max_spending === null && currentPoints >= tier.min_spending
+                    : tier.max_spending === null && currentSpend >= tier.min_spending
                     ? 100
-                    : (currentPoints / tier.min_spending) * 100;
+                    : (currentSpend / tier.min_spending) * 100;
 
                 return (
                   <div
@@ -635,8 +612,8 @@ export function PortalProfileTab() {
                         )}
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {tier.min_spending}
-                        {tier.max_spending ? ` - ${tier.max_spending}` : "+"} pts
+                        {fmt(tier.min_spending)}
+                        {tier.max_spending ? ` - ${fmt(tier.max_spending)}` : "+"}
                       </span>
                     </div>
 
@@ -644,7 +621,7 @@ export function PortalProfileTab() {
                       <div className="mb-2">
                         <Progress value={progressToNext} className="h-2" />
                         <p className="text-xs text-muted-foreground mt-1">
-                          {tier.max_spending - currentPoints} points to next tier
+                          {fmt(tier.max_spending - currentSpend)} to next tier
                         </p>
                       </div>
                     )}

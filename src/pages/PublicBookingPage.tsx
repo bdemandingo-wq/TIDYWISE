@@ -43,6 +43,7 @@ import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { calculateBasePrice } from '@/lib/pricingEngine';
+import { Sentry } from '@/lib/sentry';
 import {
   configFromBusinessSettings,
   getFrequencyDiscountMultiplier,
@@ -627,9 +628,32 @@ export default function PublicBookingPage() {
         const newConfirmationNumber = bookingNumber ? `BK-${bookingNumber}` : `BK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
         setConfirmationNumber(newConfirmationNumber);
 
-        // Fire conversion events to Meta Pixel + GA4 for the org's ad manager
+        // Fire conversion events to Meta Pixel + GA4 for the org's ad manager.
+        //
+        // Purchase reports the PERSISTED total returned by the webhook, not
+        // calculateTotal(). The browser-computed number is client-supplied and
+        // therefore forgeable — reporting it means a forged booking total also
+        // forges this org's reported ad revenue, corrupting ROAS in Meta and GA4
+        // and any spend decision made from them. See
+        // docs/security/2026-07-29-booking-price-authority.md.
+        //
+        // If the webhook did not return a total (older deployed version), fall
+        // back to the estimate so a conversion is not lost — but report it, since
+        // a silent fallback would mean this fix appears done while still sending
+        // the forgeable number.
+        const serverTotal = typeof webhookResult?.total_amount === 'number'
+          ? webhookResult.total_amount
+          : null;
+
+        if (serverTotal === null) {
+          Sentry.captureMessage(
+            '[PublicBookingPage] webhook returned no total_amount; Purchase pixel fell back to the client estimate',
+            { level: 'warning', extra: { confirmationNumber: newConfirmationNumber } },
+          );
+        }
+
         trackConversion('Purchase', {
-          value: calculateTotal(),
+          value: serverTotal ?? calculateTotal(),
           currency: 'USD',
           content_name: service?.name || 'Cleaning Service',
           transaction_id: newConfirmationNumber,

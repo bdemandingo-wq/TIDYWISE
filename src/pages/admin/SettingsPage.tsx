@@ -849,11 +849,15 @@ export default function SettingsPage() {
               </div>
               <Separator />
               <p className="text-sm text-muted-foreground">
-                Points are earned at $1 = 1 point after each completed booking. Customize the benefits for each tier below.
+                Points are earned at $1 = 1 point after each completed booking. Tier
+                level is set by lifetime spend — configure the thresholds and benefits below.
               </p>
             </CardContent>
           </Card>
-          {(orgSettings?.loyalty_program_enabled ?? true) && <LoyaltyTierEditor />}
+          {/* No loyalty_program_enabled check here: LoyaltyTierEditor checks it
+              itself, so this page and ClientPortalPage (which renders it via
+              LoyaltyProgramSettings and had no check at all) now behave the same. */}
+          <LoyaltyTierEditor />
         </TabsContent>
 
         {/* Notifications — shared with /dashboard/notifications */}

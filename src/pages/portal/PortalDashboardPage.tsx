@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatInTimezone, getDateInTimezone } from "@/lib/timezoneUtils";
 import {
@@ -55,10 +55,11 @@ import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
 import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
+import { useOrgTiers } from "@/hooks/useOrgTiers";
+import { tierProgressPercent, type TierDef } from "@/lib/loyaltyTier";
 
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { fmt } from '@/lib/activeCurrency';
 
 interface Booking {
   id: string;
@@ -108,6 +109,61 @@ const INSPECTION_CATEGORY_CONFIG = {
   low_inventory: { label: 'Low inventory', icon: BarChart2,     chip: 'pv-chip-warn' },
   general:       { label: 'Note',          icon: ImageIcon,     chip: 'pv-chip-neutral' },
 } as const;
+
+// Loyalty is tiers-only. There is no points redemption, no credit balance, and
+// no Redeem button — tier benefits are applied by the business, not claimed
+// here. The previous LoyaltyRedeemButton lived at this spot.
+//
+// NOTE: this component is deliberately defined at MODULE scope, not inside the
+// page component. When it was an inline `const LoyaltyCard = () => (...)`, every
+// parent re-render created a new component identity, so React unmounted and
+// remounted the whole subtree — which reset the redeem button's in-flight guard
+// and let the same customer redeem repeatedly. Keep it out here.
+function PortalLoyaltyCard({
+  points,
+  tier,
+  lifetimeSpend,
+  tiers,
+}: {
+  points: number;
+  tier: string | null;
+  lifetimeSpend: number | null | undefined;
+  tiers: TierDef[] | undefined;
+}) {
+  // Progress is derived from this org's own thresholds. It used to come from a
+  // hardcoded { bronze: 25, silver: 50, gold: 75, platinum: 100 } lookup, which
+  // returned 25% for every org that renamed its tiers. Null when we cannot know.
+  const progress =
+    tiers && tiers.length > 0 && lifetimeSpend !== null && lifetimeSpend !== undefined
+      ? tierProgressPercent(lifetimeSpend, tiers)
+      : null;
+
+  return (
+    <Card className="pv-quiet" data-testid="portal-loyalty-card">
+      <CardContent className="px-4 sm:px-2 py-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="pv-eyebrow mb-1">Loyalty</p>
+            <p className="text-[13.5px] text-[hsl(var(--pv-ink-2))] capitalize">
+              <span className="text-[hsl(var(--pv-ink))] font-medium">{points}</span> pts
+              {tier ? (
+                <>
+                  <span className="text-[hsl(var(--pv-ink-4))] mx-1.5">·</span>
+                  {tier} member
+                </>
+              ) : null}
+            </p>
+          </div>
+          <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
+        </div>
+        {/* Omit the bar entirely rather than show a meaningless 0% or 25% */}
+        {progress !== null && (
+          <Progress value={progress} className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]" />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 function InspectionPhoto({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -208,6 +264,9 @@ function BottomPillNav({
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
   const { user, customer, loyalty, signOut, loading, refreshData, invokePortal } = useClientPortal();
+  // tierDefs is the narrow { name, minSpending } shape the tier-math helpers
+  // take; the hook's `tiers` carries the full rows for the profile tab.
+  const { tierDefs: orgTiers } = useOrgTiers();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -507,7 +566,15 @@ export default function PortalDashboardPage() {
     );
   }
 
-  const displayLoyalty = loyalty || { points: 0, lifetime_points: 0, tier: "bronze" };
+  // No hardcoded tier default: "bronze" is one org's tier name, and the
+  // resolver legitimately returns null for a customer below the lowest
+  // threshold. A default here would invent a tier the org never defined.
+  const displayLoyalty = loyalty ?? {
+    points: 0,
+    lifetime_points: 0,
+    tier: null as string | null,
+    lifetime_spend: null as number | null,
+  };
 
   const getDateLabel = (dateStr: string) => {
     const bookingDay = getDateInTimezone(dateStr, orgTimezone);
@@ -524,8 +591,6 @@ export default function PortalDashboardPage() {
     ? upcomingBookings.slice().sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
     : null;
 
-  const tierProgressMap: Record<string, number> = { bronze: 25, silver: 50, gold: 75, platinum: 100 };
-  const tierProgress = tierProgressMap[displayLoyalty.tier?.toLowerCase()] ?? 25;
   const firstName = customer.first_name || 'there';
 
   /* ─────────────────────────── SHARED SECTIONS ─────────────────────────── */
@@ -595,27 +660,7 @@ export default function PortalDashboardPage() {
   );
 
 
-  const LoyaltyCard = () => (
-    <Card className="pv-quiet">
-      <CardContent className="px-4 sm:px-2 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="pv-eyebrow mb-1">Loyalty</p>
-            <p className="text-[13.5px] text-[hsl(var(--pv-ink-2))] capitalize">
-              <span className="text-[hsl(var(--pv-ink))] font-medium">{displayLoyalty.points}</span> pts
-              <span className="text-[hsl(var(--pv-ink-4))] mx-1.5">·</span>
-              {displayLoyalty.tier} member
-            </p>
-          </div>
-          <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
-        </div>
-        <Progress
-          value={tierProgress}
-          className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]"
-        />
-      </CardContent>
-    </Card>
-  );
+  // PortalLoyaltyCard is defined at module scope — see the note beside it.
 
   const QuickActions = () => (
     <Card className="pv-quiet">
@@ -743,7 +788,10 @@ export default function PortalDashboardPage() {
 
       {/* Content */}
       <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 overflow-x-clip">
-        <LoyaltyTierBanner lifetimePoints={displayLoyalty.lifetime_points ?? 0} tier={displayLoyalty.tier} />
+        <LoyaltyTierBanner
+          lifetimeSpend={displayLoyalty.lifetime_spend}
+          tiers={orgTiers}
+        />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
           {/* min-w-0: grid/flex children default to min-width:auto, so the
@@ -1031,7 +1079,12 @@ export default function PortalDashboardPage() {
           {/* Right rail — hidden on mobile, sticky on desktop */}
           <aside className="hidden lg:block space-y-4">
             <div className="sticky top-24 space-y-4">
-              <LoyaltyCard />
+              <PortalLoyaltyCard
+                points={displayLoyalty.points}
+                tier={displayLoyalty.tier}
+                lifetimeSpend={displayLoyalty.lifetime_spend}
+                tiers={orgTiers}
+              />
               <QuickActions />
             </div>
           </aside>
@@ -1039,7 +1092,12 @@ export default function PortalDashboardPage() {
 
         {/* Loyalty + quick actions on mobile appear inline below */}
         <div className="lg:hidden mt-5 space-y-4">
-          <LoyaltyCard />
+          <PortalLoyaltyCard
+            points={displayLoyalty.points}
+            tier={displayLoyalty.tier}
+            lifetimeSpend={displayLoyalty.lifetime_spend}
+            tiers={orgTiers}
+          />
           <QuickActions />
         </div>
       </div>

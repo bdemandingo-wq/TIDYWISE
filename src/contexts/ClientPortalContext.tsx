@@ -32,7 +32,23 @@ interface CustomerInfo {
 interface LoyaltyInfo {
   points: number;
   lifetime_points: number;
-  tier: string;
+  /**
+   * Derived server-side by resolve_customer_tier(). NULL means the customer's
+   * lifetime spend is below this org's lowest min_spending — not every org
+   * starts a tier at $0, so "no tier yet" is a real state, not missing data.
+   */
+  tier: string | null;
+  /** Monotonic lifetime spend in dollars. The tier basis. */
+  lifetime_spend: number | null;
+}
+
+/** The loyalty subset of a client-portal-api `get_user_data` row. */
+interface UserDataLoyaltyRow {
+  loyalty_points: number | null;
+  loyalty_lifetime_points: number | null;
+  /** Derived by resolve_customer_tier(); null when below the org's lowest tier. */
+  loyalty_tier: string | null;
+  loyalty_lifetime_spend: number | null;
 }
 
 interface PortalInvokeResult<T = any> {
@@ -141,6 +157,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
               points: row.loyalty_points,
               lifetime_points: row.loyalty_lifetime_points,
               tier: row.loyalty_tier,
+              lifetime_spend: row.loyalty_lifetime_spend ?? null,
             }
             : null,
         };
@@ -373,6 +390,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
         points: row.loyalty_points,
         lifetime_points: row.loyalty_lifetime_points,
         tier: row.loyalty_tier,
+        lifetime_spend: row.loyalty_lifetime_spend ?? null,
       } : null;
 
       // Update last login via the session-validated proxy — identity comes
@@ -508,6 +526,39 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     [sessionToken, handleUnauthorized],
   );
 
+  // Re-hydrate contact details after a session restore.
+  //
+  // saveSession() deliberately strips email and phone before persisting, so they
+  // are never sitting in plaintext localStorage — and its comment says they are
+  // "reloaded on next sign-in or via refreshData()". That second half never
+  // happened: refreshData is only called after a profile save, and its customer
+  // fetch was a direct anon read of `customers`, which RLS returns empty for.
+  //
+  // Consequences were a blank email field, and worse: PortalProfileTab
+  // initialises its phone input from customer.phone, so Save sent p_phone: null
+  // and DESTROYED the customer's number — the channel every SMS uses.
+  //
+  // An empty email is the reliable tell that PII was stripped rather than absent:
+  // email is the portal login identifier (client-portal-login resolves by it), so
+  // it is never legitimately blank.
+  useEffect(() => {
+    if (!sessionToken || !user?.customer_id) return;
+    if (customer?.email) return; // already hydrated
+
+    let cancelled = false;
+    (async () => {
+      const { data } = await invokePortal<Array<{
+        email: string | null;
+        phone: string | null;
+      }>>('client-portal-api', { body: { action: 'get_user_data' } });
+      const row = data?.[0];
+      if (cancelled || !row?.email) return;
+      setCustomer((prev) => (prev ? { ...prev, email: row.email!, phone: row.phone } : prev));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionToken, user?.customer_id, customer?.email]);
+
   const refreshData = async () => {
     if (!user) return;
 
@@ -525,12 +576,34 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       .eq('id', user.customer_id)
       .single();
 
-    // Refresh loyalty info
-    const { data: loyaltyData } = await supabase
-      .from('customer_loyalty')
-      .select('points, lifetime_points, tier')
-      .eq('customer_id', user.customer_id)
-      .maybeSingle();
+    // Refresh loyalty info through the session-validated proxy, NOT a direct
+    // customer_loyalty read.
+    //
+    // Two reasons this cannot be a table query any more:
+    //   1. customer_loyalty.tier is FROZEN — no trigger maintains it, so reading
+    //      the column returns a value that goes stale the moment an org edits
+    //      its client_tier_settings thresholds. Tier is derived by
+    //      resolve_customer_tier(), which this proxy calls.
+    //   2. resolve_customer_tier is granted to authenticated/service_role, and
+    //      the portal is `anon` (custom client_portal_users, no Supabase Auth
+    //      session), so the browser cannot call it directly.
+    //
+    // Only the loyalty portion moved. The customer/property_type queries above
+    // stay as direct reads because get_user_data returns property_type as null.
+    const { data: loyaltyRows } = await invokePortal<UserDataLoyaltyRow[]>(
+      'client-portal-api',
+      { body: { action: 'get_user_data' } },
+    );
+    const loyaltyRow = loyaltyRows?.[0];
+    const loyaltyData: LoyaltyInfo | null =
+      loyaltyRow && loyaltyRow.loyalty_points !== null
+        ? {
+          points: loyaltyRow.loyalty_points,
+          lifetime_points: loyaltyRow.loyalty_lifetime_points ?? 0,
+          tier: loyaltyRow.loyalty_tier,
+          lifetime_spend: loyaltyRow.loyalty_lifetime_spend ?? null,
+        }
+        : null;
 
     if (rawCustomerData) {
       const customerData: CustomerInfo = {

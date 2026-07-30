@@ -49,6 +49,32 @@ git log <last-known-good>..origin/main -- supabase/migrations/
 
 Pay particular attention to `org_memberships` and auth tables.
 
+### The ownership split is a convention, not a boundary — Lovable writes to `src/` and `tests/` too
+
+The table above describes who *owns* what. It does not constrain what Lovable actually edits. Nothing enforces the split.
+
+Confirmed 2026-07-29, three times in a single session, Lovable modified files on the Claude Code side of the line:
+
+- `src/pages/portal/PortalDashboardPage.tsx` — deleted a component
+- `tests/security.spec.ts` — deleted two test cases
+
+Both edits were *correct in intent* (they removed a feature that was being retired). The problem is not that Lovable was wrong; it is that **the local tree silently stopped matching `origin/main` while work was in progress on an unpushed branch.** Two agents edited the same region from different base states.
+
+**So: `git fetch origin main` before assuming your working tree matches — not just before reasoning about `supabase/`.** Treat `src/` and `tests/` as shared, not owned.
+
+```sh
+git fetch origin main
+git log --oneline HEAD...origin/main --left-right   # < yours, > theirs
+git diff --stat HEAD origin/main                    # what actually moved
+```
+
+Practical habits that follow from this:
+
+- **Fetch at the start of a task, not only at the end.** A stale base turns a clean edit into a conflict.
+- **Do the work on a branch and merge `origin/main` deliberately.** Do not develop directly on a local `main` that Lovable is also advancing.
+- **When resolving a conflict, check what Lovable's side was trying to achieve** before taking `--ours`. Its edit is usually right about *intent* and thinner on *cause* — in the case above it deleted a button but left the inline-component pattern that made the bug repeatable, and left two now-unused imports behind.
+- **Re-run `npx tsc --noEmit -p tsconfig.app.json` and lint the touched files after any merge.** Lovable's deletions have left dead imports more than once.
+
 ---
 
 ## Commands
