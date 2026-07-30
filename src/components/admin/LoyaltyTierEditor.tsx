@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { Settings2, Plus, X, Star, Award, Trophy, Crown } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { validateTierThresholds, type TierRange } from '@/lib/loyaltyTier';
+import { fmt } from '@/lib/activeCurrency';
+import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 
 interface TierSetting {
   id: string;
@@ -26,17 +28,32 @@ interface TierEditState {
   maxSpending: string;
 }
 
-const defaultTiers: Omit<TierSetting, 'id'>[] = [
-  { tier_name: 'Bronze', min_spending: 0, max_spending: 499, benefits: ['Basic scheduling', 'Email support'], color: 'orange', tier_order: 1 },
-  { tier_name: 'Silver', min_spending: 500, max_spending: 1999, benefits: ['Standard scheduling', 'Email support'], color: 'slate', tier_order: 2 },
-  { tier_name: 'Gold', min_spending: 2000, max_spending: 4999, benefits: ['Priority scheduling', '5% discount on services', 'Phone support'], color: 'amber', tier_order: 3 },
-  { tier_name: 'Platinum', min_spending: 5000, max_spending: null, benefits: ['VIP scheduling', '10% discount on services', 'Free add-on per visit', 'Dedicated support'], color: 'purple', tier_order: 4 },
-];
+// There is deliberately NO local default ladder here any more.
+//
+// A hardcoded `defaultTiers` array used to live at this spot, and it was the
+// FOURTH copy of the same ladder — alongside the fallbacks inside
+// get_loyalty_tier_info, get_org_tiers, and resolve_customer_tier. Worse, its
+// benefits text disagreed with all three ('Basic scheduling', 'Email support'
+// where the server says 'Welcome reward'), and its colours were CSS keywords
+// ('orange', 'slate') where the server uses hex ('#CD7F32'), so an org seeded
+// from this button ended up materially different from one relying on the server
+// default.
+//
+// Seeding now reads the ladder from get_org_tiers(), which returns the server's
+// own defaults when an org has no rows of its own. One definition, one colour
+// format, and no Lovable round-trip needed to remove the duplication.
 
 export function LoyaltyTierEditor() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  // Gate lives HERE, not in the callers. SettingsPage checked
+  // loyalty_program_enabled before rendering this component but ClientPortalPage
+  // (via LoyaltyProgramSettings) did not, so turning the loyalty program off hid
+  // the editor on one page and left it editable on the other. One check, both
+  // entry points. Defaults to enabled when no settings row exists.
+  const { settings: orgSettings } = useOrganizationSettings();
+  const loyaltyEnabled = orgSettings?.loyalty_program_enabled ?? true;
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [newBenefit, setNewBenefit] = useState('');
   // Local edit state for point thresholds (keyed by tier id)
@@ -86,10 +103,31 @@ export function LoyaltyTierEditor() {
       if (checkErr) throw checkErr;
       if (existing && existing.length > 0) throw new Error('ALREADY_INITIALIZED');
 
-      const tiersToInsert = defaultTiers.map(tier => ({
-        ...tier,
+      // Ask the server for the ladder rather than carrying a local copy.
+      // get_org_tiers returns the built-in defaults for an org with no rows.
+      const { data: defaults, error: defaultsErr } = await supabase.rpc('get_org_tiers', {
+        p_organization_id: organizationId,
+      });
+      if (defaultsErr) throw defaultsErr;
+      if (!defaults || defaults.length === 0) {
+        throw new Error('NO_DEFAULTS');
+      }
+
+      const tiersToInsert = defaults.map((t: {
+        tier_name: string;
+        tier_order: number;
+        min_spending: number;
+        max_spending: number | null;
+        benefits: unknown;
+        color: string | null;
+      }) => ({
         organization_id: organizationId,
-        benefits: tier.benefits,
+        tier_name: t.tier_name,
+        tier_order: t.tier_order,
+        min_spending: t.min_spending,
+        max_spending: t.max_spending,
+        benefits: Array.isArray(t.benefits) ? t.benefits : [],
+        color: t.color,
       }));
 
       const { error } = await supabase
@@ -103,6 +141,10 @@ export function LoyaltyTierEditor() {
       toast.success('Loyalty tiers initialized!');
     },
     onError: (e: unknown) => {
+      if (e instanceof Error && e.message === 'NO_DEFAULTS') {
+        toast.error('Could not load the default tier ladder from the server.');
+        return;
+      }
       if (e instanceof Error && e.message === 'ALREADY_INITIALIZED') {
         // Not a failure: another tab or an earlier click already seeded them.
         toast.info('Tiers are already set up.');
@@ -211,23 +253,23 @@ export function LoyaltyTierEditor() {
     updateTier.mutate({ tierId, updates: { benefits: updatedBenefits } });
   };
 
-  const getTierIcon = (tierName: string) => {
-    switch (tierName.toLowerCase()) {
-      case 'platinum': return <Crown className="w-5 h-5 text-purple-500" />;
-      case 'gold': return <Trophy className="w-5 h-5 text-amber-500" />;
-      case 'silver': return <Award className="w-5 h-5 text-slate-500" />;
-      default: return <Star className="w-5 h-5 text-orange-500" />;
-    }
+  // Icon and accent come from a tier's POSITION in this org's ladder, not from
+  // its name. These used to switch on 'platinum' | 'gold' | 'silver', so every
+  // org that renamed its tiers got the same orange star for all of them — the
+  // same hardcoded-tier-name bug as the portal banner and progress bar.
+  //
+  // The rank icons ascend; a ladder longer than the list reuses the top icon,
+  // which is the right degradation (more tiers, still clearly "highest").
+  const RANK_ICONS = [Star, Award, Trophy, Crown];
+
+  const getTierIcon = (index: number) => {
+    const Icon = RANK_ICONS[Math.min(index, RANK_ICONS.length - 1)];
+    // The org's own colour drives the tint, so a renamed/recoloured tier looks
+    // like what the owner configured rather than what TidyWise's ladder used.
+    return <Icon className="w-5 h-5" />;
   };
 
-  const getTierBorderColor = (tierName: string) => {
-    switch (tierName.toLowerCase()) {
-      case 'platinum': return 'border-l-purple-500';
-      case 'gold': return 'border-l-amber-500';
-      case 'silver': return 'border-l-slate-400';
-      default: return 'border-l-orange-500';
-    }
-  };
+  if (!loyaltyEnabled) return null;
 
   if (isLoading) {
     return (
@@ -266,27 +308,29 @@ export function LoyaltyTierEditor() {
           Loyalty Tier Benefits
         </CardTitle>
         <CardDescription>
-          Customize the benefits customers receive at each loyalty level
+          Tiers are set by LIFETIME SPEND in dollars. Customize the thresholds and
+          benefits for each level.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {tiers.map((tier) => {
+        {tiers.map((tier, index) => {
           const isEditing = editingTier === tier.id;
           const localState = editState[tier.id] || { minSpending: tier.min_spending.toString(), maxSpending: tier.max_spending?.toString() ?? '' };
           
           return (
             <div
               key={tier.id}
-              className={`border rounded-lg p-4 border-l-4 ${getTierBorderColor(tier.tier_name)}`}
+              className="border rounded-lg p-4 border-l-4"
+              style={{ borderLeftColor: tier.color || 'hsl(var(--muted-foreground))' }}
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {getTierIcon(tier.tier_name)}
+                  <span style={{ color: tier.color || 'inherit' }}>{getTierIcon(index)}</span>
                   <h4 className="font-semibold">{tier.tier_name}</h4>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">
-                    {tier.min_spending.toLocaleString()} - {tier.max_spending ? tier.max_spending.toLocaleString() : '∞'} pts
+                    {fmt(tier.min_spending)} - {tier.max_spending ? fmt(tier.max_spending) : '∞'}
                   </span>
                   <Button
                     variant="ghost"
@@ -345,7 +389,7 @@ export function LoyaltyTierEditor() {
                   {/* Point Thresholds */}
                   <div className="flex gap-4">
                     <div className="flex-1">
-                      <label className="text-xs text-muted-foreground">Min Points</label>
+                      <label className="text-xs text-muted-foreground">Min lifetime spend ($)</label>
                       <Input
                         type="text"
                         inputMode="numeric"
@@ -356,7 +400,7 @@ export function LoyaltyTierEditor() {
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-muted-foreground">Max Points (empty = unlimited)</label>
+                      <label className="text-xs text-muted-foreground">Max lifetime spend ($, empty = unlimited)</label>
                       <Input
                         type="text"
                         inputMode="numeric"
