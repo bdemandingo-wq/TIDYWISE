@@ -218,16 +218,37 @@ export function validateTierThresholds(
   }
 
   // Gap check: is there a hole between this tier and the next one up?
+  //
+  // Bounds are INCLUSIVE on both sides and lifetime_spend is numeric(12,2), so
+  // the smallest step between two tiers is one cent: [0, 499.99] then [500, …]
+  // is contiguous, while [0, 499] then [500, …] leaves 499.01-499.99 uncovered.
+  //
+  // The old tolerance was `> max + 1`, which treated 4999 -> 5000 as contiguous
+  // and so never warned about a $0.99 hole. That is not a rounding nicety: a
+  // customer at $4,999.50 matches no tier, resolve_customer_tier returns NULL,
+  // and they hold nothing despite having spent more than the tier below
+  // requires. Off by a cent is invisible to anyone testing round numbers — and
+  // the seeded default ladder (0-499 / 500-1999 / 2000-4999 / 5000-null) has
+  // three such holes in it.
+  //
+  // Compared in integer cents because 4999 + 0.01 is not exactly 4999.01 in
+  // IEEE-754, and a float comparison here would reintroduce the same class of
+  // bug one decimal place further down.
   if (max !== null) {
     const next = others
       .filter((t) => t.min_spending > max)
       .sort((a, b) => a.min_spending - b.min_spending)[0];
-    if (next && next.min_spending > max + 1) {
+    const cents = (n: number) => Math.round(n * 100);
+    if (next && cents(next.min_spending) > cents(max) + 1) {
+      const holeFrom = (cents(max) + 1) / 100;
+      const holeTo = (cents(next.min_spending) - 1) / 100;
       return {
         error: null,
         warning:
-          `Gap between ${max} and ${next.min_spending} ("${next.tier_name}"). ` +
-          `A customer in that range will have no tier at all.`,
+          `Gap between "${candidate.tier_name}" and "${next.tier_name}": ` +
+          `spend from ${holeFrom} to ${holeTo} matches no tier. ` +
+          `A customer in that range will hold no tier at all. ` +
+          `Set this tier's maximum to ${holeTo} to close it.`,
       };
     }
   }

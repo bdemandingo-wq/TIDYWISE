@@ -158,17 +158,20 @@ describe('validateTierThresholds', () => {
   const T = (id: string, name: string, min: number, max: number | null): TierRange =>
     ({ id, tier_name: name, min_spending: min, max_spending: max });
 
+  // Contiguous to the cent. The seeded default ladder uses 499 / 1999 / 4999,
+  // which leaves a $0.99 hole above each — the very thing this validator now
+  // warns about, so the fixture must not reproduce it.
   const LADDER: TierRange[] = [
-    T('1', 'Bronze', 0, 499),
-    T('2', 'Silver', 500, 1999),
-    T('3', 'Gold', 2000, 4999),
+    T('1', 'Bronze', 0, 499.99),
+    T('2', 'Silver', 500, 1999.99),
+    T('3', 'Gold', 2000, 4999.99),
     T('4', 'Platinum', 5000, null),
   ];
 
   const ok = (r: ReturnType<typeof validateTierThresholds>) => !r.error && !r.warning;
 
   it('accepts an unchanged tier', () => {
-    expect(ok(validateTierThresholds(T('2', 'Silver', 500, 1999), LADDER))).toBe(true);
+    expect(ok(validateTierThresholds(T('2', 'Silver', 500, 1999.99), LADDER))).toBe(true);
   });
 
   it('rejects non-numeric and negative bounds', () => {
@@ -183,12 +186,29 @@ describe('validateTierThresholds', () => {
 
   it('rejects overlap in either direction, naming the conflicting tier', () => {
     expect(validateTierThresholds(T('2', 'Silver', 500, 2500), LADDER).error).toMatch(/Gold/);
-    expect(validateTierThresholds(T('2', 'Silver', 400, 1999), LADDER).error).toMatch(/Bronze/);
+    expect(validateTierThresholds(T('2', 'Silver', 400, 1999.99), LADDER).error).toMatch(/Bronze/);
   });
 
   it('allows exactly one unlimited tier', () => {
     expect(ok(validateTierThresholds(T('4', 'Platinum', 5000, null), LADDER))).toBe(true);
     expect(validateTierThresholds(T('2', 'Silver', 500, null), LADDER).error).toMatch(/Platinum/);
+  });
+
+  it('treats a one-cent step as contiguous, not a gap', () => {
+    // [0, 499.99] then [500, ...] covers every value of numeric(12,2).
+    const contiguous = [T('1', 'Base', 0, 499.99), T('2', 'Top', 500, null)];
+    const r = validateTierThresholds(T('1', 'Base', 0, 499.99), contiguous);
+    expect(r.error).toBeNull();
+    expect(r.warning).toBeNull();
+  });
+
+  it('warns about a SUB-DOLLAR hole that the old +1 tolerance missed', () => {
+    // 4999 -> 5000 leaves 4999.01-4999.99 uncovered. The previous check used
+    // `next.min > max + 1`, so 5000 > 5000 was false and it never warned.
+    const holey = [T('3', 'Gold', 2000, 4999), T('4', 'Platinum', 5000, null)];
+    const r = validateTierThresholds(T('3', 'Gold', 2000, 4999), holey);
+    expect(r.error).toBeNull();
+    expect(r.warning).toMatch(/matches no tier/i);
   });
 
   it('warns about a gap but does not block it', () => {
@@ -198,7 +218,7 @@ describe('validateTierThresholds', () => {
   });
 
   it('accepts a ladder whose lowest tier does not start at zero', () => {
-    const noFloor = [T('1', 'Entry', 200, 999), T('2', 'Top', 1000, null)];
-    expect(ok(validateTierThresholds(T('1', 'Entry', 200, 999), noFloor))).toBe(true);
+    const noFloor = [T('1', 'Entry', 200, 999.99), T('2', 'Top', 1000, null)];
+    expect(ok(validateTierThresholds(T('1', 'Entry', 200, 999.99), noFloor))).toBe(true);
   });
 });
