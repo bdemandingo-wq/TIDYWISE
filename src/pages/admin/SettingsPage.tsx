@@ -610,11 +610,36 @@ export default function SettingsPage() {
           </Button>
         </div>
         {/*
-          Mobile Safari can aggressively shrink inline-flex children, which can cause tab labels to visually overlap.
-          Use an explicit scroll container + non-shrinking triggers so labels stay readable.
+          16 tabs do not fit on one line at any viewport, so this strip has two
+          modes rather than one compromise.
+
+          md and up — WRAP. Every tab is on screen with no interaction at all,
+          which is the right trade when vertical space is cheap. Needs md:h-auto
+          because the base TabsList is a fixed h-8/md:h-10 that would clip the
+          second row, and md:overflow-visible because the mobile scroll
+          container's overflow-y-hidden would clip it too.
+
+          Below md — SCROLL horizontally. Wrapping 16 tabs on a phone costs five
+          or six rows and pushes the actual settings off screen; a horizontal
+          swipe is both cheaper and the native gesture.
+
+          The scrollbar is deliberately NOT hidden any more. It used to carry
+          [scrollbar-width:none] and a ::-webkit-scrollbar override, which is
+          what made this unreachable rather than merely tight: the strip scrolled
+          fine, but nothing said so, and a vertical mouse wheel does not scroll a
+          horizontal container. iOS shows a transient bar only while scrolling,
+          so the cost is a thin persistent bar on Android and narrow desktop —
+          worth it to make the overflow discoverable.
+
+          max-w-5xl was also removed. It appeared nowhere else on the page, so it
+          was not a content-width convention, just a 1024px cap that clipped the
+          strip even on a monitor with room to spare.
+
+          Mobile Safari can aggressively shrink inline-flex children, which can
+          cause tab labels to visually overlap — hence shrink-0 on every trigger.
         */}
-        <div className="w-full max-w-5xl overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ touchAction: 'pan-x' }}>
-           <TabsList className="w-max min-w-full flex flex-nowrap justify-start gap-1">
+        <div className="w-full overflow-x-auto overflow-y-hidden md:overflow-visible touch-pan-x md:touch-auto">
+           <TabsList className="w-max min-w-full md:w-full flex flex-nowrap md:flex-wrap justify-start gap-1 md:h-auto">
             <TabsTrigger className="shrink-0" value="general">General</TabsTrigger>
             <TabsTrigger className="shrink-0" value="team">Team</TabsTrigger>
             <TabsTrigger className="shrink-0" value="booking-form">Booking Form</TabsTrigger>
