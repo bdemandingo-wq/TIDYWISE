@@ -638,13 +638,13 @@ export default function PayrollPage() {
           profit: financials.profit * share,
           margin_percent: financials.marginPercent,
           isMissingPay: wageInfo.isMissingPay,
-          // Cast until types.ts is regenerated for the hours-reconciliation
-          // migration; both columns are nullable and absent on older rows.
-          isHoursCapped: (b as { hours_capped_at?: number | null }).hours_capped_at != null,
-          actualHours: (b as { actual_hours_worked?: number | null }).actual_hours_worked != null
-            ? Number((b as { actual_hours_worked?: number | null }).actual_hours_worked) : null,
-          cappedHours: (b as { hours_capped_at?: number | null }).hours_capped_at != null
-            ? Number((b as { hours_capped_at?: number | null }).hours_capped_at) : null,
+          // Both columns are nullable and absent on rows predating the
+          // hours-reconciliation migration, hence the != null guards rather
+          // than a plain Number() — Number(null) is 0, which would read as a
+          // real "0 hours worked" and silently zero someone's pay basis.
+          isHoursCapped: b.hours_capped_at != null,
+          actualHours: b.actual_hours_worked != null ? Number(b.actual_hours_worked) : null,
+          cappedHours: b.hours_capped_at != null ? Number(b.hours_capped_at) : null,
         });
       }
     }
