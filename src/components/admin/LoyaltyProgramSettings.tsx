@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { Gift, Star, Trophy, Crown, Users, TrendingUp, Award } from 'lucide-reac
 import { format } from 'date-fns';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LoyaltyTierEditor } from './LoyaltyTierEditor';
+import { useAdminOrgTiers } from '@/hooks/useAdminOrgTiers';
+import { resolveTierName } from '@/lib/loyaltyTier';
 
 interface CustomerLoyalty {
   id: string;
@@ -40,6 +42,8 @@ export function LoyaltyProgramSettings() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerLoyalty | null>(null);
   const [bonusPoints, setBonusPoints] = useState('');
 
+  const { tiers: orgTiers, tierDefs } = useAdminOrgTiers();
+
   const { data: loyaltyMembers = [], isLoading } = useQuery({
     queryKey: ['loyalty-members', organizationId],
     queryFn: async () => {
@@ -47,7 +51,7 @@ export function LoyaltyProgramSettings() {
       const { data, error } = await supabase
         .from('customer_loyalty')
         .select(`
-          id, customer_id, points, lifetime_points, tier,
+          id, customer_id, points, lifetime_points, tier, lifetime_spend,
           customer:customers!inner(first_name, last_name, email, organization_id)
         `)
         .eq('customer.organization_id', organizationId)
@@ -146,29 +150,54 @@ export function LoyaltyProgramSettings() {
     },
   });
 
-  const getTierIcon = (tier: string) => {
-    switch (tier) {
-      case 'platinum': return <Crown className="w-4 h-4" />;
-      case 'gold': return <Trophy className="w-4 h-4" />;
-      case 'silver': return <Award className="w-4 h-4" />;
-      default: return <Star className="w-4 h-4" />;
-    }
+  // Tiers ascending by threshold, so index 0 is the entry tier.
+  const ascendingTiers = useMemo(
+    () => [...(orgTiers ?? [])].sort((a, b) => a.min_spending - b.min_spending),
+    [orgTiers],
+  );
+
+  /** A member's tier, DERIVED from lifetime spend against this org's own
+   *  thresholds — not read from the frozen customer_loyalty.tier column, which
+   *  no trigger maintains any more. Null is a real state: below the lowest
+   *  threshold, or tiers not loaded yet. */
+  const tierOf = (m: CustomerLoyalty): string | null =>
+    resolveTierName((m as unknown as { lifetime_spend: number | null }).lifetime_spend, tierDefs);
+
+  // Icon by POSITION in this org's ladder, not by tier name. These used to
+  // switch on 'platinum' | 'gold' | 'silver' with an orange-star default, so an
+  // org that renamed its tiers got the same icon for every one of them.
+  const RANK_ICONS = [Star, Award, Trophy, Crown];
+
+  const getTierIcon = (tierName: string | null) => {
+    const idx = ascendingTiers.findIndex(t => t.tier_name === tierName);
+    const Icon = RANK_ICONS[Math.min(Math.max(idx, 0), RANK_ICONS.length - 1)];
+    return <Icon className="w-4 h-4" />;
   };
 
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'platinum': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'gold': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'silver': return 'bg-slate-100 text-slate-700 border-slate-200';
-      default: return 'bg-orange-100 text-orange-700 border-orange-200';
-    }
+  /** Badge tint from the tier's own configured colour. Tailwind classes cannot
+   *  be built dynamically, so this is an inline style rather than a class. */
+  const getTierStyle = (tierName: string | null): React.CSSProperties => {
+    const c = ascendingTiers.find(t => t.tier_name === tierName)?.color;
+    if (!c) return {};
+    return { color: c, borderColor: c, backgroundColor: `${c}1a` };
   };
+
+  // Top two tiers by threshold, with their REAL names. The two stat cards used
+  // to filter for literal 'platinum' / 'gold', so any org with renamed tiers saw
+  // 0 in both, permanently.
+  const topTier = ascendingTiers[ascendingTiers.length - 1];
+  const secondTier = ascendingTiers[ascendingTiers.length - 2];
+
+  const countIn = (tierName: string | undefined) =>
+    tierName ? loyaltyMembers.filter(m => tierOf(m) === tierName).length : 0;
 
   const stats = {
     totalMembers: loyaltyMembers.length,
     totalPoints: loyaltyMembers.reduce((sum, m) => sum + m.points, 0),
-    platinumMembers: loyaltyMembers.filter(m => m.tier === 'platinum').length,
-    goldMembers: loyaltyMembers.filter(m => m.tier === 'gold').length,
+    topTierName: topTier?.tier_name ?? null,
+    topTierMembers: countIn(topTier?.tier_name),
+    secondTierName: secondTier?.tier_name ?? null,
+    secondTierMembers: countIn(secondTier?.tier_name),
   };
 
   if (isLoading) {
@@ -218,8 +247,10 @@ export function LoyaltyProgramSettings() {
                 <Crown className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.platinumMembers}</p>
-                <p className="text-xs text-muted-foreground">Platinum Members</p>
+                <p className="text-2xl font-bold">{stats.topTierMembers}</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.topTierName ? `${stats.topTierName} Members` : 'Top Tier'}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -232,8 +263,10 @@ export function LoyaltyProgramSettings() {
                 <Trophy className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stats.goldMembers}</p>
-                <p className="text-xs text-muted-foreground">Gold Members</p>
+                <p className="text-2xl font-bold">{stats.secondTierMembers}</p>
+                <p className="text-xs text-muted-foreground">
+                  {stats.secondTierName ? `${stats.secondTierName} Members` : 'Next Tier'}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -265,9 +298,9 @@ export function LoyaltyProgramSettings() {
                   className="flex flex-col gap-3 p-3 border rounded-lg hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-start gap-3 min-w-0">
-                    <Badge variant="outline" className={`shrink-0 ${getTierColor(member.tier)}`}>
-                      {getTierIcon(member.tier)}
-                      <span className="ml-1 capitalize">{member.tier}</span>
+                    <Badge variant="outline" className="shrink-0" style={getTierStyle(tierOf(member))}>
+                      {getTierIcon(tierOf(member))}
+                      <span className="ml-1 capitalize">{tierOf(member) ?? 'No tier yet'}</span>
                     </Badge>
                     <div className="min-w-0">
                       <p className="font-medium truncate">

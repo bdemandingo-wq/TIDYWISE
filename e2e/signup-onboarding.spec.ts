@@ -22,7 +22,26 @@ const TEST_EMAIL = `bdemandingo+e2eonboarding${RUN_ID}@gmail.com`;
 const TEST_PASSWORD = "QaTestDelete2026!";
 const BUSINESS_NAME = `QA-TEST-DELETE E2E Onboarding ${RUN_ID}`;
 
-test("signup → full 6-step onboarding → Create Business → paywall", async ({ page }) => {
+// SKIPPED BY DEFAULT — 2026-07-29.
+//
+// This spec creates a real auth user AND a real organization in production on
+// every run, and cleans up neither (see the note above: no service-role access
+// from the test session). Those have been accumulating: search for
+// `bdemandingo+e2eonboarding%@gmail.com` in auth.users and
+// `QA-TEST-DELETE E2E Onboarding %` in organizations.
+//
+// Cleaning them up without skipping this just resets the counter, so the default
+// is now off. Run it deliberately when you actually want to exercise signup, and
+// delete the account and org it reports afterwards:
+//
+//   npx playwright test e2e/signup-onboarding.spec.ts --grep-invert "@nope"
+//
+// (any invocation that overrides the skip works; the point is that a routine
+// full-suite run no longer creates production data)
+//
+// Removing this skip is only appropriate once the spec tears down what it
+// creates — which needs service-role access it does not currently have.
+test.skip("signup → full 6-step onboarding → Create Business → paywall", async ({ page }) => {
   console.log(`[QA-TEST-DELETE] account created by this run: ${TEST_EMAIL} / business: ${BUSINESS_NAME}`);
 
   await test.step("signup form creates an account and redirects toward onboarding", async () => {

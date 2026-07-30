@@ -205,3 +205,88 @@ export function validateTierThresholds(
 
   return { error: null, warning: null };
 }
+
+/* ─────────────────── Shared org-tier row shape + normalisation ───────────── */
+
+/**
+ * A row from client_tier_settings, as returned by get_loyalty_tier_info /
+ * get_org_tiers (both return the same shape, and the same built-in defaults
+ * when an org has no rows of its own).
+ */
+export interface OrgTier {
+  tier_name: string;
+  tier_order: number;
+  /** Lifetime spend in DOLLARS at which this tier starts. Not points. */
+  min_spending: number;
+  /** Upper bound in dollars, or null for the top tier. */
+  max_spending: number | null;
+  /** Always an array after normalisation. */
+  benefits: string[];
+  color: string;
+}
+
+/**
+ * Normalise raw tier rows from either transport.
+ *
+ * There are two legitimate transports and they cannot be merged: the admin app
+ * is `authenticated` and calls get_org_tiers by RPC, while the client portal has
+ * no Supabase Auth session (custom client_portal_users, every request is `anon`)
+ * and must go through the client-portal-api proxy. The MAPPING is identical
+ * though, so it lives here rather than being written twice.
+ *
+ * `benefits` arrives as jsonb (already an array) or as a stringified JSON array.
+ * A bad value logs and yields [] rather than taking down the calling screen.
+ */
+export function normalizeOrgTierRows(raw: unknown[] | null | undefined): OrgTier[] {
+  return (raw ?? []).map((row) => {
+    const t = row as Record<string, unknown>;
+
+    let benefits: string[] = [];
+    if (Array.isArray(t.benefits)) {
+      benefits = t.benefits as string[];
+    } else if (typeof t.benefits === 'string') {
+      try {
+        const parsed = JSON.parse(t.benefits);
+        if (Array.isArray(parsed)) benefits = parsed as string[];
+      } catch (err) {
+        console.warn(
+          `[loyaltyTier] corrupt benefits for tier ${String(t.tier_name ?? '(unnamed)')}`,
+          err,
+        );
+      }
+    }
+
+    return {
+      tier_name: String(t.tier_name ?? ''),
+      tier_order: Number(t.tier_order ?? 0),
+      min_spending: Number(t.min_spending ?? 0),
+      max_spending:
+        t.max_spending === null || t.max_spending === undefined
+          ? null
+          : Number(t.max_spending),
+      benefits,
+      color: String(t.color ?? ''),
+    };
+  });
+}
+
+/** Reduce full rows to what the tier-math helpers take. */
+export function toTierDefs(tiers: OrgTier[] | undefined): TierDef[] | undefined {
+  return tiers?.map((t) => ({ name: t.tier_name, minSpending: t.min_spending }));
+}
+
+/**
+ * The tier a customer currently holds, or null when their spend is below the
+ * org's lowest threshold — or when tiers are not loaded yet.
+ *
+ * Safe to call with undefined/empty tiers, unlike computeTierProgress, which
+ * throws by design so a caller cannot silently fall back to a guessed ladder.
+ */
+export function resolveTierName(
+  lifetimeSpend: number | null | undefined,
+  tiers: TierDef[] | undefined,
+): string | null {
+  if (!tiers || tiers.length === 0) return null;
+  if (lifetimeSpend === null || lifetimeSpend === undefined) return null;
+  return computeTierProgress(lifetimeSpend, tiers).current?.name ?? null;
+}
