@@ -1,8 +1,25 @@
 # Quotes screen status audit — the two `=== 'sent'` branches are dead, and editing a quote resets it
 
-**Audited:** 2026-07-30. Read-only, nothing fixed.
+**Audited:** 2026-07-30. **Resolved same day — see "What was done" at the foot.**
 **File:** `src/components/admin/QuotesTabContent.tsx`
 **Verdict:** two bugs that mask each other. One is dead code; the other silently corrupts quote state.
+
+> ## ⚠ Action still outstanding: affected orgs must be told
+>
+> `estimate.sent` has **never once fired from this screen**. Any org that wired a
+> Zapier Zap or GoHighLevel automation to `estimate.sent` for quotes has been
+> receiving nothing, for as long as the feature has existed, with no error on
+> either side.
+>
+> The dead branches were deleted rather than repaired (reasoning below), so that
+> does not change — but those orgs are sitting on automations they believe work.
+> **They need telling.** Silently reviving the event would have been worse: it
+> would have started delivering to untested automations, triggered by quotes being
+> *edited* rather than sent.
+>
+> Identifying them means checking which orgs have an `estimate.sent` subscription
+> configured — start from the `zapier-dispatch` function's subscription storage and
+> the GHL equivalent.
 
 ---
 
@@ -81,31 +98,42 @@ not like the edit form did it.
 
 ---
 
-## What a fix would need to decide
+## What was done
 
-Not fixing per instruction, but the shape matters and it is not obvious:
+Decided and shipped 2026-07-30.
 
-1. **What should editing do to status?** Almost certainly *preserve* it — drop
-   `status: 'draft'` from `handleSubmit`'s update path and let the existing value
-   stand. `'draft'` is only correct for **create**.
-2. **Should the dialog expose status at all?** Probably not as a free dropdown —
-   `sent` should mean "we actually sent it", which is what `f1d8a101` just
-   established for the SMS path. An editable status field would reintroduce the
-   ability to claim a send that never happened.
-3. **Should `estimate.sent` fire from here once reachable?** Only if this screen
-   ever actually sends something. It does not — it writes a row. Firing
-   `estimate.sent` on a status field flip would be the same lie `f1d8a101`
-   removed from `BookingStepper`. The honest home for that dispatch is the SMS
-   path, after a confirmed send.
+**1. `status: 'draft'` removed from the update path.** `handleSubmit` now sends it
+only on create, where it is genuinely correct — a brand-new quote really is a
+draft. Editing no longer touches status at all, so `sent`, `declined` and
+`accepted` survive a price correction.
 
-That third point means the fix is probably **delete the two dead branches**
-rather than make them reachable — but that is a product call about what
-`estimate.sent` is supposed to mean to the orgs consuming it, so it needs your
-answer, not mine.
+Status is left to the actions that actually change it: `markAsAccepted`, and
+`BookingStepper`'s SMS send.
 
-## Minor
+**2. Both `=== 'sent'` branches deleted**, along with the now-unused
+`dispatchZapier` import.
+
+The reasoning for deleting rather than reviving: **this screen does not send
+quotes.** It writes a row. `BookingStepper.handleSendQuoteSms` is what actually
+puts a quote in front of a customer. Firing `estimate.sent` when a status field
+flips in an edit form announces something that did not happen here — the identical
+lie `f1d8a101` removed from `BookingStepper` the same day.
+
+If `estimate.sent` should fire at all, it belongs in the path that actually sends
+the quote. That is separate work, and doing it here would have meant delivering
+events to untested automations on the wrong trigger.
+
+**3. Not done: exposing status in the dialog.** Deliberate. A free status dropdown
+would reintroduce exactly the ability `f1d8a101` removed — claiming a send that
+never happened. If quotes need a manual "mark as sent", it should be an explicit
+action with its own semantics, not a form field.
+
+**4. Still outstanding:** telling the orgs whose `estimate.sent` automations have
+never fired. See the banner at the top.
+
+## Minor, resolved by the above
 
 `(data as any).status` at both sites — `Quote.status` is declared `string | null`
-at `:55`, so the cast is not buying anything. Harmless, but it is a cast sitting
-exactly where the type system was the only thing that could have flagged the
-branch as unreachable.
+at `:55`, so the cast bought nothing. It sat exactly where the type system was the
+only thing that could have flagged the branch as unreachable. Both casts went with
+the branches; eslint dropped from 22 to 20 issues in this file as a result.
