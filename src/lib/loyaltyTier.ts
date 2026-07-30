@@ -227,9 +227,13 @@ export function validateTierThresholds(
   // and so never warned about a $0.99 hole. That is not a rounding nicety: a
   // customer at $4,999.50 matches no tier, resolve_customer_tier returns NULL,
   // and they hold nothing despite having spent more than the tier below
-  // requires. Off by a cent is invisible to anyone testing round numbers — and
-  // the seeded default ladder (0-499 / 500-1999 / 2000-4999 / 5000-null) has
-  // three such holes in it.
+  // requires. Off by a cent is invisible to anyone testing round numbers.
+  //
+  // Note this validator only guards ladders a human EDITS. The built-in default
+  // (0-499 / 500-1999 / 2000-4999 / 5000-null, returned by get_org_tiers when an
+  // org has no client_tier_settings rows) carries the same three holes and is not
+  // reachable from this code path at all — it lives in the function body. See
+  // docs/superpowers/prompts/2026-07-30-fix-default-tier-ladder-gaps.md.
   //
   // Compared in integer cents because 4999 + 0.01 is not exactly 4999.01 in
   // IEEE-754, and a float comparison here would reintroduce the same class of

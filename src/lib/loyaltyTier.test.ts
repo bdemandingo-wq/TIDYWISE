@@ -158,7 +158,7 @@ describe('validateTierThresholds', () => {
   const T = (id: string, name: string, min: number, max: number | null): TierRange =>
     ({ id, tier_name: name, min_spending: min, max_spending: max });
 
-  // Contiguous to the cent. The seeded default ladder uses 499 / 1999 / 4999,
+  // Contiguous to the cent. The built-in default ladder uses 499 / 1999 / 4999,
   // which leaves a $0.99 hole above each — the very thing this validator now
   // warns about, so the fixture must not reproduce it.
   const LADDER: TierRange[] = [
