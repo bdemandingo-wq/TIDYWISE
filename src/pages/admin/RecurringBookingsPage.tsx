@@ -390,6 +390,10 @@ export default function RecurringBookingsPage() {
       frequency: recurring.frequency,
       organization_id: organization.id,
       recurring_days_of_week: recurring.recurring_days_of_week,
+      // Real FK back to the series. Only ever set here — not reachable from the
+      // public booking form or any webhook path — so it is a trustworthy
+      // exemption signal for the minimum-price floor trigger.
+      recurring_booking_id: recurring.id,
     };
 
     // Resolve the custom frequency's days_of_week
