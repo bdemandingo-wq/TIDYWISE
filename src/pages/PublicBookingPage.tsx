@@ -43,6 +43,7 @@ import { Link } from 'react-router-dom';
 import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { calculateBasePrice } from '@/lib/pricingEngine';
+import { isUsHoliday } from '@/lib/usHolidays';
 import { Sentry } from '@/lib/sentry';
 import {
   configFromBusinessSettings,
@@ -542,11 +543,13 @@ export default function PublicBookingPage() {
       }
     }
 
-    // Holiday (US federal holidays by month/day)
-    if (surge_holiday_enabled) {
-      const holidays = ['1/1','7/4','11/11','12/25','12/24','11/28','12/31','1/15','2/19','5/27','9/2','10/14'];
-      const key = `${selectedDate.getMonth() + 1}/${selectedDate.getDate()}`;
-      if (holidays.includes(key)) multiplier = Math.max(multiplier, surge_holiday_multiplier);
+    // Holiday. Computed per year, not a frozen month/day list: six US federal
+    // holidays are observed-date and move annually (Thanksgiving, MLK,
+    // Presidents', Memorial, Labor, Columbus). The previous hardcoded array was
+    // already a day or two off for 2026 and would have surcharged customers on
+    // ordinary days from 2027 while missing the real holidays.
+    if (surge_holiday_enabled && isUsHoliday(selectedDate)) {
+      multiplier = Math.max(multiplier, surge_holiday_multiplier);
     }
 
     return multiplier;
