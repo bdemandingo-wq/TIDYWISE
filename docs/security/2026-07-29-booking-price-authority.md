@@ -116,3 +116,237 @@ This is the reason Part 2 of the loyalty plan was cut. Building tier discounts o
 - `external-booking-webhook` is `verify_jwt = false` (`supabase/config.toml:44-45`), so it authorizes internally — correct pattern, but that makes the deployed-vs-repo question above the whole ballgame.
 - `ingest-external-booking` uses a shared `x-api-key` against `EXTERNAL_BOOKING_INGEST_KEY` (documented at `:2-3`) — not browser-reachable, so lower exposure, but it has the same no-recompute defect.
 - `PublicBookingPage.tsx:632` fires a Meta Pixel / GA4 `Purchase` conversion with `value: calculateTotal()` — the client-computed number. If the total is forgeable, so is your reported ad revenue.
+
+---
+
+# Investigation, 2026-07-29 (read-only)
+
+Answers to the five questions, then two costed options. **No code changed.**
+
+## 1. Every path that creates a booking with a price
+
+Eight, not four. The original writeup listed the surfaces that *compute* a price;
+these are the ones that *write* one.
+
+| # | Path | Price comes from | Auth |
+|---|---|---|---|
+| 1 | Public form → `external-booking-webhook` | `calculateTotal()` in the browser (`PublicBookingPage:587`) | anon + `x-webhook-secret` (deployment state unconfirmed) |
+| 2 | **Admin stepper → `useCreateBooking`** (`useBookings.ts`) → **direct browser insert** | `finalPrice` from `BookingFormContext` (`BookingStepper:648`), plus client-computed `discount_amount` (`:650`) | authenticated |
+| 3 | `external-booking-webhook` (3rd-party callers) | payload, `z.number().min(0).max(100000)` (`:26`), written at `:288` | per-org secret |
+| 4 | `ingest-external-booking` | payload, `Number.isFinite` only (`:138`) | `x-api-key` |
+| 5 | **`RecurringBookingsPage:485`, `:533`** | `recurring.total_amount` copied from the template (`:451`, `:515`) | authenticated, direct browser insert |
+| 6 | **`process-migration-import:286`, `:357`** | `normalizeMoney(data.total_amount)` from an uploaded CSV | service_role — **bypasses RLS entirely** |
+| 7 | **Quote → booking conversion** (`QuotesTabContent:169`, `:212`, `:302`) | `quote.total_amount` | authenticated |
+| 8 | `BookingStepper:368` writes a `quotes` row | `quoteAmount` (browser) | authenticated |
+| — | Portal request page | **does not price.** Creates a request; an admin prices it later via path 2 | — |
+
+**The structural point:** paths 2, 5 and 7 insert **directly from the browser**.
+Any check placed in an edge function cannot see them. Only a database-level
+guard covers all eight.
+
+## 2. Can `calculateBasePrice` actually be shared? Yes — but it is not the problem
+
+`src/lib/pricingEngine.ts` is **pure**: no React, no DOM, no browser API. Its only
+import is `squareFootageRanges` from `src/data/pricingData.ts`, a static table of
+label/maxSqFt pairs with no business config in it.
+
+Deno can import TypeScript directly, so this is portable. Three mechanical
+blockers, all small:
+
+- the `@/` path alias is Vite-only → needs a relative import
+- Deno requires explicit `.ts` extensions
+- `squareFootageRanges` must move to the shared module, or be duplicated
+
+**But `calculateBasePrice` only computes the BASE.** The number actually being
+forged is `calculateTotal()` in `PublicBookingPage:455-521`, which is a
+**component-local function** and applies eight further steps:
+
+1. base (via `calculateBasePrice`)
+2. `+ extras` (sum of selected extra prices)
+3. `+ petFee` when `hasPets`
+4. `− room reductions` (per-type count × price, minus excluded types, floored at service minimum)
+5. `+ home condition fee`
+6. `× (1 − frequency discount)` — custom frequencies take precedence via their own `discount_pct`
+7. `× surge multiplier` (weekend / last-minute / holiday)
+8. `Math.round()`
+
+So sharing the engine buys ~15% of the problem. **The real work is extracting
+`calculateTotal` out of the component into a shared, pure module** — and that is
+also the honest answer to the drift worry: if it is extracted rather than
+reimplemented, there is one implementation and no drift. Reimplementing in
+plpgsql would create two.
+
+## 3. What pricing depends on — and the good news
+
+Everything the total needs is **already server-readable**:
+
+| Input | Source | Server-readable? |
+|---|---|---|
+| sqft prices, bedroom grid, minimum price | `service_pricing` (`public-booking-data:96-97`) | yes |
+| extras, home_condition_options, pet_options | **also `service_pricing`** — same row | yes |
+| surge (weekend/last-minute/holiday), recurring discount config, custom frequencies | `get_public_booking_settings` RPC | yes |
+| room reduction prices, excluded room types, pet fee | `business_settings` / `organization_pricing_settings` | yes |
+| coupons / discounts | `discounts` table; redemption already server-side via `increment_coupon_use` | yes |
+| tier benefits (future) | `client_tier_settings` + `resolve_customer_tier` | yes |
+
+Two things live **only in the browser**:
+
+- **`squareFootageRanges`** (`pricingData.ts:3`) — static, must move with the engine.
+- **The surge holiday list** — hardcoded inline at `PublicBookingPage:546`:
+  `['1/1','7/4','11/11','12/25','12/24','11/28','12/31','1/15','2/19','5/27','9/2','10/14']`
+
+  **That list is a latent bug independent of this work.** Several of those are
+  observed-date holidays that move every year — 11/28 (Thanksgiving), 1/15 (MLK),
+  2/19 (Presidents), 5/27 (Memorial), 9/2 (Labor), 10/14 (Columbus). Hardcoded
+  month/day means holiday surge fires on the wrong dates from 2027 onward. Worth
+  its own ticket.
+
+`src/data/pricingData.ts` also carries hardcoded `cleaningServices`, `extras`,
+`homeConditionOptions`, `bedroomPricing` — but those are **fallbacks** used when
+the DB has nothing, not the live source.
+
+## 4. Meta Pixel — yes, send the server-confirmed number
+
+`PublicBookingPage:632` fires the conversion with the client-computed value:
+
+```ts
+trackConversion('Purchase', { value: calculateTotal(), ... });
+```
+
+A forged total therefore forges reported ad revenue, which corrupts ROAS in Meta
+and GA4 and any decision made from them. `:650` and `:658` do the same for `Lead`
+and `InitiateCheckout`.
+
+**Fix: fire `Purchase` from the value the server returned**, not from
+`calculateTotal()`. The webhook response is already awaited at `:572-610` and
+already returns `booking_number` — returning the persisted `total_amount`
+alongside it is a small change and makes the pixel report what was actually
+booked.
+
+`Lead` and `InitiateCheckout` fire before submission, so no server number exists
+yet; they can keep the client estimate. That is defensible — they are funnel
+signals, not revenue.
+
+## 5. Server vs browser disagreement — the product decision, named
+
+**This will happen without any attacker**, and the reason is specific: the
+last-minute surge multiplier depends on `Date.now()` (`PublicBookingPage:536-540`).
+A customer who sees a price at T and submits at T+20min may cross
+`surge_lastminute_hours` and be recomputed **higher**. Slow form-fills,
+background tabs, and re-verification after payment all cause honest mismatch.
+
+Three options:
+
+- **A — Reject on any mismatch.** Safest financially, worst commercially. Honest
+  time-based drift becomes a failed booking with no explanation the customer can
+  act on.
+- **B — Server number always wins, silently.** Cheapest to build, and the
+  behaviour you already rejected elsewhere today: a customer who saw $180 and is
+  charged $195 experiences a bait-and-switch, and cannot tell it from a bug.
+- **C — Asymmetric: server wins downward, quoted price honoured upward, flag the
+  gap.** *(recommended)*
+  - `server < client` → charge the server's lower number. Nobody complains about
+    paying less, and it kills the forgery ceiling.
+  - `server > client` → **honour the price the customer was shown**, persist both,
+    and flag for owner review. The gap is capped (see below) so this cannot be
+    exploited for a large discount.
+  - `|gap| > tolerance` → reject, because that is not clock drift, that is a
+    forged input.
+
+C matches the rule already applied to tier resolution today — fail in the
+customer's favour, but never silently. It needs two new columns
+(`quoted_total_amount`, `price_check_status`) and an owner-visible flag.
+
+**The tolerance is the actual product decision** and should be set deliberately,
+not inferred: a percentage, a dollar cap, or the max configured surge multiplier.
+My suggestion is the largest single surge multiplier configured for the org, since
+that bounds the only legitimate source of upward drift.
+
+---
+
+# Option 1 — Smallest change that stops a forged price being accepted
+
+**A `BEFORE INSERT` trigger on `bookings` enforcing a price floor.**
+
+Not an edge-function check: paths 2, 5 and 7 insert directly from the browser and
+would bypass it. A trigger covers all eight paths, including the service-role
+migration importer.
+
+Three rungs, increasing cost:
+
+### Rung 0 — floor at the service minimum (hours)
+
+```
+if NEW.service_id is not null:
+    minimum := (select minimum_price from service_pricing where service_id = NEW.service_id)
+    if minimum is not null and NEW.total_amount < minimum: reject
+```
+
+One lookup, one comparison, no pricing logic. **Stops the $0.01 and $0 booking**,
+which is the actual attack. Does not stop $180 → $150.
+
+Watch: `service_id` is null for recleans (`BookingStepper:641`) and may be null in
+webhook payloads — the trigger must skip rather than reject when it cannot resolve
+a service, or it will block legitimate bookings.
+
+### Rung 1 — floor at a recomputed base, minus max plausible discount (days)
+
+Port `calculateBasePrice` (it is pure — see Q2) to a shared module, recompute the
+base from `service_pricing`, and reject below
+`base × (1 − max_configured_discount)`. Needs the booking's pricing inputs to be
+persisted or passed, which several paths do not currently send — that is the real
+cost here, not the maths.
+
+### Rung 2 — full authority (see Option 2)
+
+**What Rung 0 buys:** absurd forgery becomes impossible on every path, today,
+with no shared-code extraction and no product decision required. **What it does
+not buy:** shaving within plausible range, and it does nothing for the pixel.
+
+---
+
+# Option 2 — Full server-side price authority
+
+## Shape
+
+1. **Extract `calculateTotal` from `PublicBookingPage` into a shared pure module**
+   alongside `calculateBasePrice`, taking all inputs explicitly (no component
+   state, no `Date.now()` — pass `now` in).
+2. **One `quote` edge function** that loads `service_pricing` +
+   `get_public_booking_settings`, calls the shared module, and returns
+   `{ total, breakdown, inputs_hash, expires_at }`.
+3. **Clients display the quote's number** rather than computing their own, so
+   browser and server cannot disagree by construction.
+4. **A `BEFORE INSERT` trigger** re-runs the quote server-side and applies the
+   Q5 policy. This is what makes it an authority rather than a suggestion —
+   without it, paths 2/5/6/7 still write whatever they like.
+5. **Pixel fires the server number** (Q4).
+
+## Cost, honestly
+
+- Extracting `calculateTotal`: it reads ~12 pieces of component state. Mechanical
+  but wide, and it touches the highest-traffic revenue path in the product.
+- Deno/Vite dual-import of the shared module: solvable, and the reason to extract
+  rather than reimplement — **one implementation, no drift.** Reimplementing in
+  plpgsql would guarantee drift and is not recommended.
+- The trigger needs pricing inputs available at insert time. Today
+  `external-booking-webhook` receives `extras` as `{ names: [...] }`
+  (`PublicBookingPage:590`) and `square_footage` as a **label string** (`:593`) —
+  neither is a stable id. Persisting structured inputs on `bookings` is a schema
+  change and is probably the single largest piece of work.
+- Every one of the eight paths must supply those inputs, including the CSV
+  importer, which has none.
+- Needs the Q5 tolerance decided before it can ship.
+- Highest-risk area in the codebase: it touches money on every booking, and the
+  QA suite that would catch a regression is currently unrunnable (see
+  `docs/superpowers/plans/2026-07-29-qa-fixture-rebuild.md`, parked).
+
+## Recommended sequencing
+
+Rung 0 now — it is small, covers all paths, needs no decisions, and removes the
+exploitable case. Then Q4's pixel fix, which is independent and cheap. Then decide
+Q5's policy, and only then take on Option 2, ideally after the QA suite runs
+again.
+
+**Do not build tier discounts on top of this until at least Rung 0 is in.** That
+was the original reason Part 2 of the loyalty plan was cut, and it still holds.
