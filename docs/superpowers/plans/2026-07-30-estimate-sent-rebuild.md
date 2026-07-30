@@ -93,9 +93,12 @@ Worth noting how the code actually behaves before answering:
 path — texting a customer twice creates two quotes. So "resend" is really two
 separate questions:
 
-- **A repeat send from `BookingStepper`** — that is a genuinely new quote, so it
-  should presumably fire. Confirm that is intended and not itself a bug worth
-  raising separately (two quote rows for one negotiation may be undesirable).
+- **A repeat send from `BookingStepper`** — currently creates a genuinely new quote
+  row, so on today's behaviour it would fire. But that duplication is **itself a
+  logged bug**, tracked separately at
+  `docs/bugs/2026-07-30-quote-sms-duplicate-insert.md` and explicitly NOT waiting
+  on this rebuild. Settle that first: if a repeat stops creating a second row,
+  this question changes shape entirely.
 - **`QuotesTabContent`'s reminder SMS** (`:250-270`) — sends a reminder about an
   *existing* quote and deliberately does not change status. Arguably this is not
   `estimate.sent` at all but a distinct `estimate.reminded` event. Firing
