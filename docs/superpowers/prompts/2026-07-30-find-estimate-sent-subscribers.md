@@ -128,14 +128,30 @@ this list usable for a personalised message.
 
 ## What to tell them
 
-Suggested substance, not wording — this is your call:
+**Decided 2026-07-30: `estimate.sent` is coming back**, wired to the path that
+actually sends a quote (`BookingStepper`'s SMS send), not to a status flip.
+
+So the message is **"it never worked, and we're wiring it properly"** — *not*
+"we've removed it". Whoever writes the outreach should not have to infer that.
+
+Suggested substance, not wording:
 
 - Their `estimate.sent` automation has not been receiving events. Not intermittently: not at all.
 - Nothing on their side is misconfigured. The event was never emitted.
-- It has **not** been quietly switched on. Reviving it would have delivered a backlog-shaped surprise to automations nobody has tested, triggered by quotes being *edited* rather than sent — which is why it was removed instead.
-- If sending a quote should trigger their automation, that is real work with a defined home (the SMS send path in `BookingStepper`), and you will scope it rather than guess.
+- It has **not** been quietly switched on in the meantime. Firing it from the edit
+  form would have delivered events to untested automations on the wrong trigger —
+  quotes being *edited* rather than sent — so it was removed rather than revived.
+- It is being rebuilt against the send path, where a quote genuinely goes out to a
+  customer. No date promised here; see the scope note below.
 
-Worth deciding before contacting anyone: whether `estimate.sent` is coming back at
-all. "It never worked and we have removed it" and "it never worked and we are
-building it properly" are different messages, and sending the first then doing the
-second is worse than waiting a day to decide.
+**Do not promise a payload shape in the outreach.** The published sample and what
+the code would have sent disagree (see below), and the rebuild has to settle that
+first. Saying "it'll work as documented" may turn out to be a second wrong
+statement to the same people.
+
+### Scope is not yet fixed
+
+The rebuild is queued as its own piece of work, after the Lovable backlog clears:
+`docs/superpowers/plans/2026-07-30-estimate-sent-rebuild.md`. Two things are
+undecided (payload contents, and whether it fires on resend), so any date given to
+an org now would be a guess.

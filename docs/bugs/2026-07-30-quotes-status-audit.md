@@ -130,8 +130,18 @@ would reintroduce exactly the ability `f1d8a101` removed — claiming a send tha
 never happened. If quotes need a manual "mark as sent", it should be an explicit
 action with its own semantics, not a form field.
 
-**4. Still outstanding:** telling the orgs whose `estimate.sent` automations have
-never fired. See the banner at the top.
+**4. `estimate.sent` is coming back** — decided 2026-07-30, wired to
+`BookingStepper`'s SMS send, the path where a quote actually reaches a customer.
+Queued as its own work after the Lovable backlog:
+`docs/superpowers/plans/2026-07-30-estimate-sent-rebuild.md`. Two contract
+questions are open (payload shape, resend semantics), and a second bug surfaced
+while scoping it: the published sample payload in `zapierEventSamples.ts:123-130`
+does not match the `quotes` table in four ways, so even a firing branch would have
+delivered something orgs' field mappings did not describe.
+
+**5. Still outstanding:** telling the subscribed orgs. See the banner at the top —
+the message is "it never worked, and we're wiring it properly", not "we've removed
+it".
 
 ## Minor, resolved by the above
 
