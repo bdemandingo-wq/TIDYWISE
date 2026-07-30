@@ -96,7 +96,7 @@ export default function PortalRequestPage() {
 
   // Inline add address state
   const [showAddAddress, setShowAddAddress] = useState(false);
-  const [newAddr, setNewAddr] = useState({ name: "Home", address: "", city: "", state: "", zip_code: "", latitude: null as number | null, longitude: null as number | null });
+  const [newAddr, setNewAddr] = useState({ name: "Home", address: "", apt_suite: "", city: "", state: "", zip_code: "", latitude: null as number | null, longitude: null as number | null });
   const [savingAddr, setSavingAddr] = useState(false);
 
   const isAirbnb = customer?.property_type === 'airbnb';
@@ -166,6 +166,7 @@ export default function PortalRequestPage() {
           action: "add_location",
           p_name: newAddr.name.trim(),
           p_address: newAddr.address.trim(),
+          p_apt_suite: newAddr.apt_suite.trim() || null,
           p_city: newAddr.city.trim() || null,
           p_state: newAddr.state.trim() || null,
           p_zip_code: newAddr.zip_code.trim() || null,
@@ -182,7 +183,7 @@ export default function PortalRequestPage() {
         if (newLoc) setSelectedLocation(newLoc.id);
       }
       toast.success("Address added!");
-      setNewAddr({ name: "Home", address: "", city: "", state: "", zip_code: "", latitude: null, longitude: null });
+      setNewAddr({ name: "Home", address: "", apt_suite: "", city: "", state: "", zip_code: "", latitude: null, longitude: null });
       setShowAddAddress(false);
     } catch (err: any) {
       console.error("Add address error:", err);
@@ -484,6 +485,15 @@ export default function PortalRequestPage() {
                         }
                         placeholder="123 Main St"
                         inputClassName="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Apt/Suite</Label>
+                      <Input
+                        placeholder="Apt 4B"
+                        value={newAddr.apt_suite}
+                        onChange={(e) => setNewAddr(prev => ({ ...prev, apt_suite: e.target.value }))}
+                        className="h-9"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
