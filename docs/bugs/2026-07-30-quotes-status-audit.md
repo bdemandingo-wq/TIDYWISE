@@ -17,9 +17,11 @@
 > would have started delivering to untested automations, triggered by quotes being
 > *edited* rather than sent.
 >
-> Identifying them means checking which orgs have an `estimate.sent` subscription
-> configured — start from the `zapier-dispatch` function's subscription storage and
-> the GHL equivalent.
+> **The queries to identify them are written**, covering both channels
+> (`org_zapier_webhooks.event_type` for Zapier, `org_ghl_settings.event_config` for
+> GoHighLevel), plus an owner contact list and a dispatch-log check that verifies
+> the "never fired" claim empirically rather than by code reading:
+> `docs/superpowers/prompts/2026-07-30-find-estimate-sent-subscribers.md`
 
 ---
 
