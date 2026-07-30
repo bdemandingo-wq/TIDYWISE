@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { handleSmsError } from '@/lib/smsErrorHandler';
+import { Sentry } from '@/lib/sentry';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -349,7 +350,40 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         customerId = customer.id;
       }
 
-      // Create quote record in database
+      // Send the SMS FIRST, and only record the quote as 'sent' once it has
+      // actually gone out.
+      //
+      // This used to be the other way round: the row was inserted with
+      // status 'sent' and the SMS attempted afterwards. A failed send left a
+      // quote permanently claiming it had been sent, with no way to tell it
+      // apart from a real one — the customer never got a price and the org
+      // had no reason to look. handleSmsError() also catches edge functions
+      // that return 200 with `success: false`, so that path silently produced
+      // the same lie.
+      //
+      // Matches the ordering the two invoice send paths already use
+      // (InvoicesPage.tsx sendInvoiceEmail, InvoiceViewDialog.tsx
+      // handleSendEmail): invoke, bail on error, then write the status.
+      const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
+        `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
+        `💰 Total: ${fmt(quoteAmount)}\n\n` +
+        `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
+
+      const response = await supabase.functions.invoke('send-openphone-sms', {
+        body: {
+          to: customerPhone,
+          message,
+          organizationId: organizationId ?? undefined,
+        },
+      });
+
+      // Handle SMS-specific errors. handleSmsError has already shown a toast
+      // naming the cause, so return without recording anything.
+      if ((await handleSmsError(response))) {
+        return;
+      }
+
+      // The customer has the quote. Now record it.
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + 7); // Valid for 7 days
 
@@ -372,26 +406,25 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         notes: notes || null,
       });
 
-      if (quoteError) throw quoteError;
-
-      // Send SMS
-      const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
-        `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
-        `💰 Total: ${fmt(quoteAmount)}\n\n` +
-        `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
-
-      const response = await supabase.functions.invoke('send-openphone-sms', {
-        body: {
-          to: customerPhone,
-          message,
-          organizationId: organizationId ?? undefined,
-        },
-      });
-      
-      // Handle SMS-specific errors
-      if ((await handleSmsError(response))) {
+      if (quoteError) {
+        // Reordering moves the failure window rather than removing it: the SMS
+        // is already delivered and cannot be recalled, so this must NOT rethrow
+        // into the generic "Failed to send quote via SMS" handler below — that
+        // would tell the owner the opposite of what happened and invite a
+        // duplicate send to the same customer.
+        console.error('Quote SMS sent but saving the quote failed:', quoteError);
+        Sentry.captureException(quoteError, {
+          tags: { area: 'quotes', phase: 'post-send-insert' },
+          extra: { organizationId, customerId, quoteAmount },
+        });
+        toast.error(
+          `Quote texted to ${customerName}, but saving it failed — it won't appear in Quotes. ` +
+            `Don't resend; create it manually. (${quoteError.message})`,
+          { duration: 12000 },
+        );
         return;
       }
+
       toast.success('Quote saved and sent via SMS!');
     } catch (error: any) {
       console.error('Quote SMS error:', error);
