@@ -264,7 +264,9 @@ function BottomPillNav({
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
   const { user, customer, loyalty, signOut, loading, refreshData, invokePortal } = useClientPortal();
-  const { tiers: orgTiers } = useOrgTiers();
+  // tierDefs is the narrow { name, minSpending } shape the tier-math helpers
+  // take; the hook's `tiers` carries the full rows for the profile tab.
+  const { tierDefs: orgTiers } = useOrgTiers();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);

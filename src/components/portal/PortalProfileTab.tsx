@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useClientPortal } from "@/contexts/ClientPortalContext";
+import { useOrgTiers } from "@/hooks/useOrgTiers";
 import { supabase } from "@/lib/supabase";
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { fmt } from '@/lib/activeCurrency';
@@ -44,15 +45,6 @@ interface Location {
   is_primary: boolean;
 }
 
-interface TierInfo {
-  tier_name: string;
-  tier_order: number;
-  min_spending: number;
-  max_spending: number | null;
-  benefits: string[];
-  color: string;
-}
-
 export function PortalProfileTab() {
   const { user, customer, loyalty, refreshData, invokePortal } = useClientPortal();
   const [firstName, setFirstName] = useState(customer?.first_name || "");
@@ -77,9 +69,11 @@ export function PortalProfileTab() {
   });
   const [savingLocation, setSavingLocation] = useState(false);
   
-  const [tiers, setTiers] = useState<TierInfo[]>([]);
-  const [loadingTiers, setLoadingTiers] = useState(true);
-  const [tiersError, setTiersError] = useState<string | null>(null);
+  // Tiers come from the shared hook, not a local fetch. This component used to
+  // run its own useState/useEffect copy of the same request; two independent
+  // fetchers meant two caches and two places to keep the error handling right.
+  const { tiers = [], isLoading: loadingTiers, error: tiersErrorObj } = useOrgTiers();
+  const tiersError = tiersErrorObj?.message ?? null;
 
   useEffect(() => {
     if (customer) {
@@ -105,50 +99,7 @@ export function PortalProfileTab() {
       setLoadingLocations(false);
     };
 
-    const fetchTiers = async () => {
-      setLoadingTiers(true);
-      // Goes through the proxy: organization_id is taken from the verified
-      // portal session server-side, not sent from here.
-      setTiersError(null);
-      const { data, error } = await invokePortal("client-portal-api", {
-        body: { action: "get_loyalty_tiers" },
-      });
-
-      // Previously `if (!error && data)` with no else. When the anon grant was
-      // revoked in May this call started failing with 42501 and the section
-      // simply rendered empty — a customer-facing feature was dead for three
-      // months because nothing said so. A failure has to be visible.
-      if (error) {
-        console.error("[PortalProfileTab] loyalty tiers failed to load", error);
-        setTiersError(await readEdgeFunctionError(error, "Couldn't load loyalty tiers."));
-        setLoadingTiers(false);
-        return;
-      }
-
-      if (data) {
-        const tiersData = (data as any[]).map((t) => {
-          // benefits is stored as either jsonb (already an array) or a stringified
-          // JSON array. Bad data shouldn't crash the entire profile tab.
-          let benefits: unknown[] = [];
-          if (Array.isArray(t.benefits)) {
-            benefits = t.benefits;
-          } else if (typeof t.benefits === "string") {
-            try {
-              benefits = JSON.parse(t.benefits);
-            } catch (err) {
-              console.warn(`[PortalProfileTab] corrupt benefits for tier ${t.id ?? "(no id)"}`, err);
-              benefits = [];
-            }
-          }
-          return { ...t, benefits };
-        });
-        setTiers(tiersData);
-      }
-      setLoadingTiers(false);
-    };
-
     fetchLocations();
-    fetchTiers();
   }, [user]);
 
   const handleSaveProfile = async () => {
@@ -642,8 +593,8 @@ export function PortalProfileTab() {
                         )}
                       </div>
                       <span className="text-sm text-muted-foreground">
-                        {tier.min_spending}
-                        {tier.max_spending ? ` - ${tier.max_spending}` : "+"} pts
+                        {fmt(tier.min_spending)}
+                        {tier.max_spending ? ` - ${fmt(tier.max_spending)}` : "+"}
                       </span>
                     </div>
 
