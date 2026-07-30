@@ -390,6 +390,64 @@ serve(async (req) => {
         return ok(data ?? []);
       }
 
+      case "request_email_change": {
+        // NOTIFY ONLY. Never modifies customers.email or client_portal_users.
+        const raw = typeof body?.p_new_email === "string" ? body.p_new_email : "";
+        const newEmail = raw.trim().toLowerCase();
+
+        // Loose validation on purpose: an admin confirms before acting.
+        if (
+          !newEmail || newEmail.length > 320 ||
+          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)
+        ) {
+          return err("A valid email address is required", 400);
+        }
+
+        // Identity from the VERIFIED SESSION only.
+        const { data: cust, error: custErr } = await supabase
+          .from("customers")
+          .select("first_name, last_name, email")
+          .eq("id", customer_id)
+          .maybeSingle();
+        if (custErr) return err(custErr.message, 500);
+        if (!cust) return err("Customer not found", 404);
+
+        const currentEmail = (cust.email ?? "").trim().toLowerCase();
+        if (currentEmail && currentEmail === newEmail) {
+          return err("That is already your email address", 400);
+        }
+
+        const customerName =
+          `${cust.first_name ?? ""} ${cust.last_name ?? ""}`.trim() || "A customer";
+
+        const { error: notifyErr } = await supabase
+          .from("admin_system_notifications")
+          .insert({
+            organization_id,
+            type: "email_change_request",
+            title: "Email change requested",
+            message:
+              `${customerName} asked to change their sign-in email from ` +
+              `${currentEmail || "(none on file)"} to ${newEmail}`,
+            link: `/dashboard/customers?customer=${customer_id}`,
+            metadata: {
+              customer_id,
+              current_email: currentEmail,
+              requested_email: newEmail,
+              source: "client_portal",
+            },
+            dedupe_key: `email_change_req:${customer_id}:${newEmail}`,
+          });
+
+        // 23505 = already recorded → success from the customer's point of view.
+        if (notifyErr && (notifyErr as { code?: string }).code !== "23505") {
+          return err(notifyErr.message, 500);
+        }
+
+        return ok({ success: true });
+      }
+
+
 
       default:
         return err(`Unknown action: ${action}`, 400);
