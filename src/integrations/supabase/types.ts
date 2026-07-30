@@ -11229,6 +11229,22 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      update_client_portal_location: {
+        Args: {
+          p_address?: string
+          p_apt_suite?: string
+          p_city?: string
+          p_client_user_id: string
+          p_customer_id: string
+          p_latitude?: number
+          p_location_id: string
+          p_longitude?: number
+          p_name?: string
+          p_state?: string
+          p_zip_code?: string
+        }
+        Returns: boolean
+      }
       update_client_portal_profile: {
         Args: {
           p_client_user_id: string

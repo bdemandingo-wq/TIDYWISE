@@ -359,6 +359,35 @@ serve(async (req) => {
         return ok(data);
       }
 
+      case "update_location": {
+        // Address CORRECTION only. Identity comes from the VERIFIED SESSION;
+        // only locationId + address fields are taken from the body.
+        const locationId = typeof body?.locationId === "string" ? body.locationId.trim() : "";
+        if (!locationId) return err("locationId is required", 400);
+
+        const str = (v: unknown) => (typeof v === "string" ? v.trim() : null);
+        const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+        const { data, error } = await supabase.rpc("update_client_portal_location", {
+          p_client_user_id: portal_user_id,
+          p_customer_id: customer_id,
+          p_location_id: locationId,
+          p_name: str(body?.name),
+          p_address: str(body?.address),
+          p_apt_suite: str(body?.aptSuite ?? body?.apt_suite),
+          p_city: str(body?.city),
+          p_state: str(body?.state),
+          p_zip_code: str(body?.zipCode ?? body?.zip_code),
+          p_latitude: num(body?.latitude),
+          p_longitude: num(body?.longitude),
+        });
+        if (error) return err(error.message, 500);
+        if (data === false) return err("Address not found", 404);
+        return ok({ success: true });
+      }
+
+
+
       case "submit_booking_request": {
         const requestedDate = typeof body?.requestedDate === "string" ? body.requestedDate.trim() : "";
         if (!requestedDate || Number.isNaN(Date.parse(requestedDate))) {
