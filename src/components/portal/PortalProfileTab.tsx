@@ -108,6 +108,25 @@ export function PortalProfileTab() {
       return;
     }
 
+    // Never send a phone we did not load.
+    //
+    // saveSession() strips email and phone before persisting, so on a restored
+    // session this input starts EMPTY even though the customer has a number.
+    // Saving to fix a name typo then sent p_phone: null and destroyed it — and
+    // phone is the channel every SMS uses (arrival, on-the-way, review request).
+    //
+    // An empty email is the reliable tell that contact details have not been
+    // re-hydrated yet: email is the portal login identifier, so it is never
+    // legitimately blank. Refuse rather than write, because
+    // update_client_portal_profile does `phone = p_phone` UNCONDITIONALLY —
+    // omitting the field would still null the column, so omission is not a fix
+    // until that RPC uses COALESCE(p_phone, phone).
+    const contactsHydrated = !!customer?.email;
+    if (!contactsHydrated) {
+      toast.error("Still loading your details — please refresh the page and try again.");
+      return;
+    }
+
     setSavingProfile(true);
 
     try {

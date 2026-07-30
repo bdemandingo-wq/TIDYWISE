@@ -526,6 +526,39 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     [sessionToken, handleUnauthorized],
   );
 
+  // Re-hydrate contact details after a session restore.
+  //
+  // saveSession() deliberately strips email and phone before persisting, so they
+  // are never sitting in plaintext localStorage — and its comment says they are
+  // "reloaded on next sign-in or via refreshData()". That second half never
+  // happened: refreshData is only called after a profile save, and its customer
+  // fetch was a direct anon read of `customers`, which RLS returns empty for.
+  //
+  // Consequences were a blank email field, and worse: PortalProfileTab
+  // initialises its phone input from customer.phone, so Save sent p_phone: null
+  // and DESTROYED the customer's number — the channel every SMS uses.
+  //
+  // An empty email is the reliable tell that PII was stripped rather than absent:
+  // email is the portal login identifier (client-portal-login resolves by it), so
+  // it is never legitimately blank.
+  useEffect(() => {
+    if (!sessionToken || !user?.customer_id) return;
+    if (customer?.email) return; // already hydrated
+
+    let cancelled = false;
+    (async () => {
+      const { data } = await invokePortal<Array<{
+        email: string | null;
+        phone: string | null;
+      }>>('client-portal-api', { body: { action: 'get_user_data' } });
+      const row = data?.[0];
+      if (cancelled || !row?.email) return;
+      setCustomer((prev) => (prev ? { ...prev, email: row.email!, phone: row.phone } : prev));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionToken, user?.customer_id, customer?.email]);
+
   const refreshData = async () => {
     if (!user) return;
 
