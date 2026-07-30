@@ -249,7 +249,13 @@ const App = () => (
             // number that reads as current — worse than showing nothing,
             // because the operator has no way to tell it is stale and may
             // re-send thinking the run died. Always refetch this.
-            !JSON.stringify(q.queryKey).includes('campaign-runs'),
+            !JSON.stringify(q.queryKey).includes('campaign-runs') &&
+            // Loyalty tier thresholds are per-org and owner-editable. A stale
+            // cached threshold would tell a customer they hold a tier they no
+            // longer qualify for, or hide one they've earned — same reasoning
+            // as service-pricing above: never serve tier status from an
+            // offline cache.
+            !JSON.stringify(q.queryKey).includes('org-tiers'),
         },
       }}
     >

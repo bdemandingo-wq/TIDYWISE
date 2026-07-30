@@ -279,11 +279,18 @@ export function PortalProfileTab() {
     }
   };
 
-  const currentPoints = loyalty?.lifetime_points || 0;
-  const currentTierName = loyalty?.tier?.toLowerCase() || "bronze";
-  const currentTierIndex = tiers.findIndex(
-    (t) => t.tier_name.toLowerCase() === currentTierName
-  );
+  // Tiers are keyed on lifetime SPEND in dollars (client_tier_settings.
+  // min_spending), so the value compared against them must be spend — not
+  // lifetime_points. Those were previously conflated here, which only looked
+  // right because the award trigger happens to grant 1 point per dollar; it is
+  // wrong for any customer whose history was imported (their points are 0 while
+  // their spend is real).
+  const currentSpend = loyalty?.lifetime_spend ?? 0;
+
+  // No "bronze" fallback: tier is null when the customer is below this org's
+  // lowest threshold, which is a real state. Defaulting would highlight a tier
+  // they have not reached — and "bronze" is one org's tier name, not a universal.
+  const currentTierName = loyalty?.tier?.toLowerCase() ?? null;
 
   return (
     <div className="space-y-4 mt-4">
@@ -573,7 +580,7 @@ export function PortalProfileTab() {
             <CardTitle>Loyalty Tiers</CardTitle>
           </div>
           <CardDescription>
-            Your progress: {currentPoints} lifetime points
+            Your progress: {fmt(currentSpend)} lifetime spend
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -594,18 +601,18 @@ export function PortalProfileTab() {
               {tiers.map((tier, index) => {
                 const isCurrentTier =
                   tier.tier_name.toLowerCase() === currentTierName;
-                const isAchieved = currentPoints >= tier.min_spending;
+                const isAchieved = currentSpend >= tier.min_spending;
                 const progressToNext =
-                  tier.max_spending !== null && currentPoints >= tier.min_spending
+                  tier.max_spending !== null && currentSpend >= tier.min_spending
                     ? Math.min(
-                        ((currentPoints - tier.min_spending) /
+                        ((currentSpend - tier.min_spending) /
                           (tier.max_spending - tier.min_spending)) *
                           100,
                         100
                       )
-                    : tier.max_spending === null && currentPoints >= tier.min_spending
+                    : tier.max_spending === null && currentSpend >= tier.min_spending
                     ? 100
-                    : (currentPoints / tier.min_spending) * 100;
+                    : (currentSpend / tier.min_spending) * 100;
 
                 return (
                   <div
@@ -644,7 +651,7 @@ export function PortalProfileTab() {
                       <div className="mb-2">
                         <Progress value={progressToNext} className="h-2" />
                         <p className="text-xs text-muted-foreground mt-1">
-                          {tier.max_spending - currentPoints} points to next tier
+                          {fmt(tier.max_spending - currentSpend)} to next tier
                         </p>
                       </div>
                     )}

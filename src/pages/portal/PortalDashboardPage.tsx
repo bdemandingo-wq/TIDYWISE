@@ -55,6 +55,8 @@ import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
 import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
+import { useOrgTiers } from "@/hooks/useOrgTiers";
+import { tierProgressPercent, type TierDef } from "@/lib/loyaltyTier";
 
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -117,13 +119,24 @@ const INSPECTION_CATEGORY_CONFIG = {
 // parent re-render created a new component identity, so React unmounted and
 // remounted the whole subtree — which reset the redeem button's in-flight guard
 // and let the same customer redeem repeatedly. Keep it out here.
-const tierProgressMap: Record<string, number> = { bronze: 25, silver: 50, gold: 75, platinum: 100 };
-
-function PortalLoyaltyCard({ points, tier }: { points: number; tier: string | null }) {
-  // TODO(Part 3): tierProgressMap hardcodes TidyWise Cleaning's four tier
-  // names. Orgs with custom tiers in client_tier_settings fall through to 25%.
-  // Fixed when the banner and card move to useOrgTiers.
-  const tierProgress = tierProgressMap[tier?.toLowerCase() ?? ''] ?? 25;
+function PortalLoyaltyCard({
+  points,
+  tier,
+  lifetimeSpend,
+  tiers,
+}: {
+  points: number;
+  tier: string | null;
+  lifetimeSpend: number | null | undefined;
+  tiers: TierDef[] | undefined;
+}) {
+  // Progress is derived from this org's own thresholds. It used to come from a
+  // hardcoded { bronze: 25, silver: 50, gold: 75, platinum: 100 } lookup, which
+  // returned 25% for every org that renamed its tiers. Null when we cannot know.
+  const progress =
+    tiers && tiers.length > 0 && lifetimeSpend !== null && lifetimeSpend !== undefined
+      ? tierProgressPercent(lifetimeSpend, tiers)
+      : null;
 
   return (
     <Card className="pv-quiet" data-testid="portal-loyalty-card">
@@ -143,7 +156,10 @@ function PortalLoyaltyCard({ points, tier }: { points: number; tier: string | nu
           </div>
           <Trophy className="h-4 w-4 text-[hsl(var(--pv-ink-4))] shrink-0" />
         </div>
-        <Progress value={tierProgress} className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]" />
+        {/* Omit the bar entirely rather than show a meaningless 0% or 25% */}
+        {progress !== null && (
+          <Progress value={progress} className="h-1 mt-3 bg-[hsl(var(--pv-sunken))]" />
+        )}
       </CardContent>
     </Card>
   );
@@ -248,6 +264,7 @@ function BottomPillNav({
 export default function PortalDashboardPage() {
   const navigate = useNavigate();
   const { user, customer, loyalty, signOut, loading, refreshData, invokePortal } = useClientPortal();
+  const { tiers: orgTiers } = useOrgTiers();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -547,7 +564,15 @@ export default function PortalDashboardPage() {
     );
   }
 
-  const displayLoyalty = loyalty || { points: 0, lifetime_points: 0, tier: "bronze" };
+  // No hardcoded tier default: "bronze" is one org's tier name, and the
+  // resolver legitimately returns null for a customer below the lowest
+  // threshold. A default here would invent a tier the org never defined.
+  const displayLoyalty = loyalty ?? {
+    points: 0,
+    lifetime_points: 0,
+    tier: null as string | null,
+    lifetime_spend: null as number | null,
+  };
 
   const getDateLabel = (dateStr: string) => {
     const bookingDay = getDateInTimezone(dateStr, orgTimezone);
@@ -761,17 +786,10 @@ export default function PortalDashboardPage() {
 
       {/* Content */}
       <div className="portal-v2-scroll max-w-5xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 overflow-x-clip">
-        {/* Tiers are per-org (client_tier_settings), keyed on LIFETIME SPEND.
-            Both inputs are still pending Task 3.3:
-              - lifetimeSpend: client-portal-api's get_user_data payload does not
-                yet return customer_loyalty.lifetime_spend (Task 3.3a, Lovable).
-              - tiers: fetched via client-portal-api action 'get_loyalty_tiers'
-                (Task 3.3b). The portal has no Supabase auth session, so it
-                cannot call get_org_tiers directly.
-            Passing undefined keeps the banner hidden until real data exists.
-            That is deliberate: it previously rendered TidyWise Cleaning's
-            hardcoded ladder for every org, and hidden beats wrong. */}
-        <LoyaltyTierBanner lifetimeSpend={undefined} tiers={undefined} />
+        <LoyaltyTierBanner
+          lifetimeSpend={displayLoyalty.lifetime_spend}
+          tiers={orgTiers}
+        />
 
         <div className="mt-4 grid gap-5 lg:grid-cols-3">
           {/* min-w-0: grid/flex children default to min-width:auto, so the
@@ -1059,7 +1077,12 @@ export default function PortalDashboardPage() {
           {/* Right rail — hidden on mobile, sticky on desktop */}
           <aside className="hidden lg:block space-y-4">
             <div className="sticky top-24 space-y-4">
-              <PortalLoyaltyCard points={displayLoyalty.points} tier={displayLoyalty.tier} />
+              <PortalLoyaltyCard
+                points={displayLoyalty.points}
+                tier={displayLoyalty.tier}
+                lifetimeSpend={displayLoyalty.lifetime_spend}
+                tiers={orgTiers}
+              />
               <QuickActions />
             </div>
           </aside>
@@ -1067,7 +1090,12 @@ export default function PortalDashboardPage() {
 
         {/* Loyalty + quick actions on mobile appear inline below */}
         <div className="lg:hidden mt-5 space-y-4">
-          <PortalLoyaltyCard points={displayLoyalty.points} tier={displayLoyalty.tier} />
+          <PortalLoyaltyCard
+            points={displayLoyalty.points}
+            tier={displayLoyalty.tier}
+            lifetimeSpend={displayLoyalty.lifetime_spend}
+            tiers={orgTiers}
+          />
           <QuickActions />
         </div>
       </div>

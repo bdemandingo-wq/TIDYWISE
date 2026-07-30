@@ -76,3 +76,29 @@ export function computeTierProgress(
 
   return { current, next, amountAway };
 }
+
+/**
+ * Progress toward the next tier, 0–100, for a progress bar.
+ *
+ * Replaces a hardcoded `{ bronze: 25, silver: 50, gold: 75, platinum: 100 }`
+ * lookup, which returned 25 for every org that renamed its tiers.
+ *
+ * - Climbing toward the first tier: fraction of that first threshold.
+ * - Between two tiers: fraction of the gap between them.
+ * - At the top tier: 100.
+ */
+export function tierProgressPercent(
+  lifetimeSpend: number,
+  tiers: TierDef[],
+): number {
+  const { current, next } = computeTierProgress(lifetimeSpend, tiers);
+
+  if (!next) return 100;
+
+  const floor = current ? current.minSpending : 0;
+  const span = next.minSpending - floor;
+  if (span <= 0) return 100;
+
+  const pct = ((lifetimeSpend - floor) / span) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
