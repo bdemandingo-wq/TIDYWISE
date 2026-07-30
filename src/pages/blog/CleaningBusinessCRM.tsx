@@ -118,7 +118,7 @@ const faqs = [
   },
   {
     question: "Can I use a free CRM for my cleaning business?",
-    answer: "Free CRMs like HubSpot or Zoho aren't designed for cleaning businesses and lack scheduling, dispatching, invoicing, and route optimization features. TIDYWISE offers a 30-day money-back guarantee so you can test all features before committing to a paid plan."
+    answer: "Free CRMs like HubSpot or Zoho aren't designed for cleaning businesses and lack scheduling, dispatching, invoicing, and route optimization features. TIDYWISE gives you a 14-day free trial so you can test every feature before committing to a paid plan."
   },
   {
     question: "How much does cleaning business software cost?",
@@ -241,7 +241,7 @@ export default function CleaningBusinessCRM() {
               <div>
                 <h2 className="text-xl font-bold text-foreground mb-3">🏆 Best CRM for Cleaning Business 2026: Quick Answer</h2>
                 <p className="text-muted-foreground mb-4">
-                  <strong>TIDYWISE</strong> is a top-rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$49/month with unlimited users</strong> and a 30-day money-back guarantee ().
+                  <strong>TIDYWISE</strong> is a top-rated CRM built specifically for cleaning businesses. It combines customer management, smart scheduling, automated invoicing, GPS tracking, and team coordination in one platform—starting at just <strong>$49/month with unlimited users</strong>, with a 14-day free trial.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild size="lg">
@@ -404,7 +404,7 @@ export default function CleaningBusinessCRM() {
                       <th className="text-left p-4 font-medium text-foreground">Software</th>
                       <th className="text-center p-4 font-medium text-foreground">Monthly Price</th>
                       <th className="text-center p-4 font-medium text-foreground">Users Included</th>
-                      <th className="text-center p-4 font-medium text-foreground">Money-back</th>
+                      <th className="text-center p-4 font-medium text-foreground">Free trial</th>
                       <th className="text-center p-4 font-medium text-foreground">Built for Cleaning</th>
                       <th className="text-center p-4 font-medium text-foreground">Mobile App</th>
                       <th className="text-center p-4 font-medium text-foreground">Rating</th>
@@ -477,7 +477,7 @@ export default function CleaningBusinessCRM() {
                     <span className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">4</span>
                     Test Before You Commit
                   </h3>
-                  <p className="text-muted-foreground">A 14-day trial often isn't enough to truly evaluate software. TIDYWISE offers 30-day money-back guarantee—enough time to run your business through a full billing cycle and see real results.</p>
+                  <p className="text-muted-foreground">Most trials give you a fortnight of poking around an empty account. TIDYWISE gives you 14 days with your real customers, real jobs and real invoices loaded in — import your existing client list on day one and run the business through it, rather than evaluating a demo.</p>
                 </div>
               </div>
             </section>
@@ -568,7 +568,7 @@ export default function CleaningBusinessCRM() {
               Ready to Grow Your Cleaning Business?
             </h2>
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Try TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 30-day money-back guarantee today.
+              Try TIDYWISE to manage customers, schedule jobs, and get paid faster. Start your 14-day free trial today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>

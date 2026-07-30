@@ -375,7 +375,7 @@ export default function LocationSoftwarePage() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground mt-6">
-              14-day money-back guarantee on annual plans. Cancel any time.
+              14-day free trial. Cancel any time.
             </p>
           </div>
         </section>

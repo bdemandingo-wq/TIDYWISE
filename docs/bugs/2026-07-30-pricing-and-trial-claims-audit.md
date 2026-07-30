@@ -72,10 +72,38 @@ signup notification functions; none mention a duration.
 
 ---
 
-## Decision needed: the 30-day money-back guarantee
+## RESOLVED: the 30-day money-back guarantee did not exist — all 11 files cleared
 
-**Not changed, because I do not know whether it exists**, and guessing is wrong in both
-directions — asserting a guarantee you do not offer is a trust and chargeback problem;
+**Answer to "is it in Stripe product descriptions, checkout, or terms?" — no, and the
+terms say the exact opposite.**
+
+`src/components/legal/termsContent.tsx:22-29`, `REFUND_POLICY`:
+
+> "**All payments are final and non-refundable.** This includes subscription fees
+> (monthly and yearly), one-time lifetime purchases, and AI credit top-ups. You may
+> cancel your subscription at any time; cancellation stops future billing but no
+> refunds, credits, or prorated amounts are issued for the current or past billing
+> periods. **This policy is disclosed at signup directly beside the required consent
+> checkbox**, in the Terms of Service, and on the public terms page…"
+
+So there is no obligation to preserve. There was a **contradiction to remove**, and it
+ran the opposite way from the risk you were guarding against:
+
+1. That string is submitted to Stripe as **dispute evidence** (`refund_policy`) — the
+   file header says so at `:5`, and `supabase/functions/_shared/policies.ts:12` holds a
+   verbatim copy for edge functions.
+2. It asserts the policy is **consistently disclosed** — which 11 marketing pages
+   promising a refund directly falsified.
+3. A customer who screenshotted "30-day money-back guarantee" from a comparison page
+   and disputed a charge would have been contradicting our own dispute defence **with
+   our own website**. That weakens every dispute response, not just theirs.
+
+Removing the claim was therefore more urgent than leaving it, not less.
+
+### Historical note — the decision as it stood before that check
+
+**Was not changed, because it was not knowable whether it existed**, and guessing was
+wrong in both directions — asserting a guarantee you do not offer is a trust and chargeback problem;
 deleting a real one removes a competitive selling point from 11 pages.
 
 The evidence points to it **not** existing:
@@ -117,11 +145,31 @@ regardless of the guarantee decision.
 (`CleaningBusinessCRM.tsx:244` also ends `"...money-back guarantee ()."` — an empty
 parenthesis, presumably a citation that never got filled in.)
 
-**Tell me which and I will do all 11 in one pass:**
-1. No guarantee exists → remove every claim, replace the comparison rows with "14-day
-   free trial"
-2. It exists at 30 days → fix `LocationSoftwarePage`'s 14-day outlier, keep the rest
-3. Something else → say what and I will align everything to it
+### What was actually done
+
+Option 1. Every TidyWise money-back claim removed across 11 files.
+
+- **Comparison rows deleted outright**, not relabelled. Changing
+  `{ feature: "Money-back guarantee", tidywise: "30 days", jobber: "14-day trial", winner: "tidywise" }`
+  into a "Free trial" row would have made `winner: "tidywise"` **false** — four of the
+  six competitors also offer 14 days, so we tie. Substituting a metric we do not win
+  would have repeated the exact error being fixed.
+- **Three stat tiles read "2 Months / Money-back"** on the Jobber, BookingKoala and
+  HousecallPro pages — a *two-month* guarantee, wronger still than 30 days. Now
+  "14 Days / Free trial".
+- **The CRM post's comparison table header said "Money-back"** but the column rendered
+  `comp.trial`. The header was simply mislabelled; it now says "Free trial" and matches
+  its own data.
+- **Five CTAs** ("Start your money-back within 30 days today") → "Start your 14-day
+  free trial today".
+- `CleaningBusinessCRM.tsx:244` also ended `"...money-back guarantee ()."` — an empty
+  parenthesis where a citation never landed. Gone with the claim.
+
+**Deliberately left alone:** `CompareZenMaid.tsx:157` lists a "30-day money-back
+guarantee" among **ZenMaid's** attributes. That is a claim about a competitor, not
+about us. Leaving a rival's genuine advantage in place is the same honesty principle —
+but it was authored alongside our false claim, so it may be equally invented. Worth
+verifying independently; I had no basis to change it either way.
 
 ---
 

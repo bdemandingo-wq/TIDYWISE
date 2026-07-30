@@ -2,6 +2,8 @@
 
 **Status:** not yet run. `supabase/functions/` is Lovable's, so this ships as a prompt.
 **Found:** 2026-07-30.
+**Also carries** the pricing-claims cleanup — see CHANGE 6 and 7. Related:
+`docs/bugs/2026-07-30-pricing-and-trial-claims-audit.md`.
 **Also answers:** "is the generator even running?" — see the last section. **Run those queries first**; if it is paused, this fix changes nothing until it restarts.
 
 ---
@@ -205,6 +207,78 @@ explicit rather than adding new demands:
 Do NOT add a required "Why TidyWise" section or any fixed CTA wording. Every post
 carrying an identically-titled brand section is the failure mode this is avoiding —
 the checks above are all satisfiable in many different ways on purpose.
+
+CHANGE 6 — stop the model inventing pricing. THIS IS THE HIGHEST-VALUE PART.
+
+The system prompt currently contains NO pricing or trial facts at all. That is why
+generated posts have claimed a "60-day free trial", "$50/month" and "free forever
+for cleaning teams" — none of which have ever been true. The model is not
+malfunctioning; it is filling a gap we left. Fixing the published rows without
+fixing this means it recurs on the next run.
+
+Please add this block to the system prompt, immediately before the
+"Every post MUST" list:
+
+  FACTS YOU MUST NOT INVENT. These are the only correct values. If a fact you
+  want to state is not on this list, leave it out rather than guessing:
+    - Free trial: 14 days. Never any other number.
+    - Plans: Basic $49/month, Pro $97/month, Custom $197/month.
+      Yearly billing includes 2 months free.
+    - Lifetime: one-time $300, limited to the first 50 customers.
+    - There is NO $50 tier, NO free-forever tier, and NO money-back guarantee.
+      All payments are final and non-refundable per our Terms of Service.
+    - Never state a price, trial length, discount or guarantee for TidyWise that
+      does not appear above.
+  You MAY state competitors' pricing where you are confident, but attribute it
+  and prefer ranges over precise figures you cannot verify.
+
+The money-back line matters legally, not just editorially: our Terms of Service
+state "All payments are final and non-refundable", and that exact string is what
+we submit to Stripe as dispute evidence. A blog post promising a refund
+contradicts our own dispute defence.
+
+CHANGE 7 — report the damage in already-published rows.
+
+Please run these read-only and paste the results. Do NOT edit any rows yet:
+
+  -- posts asserting a wrong trial length, price, or guarantee
+  select slug, title, status, published_at,
+         (content ilike '%60-day%' or content ilike '%60 day%')          as has_60_day,
+         (content ilike '%$50%')                                          as has_50_price,
+         (content ilike '%free forever%')                                 as has_free_forever,
+         (content ilike '%money-back%' or content ilike '%money back%')   as has_guarantee
+  from public.blog_posts
+  where content ilike '%60-day%' or content ilike '%60 day%'
+     or content ilike '%$50%'
+     or content ilike '%free forever%'
+     or content ilike '%money-back%' or content ilike '%money back%'
+  order by status, published_at desc nulls last;
+
+  -- meta fields specifically: the "free forever" claim was seen in a meta
+  -- description, which the body-text query above would miss
+  select slug, title, meta_title, meta_description, status
+  from public.blog_posts
+  where meta_description ilike '%free forever%'
+     or meta_description ilike '%60%day%'
+     or meta_description ilike '%$50%'
+     or meta_description ilike '%money-back%'
+     or meta_title ilike '%free forever%';
+
+  -- any trial length that is not 14
+  select slug, title, status,
+         substring(content from '.{0,80}[0-9]+[- ]day[s]? (free )?trial.{0,80}') as context
+  from public.blog_posts
+  where content ~* '[0-9]+[- ]day[s]? (free )?trial'
+    and content !~* '14[- ]day'
+  order by published_at desc nulls last;
+
+I will review the list before anything is edited or unpublished — I am not
+bulk-rewriting published posts on a pattern match.
+
+NOTE ON PRE-RENDERED COPIES: prerender-routes.ts reads blog_posts at BUILD time,
+so correcting a row does not correct the indexed HTML until the site is rebuilt
+and re-crawled. Please confirm you understand that the fix is UPDATE + rebuild,
+not UPDATE alone.
 
 EXPECTED SIDE EFFECT, please confirm you understand it: adding a 15-point slot that
 existing generations were never optimised for will push some borderline posts below

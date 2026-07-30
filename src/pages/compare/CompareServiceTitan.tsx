@@ -15,7 +15,6 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Money-back guarantee", tidywise: "30 days", servicetitan: "None", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", servicetitan: "$125–$500+/month per user", winner: "tidywise" },
   { feature: "Setup Time", tidywise: "Hours", servicetitan: "Weeks to months", winner: "tidywise" },
   { feature: "Cleaning-Specific Features", tidywise: true, servicetitan: false, winner: "tidywise" },
@@ -138,7 +137,7 @@ export default function CompareServiceTitan() {
                 <span className="font-bold text-foreground text-lg">TIDYWISE</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$49/month (Basic) — all users included", "Built specifically for cleaning businesses", "Operational in hours, not weeks", "30-day money-back guarantee", "Square footage and room-based pricing", "Automated payroll included"].map(p => (
+                {["$49/month (Basic) — all users included", "Built specifically for cleaning businesses", "Operational in hours, not weeks", "14-day free trial", "Square footage and room-based pricing", "Automated payroll included"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -181,7 +180,6 @@ export default function CompareServiceTitan() {
                     { label: "Starting price", tw: "$49/mo", st: "~$125/month per user" },
                     { label: "5-user team", tw: "$49/month", st: "$625–$2,500/month" },
                     { label: "10-user team", tw: "$49/month", st: "$1,250–$5,000/month" },
-                    { label: "Money-back guarantee", tw: "30 days", st: "None" },
                     { label: "Setup cost", tw: "$0", st: "Implementation fee" },
                     { label: "Annual contract required", tw: "No", st: "Typically yes" },
                   ].map((row, i) => (

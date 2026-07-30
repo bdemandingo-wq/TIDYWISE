@@ -16,7 +16,6 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Money-back guarantee", tidywise: "30 days", launch27: "14-day trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", launch27: "$75–$299/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, launch27: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, launch27: true, winner: "tie" },
@@ -120,7 +119,7 @@ export default function CompareLaunch27() {
                 <span className="font-bold text-foreground text-lg">TIDYWISE</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$49/month — every feature included", "Automated payroll built-in", "Mobile app included at every tier", "P&L reporting and profit per job", "AI revenue and pricing tools", "Money-back within 30 days"].map(p => (
+                {["$49/month — every feature included", "Automated payroll built-in", "Mobile app included at every tier", "P&L reporting and profit per job", "AI revenue and pricing tools", "14-day free trial"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-success mt-0.5 flex-shrink-0" />{p}
                   </li>
@@ -135,7 +134,7 @@ export default function CompareLaunch27() {
                 <span className="font-bold text-foreground text-lg">Launch27</span>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {["$75–$299/month across three tiers", "Payroll only on Pro ($150/mo)", "Mobile app only on Plus ($299/mo)", "No P&L reporting", "No AI tools", "14-day trial, no money-back guarantee"].map(p => (
+                {["$75–$299/month across three tiers", "Payroll only on Pro ($150/mo)", "Mobile app only on Plus ($299/mo)", "No P&L reporting", "No AI tools", "14-day trial"].map(p => (
                   <li key={p} className="flex items-start gap-2">
                     <XCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />{p}
                   </li>

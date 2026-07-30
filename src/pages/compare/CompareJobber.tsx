@@ -23,7 +23,6 @@ import {
 import { useState } from "react";
 
 const comparisonData = [
-  { feature: "Money-back guarantee", tidywise: "30 days", jobber: "14-day trial", winner: "tidywise" },
   { feature: "Monthly Pricing", tidywise: "$49/month", jobber: "$69-$349/month", winner: "tidywise" },
   { feature: "Online Booking", tidywise: true, jobber: true, winner: "tie" },
   { feature: "Smart Scheduling", tidywise: true, jobber: true, winner: "tie" },
@@ -154,8 +153,8 @@ export default function CompareJobber() {
               <p className="text-sm text-muted-foreground">Lower Cost</p>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary">2 Months</div>
-              <p className="text-sm text-muted-foreground">Money-back</p>
+              <div className="text-3xl font-bold text-primary">14 Days</div>
+              <p className="text-sm text-muted-foreground">Free trial</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary">10+</div>
@@ -288,7 +287,7 @@ export default function CompareJobber() {
             Ready to Switch from Jobber?
           </h2>
           <p className="text-lg text-primary-foreground/80 mb-8">
-            Start your money-back within 30 days today. Cancel any time. Import your Jobber data in minutes.
+            Start your 14-day free trial today. Cancel any time. Import your Jobber data in minutes.
           </p>
           <Button size="lg" variant="secondary" className="h-12 px-8" onClick={handleStartFreeTrial}>
             Get started <ArrowRight className="ml-2 h-4 w-4" />
