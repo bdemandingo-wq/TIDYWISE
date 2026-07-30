@@ -102,3 +102,106 @@ export function tierProgressPercent(
   const pct = ((lifetimeSpend - floor) / span) * 100;
   return Math.max(0, Math.min(100, Math.round(pct)));
 }
+
+/* ───────────────────────── Admin-side threshold validation ───────────────── */
+
+/** A tier's spend range, as stored in client_tier_settings. */
+export interface TierRange {
+  id: string;
+  tier_name: string;
+  /** Dollars. */
+  min_spending: number;
+  /** Dollars, or null for "unlimited" (the top tier). */
+  max_spending: number | null;
+}
+
+export interface TierValidationResult {
+  /** Non-null means do NOT save — the value would corrupt tier resolution. */
+  error: string | null;
+  /** Non-null means save, but tell the owner something looks unintended. */
+  warning: string | null;
+}
+
+/**
+ * Validate one tier's thresholds against the rest of the org's tiers.
+ *
+ * Why this has to exist: resolve_customer_tier() picks a tier with
+ *   min_spending <= spend AND (max_spending IS NULL OR spend <= max_spending)
+ * ordered by tier_order DESC. That is only deterministic while ranges do not
+ * overlap. Two overlapping tiers mean a customer's tier depends on tier_order
+ * rather than on what they spent, which is impossible for an owner to reason
+ * about and silently moves customers between tiers.
+ *
+ * Gaps are warned about rather than blocked: a gap is almost always a mistake
+ * (a customer landing in one resolves to NO tier at all) but an owner may be
+ * mid-way through moving a boundary, and blocking would trap them.
+ */
+export function validateTierThresholds(
+  candidate: TierRange,
+  allTiers: TierRange[],
+): TierValidationResult {
+  const { min_spending: min, max_spending: max } = candidate;
+
+  if (!Number.isFinite(min)) {
+    return { error: 'Minimum must be a number.', warning: null };
+  }
+  if (min < 0) {
+    return { error: 'Minimum cannot be negative.', warning: null };
+  }
+  if (max !== null) {
+    if (!Number.isFinite(max)) {
+      return { error: 'Maximum must be a number, or empty for unlimited.', warning: null };
+    }
+    if (max < 0) {
+      return { error: 'Maximum cannot be negative.', warning: null };
+    }
+    if (max <= min) {
+      return { error: 'Maximum must be greater than the minimum.', warning: null };
+    }
+  }
+
+  const others = allTiers.filter((t) => t.id !== candidate.id);
+
+  // Only one tier may be unlimited — two open-ended ranges always overlap.
+  if (max === null) {
+    const otherUnlimited = others.find((t) => t.max_spending === null);
+    if (otherUnlimited) {
+      return {
+        error: `"${otherUnlimited.tier_name}" is already unlimited. Only the top tier can have an empty maximum.`,
+        warning: null,
+      };
+    }
+  }
+
+  const hi = max ?? Number.POSITIVE_INFINITY;
+  for (const other of others) {
+    const otherHi = other.max_spending ?? Number.POSITIVE_INFINITY;
+    // Inclusive bounds on both sides, matching the SQL comparison.
+    if (min <= otherHi && other.min_spending <= hi) {
+      return {
+        error:
+          `This range overlaps "${other.tier_name}" ` +
+          `(${other.min_spending}–${other.max_spending ?? '∞'}). ` +
+          `Overlapping tiers make a customer's tier depend on ordering rather than spend.`,
+        warning: null,
+      };
+    }
+  }
+
+  // Gap check: is there a hole between this tier and the next one up?
+  if (max !== null) {
+    const next = others
+      .filter((t) => t.min_spending > max)
+      .sort((a, b) => a.min_spending - b.min_spending)[0];
+    if (next && next.min_spending > max + 1) {
+      return {
+        error: null,
+        warning:
+          `Gap between ${max} and ${next.min_spending} ("${next.tier_name}"). ` +
+          `A customer in that range will have no tier at all.`,
+      };
+    }
+  }
+
+  return { error: null, warning: null };
+}

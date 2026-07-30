@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Settings2, Plus, X, Star, Award, Trophy, Crown } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { validateTierThresholds, type TierRange } from '@/lib/loyaltyTier';
 
 interface TierSetting {
   id: string;
@@ -65,7 +66,26 @@ export function LoyaltyTierEditor() {
   const initializeTiers = useMutation({
     mutationFn: async () => {
       if (!organizationId) throw new Error('No organization');
-      
+
+      // Re-check against the server before inserting. The `tiers.length === 0`
+      // gate that reveals this button is a CLIENT-side check on possibly-stale
+      // react-query data, so a double-click or a second open tab could insert
+      // the four defaults twice and leave the org with eight tiers — which then
+      // overlap, making resolve_customer_tier's ordering tie-break the thing
+      // that decides a customer's tier.
+      //
+      // This narrows the window but does not close it: two truly concurrent
+      // requests can both pass this check. A real guarantee needs a unique
+      // constraint on (organization_id, tier_name) — queued as a Lovable
+      // follow-up, since supabase/ is not ours to change.
+      const { data: existing, error: checkErr } = await supabase
+        .from('client_tier_settings')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .limit(1);
+      if (checkErr) throw checkErr;
+      if (existing && existing.length > 0) throw new Error('ALREADY_INITIALIZED');
+
       const tiersToInsert = defaultTiers.map(tier => ({
         ...tier,
         organization_id: organizationId,
@@ -82,7 +102,13 @@ export function LoyaltyTierEditor() {
       queryClient.invalidateQueries({ queryKey: ['loyalty-tier-settings'] });
       toast.success('Loyalty tiers initialized!');
     },
-    onError: () => {
+    onError: (e: unknown) => {
+      if (e instanceof Error && e.message === 'ALREADY_INITIALIZED') {
+        // Not a failure: another tab or an earlier click already seeded them.
+        toast.info('Tiers are already set up.');
+        queryClient.invalidateQueries({ queryKey: ['loyalty-tier-settings'] });
+        return;
+      }
       toast.error('Failed to initialize tiers');
     },
   });
@@ -131,16 +157,46 @@ export function LoyaltyTierEditor() {
     }));
   }, []);
 
-  // Save threshold on blur
-  const saveThreshold = useCallback((tierId: string, field: 'min_spending' | 'max_spending') => {
-    const state = editState[tierId];
+  // Save both thresholds together, after validating against every other tier.
+  //
+  // This deliberately replaces the previous save-on-blur behaviour. Blur-saving
+  // each field independently cannot coexist with overlap validation: moving a
+  // boundary means editing two numbers, and whichever is edited first
+  // transiently overlaps its neighbour, so the owner would be blocked from ever
+  // completing the change. Committing both at once also halves the writes.
+  const saveTier = useCallback((tier: TierSetting) => {
+    const state = editState[tier.id];
     if (!state) return;
 
-    const rawValue = field === 'min_spending' ? state.minSpending : state.maxSpending;
-    const numValue = rawValue === '' ? null : parseFloat(rawValue);
+    const min = state.minSpending.trim() === '' ? NaN : Number(state.minSpending);
+    const max = state.maxSpending.trim() === '' ? null : Number(state.maxSpending);
 
-    updateTier.mutate({ tierId, updates: { [field]: numValue } });
-  }, [editState, updateTier]);
+    const ranges: TierRange[] = tiers.map(t => ({
+      id: t.id,
+      tier_name: t.tier_name,
+      min_spending: t.min_spending,
+      max_spending: t.max_spending,
+    }));
+
+    const { error, warning } = validateTierThresholds(
+      { id: tier.id, tier_name: tier.tier_name, min_spending: min, max_spending: max },
+      ranges,
+    );
+
+    // Blocking errors would corrupt tier resolution; nothing is written.
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    // Warnings (a gap) are surfaced but allowed — the owner may be mid-way
+    // through moving a boundary across two tiers.
+    if (warning) toast.warning(warning);
+
+    updateTier.mutate(
+      { tierId: tier.id, updates: { min_spending: min, max_spending: max } },
+      { onSuccess: () => setEditingTier(null) },
+    );
+  }, [editState, tiers, updateTier]);
 
   const addBenefit = (tierId: string, currentBenefits: string[]) => {
     if (!newBenefit.trim()) return;
@@ -237,7 +293,7 @@ export function LoyaltyTierEditor() {
                     size="sm"
                     onClick={() => isEditing ? setEditingTier(null) : startEditing(tier)}
                   >
-                    {isEditing ? 'Done' : 'Edit'}
+                    {isEditing ? 'Cancel' : 'Edit'}
                   </Button>
                 </div>
               </div>
@@ -296,7 +352,6 @@ export function LoyaltyTierEditor() {
                         pattern="[0-9]*\.?[0-9]*"
                         value={localState.minSpending}
                         onChange={(e) => handleLocalChange(tier.id, 'minSpending', e.target.value)}
-                        onBlur={() => saveThreshold(tier.id, 'min_spending')}
                         className="mt-1"
                       />
                     </div>
@@ -308,11 +363,22 @@ export function LoyaltyTierEditor() {
                         pattern="[0-9]*\.?[0-9]*"
                         value={localState.maxSpending}
                         onChange={(e) => handleLocalChange(tier.id, 'maxSpending', e.target.value)}
-                        onBlur={() => saveThreshold(tier.id, 'max_spending')}
                         placeholder="Unlimited"
                         className="mt-1"
                       />
                     </div>
+                  </div>
+
+                  {/* Explicit save: both thresholds are validated together
+                      against every other tier before anything is written. */}
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={() => saveTier(tier)}
+                      disabled={updateTier.isPending}
+                    >
+                      {updateTier.isPending ? 'Saving...' : 'Save thresholds'}
+                    </Button>
                   </div>
                 </div>
               )}
