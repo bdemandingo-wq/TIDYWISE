@@ -1,6 +1,6 @@
 # Lovable prompt — portal address correction
 
-**Status:** not yet run. **Read the design decision below before sending it.**
+**Status:** not yet run — but the design decision below is **SETTLED** (owner, 2026-07-30). Send as written.
 **Frontend:** not written yet — this is the backend half only.
 **Target:** a new `update_client_portal_location` RPC + a `client-portal-api` action
 
@@ -24,16 +24,22 @@ So editing a `locations` row leaves past bookings' **copied text** untouched whi
 
 The complaint that started this was "a customer who moves house can delete and re-add, but not correct a typo." So:
 
-**Decision: implement typo correction only — edit in place — and do not let it double as a move.**
+**Decision — SETTLED by the owner, 2026-07-30: typo correction only, edit in place, and it must not double as a move.**
 
-Rationale: for a typo, in-place editing is correct and the propagation is a feature. A move is already served, imperfectly, by add-new + set-primary. Conflating them would silently rewrite booking history.
+The owner's framing, which is the clearest statement of it: *"a typo fixes a record that was always wrong, a move creates a new fact."*
+
+Rationale: for a typo, in-place editing is correct and the propagation through `location_id` is a feature, not a leak. A move is a different operation and is already served, imperfectly, by add-new + set-primary. Conflating them would silently rewrite where past cleans happened.
 
 Consequences the frontend must honour:
 - Label it **"Correct this address"**, never "Edit" or "Change".
 - Add helper text: *"Fixing a spelling mistake? Use this. Moved house? Add your new address instead."*
 - Keep add-new visible alongside it, so the move path stays obvious.
 
-**If you disagree and want a move to be a first-class operation**, that is copy-on-write — insert a new `locations` row, set `is_active = false` on the old (the column exists), and repoint `is_primary`. Past bookings keep pointing at the old row, so history is intact on both axes. That is a larger change and needs the locations list to hide inactive rows. Say so and I will write that version instead.
+### The move flow — deferred, not rejected
+
+A first-class "I moved house" operation is **copy-on-write**, and the owner has specified the shape: insert a new `locations` row and set **`is_active = false`** on the old one (the column exists on `locations`). Past bookings keep pointing at the old row, so history stays intact on both the id and the snapshot.
+
+**Explicitly deferred — do not build it now** (owner, 2026-07-30). Recorded here so the shape is not re-derived. It additionally needs the locations list to hide inactive rows, and a decision about what the customer sees for an address they no longer live at but which appears on past bookings.
 
 ---
 

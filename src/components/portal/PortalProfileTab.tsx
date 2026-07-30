@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
-import { Loader2, User, MapPin, Plus, Trash2, Check, Trophy, FileText, Download } from "lucide-react";
+import { Loader2, User, MapPin, Plus, Trash2, Check, Trophy, FileText, Download, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -81,6 +81,22 @@ export function PortalProfileTab() {
     longitude: null as number | null,
   });
   const [savingLocation, setSavingLocation] = useState(false);
+
+  // Address CORRECTION, deliberately not a move.
+  //
+  // bookings stores BOTH a location_id and a copied snapshot of the address text,
+  // so editing a locations row in place propagates through the id but not the
+  // snapshot. That is right for a typo — the old text was never correct, and a
+  // dispatcher looking up an old job should see the real street. It would be wrong
+  // for a move, which rewrites where past cleans happened. A move is a separate
+  // copy-on-write flow (new row, is_active=false on the old), deliberately not
+  // built yet — so this must stay labelled as a correction and never become "Edit".
+  const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+  const [editLocation, setEditLocation] = useState({
+    name: "", address: "", apt_suite: "", city: "", state: "", zip_code: "",
+    latitude: null as number | null, longitude: null as number | null,
+  });
+  const [savingCorrection, setSavingCorrection] = useState(false);
   
   // Tiers come from the shared hook, not a local fetch. This component used to
   // run its own useState/useEffect copy of the same request; two independent
@@ -276,6 +292,64 @@ export function PortalProfileTab() {
       toast.error(err instanceof Error ? err.message : "Failed to delete address");
     }
   };
+  const startCorrection = (loc: Location) => {
+    setEditLocation({
+      name: loc.name ?? "",
+      address: loc.address ?? "",
+      apt_suite: (loc as { apt_suite?: string | null }).apt_suite ?? "",
+      city: loc.city ?? "",
+      state: loc.state ?? "",
+      zip_code: loc.zip_code ?? "",
+      latitude: null,
+      longitude: null,
+    });
+    setEditingLocationId(loc.id);
+  };
+
+  const handleSaveCorrection = async () => {
+    if (!editingLocationId) return;
+    if (!editLocation.name.trim() || !editLocation.address.trim()) {
+      toast.error("Label and street address are required");
+      return;
+    }
+    setSavingCorrection(true);
+    try {
+      const { error } = await invokePortal("client-portal-api", {
+        body: {
+          action: "update_location",
+          locationId: editingLocationId,
+          p_name: editLocation.name.trim(),
+          p_address: editLocation.address.trim(),
+          p_apt_suite: editLocation.apt_suite.trim() || null,
+          p_city: editLocation.city.trim() || null,
+          p_state: editLocation.state.trim() || null,
+          p_zip_code: editLocation.zip_code.trim() || null,
+          p_latitude: editLocation.latitude,
+          p_longitude: editLocation.longitude,
+        },
+      });
+      if (error) throw error;
+      // Reflect locally rather than refetching — the list has no query to
+      // invalidate, it is useState-backed.
+      setLocations((prev) =>
+        prev.map((l) => (l.id === editingLocationId
+          ? { ...l,
+              name: editLocation.name.trim(),
+              address: editLocation.address.trim(),
+              city: editLocation.city.trim() || null,
+              state: editLocation.state.trim() || null,
+              zip_code: editLocation.zip_code.trim() || null }
+          : l)),
+      );
+      toast.success("Address corrected");
+      setEditingLocationId(null);
+    } catch (err) {
+      toast.error(await readEdgeFunctionError(err, "Couldn't correct that address."));
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
+
   const handleSetDefault = async (locationId: string) => {
     if (!user) return;
     try {
@@ -598,6 +672,77 @@ export function PortalProfileTab() {
                   key={location.id}
                   className="flex items-start justify-between p-3 rounded-lg border"
                 >
+                  {editingLocationId === location.id ? (
+                    <div className="flex-1 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Fixing a spelling mistake? Use this. Moved house? Add your
+                        new address instead — correcting this one also updates it on
+                        past bookings.
+                      </p>
+                      <Input
+                        value={editLocation.name}
+                        onChange={(e) => setEditLocation({ ...editLocation, name: e.target.value })}
+                        placeholder="Label (Home, Office…)"
+                        disabled={savingCorrection}
+                      />
+                      <AddressAutocomplete
+                        value={editLocation.address}
+                        onChange={(v) => setEditLocation({ ...editLocation, address: v })}
+                        onResolved={(r) =>
+                          setEditLocation((prev) => ({
+                            ...prev,
+                            city: r.city || prev.city,
+                            state: r.state || prev.state,
+                            zip_code: r.zip || prev.zip_code,
+                            latitude: r.lat,
+                            longitude: r.lng,
+                          }))
+                        }
+                        placeholder="Street address"
+                        disabled={savingCorrection}
+                      />
+                      <Input
+                        value={editLocation.apt_suite}
+                        onChange={(e) => setEditLocation({ ...editLocation, apt_suite: e.target.value })}
+                        placeholder="Apt / suite (optional)"
+                        disabled={savingCorrection}
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          value={editLocation.city}
+                          onChange={(e) => setEditLocation({ ...editLocation, city: e.target.value })}
+                          placeholder="City"
+                          disabled={savingCorrection}
+                        />
+                        <Input
+                          value={editLocation.state}
+                          onChange={(e) => setEditLocation({ ...editLocation, state: e.target.value })}
+                          placeholder="State"
+                          disabled={savingCorrection}
+                        />
+                        <Input
+                          value={editLocation.zip_code}
+                          onChange={(e) => setEditLocation({ ...editLocation, zip_code: e.target.value })}
+                          placeholder="ZIP"
+                          disabled={savingCorrection}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSaveCorrection} disabled={savingCorrection}>
+                          {savingCorrection && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
+                          Save correction
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingLocationId(null)}
+                          disabled={savingCorrection}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="flex gap-3">
                     <span className="text-xl mt-0.5">{getLabelEmoji(location.name)}</span>
                     <div>
@@ -632,14 +777,31 @@ export function PortalProfileTab() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDeleteLocation(location.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  )}
+                  {editingLocationId !== location.id && (
+                  <div className="flex items-start gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => startCorrection(location)}
+                      title="Correct this address"
+                      aria-label="Correct this address"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeleteLocation(location.id)}
+                      title="Remove this address"
+                      aria-label="Remove this address"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  )}
                 </div>
               ))}
             </div>
