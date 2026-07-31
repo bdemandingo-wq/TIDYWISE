@@ -242,3 +242,64 @@ has **no `channel` column** and both senders are SMS-only — `run-inactive-camp
 **Noticed in passing, not fixed:** `CampaignsPage`'s `channelFilter` is declared, wired
 to a tab, and included in the `useMemo` dependency array — but the `filteredCampaigns`
 predicate never references it. The tabs change nothing except the `opted_out` branch.
+
+
+---
+
+## Task 2 as built — 2026-07-31
+
+**Gate:** the `automation_steps` audit returned zero rows across zero orgs. No
+dormant owner copy, so senders could begin reading the table safely.
+
+### DELIBERATE CHANGE TO WHAT CUSTOMERS RECEIVE
+
+`quote_stale_reengage` is now classed `marketing`, which means **every quote
+follow-up SMS now carries "Reply STOP to opt out." — it did not before.** This is
+a decision, not a side effect of the migration. Approved 2026-07-31 on the
+reasoning that a nudge to someone who asked for a price and did not book is close
+enough to marketing that carrying the line costs less than defending its absence.
+
+**A second change came with it, and was not optional.** `quote-stale-reengage`
+had no opt-out check of any kind — no `isOptedOut`, no `isPhoneOptedOut`, no
+`marketing-guard` import, while five other senders use that guard. Shipping the
+STOP sentence alone would have invited customers to opt out and then kept texting
+them on the next stale quote, which is worse than never inviting it. The opt-out
+check ships with the sentence. **Customers who have previously replied STOP will
+now stop receiving quote follow-ups**, which is correct but is a behaviour change
+in its own right.
+
+### Deviation from the plan: no `message_class` column
+
+The plan called for a `message_class` column on `automation_steps`. Built, that
+is the wrong home: the class is a property of the automation *kind*, not of an
+owner's edit, and a column would let an owner reclassify a marketing message as
+transactional and shed the opt-out line. It lives in
+`AUTOMATION_DEFAULTS[key].message_class` instead — tamper-proof, and **Task 2
+needs no migration at all**.
+
+### Where each piece lives
+
+| Question | Answer |
+|---|---|
+| Where does the copy live? | `AUTOMATION_DEFAULTS` in `src/lib/automationTemplates.ts`, mirrored verbatim in `supabase/functions/_shared/automation-templates.ts`. The DB row is an *override*; the default is code. |
+| How does an owner edit it? | Automations tab → the existing `AutomationEditorDialog`, which now shows this key's real token vocabulary instead of one hardcoded list, offers "Use default wording", and states that the STOP line is added automatically. |
+| How do tokens resolve? | `resolveTemplate()`, `{single}` braces, per-key vocabulary. |
+| Blank template? | Falls back to the seeded default, and the editor says so under the box rather than leaving "empty" ambiguous. |
+| **Row missing entirely?** | **Falls back to the seeded default.** No definition row, no step row, or a failed lookup all leave `templateBody` null, which resolves to the default. There is deliberately no path that skips a customer on a template problem. |
+
+### The five fallback cases, pinned by test
+
+`src/lib/automationTemplates.test.ts`, 16 tests: no row → default; empty →
+default; whitespace → default; unknown token → braces stripped, message still
+sent, warning logged; missing required `{quote_link}` → default. Plus: never
+sends blank even when every token resolves empty, and the defaults are each valid
+under their own vocabulary.
+
+### Still open
+
+- `AutomationEditorDialog` writes `automation_steps` for ANY key, but only
+  migrated keys have a vocabulary — unmigrated ones keep working with no token
+  help and no validation. That is deliberate, and it means dormant copy can start
+  accumulating again for keys Task 4 has not reached. The audit query should be
+  re-run before each subsequent sender migration, not just this one.
+- The `email-footer.ts` org-address compliance gap is still untouched.

@@ -10,6 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import {
+  AUTOMATION_VOCABULARY,
+  AUTOMATION_DEFAULTS,
+  validateTemplate,
+  type AutomationKey,
+} from '@/lib/automationTemplates';
 import { Loader2, Plus, Trash2, Save, MessageSquare, Mail, Zap } from 'lucide-react';
 
 type Channel = 'sms' | 'email' | 'both';
@@ -84,6 +90,13 @@ export function AutomationEditorDialog({ open, onOpenChange, organizationId, aut
   const [enabled, setEnabled] = useState(false);
   const [triggers, setTriggers] = useState<TriggerRow[]>([]);
   const [steps, setSteps] = useState<StepRow[]>([]);
+
+  // Only keys we've migrated have a declared vocabulary. Everything else keeps
+  // working exactly as before — no token help, no save-time validation — so
+  // this dialog stays usable for the automations Task 4 hasn't reached yet.
+  const vocabulary = AUTOMATION_VOCABULARY[automationKey as AutomationKey] ?? [];
+  const seededDefault = AUTOMATION_DEFAULTS[automationKey as AutomationKey] ?? null;
+  const isMigrated = vocabulary.length > 0;
   const [definitionId, setDefinitionId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
@@ -165,6 +178,25 @@ export function AutomationEditorDialog({ open, onOpenChange, organizationId, aut
       toast.error('Add at least one step before saving.');
       return;
     }
+
+    // Validate BEFORE writing anything. An unknown token that reaches the
+    // database ships literal braces to a paying customer, and nothing tells the
+    // owner — they see their template, never the output. At save time the
+    // person who can fix it is right here and the fix takes ten seconds.
+    if (isMigrated) {
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (step.channel !== 'sms' && step.channel !== 'both') continue;
+        // An empty body is allowed: it means "use the default wording".
+        if (!step.sms_body.trim()) continue;
+        const problem = validateTemplate(automationKey as AutomationKey, step.sms_body);
+        if (problem) {
+          toast.error(steps.length > 1 ? `Step ${i + 1}: ${problem}` : problem);
+          return;
+        }
+      }
+    }
+
     setSaving(true);
     try {
       let defId = definitionId;
@@ -296,7 +328,27 @@ export function AutomationEditorDialog({ open, onOpenChange, organizationId, aut
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1 basis-56">
                     <h3 className="font-semibold text-sm">Steps</h3>
-                    <p className="text-xs text-muted-foreground break-words">Each step is one send. Merge tokens: {'{{customer_name}}, {{company_name}}, {{booking_date}}, {{cleaner_name}}, {{review_link}}, {{booking_link}}'}.</p>
+                    {/*
+                      Vocabulary is per automation_key. This used to be one
+                      hardcoded {{double}}-brace list for every automation, and
+                      it advertised {{booking_date}}, which no engine has ever
+                      substituted — worse than offering no help at all, because
+                      an owner would type it and get literal braces in a text.
+                    */}
+                    {vocabulary.length > 0 ? (
+                      <p className="text-xs text-muted-foreground break-words">
+                        Each step is one send. You can use:{' '}
+                        {vocabulary.map((t, i) => (
+                          <span key={t.token}>
+                            {i > 0 && ', '}
+                            <code className="text-[11px]">{`{${t.token}}`}</code>
+                            {t.required && <span className="text-amber-600"> (required)</span>}
+                          </span>
+                        ))}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground break-words">Each step is one send.</p>
+                    )}
                   </div>
                   <Button size="sm" variant="outline" className="shrink-0" onClick={addStep}><Plus className="w-3.5 h-3.5 mr-1" />Add Interval</Button>
                 </div>
@@ -371,9 +423,45 @@ export function AutomationEditorDialog({ open, onOpenChange, organizationId, aut
                               value={s.sms_body}
                               onChange={e => updateStep(idx, { sms_body: e.target.value })}
                               rows={3}
-                              placeholder="Hi {{customer_name}}, thanks for booking with {{company_name}}!"
+                              placeholder={seededDefault?.sms_body ?? 'Hi {customer_name}, thanks for booking with {company_name}!'}
                             />
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{s.sms_body.length} chars</p>
+                            <div className="flex flex-wrap items-center justify-between gap-2 mt-0.5">
+                              <p className="text-[10px] text-muted-foreground">{s.sms_body.length} chars</p>
+                              {seededDefault && (
+                                <div className="flex items-center gap-2">
+                                  {/*
+                                    Leaving the box empty is a supported choice, not a
+                                    mistake — the sender falls back to the default. Saying
+                                    so stops an owner assuming empty means "send nothing".
+                                  */}
+                                  {!s.sms_body.trim() && (
+                                    <span className="text-[10px] text-muted-foreground">
+                                      Empty — the default wording will be sent.
+                                    </span>
+                                  )}
+                                  {s.sms_body.trim() !== seededDefault.sms_body && (
+                                    <button
+                                      type="button"
+                                      className="text-[10px] underline text-muted-foreground hover:text-foreground"
+                                      onClick={() => updateStep(idx, { sms_body: seededDefault.sms_body })}
+                                    >
+                                      Use default wording
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            {seededDefault?.message_class === 'marketing' && (
+                              /*
+                                Stated, not silently appended. The opt-out line is added
+                                by the sender and cannot be edited or removed here, so an
+                                owner counting characters needs to know it is coming.
+                              */
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                &ldquo;Reply STOP to opt out.&rdquo; is added automatically to
+                                this message and can&apos;t be removed.
+                              </p>
+                            )}
                           </div>
                         )}
                         {(s.channel === 'email' || s.channel === 'both') && (
