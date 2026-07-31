@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { InPageLink } from '@/components/InPageLink';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -827,12 +828,25 @@ export default function PricingPage() {
             for the same intent.
           */}
           <div className="mt-8 text-center">
-            <a
+            {/*
+              preventDefault + scrollIntoView rather than letting the browser
+              follow the hash. A bare href="#..." changes the URL, and this app
+              has a global popstate interceptor (useAppStateHandler) that used to
+              turn any such change on a non-root route into a redirect to
+              /dashboard — i.e. /login for a visitor. That interceptor is now
+              scoped to signed-in users inside the app, but scrolling directly is
+              still the right call: it works identically under HashRouter on
+              native, where a hash link would be read as a route change.
+
+              The href stays for middle-click, "open in new tab" and keyboard
+              users, and so the target is announced.
+            */}
+            <InPageLink
               href="#compare-plans"
               className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80"
             >
               See the full feature comparison
-            </a>
+            </InPageLink>
           </div>
 
         </section>

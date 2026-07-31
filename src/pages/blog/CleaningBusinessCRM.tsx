@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { SEOHead } from '@/components/SEOHead';
+import { InPageLink } from '@/components/InPageLink';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { Button } from "@/components/ui/button";
 import { 
@@ -263,16 +264,16 @@ export default function CleaningBusinessCRM() {
             </h2>
             <div className="grid md:grid-cols-2 gap-2 text-muted-foreground">
               <ul className="space-y-2">
-                <li>• <a href="#what-is-crm" className="text-primary hover:underline">What is a CRM for cleaning business?</a></li>
-                <li>• <a href="#key-features" className="text-primary hover:underline">8 must-have features in cleaning CRM software</a></li>
-                <li>• <a href="#benefits" className="text-primary hover:underline">Benefits: How CRMs grow maid service revenue</a></li>
-                <li>• <a href="#comparison" className="text-primary hover:underline">2026 cleaning CRM software comparison</a></li>
+                <li>• <InPageLink href="#what-is-crm" className="text-primary hover:underline">What is a CRM for cleaning business?</InPageLink></li>
+                <li>• <InPageLink href="#key-features" className="text-primary hover:underline">8 must-have features in cleaning CRM software</InPageLink></li>
+                <li>• <InPageLink href="#benefits" className="text-primary hover:underline">Benefits: How CRMs grow maid service revenue</InPageLink></li>
+                <li>• <InPageLink href="#comparison" className="text-primary hover:underline">2026 cleaning CRM software comparison</InPageLink></li>
               </ul>
               <ul className="space-y-2">
-                <li>• <a href="#how-to-choose" className="text-primary hover:underline">How to choose the right CRM</a></li>
-                <li>• <a href="#local-crm" className="text-primary hover:underline">CRM for cleaning business near you</a></li>
-                <li>• <a href="#faq" className="text-primary hover:underline">Frequently asked questions</a></li>
-                <li>• <a href="#get-started" className="text-primary hover:underline">Get started with TIDYWISE</a></li>
+                <li>• <InPageLink href="#how-to-choose" className="text-primary hover:underline">How to choose the right CRM</InPageLink></li>
+                <li>• <InPageLink href="#local-crm" className="text-primary hover:underline">CRM for cleaning business near you</InPageLink></li>
+                <li>• <InPageLink href="#faq" className="text-primary hover:underline">Frequently asked questions</InPageLink></li>
+                <li>• <InPageLink href="#get-started" className="text-primary hover:underline">Get started with TIDYWISE</InPageLink></li>
               </ul>
             </div>
           </nav>

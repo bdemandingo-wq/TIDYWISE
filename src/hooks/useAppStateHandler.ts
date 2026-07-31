@@ -25,6 +25,23 @@ function isAuthRoute(path: string): boolean {
 }
 
 /**
+ * Routes that belong to the signed-in app. The back-button interceptor below
+ * exists for these and ONLY these.
+ *
+ * Everything else — the marketing site, pricing, the comparison and feature
+ * pages, the blog, the public booking form, the client portal login — is a
+ * normal web page where the browser's own back button is correct and must not
+ * be touched.
+ */
+function isInAppRoute(path: string): boolean {
+  return (
+    path === '/dashboard' || path.startsWith('/dashboard/') ||
+    path === '/staff' || path.startsWith('/staff/') ||
+    path.startsWith('/portal/')   // NOT bare /portal, which is the public login
+  );
+}
+
+/**
  * Determine the parent route for in-app back navigation.
  * Returns null if already at a root route (should stay / minimize).
  */
@@ -59,11 +76,27 @@ export function useAppStateHandler() {
   const queryClient = useQueryClient();
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) {
-      // --- Mobile Web: intercept popstate to prevent logout on back ---
+      // --- Web: intercept popstate to prevent logout on back ---
+      //
+      // SCOPE, and why it is this narrow (2026-07-31):
+      //
+      // This handler used to run on EVERY page for EVERY visitor. Because
+      // getParentRoute() falls through to '/dashboard' for any path not
+      // explicitly listed, and ROOT_ROUTES contains only five entries, pressing
+      // browser Back on any marketing page ran
+      //   window.location.replace('/dashboard')
+      // which for a signed-out visitor lands on /login. Measured with Playwright
+      // on 2026-07-31: back from /pricing, /compare/jobber, /features/booking,
+      // /blog and /portal ALL produced a login screen. Every visitor who backed
+      // out of a marketing page hit a login wall.
+      //
+      // The handler's actual purpose is in-app back behaviour for a signed-in
+      // user. So it now installs only when BOTH are true: there is a session,
+      // and we are on an in-app route. On the public site the browser's own back
+      // button is correct and is left alone.
       let ignoreNextPop = false;
-
-      // Push an initial state so there's always something in the stack
-      window.history.pushState({ appGuard: true }, '', window.location.href);
+      let cancelled = false;
+      let cleanupPop: (() => void) | undefined;
 
       const handlePopState = (e: PopStateEvent) => {
         if (ignoreNextPop) {
@@ -72,6 +105,10 @@ export function useAppStateHandler() {
         }
 
         const currentPath = window.location.pathname;
+
+        // Left the app since the listener was installed (signed out, or
+        // navigated to the marketing site). Stop interfering.
+        if (!isInAppRoute(currentPath)) return;
 
         // Never allow back to navigate to auth routes — block it
         if (isAuthRoute(currentPath)) {
@@ -99,10 +136,32 @@ export function useAppStateHandler() {
         }
       };
 
-      window.addEventListener('popstate', handlePopState);
+      // Install only for a signed-in user who is inside the app. Both checks
+      // matter: the session alone would still hijack Back for a logged-in user
+      // reading the blog, and the route alone would hijack it for a signed-out
+      // visitor on /portal/... .
+      //
+      // The session lookup is async, so guard against the effect being torn
+      // down while it is in flight — otherwise a fast unmount leaves a listener
+      // attached with no way to remove it.
+      void (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (!session) return;
+        if (!isInAppRoute(window.location.pathname)) return;
+
+        // Push a state so there is always something in the stack to pop.
+        // Deliberately inside the guard: doing this unconditionally added a
+        // phantom history entry to every marketing page, so the first Back
+        // press appeared to do nothing.
+        window.history.pushState({ appGuard: true }, '', window.location.href);
+        window.addEventListener('popstate', handlePopState);
+        cleanupPop = () => window.removeEventListener('popstate', handlePopState);
+      })();
 
       return () => {
-        window.removeEventListener('popstate', handlePopState);
+        cancelled = true;
+        cleanupPop?.();
       };
     }
 
