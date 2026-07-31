@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -87,6 +88,20 @@ interface BookingPayrollDetail {
   profit: number;
   margin_percent: number;
   isMissingPay: boolean;
+  /**
+   * Why this row's pay is $0, when it is.
+   *
+   *   'deactivated'  — the cleaner's staff record was excluded from wage
+   *                    resolution because they are deactivated, so their
+   *                    base_wage/hourly_rate was never read. The pay IS
+   *                    configured; we chose not to look at it.
+   *   'unconfigured' — no wage on the booking and none on the staff record.
+   *
+   * These were reported identically as "$0 cleaner pay configured", which is
+   * false for the first case and sends an admin to check a booking that has
+   * nothing wrong with it.
+   */
+  payGapReason: 'deactivated' | 'unconfigured' | null;
   /** Actual worked hours exceeded the cap, so pay was limited to hours_capped_at.
    *  Surfaced here rather than queued for approval — the exception is visible
    *  next to the numbers it affects. */
@@ -145,6 +160,7 @@ function calcBookingFinancials(booking: any, laborCost: number, settings: Payrol
 }
 
 export default function PayrollPage() {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -339,6 +355,17 @@ export default function PayrollPage() {
   });
 
   const staff = useMemo(() => (allStaff as any[]).filter((s) => s.is_active), [allStaff]);
+
+  // Who was excluded from `staff` above. Used to explain a $0 row honestly:
+  // a deactivated cleaner's wage is configured, it just wasn't consulted.
+  const deactivatedStaffIds = useMemo(
+    () => new Set(
+      (allStaff as { id: string; is_active: boolean }[])
+        .filter((s) => !s.is_active)
+        .map((s) => s.id),
+    ),
+    [allStaff],
+  );
 
   // Display names for anyone, active or not, so a historical row can name the
   // person who actually did the job.
@@ -638,6 +665,12 @@ export default function PayrollPage() {
           profit: financials.profit * share,
           margin_percent: financials.marginPercent,
           isMissingPay: wageInfo.isMissingPay,
+          payGapReason:
+            wageInfo.calculatedPay !== 0
+              ? null
+              : deactivatedStaffIds.has(m.staffId)
+                ? 'deactivated'
+                : 'unconfigured',
           // Both columns are nullable and absent on rows predating the
           // hours-reconciliation migration, hence the != null guards rather
           // than a plain Number() — Number(null) is 0, which would read as a
@@ -795,6 +828,14 @@ export default function PayrollPage() {
   const avgPayPerClean = totalCleans > 0 ? totalPayroll / totalCleans : 0;
   const negativeMarginCount = bookingPayrollDetails.filter(d => d.profit < 0).length;
   const missingPayCount = bookingPayrollDetails.filter(d => d.isMissingPay || (d.calculated_pay === 0 && d.staff_id)).length;
+  // Split by cause. Reporting these together as "$0 configured" was wrong for
+  // the deactivated half and left the admin with no next step.
+  const deactivatedPayCount = bookingPayrollDetails.filter(d => d.payGapReason === 'deactivated').length;
+  const unconfiguredPayCount = bookingPayrollDetails.filter(d => d.payGapReason === 'unconfigured').length;
+  const deactivatedPayNames = Array.from(new Set(
+    bookingPayrollDetails.filter(d => d.payGapReason === 'deactivated')
+      .map(d => staffNameById.get(d.staff_id as string) ?? 'Unknown'),
+  ));
   // Dedupe on booking_id: a multi-cleaner job produces one row per cleaner,
   // and the cap is a property of the JOB, so counting rows would double it.
   const hoursCappedCount = new Set(
@@ -1136,15 +1177,54 @@ export default function PayrollPage() {
       )}
 
       {missingPayCount > 0 && (
-        <Card className="mb-4 border-warning/30 bg-warning/5">
-          <CardContent className="p-4">
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-warning">Missing Pay Data</h3>
-                <p className="text-sm text-warning mt-1">
-                  {missingPayCount} booking(s) have $0 cleaner pay configured.
-                </p>
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="min-w-0 space-y-2">
+                <h3 className="font-semibold">Some cleans show $0 pay</h3>
+
+                {/*
+                  Two different causes, stated separately. They used to be one
+                  line reading "$0 cleaner pay configured", which is untrue for a
+                  deactivated cleaner — their wage IS set, it just isn't read
+                  while they're inactive — and it sent an admin to inspect a
+                  booking with nothing wrong with it.
+                */}
+                {deactivatedPayCount > 0 && (
+                  <div className="text-sm">
+                    <p>
+                      <strong>{deactivatedPayCount} clean(s):</strong> cleaner deactivated, wage not applied
+                      {deactivatedPayNames.length > 0 && (
+                        <span className="text-muted-foreground"> — {deactivatedPayNames.join(', ')}</span>
+                      )}
+                      .
+                    </p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Their hourly or base wage is still on file. It isn&apos;t used for these cleans
+                      because they&apos;re no longer active, so the pay shows as $0 and they can&apos;t be
+                      paid from this page. To pay them, record the amount against each clean:{' '}
+                      <button
+                        type="button"
+                        className="underline hover:text-foreground"
+                        onClick={() => navigate('/dashboard/bookings')}
+                      >
+                        set it on the Bookings page
+                      </button>{' '}
+                      using Bulk edit cleaner wages, which saves the figure onto the clean itself.
+                    </p>
+                  </div>
+                )}
+
+                {unconfiguredPayCount > 0 && (
+                  <div className="text-sm">
+                    <p><strong>{unconfiguredPayCount} clean(s):</strong> no wage set.</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Nothing on the clean and nothing on the cleaner&apos;s staff record. Set a base
+                      wage or hourly rate on the cleaner, or a wage on the clean itself.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
