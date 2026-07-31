@@ -8,6 +8,7 @@ import { fmt } from '@/lib/activeCurrency';
 import {
   useBillingRevenue,
   useBackfillFreshness,
+  useBillingPlanPayers,
   sumRows,
   SAAS_STREAMS,
   CLEANING_STREAMS,
