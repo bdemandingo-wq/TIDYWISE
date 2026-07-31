@@ -59,6 +59,7 @@ interface Invoice {
   sent_at: string | null;
   notes: string | null;
   address: string | null;
+  cc_emails: string[] | null;
   created_at: string;
   customer?: {
     first_name: string;

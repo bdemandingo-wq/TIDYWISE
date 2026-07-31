@@ -121,7 +121,7 @@ Also note the status is only written `if (invoice.status === 'draft')`. Resendin
 `sent` or `overdue` invoice correctly does not touch status — but also does not update
 `sent_at`, so `sent_at` records the *first* send, not the latest.
 
-## 4. Additional recipients — collected, saved, and dropped
+## 4. Additional recipients — collected, saved, and dropped  ✅ FIXED 2026-07-30
 
 **Yes, and it is on invoices rather than campaigns.**
 
@@ -238,8 +238,13 @@ billing.
 
 ## What I would fix, in order, once you have that answer
 
-1. **CC recipients dropped** (§4) — certain, silent, and affects money getting seen by
-   the person who pays. One field on `buildInvoiceEmailPayload`.
+1. ~~**CC recipients dropped** (§4)~~ — **DONE.** `ccEmails` added to
+   `buildInvoiceEmailPayload` and `cc_emails` to `InvoiceLike`, so the list-row
+   Send/Resend and the view dialog now carry them. Verified `InvoicesPage`'s query
+   uses `select('*')`, so the column is genuinely fetched — otherwise the fix would
+   have emitted an empty array forever and looked correct. Non-string and blank
+   entries are filtered; a missing/null column yields `[]`, which `send-invoice`
+   already treats as "no CC".
 2. **Persist the send** — a row per send with the provider message id, method, and
    whether it fell back. `org_email_send_failures` already proves the pattern works;
    this is its success twin.

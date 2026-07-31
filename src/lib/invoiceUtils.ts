@@ -32,6 +32,15 @@ export interface InvoiceLike {
   created_at: string;
   due_date?: string | null;
   paid_at?: string | null;
+  /**
+   * Extra addresses to copy on the invoice email, as saved by
+   * InvoiceFormDialog's "CC recipients" field.
+   *
+   * Optional because callers pass loosely-typed rows, but the column is
+   * NOT NULL on `invoices` and every current caller selects `*`, so it is
+   * populated in practice.
+   */
+  cc_emails?: string[] | null;
 }
 
 function addDaysToDateString(value: string, days: number) {
@@ -119,5 +128,18 @@ export function buildInvoiceEmailPayload(invoice: InvoiceLike, organizationId: s
     isPaid: isInvoicePaid(invoice),
     paidAt: invoice.paid_at || undefined,
     lineItems: getInvoiceLineItems(invoice),
+    // CC recipients were collected by InvoiceFormDialog, stored on the invoice
+    // row, and accepted by send-invoice — but omitted here, so every send that
+    // went through this builder (the list-row Send/Resend button and
+    // InvoiceViewDialog) silently dropped them. Only sending straight from the
+    // create/edit dialog, which builds its own body, ever carried them.
+    //
+    // Key name is `ccEmails` to match what send-invoice actually reads
+    // (`data.ccEmails`) and what InvoiceFormDialog already sends — not the
+    // column name. The function treats an empty array as "no CC", so passing
+    // [] is safe and mirrors the dialog's behaviour.
+    ccEmails: Array.isArray(invoice.cc_emails)
+      ? invoice.cc_emails.filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+      : [],
   };
 }
