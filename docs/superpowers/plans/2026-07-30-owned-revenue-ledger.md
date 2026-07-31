@@ -211,3 +211,57 @@ It returns: the live column list, the FK definition (to prove `SET NULL`), the R
 - **Spec coverage:** your three requirements map to — export destination decided and made Task 4 with a restore test, not a later phase (1); all four streams in `revenue_stream` from Task 1 and sourced individually in Task 2 (2); `mrr_cents` and `cash_cents` never combined, `gap_cents` explicit, `is_proration` captured at ingest (3).
 - **Known gap, stated rather than hidden:** Tasks 3–5 are specified but not step-by-step code, because their exact SQL depends on what Task 1's live verification returns — particularly the platform-admin predicate. Expand each once its predecessor is verified. Writing that code now would be guessing at a schema that does not exist yet, which is the failure mode this repo has been bitten by.
 - **Unrecoverable regardless:** Stripe's Events API retains ~30 days, so event-level detail older than that is gone permanently. Everything here reconstructs it from invoices instead. That is the reason to start the backfill sooner rather than later — invoice history keeps indefinitely, but each day's event detail expires.
+
+---
+
+## Reconciliation, 2026-07-31 — pinned. Do not re-derive.
+
+**SaaS plan revenue = $2,179.00 across 50 cash-bearing rows.**
+
+That is the number. If a future report disagrees, the report is wrong, not this line.
+
+### Why this had to be pinned
+
+Two reports of the same classification, run the same day off the same single correction pass (all 1190 rows share one `corrected_at`), returned materially different figures:
+
+| tier | report A | report B |
+|---|---|---|
+| certain | $129,533 | $147,294 |
+| probable | $25,434 | $27,220 |
+| inferred | $13,609 | $12,236 |
+| plan | $2,179 / 94 rows | $1,489 / 14 rows |
+
+Nothing had been reclassified. The two queries used different, unstated populations:
+
+- **Report A** = `WHERE counts_as_cash` — successful charges plus `invoice.paid`, net of refunds and disputes.
+- **Report B** = `WHERE event_type = 'charge.succeeded'` — gross charge volume only, dropping `invoice.paid`, which is where SaaS subscription cash actually lives.
+
+Neither excluded `charge.failed` or `invoice.payment_failed` from its dollar figure — that was not the cause.
+
+Two further defects, both inside report A:
+
+1. **94 rows next to $2,179.** The count swept in failed payments while the amount did not — a count and an amount from different populations printed as one line. The real figure is 50 rows.
+2. **Inferred reported gross of a $49 dispute** while certain and probable were reported net. Half-netted output inside a single table.
+
+### What now enforces it
+
+`public.billing_revenue_by_confidence` is the only reporting surface. Its definition pins all of the above structurally, not by convention:
+
+- `WHERE counts_as_cash` is applied once, to the whole view, so `events` and `net_cash_cents` are always the same population. The 94-row failure mode is unrepresentable.
+- Reversals are negative `amount_cents` rows inside that population, so `net_cash_cents` is net for every tier or for none. There is no filter that yields half-net output.
+- `event_type` is deliberately **not** in the grain. Filtering to `charge.succeeded` is exactly how one tier ended up gross of its dispute; the column that made that possible is gone.
+- Gross is exposed as `gross_cents` / `reversal_cents` alongside net, so anyone who wants a gross figure reads one rather than reconstructing it with a `WHERE` clause.
+
+`billing_events` now carries a table comment stating it is raw data and not a reporting surface, naming the view instead, and `counts_as_cash` carries a comment saying any row count must apply the same filter as the sum.
+
+### Reconciled ledger, as the view returns it
+
+| confidence | stream | events | gross | reversals | net |
+|---|---|---|---|---|---|
+| certain | merchant_cleaning | 679 | $148,050.00 | −$18,517.15 | $129,532.85 |
+| probable | merchant_cleaning | 147 | $27,545.50 | −$2,112.00 | $25,433.50 |
+| inferred | merchant_cleaning | 60 | $13,608.77 | −$49.00 | $13,559.77 |
+| probable | plan | 50 | $2,378.00 | −$199.00 | **$2,179.00** |
+| certain | ai_credits | 1 | $10.00 | $0.00 | $10.00 |
+
+The $49 that went missing between the two reports is now a visible `reversal_cents` value rather than a discrepancy.
