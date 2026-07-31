@@ -402,7 +402,9 @@ Deno.serve(async (req) => {
     if (!authorized) {
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace("Bearer ", "");
-      if (token) {
+      if (token && token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
+        authorized = true;
+      } else if (token) {
         const { data: userData } = await admin.auth.getUser(token);
         if (userData?.user) {
           const scoped = createClient(
