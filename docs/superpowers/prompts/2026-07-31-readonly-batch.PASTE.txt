@@ -1,12 +1,15 @@
-SECTIONS A, B, C, D and F ARE READ-ONLY. SECTION E IS THE ONLY PART THAT WRITES,
-and all it does is tighten two GRANTs.
+SECTION 0 IS URGENT — a customer is locked out right now. Please do it first.
+
+SECTIONS A, B, C, D and F ARE READ-ONLY. SECTION 0 and SECTION E are the only
+parts that write. Section 0's write is CONDITIONAL — only run it if 0A confirms
+the diagnosis. Section E just tightens two GRANTs.
 
 For everything except E: do not change, insert, update or delete anything, and do
 not create a migration. Do not "fix" anything you notice while running these —
 several of these queries are deliberately looking for problems, and the decision
 about what to do with each answer is mine to make, not something to action here.
 
-Section E is a real (small) change and is marked inline where it starts.
+Sections 0 and E are the only changes, and both are marked inline.
 
 Please label every result block with its query ID (A1, A2, …) exactly as written
 below. Six unrelated questions are bundled here and I need to know which result
@@ -14,6 +17,76 @@ answers which. If a query returns zero rows, say "A3: 0 rows" rather than
 skipping it — an empty result is a meaningful answer in most of these.
 
 If any query errors, paste the error and carry on to the next one. Don't stop.
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION 0 — Golden Room Cleaning's owner cannot log in        ⚠ URGENT, DO FIRST
+═══════════════════════════════════════════════════════════════════════════
+Their owner reports the app "loops and never lands". The suspected cause is the
+ProductTour redirect loop, but that is probably NOT it — see the note after 0C.
+So please run 0A AND 0B, paste both, and only run 0C if 0A actually confirms.
+
+
+-- 0A. The tour state. Note organization_id is selected — 0C needs it.
+select o.name, op.organization_id, op.tour_current_step,
+       op.activated_at, op.tour_completed_at, op.tour_skipped_at
+from public.onboarding_progress op
+join public.organizations o on o.id = op.organization_id
+where o.name ilike '%golden%';
+
+
+-- 0B. THE MORE LIKELY CAUSE — the paywall gate, not the tour.
+--     AdminRoute bounces to /pricing when check-subscription returns
+--     subscribed=false. check-subscription grants access from a lifetime
+--     purchase, a comped row, or an unexpired org trial derived from
+--     organizations.created_at — so all three are worth seeing at once.
+select o.id, o.name, o.created_at                          as org_created_at,
+       now() - o.created_at                                as org_age,
+       (select count(*) from public.lifetime_access_purchases lp
+         where lp.organization_id = o.id)                  as lifetime_rows,
+       (select count(*) from public.comped_access ca
+         where ca.organization_id = o.id)                  as comped_rows,
+       (select count(*) from public.org_memberships m
+         where m.organization_id = o.id
+           and m.role in ('owner','admin'))                as admin_members
+from public.organizations o
+where o.name ilike '%golden%';
+
+--     And the owner's membership specifically — if role is 'member' rather than
+--     'owner'/'admin', AdminRoute sends them to the staff portal instead, which
+--     also presents as "never lands".
+select o.name, m.user_id, m.role, m.created_at, u.email
+from public.org_memberships m
+join public.organizations o on o.id = m.organization_id
+left join auth.users u      on u.id = m.user_id
+where o.name ilike '%golden%'
+order by m.role;
+
+
+-- 0C. CONDITIONAL WRITE — run ONLY if 0A returned a row with activated_at,
+--     tour_completed_at AND tour_skipped_at all null. If any of the three is
+--     already set, the tour is not running for them and this changes nothing —
+--     skip it and say so.
+--     One row in a UX table. Reversible (set the column back to null). Touches
+--     no customer data and no access.
+update public.onboarding_progress
+set tour_skipped_at = now()
+where organization_id = '<the organization_id from 0A>'
+  and tour_completed_at is null
+  and tour_skipped_at is null;
+
+
+-- WHY THE TOUR IS PROBABLY NOT THE CAUSE, for whoever reads this later:
+--   The re-navigation trap was fixed in commit 590db65d, and that fix IS live —
+--   verified in the deployed bundle at www.jointidywise.com, both halves of it
+--   (the positioned-once guard and the escape that marks the tour skipped when a
+--   step target never mounts). With that deployed, a user with all-null columns
+--   gets routed onto the step route ONCE and can then navigate away freely.
+--   Beyond that, the tour only acts INSIDE /dashboard — both CopilotMount and
+--   the ProductTour effect bail out when the path doesn't start with /dashboard.
+--   So it cannot cause a loop for someone who never lands on /dashboard at all.
+--   0C is cheap and reversible, so it is worth doing if 0A confirms, but 0B is
+--   where I'd expect the actual answer to be.
 
 
 ═══════════════════════════════════════════════════════════════════════════
@@ -307,7 +380,7 @@ where b.cleaner_wage_type = 'percentage'
 
 
 ═══════════════════════════════════════════════════════════════════════════
-SECTION E — Tighten the grants on the two billing views  ⚠ THE ONLY WRITE
+SECTION E — Tighten the grants on the two billing views       ⚠ WRITES (2 of 2)
 ═══════════════════════════════════════════════════════════════════════════
 Every GRANT this repo's migrations ever issued on these two views was already
 GRANT SELECT — there is no GRANT ALL anywhere in them. But Supabase's stock
@@ -402,8 +475,8 @@ order by is_published desc, slug;
 
 
 ═══════════════════════════════════════════════════════════════════════════
-That's 19 queries plus one small write. Results labelled A1-A4, B1-B3, C1-C4,
+That's 19 queries plus two writes (0C, conditional; and E2). Results labelled A1-A4, B1-B3, C1-C4,
 D1-D3, E1/E3, F1-F3 please, including the ones that come back empty.
 
-Only Section E changed anything. If you believe any other section modified data,
+Only Sections 0 and E changed anything. If you believe any other section modified data,
 say so explicitly rather than letting it pass.
