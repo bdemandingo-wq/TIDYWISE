@@ -997,12 +997,19 @@ export default function PricingPage() {
               </div>
 
               <ul className="space-y-2.5 text-sm">
+                {/*
+                  Four, not six. 'Works on any device (web)' and 'Email support'
+                  came off for the same reasons they came off the Basic card: the
+                  parenthetical apologised for something it shouldn't, and naming
+                  the support tier next to a price frames it as the cheap option
+                  at the moment of decision. Both are in the comparison table.
+                  What's left all speaks to the one-time offer specifically —
+                  which is the only thing this block has to argue.
+                */}
                 {[
                   'Every Pro feature, forever',
                   'All future features included free',
                   'No recurring bill — ever',
-                  'Works on any device (web)',
-                  'Email support',
                   'Excludes the Custom plan done-for-you requests',
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5">
