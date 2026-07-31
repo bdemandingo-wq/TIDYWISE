@@ -7,7 +7,8 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { readEdgeFunctionError, readEdgeFunctionErrorBody } from '@/lib/edgeFunctionError';
+import { rateLimitMessage } from '@/lib/rateLimitMessage';
 import { Sentry } from '@/lib/sentry';
 import { toast } from 'sonner';
 import type { FunctionInvokeOptions } from '@supabase/functions-js';
@@ -339,14 +340,35 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       );
 
       if (validationError) {
+        // The rate limiter answers with HTTP 429, and supabase-js turns EVERY
+        // non-2xx into `error` with `data` set to null. So the rate_limited
+        // check below this block could never run — a throttled customer was
+        // told "invalid email or password", which is an instruction to retry,
+        // which is the exact action being throttled.
+        //
+        // Read the body off error.context to get the real reason. Same fix as
+        // PublicBookingPage's conflict branch, same cause.
+        const body = await readEdgeFunctionErrorBody(validationError);
+        if (body?.error === 'rate_limited') {
+          return { error: rateLimitMessage(body.retry_after) };
+        }
+
+        // Everything else still collapses to one message for now. Separating
+        // the rest needs a server change first: client-portal-login returns
+        // HTTP 200 with invalid_credentials when the RPC itself fails, so a
+        // database outage is masked server-side and no client can see through
+        // it. Tracked in the portal-login plan.
         console.error('Login validation error:', validationError);
         return { error: 'Invalid email or password' };
       }
 
-      const validation = validationResult as { valid: boolean; error?: string; user_id?: string; session_token?: string } | null;
+      const validation = validationResult as { valid: boolean; error?: string; retry_after?: number; user_id?: string; session_token?: string } | null;
 
+      // Kept as well as the 429 path above, not instead of it. Nothing returns
+      // rate_limited with a 2xx today, but this costs nothing and means the
+      // message survives if the function's status codes ever change.
       if (validation?.error === 'rate_limited') {
-        return { error: 'Too many attempts. Please wait a few minutes and try again.' };
+        return { error: rateLimitMessage(validation.retry_after) };
       }
 
       if (!validation || !validation.valid || !validation.session_token) {
