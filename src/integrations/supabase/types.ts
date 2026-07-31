@@ -1753,6 +1753,68 @@ export type Database = {
           },
         ]
       }
+      booking_submission_failures: {
+        Row: {
+          client_ip: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          organization_id: string | null
+          organization_slug: string | null
+          origin: string | null
+          path: string
+          payload: Json
+          phone: string | null
+          reason: string | null
+          stage: string
+          user_agent: string | null
+        }
+        Insert: {
+          client_ip?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          organization_id?: string | null
+          organization_slug?: string | null
+          origin?: string | null
+          path?: string
+          payload?: Json
+          phone?: string | null
+          reason?: string | null
+          stage: string
+          user_agent?: string | null
+        }
+        Update: {
+          client_ip?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          organization_id?: string | null
+          organization_slug?: string | null
+          origin?: string | null
+          path?: string
+          payload?: Json
+          phone?: string | null
+          reason?: string | null
+          stage?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_submission_failures_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_team_assignments: {
         Row: {
           booking_id: string
