@@ -4,6 +4,9 @@
 **Purpose:** the goal is that every automated message the system sends should be editable by the business owner. This documents what is actually there first, so a build starts from evidence rather than re-deriving it.
 
 **Status of the goal:** not started. This is findings only.
+**Planned 2026-07-30:** `docs/superpowers/plans/2026-07-30-editable-automation-messages.md`
+— confirms `automation_steps` as the destination (the key alignment is proven there),
+and inserts an audit step this document did not anticipate.
 
 ---
 
@@ -191,6 +194,16 @@ So the work is **a per-sender migration onto an existing table**, plus the one t
 ---
 
 ## Where to start, if building
+
+> **Revised in planning.** A step 0 was added ahead of all of these: **audit whether any
+> org already has rows in `automation_steps`.** The editor has been live and writing
+> since `20260707060120`, and every owner who used it was told "Automation saved". The
+> moment a sender reads that table, all of that copy ships — untested and possibly
+> years old. Check before task 3, not after a customer receives it.
+>
+> Also revised: token work cannot be entirely last. The pilot needs one resolver on day
+> one; what waits until last is *unifying the three legacy engines*, which have live
+> owner copy behind them.
 
 1. **Fix the live compliance hole first** — validation in `CampaignEditDialog` so the STOP line can't be deleted from a marketing SMS. Independent of everything else, and it's exposed now.
 2. **Add a message class** to `automation_steps` (`transactional` | `marketing`), because the STOP rule is per-class and nothing currently records the class.
