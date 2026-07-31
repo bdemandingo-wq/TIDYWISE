@@ -39,6 +39,28 @@ function countCompetitorMentions(html: string): number {
   const lower = html.toLowerCase();
   return COMPETITORS.filter((c) => lower.includes(c.toLowerCase())).length;
 }
+function countBrandMentions(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").toLowerCase();
+  return (text.match(/tidywise/g) || []).length;
+}
+function countCompetitorOccurrences(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").toLowerCase();
+  let n = 0;
+  for (const c of COMPETITORS) {
+    const escaped = c.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    n += (text.match(new RegExp(escaped, "g")) || []).length;
+  }
+  return n;
+}
+function hasInternalBrandLink(html: string): boolean {
+  // A real conversion path, not a name-drop.
+  return /<a[^>]+href=["']\/(pricing|features|compare|blog)(\/[^"']*)?["']/i.test(html);
+}
+function brandInClosing(html: string): boolean {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!text) return false;
+  return text.slice(Math.floor(text.length * 0.8)).includes("tidywise");
+}
 function countNumericSentences(html: string): number {
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   if (!text) return 0;
@@ -49,32 +71,51 @@ function keywordNeedsCompetitors(keyword: string): boolean {
   const k = keyword.toLowerCase();
   return /\b(software|vs\.?|alternative|alternatives|app|apps|tool|tools)\b/.test(k);
 }
-function calcQualityScore(o: { wordCount: number; hasFaq: boolean; competitorCount: number; hasH2: boolean; hasH3: boolean; hasMeta: boolean; targetKeyword: string; numericSentenceCount: number }): { score: number; notes: string[] } {
+function calcQualityScore(o: { wordCount: number; hasFaq: boolean; competitorCount: number; hasH2: boolean; hasH3: boolean; hasMeta: boolean; targetKeyword: string; numericSentenceCount: number; brandCount: number; hasBrandLink: boolean; brandClosing: boolean; competitorOccurrences: number }): { score: number; notes: string[] } {
   const notes: string[] = []; let score = 0;
-  if (o.wordCount >= 2500) { score += 30; notes.push("Words 30/30"); }
-  else if (o.wordCount >= 1500) { score += 22; notes.push("Words 22/30"); }
-  else if (o.wordCount >= 1000) { score += 12; notes.push(`Words low ${o.wordCount} 12/30`); }
-  else notes.push(`Words too low ${o.wordCount} 0/30`);
+  if (o.wordCount >= 2500) { score += 25; notes.push("Words 25/25"); }
+  else if (o.wordCount >= 1500) { score += 18; notes.push("Words 18/25"); }
+  else if (o.wordCount >= 1000) { score += 10; notes.push(`Words low ${o.wordCount} 10/25`); }
+  else notes.push(`Words too low ${o.wordCount} 0/25`);
   if (o.hasFaq) { score += 15; notes.push("FAQ 15/15"); } else notes.push("FAQ missing 0/15");
 
-  // 25pt slot: competitors ONLY for software/comparison topics; otherwise
+  // 20pt slot: competitors ONLY for software/comparison topics; otherwise
   // reward specific numbers/prices in the body (operator-detail signal).
   if (keywordNeedsCompetitors(o.targetKeyword)) {
-    if (o.competitorCount >= 5) { score += 25; notes.push(`Competitors ${o.competitorCount} 25/25`); }
-    else if (o.competitorCount >= 3) { score += 18; notes.push(`Competitors ${o.competitorCount} 18/25`); }
-    else if (o.competitorCount >= 1) { score += 8; notes.push(`Competitors ${o.competitorCount} 8/25`); }
-    else notes.push("Competitors 0/25");
+    if (o.competitorCount >= 5) { score += 20; notes.push(`Competitors ${o.competitorCount} 20/20`); }
+    else if (o.competitorCount >= 3) { score += 15; notes.push(`Competitors ${o.competitorCount} 15/20`); }
+    else if (o.competitorCount >= 1) { score += 6; notes.push(`Competitors ${o.competitorCount} 6/20`); }
+    else notes.push("Competitors 0/20");
   } else {
-    if (o.numericSentenceCount >= 8) { score += 25; notes.push(`Specifics ${o.numericSentenceCount} 25/25`); }
-    else if (o.numericSentenceCount >= 5) { score += 18; notes.push(`Specifics ${o.numericSentenceCount} 18/25`); }
-    else if (o.numericSentenceCount >= 2) { score += 8; notes.push(`Specifics ${o.numericSentenceCount} 8/25`); }
-    else notes.push(`Specifics ${o.numericSentenceCount} 0/25`);
+    if (o.numericSentenceCount >= 8) { score += 20; notes.push(`Specifics ${o.numericSentenceCount} 20/20`); }
+    else if (o.numericSentenceCount >= 5) { score += 15; notes.push(`Specifics ${o.numericSentenceCount} 15/20`); }
+    else if (o.numericSentenceCount >= 2) { score += 6; notes.push(`Specifics ${o.numericSentenceCount} 6/20`); }
+    else notes.push(`Specifics ${o.numericSentenceCount} 0/20`);
   }
 
-  if (o.hasH2 && o.hasH3) { score += 20; notes.push("Structure 20/20"); }
-  else if (o.hasH2) { score += 10; notes.push("Structure 10/20"); }
-  else notes.push("Structure 0/20");
+  if (o.hasH2 && o.hasH3) { score += 15; notes.push("Structure 15/15"); }
+  else if (o.hasH2) { score += 8; notes.push("Structure 8/15"); }
+  else notes.push("Structure 0/15");
   if (o.hasMeta) { score += 10; notes.push("Meta 10/10"); } else notes.push("Meta 0/10");
+
+  // Positioning: 15 points, awarded additively so partial credit is possible.
+  let pos = 0;
+  if (o.brandCount >= 3) { pos += 4; notes.push(`Brand x${o.brandCount} 4/4`); }
+  else if (o.brandCount >= 1) { pos += 2; notes.push(`Brand x${o.brandCount} 2/4`); }
+  else notes.push("Brand absent 0/4");
+
+  if (o.hasBrandLink) { pos += 5; notes.push("Brand link 5/5"); }
+  else notes.push("No internal TidyWise link 0/5");
+
+  if (o.brandClosing) { pos += 3; notes.push("Closing CTA 3/3"); }
+  else notes.push("No brand in closing 0/3");
+
+  if (o.competitorOccurrences === 0) { pos += 3; notes.push("SoV n/a 3/3"); }
+  else if (o.brandCount >= o.competitorOccurrences) { pos += 3; notes.push(`SoV ${o.brandCount}:${o.competitorOccurrences} 3/3`); }
+  else if (o.brandCount * 2 >= o.competitorOccurrences) { pos += 1; notes.push(`SoV ${o.brandCount}:${o.competitorOccurrences} 1/3`); }
+  else notes.push(`SoV ${o.brandCount}:${o.competitorOccurrences} 0/3 — competitor-dominant`);
+
+  score += pos;
   return { score: Math.min(100, score), notes };
 }
 
@@ -97,8 +138,20 @@ When writing in first person about the author's business, use ONLY the verified 
 
 Depth over length. Never pad. Cut any sentence that doesn't teach something.
 
+FACTS YOU MUST NOT INVENT. These are the only correct values. If a fact you want to state is not on this list, leave it out rather than guessing:
+  - Free trial: 14 days. Never any other number. Both the Stripe trial and the in-app trial are 14 days as of 2026-07-31.
+  - Plans: Basic $49/month, Pro $97/month, Custom $197/month. Yearly billing includes 2 months free.
+  - Lifetime: one-time $300, limited to the first 50 customers.
+  - There is NO $50 tier, NO free-forever tier, and NO money-back guarantee. All payments are final and non-refundable per our Terms of Service.
+  - Never state a price, trial length, discount or guarantee for TidyWise that does not appear above.
+You MAY state competitors' pricing where you are confident, but attribute it and prefer ranges over precise figures you cannot verify.
+
 Every post MUST:
 - Be at least ${MIN_WORD_COUNT} words of body content
+- Reference TidyWise at least 3 times across the post, worked into the argument rather than repeated as a slogan
+- Include at least one internal link to /pricing, /features/*, or /compare/*
+- When competitors are named, give TidyWise at least equal weight — do not write a roundup that never makes our case
+- Keep the closing CTA mentioning TidyWise
 - Use proper HTML: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <a>
 - Open with an H2 intro (no H1 — title is rendered separately)
 - Include 4 to 7 H2 sections; use H3s only where the content genuinely needs subdivision. Vary structure between posts.
@@ -284,6 +337,10 @@ serve(async (req) => {
         const wordCount = countWords(post.content);
         const competitorCount = countCompetitorMentions(post.content);
         const numericSentenceCount = countNumericSentences(post.content);
+        const brandCount = countBrandMentions(post.content);
+        const hasBrandLink = hasInternalBrandLink(post.content);
+        const brandClosing = brandInClosing(post.content);
+        const competitorOccurrences = countCompetitorOccurrences(post.content);
         const hasFaq = /frequently asked|<h2[^>]*>\s*faq/i.test(post.content);
         const hasH2 = /<h2/i.test(post.content);
         const hasH3 = /<h3/i.test(post.content);
@@ -296,7 +353,7 @@ serve(async (req) => {
         const { data: slugClash } = await supabase.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
         if (slugClash) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
 
-        const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount });
+        const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount, brandCount, hasBrandLink, brandClosing, competitorOccurrences });
         const validationNotes: string[] = [...notes];
         if (similar) validationNotes.push(`⚠️ Similar to: "${similar.title}"`);
 
@@ -315,7 +372,11 @@ serve(async (req) => {
         }
 
         const tooLowQuality = score < 60;
-        const shouldPublish = autoPublish && !similar && !tooLowQuality;
+        // Hard publish floor, independent of score: a post that never names
+        // TidyWise or offers no conversion path is never auto-published.
+        const noPositioning = brandCount === 0 || !hasBrandLink;
+        if (noPositioning) validationNotes.push("⚠️ Held as draft: no TidyWise positioning (brand mention and/or internal link missing)");
+        const shouldPublish = autoPublish && !similar && !tooLowQuality && !noPositioning;
         const nowIso = new Date().toISOString();
 
         const { data: inserted, error: insErr } = await supabase.from("blog_posts").insert({
