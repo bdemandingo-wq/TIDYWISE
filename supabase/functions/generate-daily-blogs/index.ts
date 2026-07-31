@@ -372,7 +372,11 @@ serve(async (req) => {
         }
 
         const tooLowQuality = score < 60;
-        const shouldPublish = autoPublish && !similar && !tooLowQuality;
+        // Hard publish floor, independent of score: a post that never names
+        // TidyWise or offers no conversion path is never auto-published.
+        const noPositioning = brandCount === 0 || !hasBrandLink;
+        if (noPositioning) validationNotes.push("⚠️ Held as draft: no TidyWise positioning (brand mention and/or internal link missing)");
+        const shouldPublish = autoPublish && !similar && !tooLowQuality && !noPositioning;
         const nowIso = new Date().toISOString();
 
         const { data: inserted, error: insErr } = await supabase.from("blog_posts").insert({
