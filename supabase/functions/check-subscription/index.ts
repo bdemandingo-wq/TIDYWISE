@@ -130,13 +130,18 @@ serve(async (req) => {
 
     let grandfatheredOrg = false;
     if (!lifetimePurchase) {
-      const { data: gfMembership } = await supabaseClient
+      const { data: gfMembership, error: gfError } = await supabaseClient
         .from("org_memberships")
         .select("organizations!inner(grandfathered_lifetime, plan_type)")
         .eq("user_id", user.id)
         .or("grandfathered_lifetime.eq.true,plan_type.eq.lifetime", { foreignTable: "organizations" })
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
+      if (gfError) {
+        // Do NOT throw: a failed lookup must not silently look like "no lifetime access".
+        logStep("ERROR looking up grandfathered org membership", { message: gfError.message, code: (gfError as any).code });
+      }
       grandfatheredOrg = !!gfMembership;
     }
 
