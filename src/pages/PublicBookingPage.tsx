@@ -572,7 +572,17 @@ export default function PublicBookingPage() {
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        const { data: webhookResult, error: webhookError } = await supabase.functions.invoke('external-booking-webhook', {
+        // public-booking-submit, not external-booking-webhook: the latter requires
+        // an x-webhook-secret this browser cannot hold, and has 401'd every public
+        // submission since ~2026-05-09. The new endpoint takes no secret and is
+        // defended by per-IP/org/email rate limits instead.
+        //
+        // Response shape is UNCHANGED — it returns createBookingFromPayload()
+        // directly, and that module was a pure extraction from the old webhook.
+        // Verified byte-identical: { success, booking_id, booking_number,
+        // customer_id, message } on 200, and { success:false, error, conflict:true }
+        // on 409. total_amount is still absent, so the fallback below stays correct.
+        const { data: webhookResult, error: webhookError } = await supabase.functions.invoke('public-booking-submit', {
           body: {
             first_name: firstName,
             last_name: lastName,
