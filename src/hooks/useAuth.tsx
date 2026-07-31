@@ -5,9 +5,10 @@
  * Session persistence is disabled - users must login every visit.
  */
 
-import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { useAuthNoSession, supabaseNoSession } from './useAuthNoSession';
+import { isInvalidSessionError } from '@/lib/authErrors';
 
 interface SubscriptionStatus {
   subscribed: boolean;
@@ -38,13 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [showSubscriptionDialog, setShowSubscriptionDialog] = useState(false);
-  // Tolerate a single 401 from check-subscription before signing the
-  // user out. Supabase auth occasionally returns a transient 401 right
-  // after a new user is created via inviteUserByEmail (the checkout-
-  // first flow) before the session propagates. Without this, the user
-  // landing on /checkout/success would get auto-signed-out by the
-  // polling loop and see the anonymous variant of the page.
-  const consecutive401sRef = useRef(0);
 
   const signOut = async () => {
     // Purge per-user/per-org sidebar visibility cache so the next signed-in
@@ -76,7 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
 
       setSubscription(data);
-      consecutive401sRef.current = 0;
       // Open the subscription dialog only when:
       //   1. The user genuinely doesn't have a subscription, AND
       //   2. We are NOT in the post-checkout grace window — the
@@ -98,32 +91,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // dialog normally.
         try { sessionStorage.removeItem("tw_post_checkout"); } catch { /* no-op */ }
       }
-    } catch (error: any) {
-      const status = error?.context?.status;
-      const msg = String(error?.message ?? "");
-
-      const looksLikeAuth =
-        status === 401 ||
-        msg.includes("Auth session missing") ||
-        msg.includes("session_not_found");
-
-      // Tolerate a single transient 401 — Supabase auth occasionally
-      // returns one right after a new user is created (eg from the
-      // checkout-first flow's inviteUserByEmail) before propagation.
-      // Two in a row = real auth failure; sign out.
-      if (looksLikeAuth) {
-        consecutive401sRef.current += 1;
-        if (consecutive401sRef.current >= 2) {
-          consecutive401sRef.current = 0;
-          await signOut();
-          return;
-        }
-        console.warn("[useAuth] transient 401 — tolerating one retry");
-        return;
-      }
-      consecutive401sRef.current = 0;
-      // Log but don't block login — subscription check failure should not prevent access
-      console.error("Error checking subscription:", error);
+    } catch (error: unknown) {
+      // This function no longer signs anyone out.
+      //
+      // It used to: two consecutive 401s from check-subscription ended the
+      // session. But check-subscription returns 401 from four places, and one
+      // of them is its OWN server-side auth.getUser(token) call failing — so a
+      // hiccup inside an edge function was logging a browser out. It also
+      // returns 401 for a missing header and a malformed token, neither of
+      // which is proof the stored session is bad.
+      //
+      // Session validity is now decided in exactly one place: the getUser()
+      // check in the effect below, which asks the auth server directly and
+      // classifies the answer via isInvalidSessionError. A billing endpoint's
+      // status code is not evidence about a credential, so this only logs.
+      const e = error as { context?: { status?: number }; message?: string } | null;
+      console.error("[useAuth] check-subscription failed", {
+        status: e?.context?.status,
+        message: e?.message,
+      });
     }
   };
 
@@ -137,19 +123,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const t = window.setTimeout(async () => {
       try {
         const { data, error } = await supabaseNoSession.auth.getUser();
-        if (error || !data?.user) {
-          // Try refreshing the session before giving up
-          const { data: refreshData, error: refreshError } = await supabaseNoSession.auth.refreshSession();
-          if (refreshError || !refreshData?.session) {
-            await signOut();
-            return;
-          }
-          // Session refreshed successfully, continue
+
+        // This is the ONLY place that ends a session automatically, and it
+        // only does so on proof. getUser() returns `{ error }` rather than
+        // throwing for an unreachable auth server, so `if (error)` used to
+        // catch a network blip and a rejected JWT identically — and the
+        // manual refreshSession() that followed was both a third refresher
+        // (see useAuthNoSession) and a second chance to sign someone out.
+        // Both are gone. Anything that isn't provably an invalid session
+        // leaves the session alone and skips this cycle's check.
+        if (error && isInvalidSessionError(error)) {
+          console.warn('[useAuth] session is invalid, signing out:', error.message);
+          await signOut();
+          return;
         }
+        if (error) {
+          console.warn('[useAuth] could not verify session, keeping it:', error.message);
+          return;
+        }
+        if (!data?.user) {
+          // No error but no user: nothing to check against. Don't infer a
+          // dead session from it — autoRefreshToken may still be mid-flight.
+          return;
+        }
+
         await checkSubscription(noSessionAuth.session?.access_token);
-      } catch {
-        // Network error - don't sign out, just skip the check
-        console.warn('Network error during auth check, keeping session');
+      } catch (e) {
+        // Thrown (rather than returned) failures are transport-level. Never
+        // a reason to sign out.
+        console.warn('[useAuth] auth check threw, keeping session:', e);
       }
     }, 0);
 

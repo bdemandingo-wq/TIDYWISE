@@ -53,18 +53,20 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        // Check for existing session
+        // getSession() already refreshes an expired token from a valid
+        // refresh token — that is what supabase-js does internally on
+        // recovery. There used to be a manual refreshSession() in the else
+        // branch here as a belt-and-braces fallback. It was neither: with
+        // autoRefreshToken:true and a second manual refresh in useAuth, the
+        // same refresh token could be presented three times, and Supabase
+        // treats a reused refresh token as theft and revokes the whole token
+        // family. That is how one account accumulated 111 refresh tokens and
+        // 29 sessions, being logged out each time a family was revoked.
+        // One refresher. Do not add another.
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession) {
           setSession(currentSession);
           setUser(currentSession.user);
-        } else {
-          // No cached session — try refreshing in case token is expired but refresh token is valid
-          const { data: refreshData } = await supabase.auth.refreshSession();
-          if (refreshData?.session) {
-            setSession(refreshData.session);
-            setUser(refreshData.session.user);
-          }
         }
       } catch (err) {
         console.error('Error initializing auth:', err);
