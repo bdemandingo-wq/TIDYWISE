@@ -216,9 +216,12 @@ It returns: the live column list, the FK definition (to prove `SET NULL`), the R
 
 ## Reconciliation, 2026-07-31 — pinned. Do not re-derive.
 
-**SaaS plan revenue = $2,179.00 across 50 cash-bearing rows.**
+**SaaS plan revenue = $1,290.00 across 38 cash-bearing rows.**
 
 That is the number. If a future report disagrees, the report is wrong, not this line.
+
+This line previously read **$2,179.00 across 50 rows**, and that was wrong. 12 of those 50 rows were `invoice.paid` events duplicating a `charge.succeeded` event for the *same* payment — $889.00 counted twice. `counts_as_cash` had been set true on both sides because those rows carry no shared `stripe_invoice_id` / `stripe_payment_intent_id`, so the ingest-time dedupe had nothing to match on and let both through. Corrected on 2026-07-31 by flipping the 12 invoice-side rows to `counts_as_cash = false` on the base table (not by a suppression rule in the view), each stamped in `correction_basis`. The charge side is authoritative and was left untouched.
+
 
 ### Why this had to be pinned
 
