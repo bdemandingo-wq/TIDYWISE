@@ -1269,6 +1269,9 @@ export type Database = {
       billing_events: {
         Row: {
           amount_cents: number
+          corrected_at: string | null
+          correction_basis: string | null
+          correction_confidence: string | null
           counts_as_cash: boolean
           currency: string
           customer_email: string | null
@@ -1283,6 +1286,7 @@ export type Database = {
           organization_name: string | null
           raw: Json
           revenue_stream: string
+          revenue_stream_corrected: string | null
           stripe_charge_id: string | null
           stripe_customer_id: string | null
           stripe_invoice_id: string | null
@@ -1293,6 +1297,9 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          corrected_at?: string | null
+          correction_basis?: string | null
+          correction_confidence?: string | null
           counts_as_cash?: boolean
           currency?: string
           customer_email?: string | null
@@ -1307,6 +1314,7 @@ export type Database = {
           organization_name?: string | null
           raw?: Json
           revenue_stream: string
+          revenue_stream_corrected?: string | null
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
           stripe_invoice_id?: string | null
@@ -1317,6 +1325,9 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          corrected_at?: string | null
+          correction_basis?: string | null
+          correction_confidence?: string | null
           counts_as_cash?: boolean
           currency?: string
           customer_email?: string | null
@@ -1331,6 +1342,7 @@ export type Database = {
           organization_name?: string | null
           raw?: Json
           revenue_stream?: string
+          revenue_stream_corrected?: string | null
           stripe_charge_id?: string | null
           stripe_customer_id?: string | null
           stripe_invoice_id?: string | null
@@ -10754,6 +10766,17 @@ export type Database = {
           mrr_cents: number | null
           proration_cents: number | null
           refund_cents: number | null
+        }
+        Relationships: []
+      }
+      billing_revenue_by_confidence: {
+        Row: {
+          cash_cents: number | null
+          confidence: string | null
+          event_type: string | null
+          events: number | null
+          month: string | null
+          stream: string | null
         }
         Relationships: []
       }
