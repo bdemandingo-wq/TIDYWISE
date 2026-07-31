@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -44,16 +44,14 @@ const TIERS: Tier[] = [
     tagline: 'Run jobs, get paid, keep customers organized.',
     monthlyPrice: 49,
     yearlyPrice: 490,
+    // Four bullets, not nine. A card's job is to help someone choose BETWEEN
+    // tiers; anything table-stakes or true of all three is noise. Everything
+    // cut is still on the page in COMPARISON below — demoted, not deleted.
     features: [
-      'Online booking system',
-      'Unlimited customers + CRM',
-      'Smart team scheduler',
-      'Estimates, invoices, Stripe payments',
-      'Recurring bookings + jobs',
-      'Staff management',
-      'In-app messaging',
-      'Works on any phone (web)',
-      'Email support',
+      'Unlimited customers, jobs and staff — no per-user fees',
+      'Online booking that takes payment',
+      'Scheduling and recurring jobs',
+      'Estimates, invoices and Stripe payouts',
     ],
   },
   {
@@ -63,18 +61,18 @@ const TIERS: Tier[] = [
     monthlyPrice: 97,
     yearlyPrice: 970,
     highlight: true,
+    // Client portal is on the card and GPS tracking is not — a deliberate swap.
+    // "Your customers get their own login" is easy for an owner to picture and
+    // sells to a two-cleaner business and a ten-van one alike. GPS reads as
+    // surveillance at small headcounts: it wins the big operator and unsettles
+    // the small one, which is the wrong trade on the card that has to convert
+    // both. GPS is still in the comparison table.
     features: [
       'Everything in Basic',
-      'Automations (reviews, reminders, win-back, promos)',
-      'Email marketing campaigns',
-      'AI Intelligence + Copilot',
-      'Advanced reports + benchmarks',
-      'GPS tracking + operations dashboard',
-      'Payroll for cleaners',
-      'Inventory + expenses',
-      'Client portal',
-      'Data import from other CRMs',
-      'Lead pipeline',
+      'Automated review requests, reminders and win-backs',
+      'Payroll for your cleaners',
+      'AI assistant and advanced reports',
+      'Client portal — your customers get their own login',
     ],
   },
   {
@@ -83,15 +81,107 @@ const TIERS: Tier[] = [
     tagline: 'Pro features + we do the heavy lifting for you.',
     monthlyPrice: 197,
     yearlyPrice: 1970,
+    // The five '•' sub-items were examples of ONE feature, rendered as peers of
+    // 'Priority support'. That nesting is what made this card read as clutter.
+    // They collapse into the line below and appear in full in the table.
     features: [
       'Everything in Pro',
-      '1 done-for-you request per month',
-      '• Build me a website + connect to TidyWise',
-      '• Set up my SMS + email marketing',
-      '• Import my customers from another CRM',
-      '• Scripts & documents pack',
-      '• Or request anything custom',
+      'One done-for-you request every month — website build, CRM import, marketing setup, or anything custom',
       'Priority support',
+    ],
+  },
+];
+
+/**
+ * Every feature, in full. The cards carry only what distinguishes one tier from
+ * the next; this is where the rest lives.
+ *
+ * NOTHING WAS DELETED when the cards were trimmed from 28 bullets to 12 — each
+ * one is a row here. If you cut a card bullet, add it to this table in the same
+ * change, or the page starts quietly claiming less than the product does.
+ *
+ * "Everything in Basic" / "Everything in Pro" are not rows: the cumulative
+ * ticks below say the same thing without a reader having to hold two lists in
+ * their head at once.
+ */
+interface ComparisonRow {
+  label: string;
+  basic: boolean;
+  pro: boolean;
+  custom: boolean;
+  /** Indented under the row above — used for the done-for-you examples. */
+  sub?: boolean;
+}
+
+const COMPARISON: { group: string; rows: ComparisonRow[] }[] = [
+  {
+    group: 'Bookings and scheduling',
+    rows: [
+      { label: 'Online booking system', basic: true, pro: true, custom: true },
+      { label: 'Smart team scheduler', basic: true, pro: true, custom: true },
+      { label: 'Recurring bookings and jobs', basic: true, pro: true, custom: true },
+      { label: 'GPS tracking and operations dashboard', basic: false, pro: true, custom: true },
+      { label: 'Lead pipeline', basic: false, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Customers',
+    rows: [
+      { label: 'Unlimited customers + CRM', basic: true, pro: true, custom: true },
+      { label: 'In-app messaging', basic: true, pro: true, custom: true },
+      { label: 'Client portal', basic: false, pro: true, custom: true },
+      { label: 'Data import from other CRMs', basic: false, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Money',
+    rows: [
+      { label: 'Estimates, invoices and Stripe payments', basic: true, pro: true, custom: true },
+      { label: 'Payroll for cleaners', basic: false, pro: true, custom: true },
+      { label: 'Inventory and expenses', basic: false, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Your team',
+    rows: [
+      { label: 'Staff management', basic: true, pro: true, custom: true },
+      { label: 'Unlimited staff — no per-user fees', basic: true, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Growth',
+    rows: [
+      { label: 'Automations — reviews, reminders, win-back, promos', basic: false, pro: true, custom: true },
+      { label: 'Email marketing campaigns', basic: false, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Insight',
+    rows: [
+      { label: 'Advanced reports and benchmarks', basic: false, pro: true, custom: true },
+      { label: 'AI Intelligence + Copilot', basic: false, pro: true, custom: true },
+    ],
+  },
+  {
+    group: 'Done for you',
+    rows: [
+      { label: 'One done-for-you request per month', basic: false, pro: false, custom: true },
+      { label: 'Build me a website and connect it to TidyWise', basic: false, pro: false, custom: true, sub: true },
+      { label: 'Set up my SMS and email marketing', basic: false, pro: false, custom: true, sub: true },
+      { label: 'Import my customers from another CRM', basic: false, pro: false, custom: true, sub: true },
+      { label: 'Scripts and documents pack', basic: false, pro: false, custom: true, sub: true },
+      { label: 'Or request anything custom', basic: false, pro: false, custom: true, sub: true },
+    ],
+  },
+  {
+    group: 'Access and support',
+    rows: [
+      // Was "Works on any phone (web)" on the Basic card. Two problems: the
+      // parenthetical apologised, and it was inaccurate. Stated positively and
+      // without claiming a specific app store presence.
+      { label: 'Works on any device — phone, tablet or desktop', basic: true, pro: true, custom: true },
+      { label: 'Email support', basic: true, pro: true, custom: true },
+      { label: 'Priority support', basic: false, pro: false, custom: true },
     ],
   },
 ];
@@ -713,20 +803,14 @@ export default function PricingPage() {
                     )}
                   </Button>
                   <p className="text-[11px] text-muted-foreground text-center mb-6">
-                    Card required. Cancel anytime before day 7 and you won't be charged.
+                    Card required. Cancel anytime before day 14 and you won't be charged.
                   </p>
 
                   <ul className="space-y-2.5 text-sm">
                     {tier.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2.5">
-                        {feature.startsWith('•') ? (
-                          <span className="text-muted-foreground pl-4">{feature}</span>
-                        ) : (
-                          <>
-                            <Check aria-hidden="true" className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                            <span>{feature}</span>
-                          </>
-                        )}
+                        <Check aria-hidden="true" className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                        <span>{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -735,6 +819,93 @@ export default function PricingPage() {
             })}
           </div>
 
+          {/*
+            The cards answer "which one", the table answers "does it do X".
+            Anchored on the same page rather than a /features route: sending
+            someone to another URL mid-decision is where they get lost, and a
+            new index would compete with the ten existing /features/* SEO pages
+            for the same intent.
+          */}
+          <div className="mt-8 text-center">
+            <a
+              href="#compare-plans"
+              className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+            >
+              See the full feature comparison
+            </a>
+          </div>
+
+        </section>
+
+        <section id="compare-plans" className="mx-auto w-full max-w-5xl px-4 py-12 scroll-mt-20">
+          <h2 className="text-2xl font-bold text-center mb-2">Full feature comparison</h2>
+          <p className="text-sm text-muted-foreground text-center mb-8">
+            Everything in every plan. The cards above show only what changes between them.
+          </p>
+
+          {/* Wide content scrolls inside its own container — the page body must never scroll sideways on a phone. */}
+          <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full min-w-[520px] border-collapse text-sm">
+              <caption className="sr-only">
+                Feature comparison across the Basic, Pro and Custom plans
+              </caption>
+              <thead>
+                <tr className="border-b">
+                  <th scope="col" className="py-3 pr-3 text-left font-semibold">Feature</th>
+                  {TIERS.map((t) => (
+                    <th key={t.id} scope="col" className="px-2 py-3 text-center font-semibold whitespace-nowrap">
+                      {t.name}
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        ${t.monthlyPrice}/mo
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON.map((section) => (
+                  <Fragment key={section.group}>
+                    <tr className="bg-muted/40">
+                      <th
+                        scope="colgroup"
+                        colSpan={4}
+                        className="py-2 pr-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                      >
+                        {section.group}
+                      </th>
+                    </tr>
+                    {section.rows.map((row) => (
+                      <tr key={row.label} className="border-b border-border/50">
+                        <th
+                          scope="row"
+                          className={`py-2.5 pr-3 text-left font-normal ${row.sub ? 'pl-4 text-muted-foreground' : ''}`}
+                        >
+                          {row.sub && <span aria-hidden="true" className="mr-1">–</span>}
+                          {row.label}
+                        </th>
+                        {(['basic', 'pro', 'custom'] as const).map((tierId) => (
+                          <td key={tierId} className="px-2 py-2.5 text-center">
+                            {row[tierId] ? (
+                              <>
+                                <Check aria-hidden="true" className="inline h-4 w-4 text-primary" />
+                                <span className="sr-only">Included</span>
+                              </>
+                            ) : (
+                              <>
+                                {/* A dash, not an empty cell — a blank reads as "we forgot" rather than "not in this plan". */}
+                                <span aria-hidden="true" className="text-muted-foreground/50">—</span>
+                                <span className="sr-only">Not included</span>
+                              </>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section className="max-w-5xl mx-auto px-4 py-16">
