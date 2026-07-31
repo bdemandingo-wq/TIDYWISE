@@ -1221,6 +1221,220 @@ export type Database = {
           },
         ]
       }
+      billing_backfill_jobs: {
+        Row: {
+          created_at: string
+          cursor_after: string | null
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          objects_seen: number
+          pages_done: number
+          resource: string
+          rows_written: number
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cursor_after?: string | null
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          objects_seen?: number
+          pages_done?: number
+          resource: string
+          rows_written?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cursor_after?: string | null
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          objects_seen?: number
+          pages_done?: number
+          resource?: string
+          rows_written?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      billing_events: {
+        Row: {
+          amount_cents: number
+          counts_as_cash: boolean
+          currency: string
+          customer_email: string | null
+          description: string | null
+          event_type: string
+          fee_cents: number | null
+          id: string
+          is_proration: boolean
+          net_cents: number | null
+          occurred_at: string
+          organization_id: string | null
+          organization_name: string | null
+          raw: Json
+          revenue_stream: string
+          stripe_charge_id: string | null
+          stripe_customer_id: string | null
+          stripe_invoice_id: string | null
+          stripe_object_id: string
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          synced_at: string
+        }
+        Insert: {
+          amount_cents: number
+          counts_as_cash?: boolean
+          currency?: string
+          customer_email?: string | null
+          description?: string | null
+          event_type: string
+          fee_cents?: number | null
+          id?: string
+          is_proration?: boolean
+          net_cents?: number | null
+          occurred_at: string
+          organization_id?: string | null
+          organization_name?: string | null
+          raw?: Json
+          revenue_stream: string
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_object_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          synced_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          counts_as_cash?: boolean
+          currency?: string
+          customer_email?: string | null
+          description?: string | null
+          event_type?: string
+          fee_cents?: number | null
+          id?: string
+          is_proration?: boolean
+          net_cents?: number | null
+          occurred_at?: string
+          organization_id?: string | null
+          organization_name?: string | null
+          raw?: Json
+          revenue_stream?: string
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string | null
+          stripe_object_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_subscription_periods: {
+        Row: {
+          billing_interval: string
+          cancellation_detail: string | null
+          cancellation_reason: string | null
+          currency: string
+          customer_email: string | null
+          discount_amount_cents: number | null
+          discount_percent: number | null
+          effective_from: string
+          effective_to: string | null
+          id: string
+          interval_count: number
+          organization_id: string | null
+          organization_name: string | null
+          plan_label: string | null
+          quantity: number
+          raw: Json
+          revenue_stream: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_price_id: string | null
+          stripe_subscription_id: string
+          synced_at: string
+          unit_amount_cents: number
+        }
+        Insert: {
+          billing_interval: string
+          cancellation_detail?: string | null
+          cancellation_reason?: string | null
+          currency?: string
+          customer_email?: string | null
+          discount_amount_cents?: number | null
+          discount_percent?: number | null
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          interval_count?: number
+          organization_id?: string | null
+          organization_name?: string | null
+          plan_label?: string | null
+          quantity?: number
+          raw?: Json
+          revenue_stream: string
+          status: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id: string
+          synced_at?: string
+          unit_amount_cents: number
+        }
+        Update: {
+          billing_interval?: string
+          cancellation_detail?: string | null
+          cancellation_reason?: string | null
+          currency?: string
+          customer_email?: string | null
+          discount_amount_cents?: number | null
+          discount_percent?: number | null
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          interval_count?: number
+          organization_id?: string | null
+          organization_name?: string | null
+          plan_label?: string | null
+          quantity?: number
+          raw?: Json
+          revenue_stream?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_price_id?: string | null
+          stripe_subscription_id?: string
+          synced_at?: string
+          unit_amount_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_subscription_periods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_keyword_queue: {
         Row: {
           attempts: number
@@ -10529,6 +10743,20 @@ export type Database = {
       }
     }
     Views: {
+      billing_monthly_summary: {
+        Row: {
+          active_subscriptions: number | null
+          cash_cents: number | null
+          churned_involuntary: number | null
+          churned_voluntary: number | null
+          gap_cents: number | null
+          month: string | null
+          mrr_cents: number | null
+          proration_cents: number | null
+          refund_cents: number | null
+        }
+        Relationships: []
+      }
       client_portal_users_safe: {
         Row: {
           created_at: string | null
@@ -10669,6 +10897,17 @@ export type Database = {
         Returns: string
       }
       ai_daily_limit_for_tier: { Args: { _tier: string }; Returns: number }
+      billing_monthly_cents: {
+        Args: {
+          p_billing_interval: string
+          p_discount_amount_cents: number
+          p_discount_percent: number
+          p_interval_count: number
+          p_quantity: number
+          p_unit_amount_cents: number
+        }
+        Returns: number
+      }
       campaign_queue_dispatch: { Args: never; Returns: undefined }
       change_client_portal_password: {
         Args: {
