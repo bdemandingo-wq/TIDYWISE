@@ -320,13 +320,27 @@ export default function PlatformRevenuePage() {
               docs/superpowers/plans/2026-07-31-platform-revenue-page.md.
             */}
             <Card className="border-dashed">
-              <CardHeader className="pb-3"><CardTitle className="text-base">Who has paid</CardTitle></CardHeader>
+              <CardHeader className="pb-3">
+                {/*
+                  "Businesses paying for TidyWise", not "Payers" or "Customers".
+                  A generic name invites someone to later widen this to include
+                  cleaning customers, which is the exact blur the two-panel layout
+                  above exists to prevent. billing_plan_payers carries the same
+                  constraint in its own COMMENT so it survives a rewrite of this file.
+                */}
+                <CardTitle className="text-base">Businesses paying for TidyWise</CardTitle>
+              </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Not available yet. <code className="text-xs">billing_revenue_by_confidence</code> is
-                  grouped by month, stream and confidence — it carries no payer column, and the
-                  ledger table underneath it is not a reporting surface. This needs a second view
-                  at payer grain before it can be shown honestly.
+                  Not available yet — waiting on <code className="text-xs">billing_plan_payers</code>.
+                  {' '}<code className="text-xs">billing_revenue_by_confidence</code> is grouped by
+                  month, stream and confidence and carries no payer column, and the ledger table
+                  underneath it is not a reporting surface.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  When it lands: SaaS plan revenue only, one row per organisation, with the
+                  unattributed chargebacks shown as their own line so the list sums to the
+                  figure above it.
                 </p>
               </CardContent>
             </Card>

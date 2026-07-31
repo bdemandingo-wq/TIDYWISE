@@ -129,13 +129,13 @@ const STALE_AFTER_DAYS = 3;
  * its own age must say so, not fall back to looking current. That is the failure
  * shape this whole page exists to avoid.
  *
- * KNOWN ISSUE: `billing_backfill_jobs` has its RLS policy ("Platform admin reads
- * billing_backfill_jobs") but the table GRANT was revoked from `authenticated` and
- * never restored, so this currently returns 42501 and the page sits in `unknown`.
- * A policy only operates within granted privileges. One line fixes it:
- *   GRANT SELECT ON public.billing_backfill_jobs TO authenticated;
- * Until then `unknown` is the correct, honest state — and it makes the missing
- * grant announce itself rather than being something to remember.
+ * The table GRANT this needs was missing until 2026-07-31 — the RLS policy existed
+ * but `authenticated` had no SELECT privilege, and a policy only operates within
+ * granted privileges, so this returned 42501 and the page sat in `unknown`.
+ * Fixed by 20260731152612_212b467e…sql. Do not remove the `unknown` branch on the
+ * strength of that: it is the honest state whenever the age cannot be established,
+ * and it is what made the missing grant announce itself rather than being something
+ * to remember.
  */
 export function useBackfillFreshness() {
   return useQuery({
