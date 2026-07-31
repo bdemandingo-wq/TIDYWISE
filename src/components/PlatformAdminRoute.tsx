@@ -20,32 +20,20 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
   const location = useLocation();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [checkedOrgId, setCheckedOrgId] = useState<string | null>(null);
   const [checkedUserId, setCheckedUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     if (authLoading) {
-      console.log("[PlatformAdminRoute] auth loading", {
-        email: user?.email ?? null,
-        orgId: PLATFORM_ORG_ID,
-      });
       return () => {
         cancelled = true;
       };
     }
 
     if (!user) {
-      console.log("[PlatformAdminRoute] no authenticated user", {
-        email: null,
-        role: null,
-        orgId: PLATFORM_ORG_ID,
-        granted: false,
-      });
       setAllowed(null);
       setRole(null);
-      setCheckedOrgId(null);
       setCheckedUserId(null);
       return () => {
         cancelled = true;
@@ -53,13 +41,6 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
     }
 
     async function check() {
-      console.log("[PlatformAdminRoute] checking platform admin access", {
-        email: user.email ?? null,
-        role: null,
-        orgId: PLATFORM_ORG_ID,
-        granted: null,
-      });
-
       const { data, error } = await supabase
         .from("org_memberships")
         .select("organization_id, role")
@@ -71,34 +52,21 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
       if (cancelled) return;
 
       if (error) {
+        // Kept: without this a failed role check is indistinguishable from a
+        // legitimate denial — the user is bounced to /dashboard either way.
+        // Carries error.message only, no identity (CLAUDE.md rule 5).
         console.warn("[PlatformAdminRoute] role check failed:", error.message);
-        console.log("[PlatformAdminRoute] access denied", {
-          email: user.email ?? null,
-          role: null,
-          orgId: PLATFORM_ORG_ID,
-          granted: false,
-        });
         setAllowed(false);
         setRole(null);
-        setCheckedOrgId(PLATFORM_ORG_ID);
         setCheckedUserId(user.id);
         return;
       }
 
       const nextRole = data?.role ?? null;
-      const nextOrgId = data?.organization_id ?? PLATFORM_ORG_ID;
       const granted = Boolean(data);
-
-      console.log(`[PlatformAdminRoute] access ${granted ? "granted" : "denied"}`, {
-        email: user.email ?? null,
-        role: nextRole,
-        orgId: nextOrgId,
-        granted,
-      });
 
       setAllowed(granted);
       setRole(nextRole);
-      setCheckedOrgId(nextOrgId);
       setCheckedUserId(user.id);
     }
 
@@ -112,16 +80,6 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
   const accessResolvedForCurrentUser = !user || checkedUserId === user.id;
   const checking = authLoading || (!!user && (!accessResolvedForCurrentUser || allowed === null));
 
-  console.log("[PlatformAdminRoute] render", {
-    email: user?.email ?? null,
-    role,
-    orgId: checkedOrgId ?? PLATFORM_ORG_ID,
-    granted: allowed,
-    authLoading,
-    checking,
-    accessResolvedForCurrentUser,
-  });
-
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -131,31 +89,18 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
   }
 
   if (!user) {
-    console.log("[PlatformAdminRoute] redirecting to login", {
-      email: null,
-      role: null,
-      orgId: PLATFORM_ORG_ID,
-      granted: false,
-    });
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (!allowed) {
-    console.log("[PlatformAdminRoute] redirecting to dashboard", {
-      email: user.email ?? null,
-      role,
-      orgId: checkedOrgId ?? PLATFORM_ORG_ID,
-      granted: false,
-    });
+    // Matches AdminRoute.tsx:189 — a denied platform-admin attempt is worth a
+    // line, but userId + role only. Never the email, and only on denial.
+    console.warn(
+      "[SECURITY] Non-platform-admin attempted to access platform route",
+      { userId: user.id, role }
+    );
     return <Navigate to="/dashboard" state={{ from: location }} replace />;
   }
-
-  console.log("[PlatformAdminRoute] rendering protected content", {
-    email: user.email ?? null,
-    role,
-    orgId: checkedOrgId ?? PLATFORM_ORG_ID,
-    granted: true,
-  });
 
   return <>{children}</>;
 }

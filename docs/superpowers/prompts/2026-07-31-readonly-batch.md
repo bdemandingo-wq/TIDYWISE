@@ -1,7 +1,8 @@
 # Lovable batch — four read-only questions in one message
 
-**Paste:** `2026-07-31-readonly-batch.PASTE.txt` (14 queries, labelled A1–A4, B1–B3, C1–C4, D1–D3).
-**Status:** read-only. Nothing in it writes, and it says so three times.
+**Paste:** `2026-07-31-readonly-batch.PASTE.txt` — 19 queries + 1 write, labelled
+A1–A4, B1–B3, C1–C4, D1–D3, E1/E2/E3, F1–F3.
+**Status:** read-only EXCEPT Section E, which tightens two GRANTs. Marked inline.
 **Why bundled:** each Lovable message costs credits, and none of these four needs
 a code change — they are all "tell me what's there" before deciding anything.
 
@@ -17,6 +18,8 @@ actually matters. Send it on its own.
 | **A** `estimate.sent` | Who is subscribed to an event that has never fired? | **A1 is a gate.** If `estimate.sent` appears in either dispatch log, the finding is wrong and nobody should be contacted. If it's absent, A4 is the outreach list. |
 | **B** tier ladders | Which orgs have a hole between tiers, and is anyone standing in it? | B1 empty → gaps are theoretical, fix at leisure. B2 non-empty → real customers holding no tier. **Do not bulk-repair**: closing a hole promotes whoever is in it, which changes what they see in the portal. That's a business call. |
 | **C** `automation_steps` | Has any owner written copy into the editor that no sender reads? | C1 empty → the editable-messages plan is unblocked. C1 non-empty → every one of those messages goes live the moment a sender starts reading the table. C2 needs human eyes, not a count. **Do not delete anything** — it's their work even if it never sent. |
+| **E** view grants | What is actually granted on the two billing views? | The only write. Migrations only ever issued GRANT SELECT, but Supabase's stock ALTER DEFAULT PRIVILEGES grants ALL on new objects to anon/authenticated/service_role — outside this repo. Not a live leak (`security_invoker` means anon gets zero rows) but the grant shouldn't be there. |
+| **F** `$50` in posts | Which published posts say "$50", and is it a plan price or a cleaning price? | **There is no `$50` anywhere in `src/`** — all four named posts are `blog_posts` rows, so this cannot be answered locally. A "$50" describing what a cleaner charges is fine; one describing TidyWise is wrong ($49, no $50 tier). Needs the sentence, not a count. |
 | **D** refunds | How much refund history is actually recoverable? | Decision gate on the backfill. High `tier_c_lost` or high `undecidable` → fix forward with a documented cut-off instead. D3 should be ~0; if it isn't, restoring sale prices moves what payroll would pay. |
 
 ## Two schema corrections made while writing this

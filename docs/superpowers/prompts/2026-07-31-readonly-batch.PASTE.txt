@@ -1,12 +1,15 @@
-These are READ-ONLY queries. Please run them and paste the results back.
+SECTIONS A, B, C, D and F ARE READ-ONLY. SECTION E IS THE ONLY PART THAT WRITES,
+and all it does is tighten two GRANTs.
 
-Do not change, insert, update or delete anything. Do not create a migration. Do
-not "fix" anything you notice while running these — several of these queries are
-looking for problems, and the decision about what to do with each answer is mine
-to make, not something to action here.
+For everything except E: do not change, insert, update or delete anything, and do
+not create a migration. Do not "fix" anything you notice while running these —
+several of these queries are deliberately looking for problems, and the decision
+about what to do with each answer is mine to make, not something to action here.
+
+Section E is a real (small) change and is marked inline where it starts.
 
 Please label every result block with its query ID (A1, A2, …) exactly as written
-below. Four unrelated questions are bundled here and I need to know which result
+below. Six unrelated questions are bundled here and I need to know which result
 answers which. If a query returns zero rows, say "A3: 0 rows" rather than
 skipping it — an empty result is a meaningful answer in most of these.
 
@@ -304,6 +307,103 @@ where b.cleaner_wage_type = 'percentage'
 
 
 ═══════════════════════════════════════════════════════════════════════════
-That's all 14. Results labelled A1-A4, B1-B3, C1-C4, D1-D3 please, including the
-ones that come back empty. Nothing here should have changed any data — if you
-believe something did, say so explicitly.
+SECTION E — Tighten the grants on the two billing views  ⚠ THE ONLY WRITE
+═══════════════════════════════════════════════════════════════════════════
+Every GRANT this repo's migrations ever issued on these two views was already
+GRANT SELECT — there is no GRANT ALL anywhere in them. But Supabase's stock
+setup carries an ALTER DEFAULT PRIVILEGES on schema public that grants ALL on
+newly-created tables and views to anon, authenticated and service_role. That
+lives outside these migrations, so both views may be carrying privileges nobody
+wrote, including to `anon`.
+
+Not currently a data leak: both views are security_invoker = true, so RLS on
+billing_events still applies and an anon caller gets zero rows rather than
+revenue figures. This is defence in depth, and cheap — but please run E1 first
+and paste it, so there's a record of what was actually there.
+
+
+-- E1. BEFORE. What is actually granted right now?
+select table_name, grantee, privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public'
+  and table_name in ('billing_revenue_by_confidence','billing_plan_payers')
+order by table_name, grantee, privilege_type;
+
+
+-- E2. THE WRITE. Idempotent — safe to run whatever E1 showed.
+--     Revoking from a role that was never granted is a no-op.
+--     This does NOT touch the table owner or the postgres role.
+revoke all on public.billing_revenue_by_confidence from anon, authenticated, service_role;
+revoke all on public.billing_plan_payers          from anon, authenticated, service_role;
+
+grant select on public.billing_revenue_by_confidence to authenticated, service_role;
+grant select on public.billing_plan_payers          to authenticated, service_role;
+
+
+-- E3. AFTER. Expected: SELECT only, for authenticated and service_role only.
+--     `anon` should not appear at all. If it does, say so — don't re-grant.
+select table_name, grantee, privilege_type
+from information_schema.role_table_grants
+where table_schema = 'public'
+  and table_name in ('billing_revenue_by_confidence','billing_plan_payers')
+order by table_name, grantee, privilege_type;
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION F — Show me the sentence around every "$50" in published posts
+═══════════════════════════════════════════════════════════════════════════
+Read-only again. TidyWise plans start at $49/month and there is no $50 tier, so
+any "$50" that refers to TIDYWISE's price is wrong. A "$50" that refers to what a
+CLEANER charges a homeowner is perfectly fine and should be left alone. I need to
+read the surrounding sentence to tell which is which — a count won't do it.
+
+Drafts are excluded deliberately: unpublished posts can't be indexed, so they
+aren't urgent.
+
+
+-- F1. Every published post containing "$50", with 200 characters either side of
+--     each occurrence so the sentence is readable. One row per occurrence.
+select p.slug,
+       p.title,
+       p.published_at,
+       m.chunk[1] as context_around_the_50
+from public.blog_posts p,
+     lateral regexp_matches(p.content, '.{0,200}\$50.{0,200}', 'g') as m(chunk)
+where p.is_published
+order by p.slug;
+
+
+-- F2. The same for meta_title / meta_description / excerpt — these are what
+--     Google and AI search engines actually quote back, so a wrong price here
+--     travels further than one buried in the body.
+select slug, title, meta_title, meta_description, excerpt
+from public.blog_posts
+where is_published
+  and (coalesce(meta_title,'')       like '%$50%'
+    or coalesce(meta_description,'') like '%$50%'
+    or coalesce(excerpt,'')          like '%$50%')
+order by slug;
+
+
+-- F3. The wider pricing-claim sweep, for scale. Counts only — I'll ask for the
+--     text of anything that turns up.
+select slug, title, is_published,
+       (content ilike '%60-day%' or content ilike '%60 day%') as has_60_day,
+       (content like '%$50%')                                 as has_50,
+       (content ilike '%free forever%')                       as has_free_forever,
+       (content ilike '%money-back%'
+        or content ilike '%money back%')                      as has_guarantee
+from public.blog_posts
+where content ilike '%60-day%' or content ilike '%60 day%'
+   or content like '%$50%'
+   or content ilike '%free forever%'
+   or content ilike '%money-back%' or content ilike '%money back%'
+order by is_published desc, slug;
+
+
+═══════════════════════════════════════════════════════════════════════════
+That's 19 queries plus one small write. Results labelled A1-A4, B1-B3, C1-C4,
+D1-D3, E1/E3, F1-F3 please, including the ones that come back empty.
+
+Only Section E changed anything. If you believe any other section modified data,
+say so explicitly rather than letting it pass.
