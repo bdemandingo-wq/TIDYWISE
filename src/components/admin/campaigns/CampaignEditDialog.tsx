@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { stopComplianceError, withStopSentence } from "./stopCompliance";
 import { Switch } from "@/components/ui/switch";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -55,10 +56,21 @@ export function CampaignEditDialog({
     }
   }, [campaign]);
 
+  // Campaign bodies are always sent as SMS — automated_campaigns has no channel
+  // column, and both senders (run-inactive-campaign, process-campaign-queue) are
+  // SMS-only. So the opt-out requirement applies to every campaign body, with no
+  // channel case to exempt.
+  const bodyError = stopComplianceError(editForm.body);
+
   const updateCampaign = useMutation({
     mutationFn: async () => {
       if (!campaign) throw new Error("No campaign selected");
       if (!orgId) throw new Error("Organization not found");
+      // Guarded here and not only on the button: a disabled button is a hint, and
+      // this is the rule. Nothing in the send path adds an opt-out line, so a body
+      // saved without one goes out to every recipient exactly as typed.
+      const err = stopComplianceError(editForm.body);
+      if (err) throw new Error(err);
       const { error } = await supabase
         .from("automated_campaigns")
         .update({
@@ -118,6 +130,22 @@ export function CampaignEditDialog({
             <p className="text-xs text-muted-foreground">
               {editForm.body.length} chars • {Math.ceil((editForm.body.length || 1) / 160)} SMS segment(s)
             </p>
+            {bodyError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2">
+                <p className="text-xs text-destructive">{bodyError}</p>
+                {editForm.body.trim() && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setEditForm(prev => ({ ...prev, body: withStopSentence(prev.body) }))}
+                  >
+                    Add it for me
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
@@ -132,7 +160,7 @@ export function CampaignEditDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => updateCampaign.mutate()} disabled={updateCampaign.isPending || !editForm.name.trim()}>
+          <Button onClick={() => updateCampaign.mutate()} disabled={updateCampaign.isPending || !editForm.name.trim() || !!bodyError}>
             {updateCampaign.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Save Changes
           </Button>

@@ -18,6 +18,7 @@ import {
   CalendarDays, Clock, ChevronLeft, AlertCircle, Zap, UserX, X, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { stopComplianceError, withStopSentence } from "./stopCompliance";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { describeCampaignDispatch, type CampaignDispatchResult } from "@/components/admin/campaigns/campaignDispatch";
@@ -172,6 +173,10 @@ export function CampaignWizard({
   const createCampaign = useMutation({
     mutationFn: async () => {
       if (!orgId) throw new Error("Organization not found");
+      if (smsChannelActive) {
+        const err = stopComplianceError(campaignForm.smsBody);
+        if (err) throw new Error(err);
+      }
       const { error } = await supabase.from("automated_campaigns").insert({
         organization_id: orgId,
         name: campaignForm.name,
@@ -239,6 +244,13 @@ export function CampaignWizard({
       const channel = campaignForm.channel;
       const isSMS   = channel === "sms" || channel === "both";
       const isEmail = channel === "email" || channel === "both";
+
+      // Nothing downstream appends an opt-out line, so this is the last point at
+      // which a non-compliant marketing SMS can be stopped.
+      if (isSMS) {
+        const err = stopComplianceError(campaignForm.smsBody);
+        if (err) throw new Error(err);
+      }
 
       // Save the campaign record first (provides campaign_id for tracking)
       const { data: newCampaign, error: insertError } = await supabase.from("automated_campaigns").insert({
@@ -327,8 +339,16 @@ export function CampaignWizard({
   };
 
   const handleUseTemplate = (template: AITemplate) => {
-    setCampaignForm(prev => ({ ...prev, smsBody: template.message, emailBody: template.message }));
-    toast({ title: "Template applied!" });
+    // generate-campaign-templates instructs the model to include the opt-out line,
+    // but an instruction is not a guarantee. Append rather than reject: the owner
+    // asked for this template, and silently handing them a body that then fails
+    // validation would be a worse experience than quietly making it compliant.
+    const smsBody = withStopSentence(template.message);
+    setCampaignForm(prev => ({ ...prev, smsBody, emailBody: template.message }));
+    toast({
+      title: "Template applied!",
+      description: smsBody !== template.message ? "Added the STOP opt-out line." : undefined,
+    });
   };
 
   const orgTimezone = businessSettings?.timezone ?? null;
@@ -344,6 +364,11 @@ export function CampaignWizard({
 
   const scheduleIsIncomplete = campaignForm.schedule === "later" && !scheduledAtIso;
   const scheduleIsPast = !!scheduledAtIso && isInPast(scheduledAtIso);
+
+  // Opt-out guard. Only when the campaign actually sends an SMS — a pure email
+  // campaign uses an unsubscribe link instead and must NOT carry a STOP line.
+  const smsChannelActive = campaignForm.channel === "sms" || campaignForm.channel === "both";
+  const smsBodyError = smsChannelActive ? stopComplianceError(campaignForm.smsBody) : null;
 
   const charCount = campaignForm.smsBody.length;
   const segments = Math.ceil(charCount / 160) || 1;
@@ -624,6 +649,22 @@ export function CampaignWizard({
                     <span>Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}</span>
                     <span className={cn(charCount > 160 ? "text-amber-600" : "")}>{charCount} chars · {segments} segment{segments > 1 ? "s" : ""}</span>
                   </div>
+                  {smsBodyError && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-2.5 space-y-2">
+                      <p className="text-xs text-destructive">{smsBodyError}</p>
+                      {campaignForm.smsBody.trim() && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setCampaignForm(prev => ({ ...prev, smsBody: withStopSentence(prev.smsBody) }))}
+                        >
+                          Add it for me
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -797,7 +838,7 @@ export function CampaignWizard({
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => { createCampaign.mutate(); }} disabled={createCampaign.isPending}>
+                <Button variant="outline" onClick={() => { createCampaign.mutate(); }} disabled={createCampaign.isPending || !!smsBodyError}>
                   {createCampaign.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Save as Draft
                 </Button>
@@ -806,7 +847,7 @@ export function CampaignWizard({
                   // A schedule that cannot be resolved, or that is already in the
                   // past, must not be sendable — the old build showed the chosen
                   // date and then sent immediately anyway.
-                  disabled={sendCampaignNow.isPending || scheduleIsIncomplete || scheduleIsPast}
+                  disabled={sendCampaignNow.isPending || scheduleIsIncomplete || scheduleIsPast || !!smsBodyError}
                 >
                   {sendCampaignNow.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {campaignForm.schedule === "later"

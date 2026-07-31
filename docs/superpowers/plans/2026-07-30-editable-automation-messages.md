@@ -31,6 +31,12 @@ Your recalled order was right. Two changes now that I am planning rather than sk
 - **Message class second.** The STOP rule is per-class and nothing records the class today.
 - **`quote_stale_reengage` as the pilot.** Still the right choice, and for better reasons than "smallest": it is SMS-only, single-step, single-recipient, already has dedupe via `automation_fire_log`, and is low-volume. It also already queries `organization_automations` by its own `automation_type` (`:40-43`), which is exactly the key the template lookup needs.
 
+> **Status 2026-07-30:** task 1 is **shipped**. Task 0 is **queued** as
+> `docs/superpowers/prompts/2026-07-30-audit-automation-steps-rows.md`. Everything from
+> task 2 onward is unstarted and gated on task 0.
+>
+> Task 1 turned out to be three call sites, not one — see the foot of this document.
+
 ### INSERTED — a new step 0, before anything else
 
 **Check whether any org already has rows in `automation_steps`.**
@@ -173,8 +179,8 @@ Honest sizing. "Session" = a focused block, not a day.
 
 | Task | Where | Size | Blocked by |
 |---|---|---|---|
-| **0. Audit `automation_steps`** | Lovable query | minutes | nothing — do it first |
-| **1. STOP validation in `CampaignEditDialog`** | `src/` only | one session | nothing |
+| **0. Audit `automation_steps`** | Lovable query | minutes | nothing — do it first — **QUEUED** |
+| **1. STOP validation** | `src/` only | one session | **DONE 2026-07-30** |
 | **2. `message_class` + resolver + per-key vocabulary** | 1 migration + 1 shared module | one session | task 0 |
 | **3. Pilot `quote_stale_reengage`** | 1 edge function + seed | one session | task 2 |
 | **4. Each further sender** | 1 edge function each | ~half a session each | task 3 proving out |
@@ -193,3 +199,46 @@ Honest sizing. "Session" = a focused block, not a day.
 - **Your five questions answered:** order confirmed with an inserted audit step and a token revision (§1); `automation_steps` confirmed as destination with the key-alignment proof (§2); the pilot traced end to end including all five failure modes (§3); tokens as per-sender migration with save-time errors and the reasoning (§4); the not-editable list with the footer bug flagged separately (§5).
 - **The insertion is the part I would defend hardest.** Senders reading a table that has been silently accepting edits is how you ship an owner's abandoned draft to their customers. It costs minutes to check and is unrecoverable if missed.
 - **Not designed:** the editor UI changes for per-key vocabularies, and whether `message_class` is seeded per `automation_key` or chosen by the owner. The latter needs a product view — I would seed it and not let owners change it, since reclassifying a marketing message as transactional is exactly how the STOP line gets removed legitimately-looking.
+
+
+---
+
+## Task 1 as built — 2026-07-30
+
+**Scoped as "validation in `CampaignEditDialog`". It was three write paths, not one**,
+and closing only the edit dialog would not have closed the hole:
+
+1. **`CampaignEditDialog`** — editing an existing campaign, the path the investigation named
+2. **`CampaignWizard` create** — the seeded default is a plain textarea and can be deleted before first save
+3. **`CampaignWizard` AI templates** — `handleUseTemplate` overwrote `smsBody` wholesale with model output
+
+`src/components/admin/campaigns/stopCompliance.ts` holds the rule, with 10 tests in
+`stopCompliance.test.ts` running under `node --test` — the pattern already used by
+`campaignRunStatus.test.ts` in that folder, which actually executes rather than needing
+vitest.
+
+**The matcher is case-SENSITIVE `\bSTOP\b`, deliberately.** A case-insensitive check
+would pass *"we'll stop by on Tuesday"* — a message containing no opt-out instruction at
+all, that has now been "validated". That false pass is worse than a false block, because
+it launders a non-compliant message through a check. Uppercase is also the carrier
+convention and what the seeded default already uses, so it costs a compliant author
+nothing. Both cases are tested.
+
+**Guarded in the mutation, not just on the button.** A disabled button is a hint; the
+`mutationFn` throw is the rule. Applies to create, send-now and edit.
+
+**AI templates auto-correct rather than block** — `withStopSentence` appends if the model
+omitted it, and the toast says so. `generate-campaign-templates` is instructed to include
+the line, but an instruction is not a guarantee, and rejecting a template the owner just
+asked for is a worse experience than quietly making it compliant.
+
+**Email is correctly exempt.** In the wizard the guard applies only when the channel
+includes SMS; a pure email campaign uses an unsubscribe link and must not carry a STOP
+line. In `CampaignEditDialog` it applies unconditionally, because `automated_campaigns`
+has **no `channel` column** and both senders are SMS-only — `run-inactive-campaign` reads
+`organization_sms_settings` and sends via OpenPhone, `process-campaign-queue` is the
+`campaign_sms` PGMQ worker. Every stored campaign body is sent as SMS.
+
+**Noticed in passing, not fixed:** `CampaignsPage`'s `channelFilter` is declared, wired
+to a tab, and included in the `useMemo` dependency array — but the `filteredCampaigns`
+predicate never references it. The tabs change nothing except the `opted_out` branch.
