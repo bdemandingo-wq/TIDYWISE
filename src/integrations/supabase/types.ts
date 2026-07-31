@@ -10769,6 +10769,30 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_plan_payers: {
+        Row: {
+          confidence_worst: string | null
+          customer_email: string | null
+          first_payment_at: string | null
+          gross_cents: number | null
+          last_payment_at: string | null
+          net_cash_cents: number | null
+          organization_id: string | null
+          organization_name: string | null
+          payment_events: number | null
+          reversal_cents: number | null
+          reversal_events: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_revenue_by_confidence: {
         Row: {
           confidence: string | null
