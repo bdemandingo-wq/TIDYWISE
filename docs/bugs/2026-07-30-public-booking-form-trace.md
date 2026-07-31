@@ -221,6 +221,24 @@ from public.organizations;
   a header, which means it was never usable by any caller and is not just a
   browser-can't-send-headers problem.
 
+## Coupled item: repairing this switches dynamic pricing back on
+
+`docs/bugs/2026-07-30-dynamic-pricing-investigation.md` found that surge pricing is
+applied in exactly one place — `PublicBookingPage.calculateTotal` — i.e. **this form and
+nowhere else**. So no booking has been surged since this broke, whatever any org has
+configured.
+
+Two consequences for the repair:
+
+- **Fixing the form starts charging surge again**, for any org that has it enabled. That
+  should be a decision, not a surprise on a customer's card.
+- **The customer is shown no explanation of the surcharge at all** — no badge, no line
+  item, no note. That is tolerable while the form is dead; it becomes a live chargeback
+  risk the moment it works. Worth fixing in the same release rather than after.
+
+Run the "is it on for anyone" query in that document before scheduling this one — if no
+org has surge enabled, neither consequence applies.
+
 ## If it needs fixing, the shape of the decision
 
 Not designing it, but the options are not equivalent and one is a trap:
