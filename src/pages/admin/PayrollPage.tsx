@@ -36,6 +36,7 @@ import { addDays as addDaysFn } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
+import { PayrollCostSettings } from '@/components/admin/PayrollCostSettings';
 import { SEOHead } from '@/components/SEOHead';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -1564,8 +1565,9 @@ export default function PayrollPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
+        <TabsContent value="settings" className="space-y-4">
           <PayrollPeriodSettings />
+          <PayrollCostSettings />
         </TabsContent>
       </Tabs>
       </PlanFeatureGate>
