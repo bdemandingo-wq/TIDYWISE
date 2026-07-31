@@ -114,12 +114,17 @@ export function PlanFeatureGate({
   label,
   description,
 }: PlanFeatureGateProps) {
-  const { allowed, loading, upgradeTo } = usePlanFeature(feature);
+  const { allowed, loading, error, upgradeTo } = usePlanFeature(feature);
   const { isNative } = usePlatform();
 
   // While we're still resolving the user's plan, render the children
   // optimistically rather than flashing a lock screen.
-  if (loading) return <>{children}</>;
+  //
+  // `error` is treated identically on purpose. If the plan lookup failed we do
+  // not know their tier, and showing a paying Custom customer an upgrade wall
+  // because an RPC timed out is worse than briefly showing a feature they may
+  // not have. PlanStateBanner tells them the tier is unknown; this stays quiet.
+  if (loading || error) return <>{children}</>;
   if (allowed) return <>{children}</>;
 
   const copy = FEATURE_COPY[feature];

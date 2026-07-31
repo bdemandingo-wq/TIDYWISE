@@ -23,8 +23,15 @@ import {
   FeatureKey,
 } from '@/lib/features';
 
-interface PlanState extends PlanContext {
+export interface PlanState extends PlanContext {
   loading: boolean;
+  /**
+   * Set when my_effective_plan failed every attempt. `loading` goes false at
+   * the same moment, so the state always RESOLVES — a permanently-loading plan
+   * is a silent wrong answer, and this file used to produce one (see the catch
+   * block below for what it cost).
+   */
+  error: string | null;
   /**
    * organizations.plan_type as stored, before effective_plan folds in
    * comps, access codes and trials. Use this to answer "what plan is this
@@ -40,19 +47,44 @@ interface PlanState extends PlanContext {
 let cachedKey: string | null = null;
 let cachedState: PlanState | null = null;
 
+/** Subscribers woken by retryPlanState(). Lets the banner re-run the fetch. */
+const listeners = new Set<() => void>();
+
+/**
+ * Drop the cached plan and make every mounted usePlanState re-fetch.
+ * Exported for the "Try again" button on PlanStateBanner.
+ */
+export function retryPlanState(): void {
+  cachedState = null;
+  listeners.forEach((notify) => notify());
+}
+
+const ATTEMPTS = 3;
+/** Backoff before attempts 2 and 3. Short — this runs on every app load. */
+const BACKOFF_MS = [300, 1200];
+
 const DEFAULT_STATE: PlanState = {
   planType: 'free',
   rawPlanType: 'free',
   grandfathered: false,
   loading: true,
+  error: null,
 };
 
 export function usePlanState(): PlanState {
   const { user } = useAuth();
+  const [nonce, setNonce] = useState(0);
   const [state, setState] = useState<PlanState>(() => {
     if (cachedKey === (user?.id ?? null) && cachedState) return cachedState;
     return DEFAULT_STATE;
   });
+
+  // Wake on retryPlanState().
+  useEffect(() => {
+    const notify = () => setNonce((n) => n + 1);
+    listeners.add(notify);
+    return () => { listeners.delete(notify); };
+  }, []);
 
   useEffect(() => {
     const userId = user?.id ?? null;
@@ -67,6 +99,7 @@ export function usePlanState(): PlanState {
         rawPlanType: 'free',
         grandfathered: false,
         loading: false,
+        error: null,
       };
       cachedState = next;
       setState(next);
@@ -76,6 +109,9 @@ export function usePlanState(): PlanState {
       setState(cachedState);
       return;
     }
+    // A retry starts from loading again, so the banner can't linger next to
+    // a figure that has already been refreshed.
+    setState((prev) => (prev.error ? { ...prev, loading: true, error: null } : prev));
 
     let cancelled = false;
     (async () => {
@@ -89,51 +125,77 @@ export function usePlanState(): PlanState {
         return Array.isArray(data) ? data[0] : data;
       };
 
-      try {
-        let row;
-        try {
-          row = await fetchPlan();
-        } catch {
-          row = await fetchPlan(); // one retry — this runs on every app load
+      let lastError: unknown = null;
+      for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, BACKOFF_MS[attempt - 1]));
+          if (cancelled) return;
         }
-        if (cancelled) return;
+        try {
+          const row = await fetchPlan();
+          if (cancelled) return;
 
+          const next: PlanState = {
+            planType: (row?.plan_type as PlanType) ?? 'free',
+            rawPlanType: (row?.raw_plan_type as PlanType) ?? 'free',
+            // Deprecated and always false. my_effective_plan stopped
+            // returning it once canAccess stopped reading it; grandfathered
+            // orgs now arrive as planType 'lifetime' instead.
+            grandfathered: false,
+            loading: false,
+            error: null,
+          };
+          cachedKey = userId;
+          cachedState = next;
+          setState(next);
+          return;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+
+      // Every attempt failed.
+      //
+      // Neither fail open nor fail closed. Setting grandfathered:true here
+      // once turned any transient lookup error into a full feature bypass;
+      // failing closed would show a paying Custom customer an upgrade wall
+      // over a network blip. The previous fix was to stay in `loading`
+      // forever — but that never RESOLVES, and an unresolved state is a
+      // silent wrong answer that nobody can see or report. It also leaves
+      // useSubscription().isLoading true permanently, which suppresses the
+      // paywall redirect indefinitely.
+      //
+      // So: resolve, keep the gates' existing pass-through behaviour (they
+      // already render children while loading, so treating `error` the same
+      // way changes nothing about what is unlocked), and make the failure
+      // VISIBLE via PlanStateBanner. Degraded and legible beats correct-
+      // looking and stuck.
+      if (!cancelled) {
+        const message =
+          lastError instanceof Error
+            ? lastError.message
+            : typeof lastError === 'string'
+              ? lastError
+              : 'Unknown error';
+        console.warn('[usePlanState] my_effective_plan failed after', ATTEMPTS, 'attempts:', message);
         const next: PlanState = {
-          planType: (row?.plan_type as PlanType) ?? 'free',
-          rawPlanType: (row?.raw_plan_type as PlanType) ?? 'free',
-          // Deprecated and always false. my_effective_plan stopped
-          // returning it once canAccess stopped reading it; grandfathered
-          // orgs now arrive as planType 'lifetime' instead.
+          planType: 'free',
+          rawPlanType: 'free',
           grandfathered: false,
           loading: false,
+          error: message,
         };
-        cachedKey = userId;
-        cachedState = next;
+        // Deliberately NOT cached: the next mount should try again rather
+        // than inherit a failure from earlier in the session.
+        cachedState = null;
         setState(next);
-      } catch {
-        // Neither fail open nor fail closed. This used to set
-        // grandfathered:true, turning any transient lookup error into a
-        // full feature bypass. Failing closed instead would show a paying
-        // Custom customer an upgrade wall over a network blip. So we stay
-        // in `loading`, which PlanFeatureGate renders as a skeleton — no
-        // false unlock, no false wall. Clearing the cache means the next
-        // gate to mount retries.
-        if (!cancelled) {
-          cachedState = null;
-          setState({
-            planType: 'free',
-            rawPlanType: 'free',
-            grandfathered: false,
-            loading: true,
-          });
-        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, nonce]);
 
   return state;
 }
@@ -141,8 +203,14 @@ export function usePlanState(): PlanState {
 export interface FeatureAccess {
   /** Final yes/no for the question "can this user use this feature?" */
   allowed: boolean;
-  /** Still resolving the user's plan. UI should render a skeleton, not a block. */
+  /** Still resolving the user's plan. UI should pass children through, not block. */
   loading: boolean;
+  /**
+   * The plan lookup failed after every retry. Treat this exactly like
+   * `loading` for gating decisions — pass children through — and let
+   * PlanStateBanner do the explaining. Blocking on it would be a false wall.
+   */
+  error: string | null;
   /** The user's current plan label (raw enum value). */
   planType: PlanType;
   /** Grandfathered orgs always allowed regardless of plan_type. */
@@ -156,10 +224,11 @@ export interface FeatureAccess {
 
 export function usePlanFeature(featureKey: FeatureKey): FeatureAccess {
   const state = usePlanState();
-  const allowed = !state.loading && canAccess(featureKey, state);
+  const allowed = !state.loading && !state.error && canAccess(featureKey, state);
   return {
     allowed,
     loading: state.loading,
+    error: state.error,
     planType: state.planType,
     grandfathered: state.grandfathered,
     upgradeTo: allowed ? null : minimumPlanFor(featureKey),
