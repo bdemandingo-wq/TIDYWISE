@@ -128,9 +128,23 @@ export const NOTIFICATION_TYPES: NotificationTypeDef[] = [
   // ── Payments & Finance (manager-locked)
   { key: 'invoice.overdue', label: 'Invoice overdue', route: '/dashboard/invoices?filter=overdue', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'payments.failed_charges', defaults: D({ email: true }) },
   { key: 'invoice.paid', label: 'Payment received', route: '/dashboard/invoices?filter=paid', category: 'Payments & Finance', managerLocked: true, defaults: INFO() },
-  { key: 'invoice.failed', label: 'Payment failed', route: '/dashboard/invoices?filter=failed', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'payments.failed_charges', defaults: D({ email: true, browser_push: true }) },
-  { key: 'invoice.refund', label: 'Refund issued', route: '/dashboard/invoices?filter=refunded', category: 'Payments & Finance', managerLocked: true, defaults: INFO({ email: true }) },
-  { key: 'invoice.dispute', label: 'Dispute opened', route: '/dashboard/invoices?filter=disputed', category: 'Payments & Finance', managerLocked: true, defaults: D({ email: true, sms: true }) },
+  // Routes to Subscription, not Invoices. This fires on invoice.payment_failed
+  // from stripe-invoice-webhook, which is a TIDYWISE subscription renewal failing
+  // — our billing of them, not their billing of a customer. It pointed at
+  // /dashboard/invoices?filter=failed, where no invoice can ever hold
+  // status='failed' (not in the CHECK constraint), so it was a dead end twice
+  // over: wrong page, and a filter that could never match.
+  { key: 'invoice.failed', label: 'Subscription payment failed', route: '/dashboard/subscription', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'payments.failed_charges', defaults: D({ email: true, browser_push: true }) },
+  // invoice.refund and invoice.dispute removed 2026-07-31. Both were
+  // platform-level and could never fire for an org:
+  //   - refunds are recorded nowhere. process-refund writes nothing to the
+  //     database and there is no refunds table; the only local trace is a
+  //     mutated bookings.total_amount.
+  //   - disputes live in public.disputes, which has NO organization_id — it
+  //     tracks TidyWise's own Stripe disputes, not an org's.
+  // Nothing produced either key, so no notification could ever be raised with
+  // them; they only ever appeared as toggles in settings for events that could
+  // not happen.
   { key: 'stripe.disconnected', label: 'Stripe disconnected', route: '/dashboard/payment-integration', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'payments.stripe_requirements', defaults: D({ email: true }) },
   { key: 'stripe.verification', label: 'Stripe verification requirement', route: '/dashboard/payment-integration', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'payments.stripe_requirements', defaults: D({ email: true }) },
   { key: 'payout.issue', label: 'Payout issue', route: '/dashboard/staff?tab=team', category: 'Payments & Finance', managerLocked: true, sidebarKey: 'staff.payout', defaults: D({ email: true }) },

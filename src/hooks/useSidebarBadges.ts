@@ -113,18 +113,31 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Invoices
-  const { data: invoices = { overdue: 0, failed: 0 } } = useQuery({
+  const { data: invoices = { overdue: 0 } } = useQuery({
     queryKey: ['sb-invoices', orgId],
     enabled: enabled && hasFinancialAccess,
     refetchInterval,
     queryFn: async () => {
-      if (!orgId) return { overdue: 0, failed: 0 };
-      const nowIso = new Date().toISOString().slice(0, 10);
-      const [overdue, failed] = await Promise.all([
-        supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).neq('status', 'paid').neq('status', 'void').not('due_date', 'is', null).lt('due_date', nowIso),
-        supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'failed'),
-      ]);
-      return { overdue: overdue.count || 0, failed: failed.count || 0 };
+      if (!orgId) return { overdue: 0 };
+      // Reads the STORED status, matching InvoicesPage's Overdue card exactly.
+      //
+      // This used to compute overdue itself — not paid, not void, due_date in the
+      // past — which is arguably the truer number, but it meant the sidebar and
+      // the page could disagree whenever send-invoice-reminder's cron had not yet
+      // flipped a status. One definition, maintained by that cron, beats two that
+      // are each defensible.
+      //
+      // The `failed` count is gone. It queried .eq('status','failed'), and
+      // 'failed' is not in the invoices CHECK constraint (draft | sent | paid |
+      // overdue | cancelled), so that badge was permanently zero. There is no
+      // org-level concept of a failed invoice: invoice.payment_failed concerns
+      // TidyWise's own subscription billing and writes nothing to `invoices`.
+      const overdue = await supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
+        .eq('status', 'overdue');
+      return { overdue: overdue.count || 0 };
     },
   });
 
@@ -302,7 +315,6 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     // Invoices
     const invoiceReasons: BadgeReason[] = [];
     push(invoiceReasons, { key: 'overdue', label: 'overdue invoice', count: g(invoices.overdue, 'payments.failed_charges') });
-    push(invoiceReasons, { key: 'failed', label: 'failed invoice', count: g(invoices.failed, 'payments.failed_charges') });
 
     // Messages
     const messageReasons: BadgeReason[] = [];
