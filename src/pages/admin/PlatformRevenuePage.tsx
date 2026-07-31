@@ -16,6 +16,7 @@ import {
   type RevenueRow,
   type Confidence,
   type Freshness,
+  type PlanPayer,
 } from '@/hooks/useBillingRevenue';
 
 /**
