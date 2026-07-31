@@ -1,0 +1,55 @@
+Please run a migration on the main project (slwfkaqczvwvvvavkgpr).
+
+SECURITY FIX. award_loyalty_points() is SECURITY DEFINER, so it bypasses RLS, and
+its customer_loyalty lookup is not scoped by organization. Combined with the
+AFTER INSERT trigger added on 2026-07-29, a booking INSERT naming any
+organization_id can mutate another organisation's loyalty state.
+
+In public.award_loyalty_points(), scope the existing-row lookup by organisation:
+
+  SELECT id INTO existing_loyalty_id
+  FROM public.customer_loyalty
+  WHERE customer_id = NEW.customer_id
+    AND organization_id = NEW.organization_id;
+
+Then add a guard immediately after it, before any write: if the customer named by
+NEW.customer_id does NOT belong to NEW.organization_id, return NEW without
+awarding anything. A booking whose customer is in a different organisation is not
+a legitimate award — it is either corrupt data or an injection attempt.
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.customers c
+    WHERE c.id = NEW.customer_id
+      AND c.organization_id = NEW.organization_id
+  ) THEN
+    RETURN NEW;
+  END IF;
+
+Keep everything else as it is: the idempotency guard on booking_id, the
+increment-only lifetime_spend, and the fact that it no longer writes tier.
+
+Please also report how much damage already exists:
+
+  -- loyalty rows whose organization_id disagrees with their customer's
+  select cl.id, cl.customer_id, cl.organization_id as loyalty_org,
+         c.organization_id as customer_org, cl.lifetime_spend, cl.lifetime_points
+  from public.customer_loyalty cl
+  join public.customers c on c.id = cl.customer_id
+  where cl.organization_id is distinct from c.organization_id;
+
+  -- loyalty transactions against a booking from a different org
+  select lt.id, lt.customer_id, lt.organization_id as txn_org,
+         b.organization_id as booking_org, lt.points, lt.created_at
+  from public.loyalty_transactions lt
+  join public.bookings b on b.id = lt.booking_id
+  where lt.organization_id is distinct from b.organization_id;
+
+  -- bookings inserted already-completed with no service (the injection shape)
+  select id, organization_id, customer_id, total_amount, created_at
+  from public.bookings
+  where status = 'completed' and service_id is null
+  order by created_at desc limit 50;
+
+Do NOT delete anything based on those results — show me first.
+
+Confirm the migration RAN, not just that a file was created.

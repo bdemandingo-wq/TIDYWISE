@@ -1,6 +1,7 @@
 # Lovable prompt — cross-org loyalty injection (SECURITY, run first)
 
 **Status:** not yet run. **Highest priority of the outstanding items.**
+**Part B re-verified 2026-07-31** against `public-booking-submit`, the endpoint the booking form now uses.
 **Found:** 2026-07-30 security review of `7cf7185d..HEAD`
 **Severity:** HIGH — cross-tenant write to RLS-protected tables, permanent by design
 
@@ -99,16 +100,23 @@ Confirm the migration RAN, not just that a file was created.
 
 **My read: almost certainly not, and narrowing it is the real fix rather than patching the trigger.**
 
-The policy presumably exists so the public booking form can create bookings without a login. **It isn't what makes that work.** Verified:
+The policy presumably exists so the public booking form can create bookings without a login. **It isn't what makes that work.**
 
-- `PublicBookingPage.tsx:576` submits via `supabase.functions.invoke('external-booking-webhook', …)`
-- `external-booking-webhook` uses `SUPABASE_SERVICE_ROLE_KEY` — and **service_role bypasses RLS entirely**, so the policy is irrelevant to that path
-- `ingest-external-booking` likewise uses `SUPABASE_SERVICE_ROLE_KEY`
-- The only direct `bookings` inserts in `src/` are `RecurringBookingsPage.tsx:489,537` — an authenticated admin screen
-- The admin stepper inserts via `useCreateBooking` (`useBookings.ts`), also authenticated
-- Quote conversion is authenticated
+**Re-verified 2026-07-31, after the booking form was moved to a new endpoint.** The form now submits to `public-booking-submit` rather than `external-booking-webhook`, so the original evidence was re-checked rather than assumed to still hold:
 
-So no path appears to need `anon` INSERT. The policy looks vestigial — a leftover from before the webhook existed.
+| Path | Client | RLS applies? |
+|---|---|---|
+| `public-booking-submit` — **the browser's path now** | `createClient(URL, SUPABASE_SERVICE_ROLE_KEY)` (`:74`), and it passes that same client into `_shared/create-booking-from-payload.ts` | **no** |
+| `external-booking-webhook` — integrations | `SUPABASE_SERVICE_ROLE_KEY` | **no** |
+| `ingest-external-booking` | `SUPABASE_SERVICE_ROLE_KEY` | **no** |
+| `booking-chatbot` | `SUPABASE_SERVICE_ROLE_KEY` | **no** |
+| `process-migration-import` | see below | **no** |
+| `RecurringBookingsPage.tsx:489,537` — the only direct `bookings` inserts in `src/` | authenticated admin screen | yes, as a member |
+| admin stepper (`useCreateBooking`), quote conversion | authenticated | yes, as a member |
+
+**The one open question from the original draft is now closed.** `process-migration-import` referenced both `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, which left it unclear. It creates two clients: the **anon** one (`:110-112`) is used **only** for `auth.getUser(token)` to verify the caller's JWT and never writes; both the `customers` insert (`:202`) and the `bookings` insert (`:286`) go through `adminClient` (`:140-142`, service role).
+
+**So nothing, anywhere, inserts bookings or customers as `anon`.** The policy is vestigial — a leftover from before the webhooks existed — and narrowing it should break nothing.
 
 **Recommendation, in order of preference:**
 
@@ -118,7 +126,9 @@ So no path appears to need `anon` INSERT. The policy looks vestigial — a lefto
 
 `customers` has the identical policy (`20260413170000:12-18`) and the same reasoning applies — the public form creates its customer through the same webhook.
 
-**Verify before narrowing.** I cannot see partner integrations, embedded forms on org websites, or anything calling PostgREST directly with the anon key. Ask Lovable to confirm nothing else inserts into `bookings` or `customers` as `anon`, and check whether `process-migration-import` uses the anon key for its booking insert — it references both `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+**One thing I still cannot see from here.** Partner integrations, embedded forms on org websites, or anything calling PostgREST directly with the anon key are invisible to a repo search. Everything *in this codebase* is accounted for above, but ask Lovable to confirm no external consumer depends on anon INSERT before narrowing.
+
+**Do not let this break the booking form.** It was dead from ~2026-05-09 until Task 1 restored it on 2026-07-31. Since `public-booking-submit` uses service_role it is unaffected by any RLS change — but that is precisely the claim worth re-checking after the migration lands, because it is the path that just came back.
 
 Suggested check before changing anything:
 
