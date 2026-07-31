@@ -176,3 +176,57 @@ export function useBackfillFreshness() {
     staleTime: 60_000,
   });
 }
+
+export interface PlanPayer {
+  organization_id: string | null;
+  organization_name: string | null;
+  customer_email: string | null;
+  first_payment_at: string | null;
+  last_payment_at: string | null;
+  payment_events: number;
+  reversal_events: number;
+  gross_cents: number;
+  reversal_cents: number;
+  net_cash_cents: number;
+  confidence_worst: Confidence;
+}
+
+/**
+ * Who is paying for TidyWise, from `billing_plan_payers` and nothing else.
+ *
+ * PLAN STREAM ONLY. This is deliberately not the SaaS headline: `ai_credits` and
+ * `ad_management` are SaaS too, so the payer list sums to LESS than the SaaS panel
+ * above it. The panel says so in its subtitle — do not "fix" the gap by widening
+ * this query, and above all do not widen it to `merchant_cleaning`, whose payers
+ * are the cleaning customers of these businesses, an entirely different population.
+ *
+ * The view is `security_invoker = true`, so RLS on billing_events applies to the
+ * caller: a non-platform-admin session gets zero rows, not a leak of who pays me.
+ */
+export function useBillingPlanPayers() {
+  return useQuery({
+    queryKey: ['billing-plan-payers'],
+    queryFn: async (): Promise<PlanPayer[]> => {
+      const { data, error } = await supabase
+        .from('billing_plan_payers')
+        .select('*')
+        .order('net_cash_cents', { ascending: false });
+
+      if (error) throw error;
+
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        organization_id: (r.organization_id as string) ?? null,
+        organization_name: (r.organization_name as string) ?? null,
+        customer_email: (r.customer_email as string) ?? null,
+        first_payment_at: (r.first_payment_at as string) ?? null,
+        last_payment_at: (r.last_payment_at as string) ?? null,
+        payment_events: n(r.payment_events),
+        reversal_events: n(r.reversal_events),
+        gross_cents: n(r.gross_cents),
+        reversal_cents: n(r.reversal_cents),
+        net_cash_cents: n(r.net_cash_cents),
+        confidence_worst: (r.confidence_worst as Confidence) ?? 'inferred',
+      }));
+    },
+  });
+}
