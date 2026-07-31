@@ -1,16 +1,14 @@
 // Shared booking-creation logic.
 //
-// PURE MOVE: this file contains the customer upsert, double-booking conflict
-// check, booking insert, lead insert and notification fan-out exactly as they
-// were inside external-booking-webhook (its lines 133..461 before this
-// extraction). No logic was altered — only relocated — so the integration path
-// behaves identically.
+// PURE MOVE: this file contains the validation schema plus the customer upsert,
+// double-booking conflict check, booking insert, lead insert and notification
+// fan-out exactly as they were inside external-booking-webhook (its lines
+// 133..461 before this extraction). No logic was altered — only relocated — so
+// the integration path behaves identically.
 import { z } from "npm:zod@3.25.76";
 
-// Strict input validation schema (moved verbatim from external-booking-webhook)
-export const BookingSchema = z.object({
 // Strict input validation schema
-const BookingSchema = z.object({
+export const BookingSchema = z.object({
   first_name: z.string().trim().min(1).max(100),
   last_name: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(255).transform(v => v.toLowerCase()),
