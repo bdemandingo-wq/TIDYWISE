@@ -160,24 +160,37 @@ serve(async (req) => {
       });
     }
 
-    // ── Step 0.5: Check for active comped access grant on user's org ──────
-    const { data: compMembership } = await supabaseClient
+    // ── Step 0.5: Check for active comped access grant on ANY of the user's
+    // owner/admin/manager orgs. Checking only the first membership meant an
+    // owner of several orgs could be denied while a sibling org held the comp.
+    const { data: compMemberships, error: compMembershipError } = await supabaseClient
       .from("org_memberships")
       .select("organization_id")
       .eq("user_id", user.id)
       .in("role", ["owner", "admin", "manager"])
-      .limit(1)
-      .maybeSingle();
+      .order("created_at", { ascending: true });
 
-    if (compMembership) {
-      const { data: comp } = await supabaseClient
+    if (compMembershipError) {
+      // Log loudly, do not throw — but never treat a failed read as "no comp".
+      logStep("ERROR looking up comped memberships", { message: compMembershipError.message, code: (compMembershipError as any).code });
+    }
+
+    const compOrgIds = (compMemberships ?? []).map((m: any) => m.organization_id).filter(Boolean);
+
+    if (compOrgIds.length > 0) {
+      const { data: comp, error: compError } = await supabaseClient
         .from("comped_access")
         .select("expires_at")
-        .eq("organization_id", compMembership.organization_id)
+        .in("organization_id", compOrgIds)
+        .is("revoked_at", null)
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      if (compError) {
+        logStep("ERROR looking up comped_access", { message: compError.message, code: (compError as any).code });
+      }
 
       if (comp) {
         logStep("Active comped access grant found", { expiresAt: comp.expires_at });
