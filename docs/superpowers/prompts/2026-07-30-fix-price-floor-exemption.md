@@ -2,7 +2,7 @@
 
 **Status:** not yet run. Run **after** `2026-07-30-fix-loyalty-trigger-cross-org.md`.
 **Found:** 2026-07-30 security review of `7cf7185d..HEAD`
-**Severity:** MEDIUM — bypasses the floor shipped and tested on 2026-07-30
+**Severity: DOWNGRADED to LOW on 2026-07-31** — re-verified after the booking-form split. The browser and integration paths are now closed by construction; one attack path remains, and Part B of the loyalty prompt closes it. See "What changed" below.
 
 ---
 
@@ -28,6 +28,45 @@ So the actor the floor is meant to constrain is the same actor who controls the 
 Two smaller gaps in the same trigger, worth closing together:
 - `service_id IS NULL` skips it (`:11-13`), and `service_id` is nullable
 - It is `BEFORE INSERT` only (`:47`) — a compliant price can be inserted and then lowered by anyone with UPDATE on `bookings`
+
+---
+
+## What changed on 2026-07-31 — and why NOT to write the obvious fix
+
+The suggestion was to have `public-booking-submit` strip `recurring_booking_id` from
+browser payloads, since a browser has no legitimate reason to name a recurring series.
+
+**Do not write that. It is already the case, twice over, by construction.**
+
+1. **`recurring_booking_id` is not in `BookingSchema`** (`_shared/create-booking-from-payload.ts`).
+   Zod's default `.object()` **strips** unknown keys, so it never reaches `parseResult.data`.
+2. **The booking insert is an explicit field allowlist** — every column is named
+   individually from `payload.*`. Even if the field survived parsing it could not be written.
+3. `grep recurring_booking_id` across `public-booking-submit/index.ts` and
+   `_shared/create-booking-from-payload.ts` returns **nothing**. It is not referenced at all.
+
+**The integration path inherits the same protection.** `external-booking-webhook` now
+parses with the same `BookingSchema` (`:66`) and delegates to `createBookingFromPayload`
+(`:149`), so it cannot write the field either.
+
+**The only writer of `recurring_booking_id` in the whole codebase** is
+`RecurringBookingsPage.tsx:396` — the authenticated admin recurring generator, which is
+precisely the legitimate case the exemption exists to serve.
+
+### So what is actually still exposed
+
+Exactly one path: **a direct PostgREST INSERT as `anon`**, permitted by the
+`"Anyone can create bookings" … TO public WITH CHECK (organization_id IS NOT NULL)`
+policy. That caller bypasses both edge functions and can set any column, including a
+forged `recurring_booking_id`.
+
+**That is the same policy Part B of the loyalty prompt proposes narrowing.** If Part B is
+accepted, this hole closes as a side effect and FIX 1 below becomes belt-and-braces
+rather than necessary.
+
+**Recommended sequencing:** decide Part B first. If it is accepted, run this prompt
+afterwards anyway — a `SECURITY DEFINER`-adjacent trigger that trusts an unvalidated FK
+is worth fixing on its own merits — but at LOW priority rather than as a live hole.
 
 ---
 

@@ -1,0 +1,81 @@
+Please run a migration on the main project (slwfkaqczvwvvvavkgpr).
+
+CONTEXT: enforce_booking_minimum_price() skips its floor when
+NEW.recurring_booking_id IS NOT NULL. The column comment asserts that value is
+"set only by the admin Recurring Bookings generator" and "not reachable from the
+public booking form or any webhook path" — but nothing enforces that. It is a
+plain nullable column on a table with a permissive INSERT policy, and the FK only
+requires the referenced row to exist, not to belong to the same organisation.
+
+So the exemption can be forged by supplying any valid recurring_bookings.id,
+including one from a different organisation, which bypasses the floor entirely.
+
+FIX 1 — make the exemption prove itself.
+
+Replace the bare NOT NULL check with one that verifies the referenced recurring
+series actually belongs to the SAME organisation as the booking:
+
+  IF NEW.recurring_booking_id IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1 FROM public.recurring_bookings rb
+      WHERE rb.id = NEW.recurring_booking_id
+        AND rb.organization_id = NEW.organization_id
+    ) THEN
+      RETURN NEW;   -- genuine same-org recurring series: floor does not apply
+    END IF;
+    -- A recurring_booking_id from another organisation is not a legitimate
+    -- exemption. Fall through to the floor rather than honouring it.
+  END IF;
+
+Falling through rather than raising is deliberate: a cross-org id is most likely
+an attempt to dodge the floor, and the floor is the correct response. Raising
+would also be defensible — tell me if you prefer that and why.
+
+FIX 2 — consider an organisation-scoped FK.
+
+The FK on bookings.recurring_booking_id has no organisation component, so the
+database cannot express "this must be MY org's series". A composite FK on
+(recurring_booking_id, organization_id) referencing
+recurring_bookings(id, organization_id) would enforce it structurally rather than
+in trigger logic. That needs a unique constraint on
+recurring_bookings(id, organization_id) first.
+
+Please tell me whether that constraint already exists live before adding it —
+this repo has been bitten by assuming a constraint's absence from migration
+files. Do NOT add the composite FK in the same migration as FIX 1; FIX 1 is the
+security fix and should land on its own.
+
+FIX 3 — the service_id skip.
+
+The trigger also returns early when NEW.service_id IS NULL, which is a second
+free bypass: insert with no service and no floor applies. That skip exists
+because recleans legitimately have no service_id (BookingStepper builds them
+that way). Please report how often it is actually hit, so we can decide whether
+to narrow it rather than guess:
+
+  select
+    count(*) filter (where service_id is null)                     as no_service,
+    count(*) filter (where service_id is null and status='completed') as no_service_completed,
+    count(*) filter (where service_id is null and total_amount < 1)   as no_service_under_1
+  from public.bookings
+  where created_at > now() - interval '90 days';
+
+NOT IN SCOPE for this migration: extending the trigger to UPDATE. An admin
+lowering a price after the fact is a legitimate authenticated business action,
+and gating it needs its own decision.
+
+AFTERWARDS please paste:
+
+  -- bookings whose recurring_booking_id points at another org's series
+  select b.id, b.organization_id as booking_org, rb.organization_id as series_org,
+         b.total_amount, b.created_at
+  from public.bookings b
+  join public.recurring_bookings rb on rb.id = b.recurring_booking_id
+  where rb.organization_id is distinct from b.organization_id;
+
+  select pg_get_functiondef('public.enforce_booking_minimum_price()'::regprocedure);
+
+An empty first result is the expected and good outcome — it means the exemption
+has not been abused yet, only that it could be.
+
+Confirm the migration RAN, not just that a file was created.
