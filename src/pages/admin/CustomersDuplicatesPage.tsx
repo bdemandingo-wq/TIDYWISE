@@ -400,7 +400,8 @@ export default function CustomersDuplicatesPage() {
 
       // Snapshot the secondary's owned records BEFORE the merge so we can
       // reverse it if the admin clicks Undo.
-      const [bookingsRes, recurringRes, quotesRes, locationsRes, notesRes, refRes1, refRes2] =
+      const [bookingsRes, recurringRes, quotesRes, locationsRes, notesRes, refRes1, refRes2,
+             secPortalRes, priPortalRes] =
         await Promise.all([
           db.from('bookings').select('id').eq('customer_id', secondary.id),
           db.from('recurring_bookings').select('id').eq('customer_id', secondary.id),
@@ -409,7 +410,25 @@ export default function CustomersDuplicatesPage() {
           db.from('property_notes').select('id').eq('customer_id', secondary.id),
           db.from('referrals').select('id').eq('referrer_customer_id', secondary.id),
           db.from('referrals').select('id').eq('referred_customer_id', secondary.id),
+          // Portal logins for BOTH customers. merge_customers decides what to do
+          // with the secondary's login purely from whether the primary already
+          // has one, so that branch is knowable before the RPC runs — which is
+          // just as well, because the RPC returns only COUNTS (portal_moved /
+          // portal_deactivated) and unmerge_customers needs the row ID.
+          //
+          // UNIQUE (customer_id) means at most one row each, hence maybeSingle().
+          db.from('client_portal_users').select('id').eq('customer_id', secondary.id).maybeSingle(),
+          db.from('client_portal_users').select('id').eq('customer_id', primary.id).maybeSingle(),
         ]);
+
+      // Mirror merge_customers' branch (20260731125520):
+      //   secondary has a login, primary does NOT -> the login is MOVED
+      //   secondary has a login, primary ALSO has -> the login is DEACTIVATED
+      //   secondary has no login                  -> nothing happens
+      const secondaryPortalId: string | null = secPortalRes.data?.id ?? null;
+      const primaryHasPortal = !!priPortalRes.data?.id;
+      const predictedMovedId = secondaryPortalId && !primaryHasPortal ? secondaryPortalId : null;
+      const predictedDeactivatedId = secondaryPortalId && primaryHasPortal ? secondaryPortalId : null;
 
       const snapshot = {
         primary_fields: {
@@ -427,6 +446,10 @@ export default function CustomersDuplicatesPage() {
         property_note_ids: (notesRes.data ?? []).map((r: { id: string }) => r.id),
         referrer_ids: (refRes1.data ?? []).map((r: { id: string }) => r.id),
         referred_ids: (refRes2.data ?? []).map((r: { id: string }) => r.id),
+        // Exact key names unmerge_customers reads (:248, :255). Null when the
+        // branch did not apply; the RPC treats an absent/null key as a no-op.
+        portal_user_moved_id: predictedMovedId,
+        portal_user_deactivated_id: predictedDeactivatedId,
       };
 
       const { data, error } = await db.rpc('merge_customers', {
@@ -434,14 +457,39 @@ export default function CustomersDuplicatesPage() {
         secondary_id: secondary.id,
       });
       if (error) throw error;
+
+      // Cross-check the prediction. A mismatch means the snapshot is wrong and
+      // Undo will silently NOT restore the portal login.
+      //
+      // The known cause is permissions, not timing: merge_customers requires
+      // is_org_admin (owner | admin | manager), but the RLS policy on
+      // client_portal_users is role = ANY(ARRAY['admin','owner']) — and 'admin'
+      // was retired on 2026-07-10, so it is effectively owner-only. A MANAGER can
+      // therefore merge but cannot read that table, so both queries above return
+      // nothing and the snapshot records no portal id while the RPC really did
+      // move one. Detected here rather than discovered at Undo time.
+      const portalResult = data as { portal_moved?: number; portal_deactivated?: number } | null;
+      const rpcMoved = (portalResult?.portal_moved ?? 0) > 0;
+      const rpcDeactivated = (portalResult?.portal_deactivated ?? 0) > 0;
+      const snapshotIncomplete =
+        (rpcMoved && !predictedMovedId) || (rpcDeactivated && !predictedDeactivatedId);
+
+      if (snapshotIncomplete) {
+        console.error(
+          '[merge] Portal login was changed but no id was captured — Undo will not restore it.',
+          { rpcMoved, rpcDeactivated, predictedMovedId, predictedDeactivatedId },
+        );
+      }
+
       return {
         result: data as { bookings_moved: number; recurring_moved: number; quotes_moved: number } | null,
         snapshot,
         primary_id: primary.id,
         secondary_id: secondary.id,
+        snapshotIncomplete,
       };
     },
-    onSuccess: ({ result, snapshot, primary_id, secondary_id }) => {
+    onSuccess: ({ result, snapshot, primary_id, secondary_id, snapshotIncomplete }) => {
       const moved = (result?.bookings_moved ?? 0) + (result?.recurring_moved ?? 0);
       const invalidate = () => {
         queryClient.invalidateQueries({ queryKey: ['customers-for-dedupe', orgId] });
@@ -450,6 +498,14 @@ export default function CustomersDuplicatesPage() {
       };
       invalidate();
       setConfirmMerge(null);
+
+      if (snapshotIncomplete) {
+        toast.warning(
+          "Merged, but this account could not record the customer's portal login. " +
+          'Undo will restore everything except that login — ask an owner to re-check it.',
+          { duration: 12000 },
+        );
+      }
 
       toast.success(
         `Merged 2 customers — ${moved} booking${moved === 1 ? '' : 's'} transferred`,
