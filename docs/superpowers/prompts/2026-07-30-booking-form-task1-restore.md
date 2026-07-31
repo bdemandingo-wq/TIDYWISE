@@ -1,0 +1,211 @@
+# Lovable prompt — Booking form Task 1: restore service
+
+**Plan:** `docs/superpowers/plans/2026-07-30-public-booking-form-repair.md`
+**Background:** `docs/bugs/2026-07-30-public-booking-form-trace.md`
+**Status:** ready to paste. **Queued behind the `automation_steps` audit** — unrelated work, no dependency, just ordering.
+
+**Before running:** confirm from the leads query that the form is in fact dead (newest `leads.source = 'booking_form'` predates ~2026-05-09). If recent leads exist, the deployed webhook differs from the repo and this prompt needs rethinking first.
+
+**Note for the coupled decision:** repairing this switches dynamic surge pricing back on for any org that has it enabled, and the customer is currently shown no explanation of the surcharge. See `docs/bugs/2026-07-30-dynamic-pricing-investigation.md`. If `any_on = 0` there, ignore this note.
+
+---
+
+## The prompt
+
+````
+Please make the following changes and DEPLOY them (main project slwfkaqczvwvvvavkgpr).
+
+CONTEXT — what is broken
+
+The public booking form at /book/:orgSlug submits via
+supabase.functions.invoke('external-booking-webhook'), which sends only the anon key
+and content-type. No custom headers.
+
+external-booking-webhook requires an x-webhook-secret header and returns 401 when it
+is absent, before touching the database. So every public booking submission has been
+rejected since that check went live around 2026-05-09, across all 87 organisations.
+The customer sees "Failed to create booking. Please try again." and nothing is
+recorded anywhere — no name, no email, no phone — so every lost booking is a lead we
+never learn about.
+
+The fix is NOT to weaken that secret check. It protects the server-to-server
+integration path, which is a different caller with different needs. Instead we split
+the two callers apart and give the public form its own endpoint with protections that
+suit a browser.
+
+Do NOT send the secret from the browser. Anything the page can send, a visitor can
+read and replay, and it would put a per-org secret into public JavaScript.
+
+=============================================================================
+CHANGE 1 — migration: booking_submission_failures
+=============================================================================
+
+The reason this went unnoticed for three months is that a rejection wrote nothing.
+That must not survive the fix. The table deliberately carries contact details, so a
+lost booking is a lead someone can still ring — not just a debugging record.
+
+create table public.booking_submission_failures (
+  id               uuid primary key default gen_random_uuid(),
+  created_at       timestamptz not null default now(),
+
+  -- SET NULL, never CASCADE: deleting an organisation must not erase the
+  -- evidence of business it lost.
+  organization_id  uuid references public.organizations(id) on delete set null,
+  organization_slug text,
+
+  stage            text not null,
+  reason           text,
+
+  client_ip        text,
+  origin           text,
+  user_agent       text,
+
+  -- The point of the table. A failed submission is still a lead.
+  first_name       text,
+  last_name        text,
+  email            text,
+  phone            text,
+
+  payload          jsonb not null default '{}'::jsonb,
+  path             text not null default 'public',
+
+  constraint bsf_stage_chk check (stage in
+    ('rate_limited','validation','conflict','db_error','auth','unknown')),
+  constraint bsf_path_chk  check (path in ('public','integration'))
+);
+
+create index idx_bsf_org_created on public.booking_submission_failures (organization_id, created_at desc);
+create index idx_bsf_created     on public.booking_submission_failures (created_at desc);
+
+alter table public.booking_submission_failures enable row level security;
+revoke all on public.booking_submission_failures from anon, authenticated;
+grant select on public.booking_submission_failures to authenticated;
+grant all    on public.booking_submission_failures to service_role;
+
+create policy "Org admins read booking submission failures"
+  on public.booking_submission_failures for select to authenticated
+  using (public.is_org_admin(organization_id));
+
+comment on table public.booking_submission_failures is
+  'Failed public booking submissions. Holds PII (name/email/phone) so a lost '
+  'booking remains a contactable lead — retention policy: purge rows older than '
+  '90 days.';
+
+=============================================================================
+CHANGE 2 — extract the booking-creation logic, as a PURE MOVE
+=============================================================================
+
+Create supabase/functions/_shared/create-booking-from-payload.ts containing the
+customer upsert, the double-booking conflict check, the booking insert, the lead
+insert and the notification fan-out — i.e. everything external-booking-webhook does
+AFTER its auth block (roughly its lines 133 to the end).
+
+Then have external-booking-webhook call it.
+
+THIS STEP MUST CHANGE NO BEHAVIOUR. It is a move, not a rewrite. The integration
+path must behave identically afterwards, so that if anything regresses later it is
+unambiguous which change caused it. Please confirm explicitly that you did not alter
+any logic while moving it.
+
+Do NOT touch external-booking-webhook's x-webhook-secret requirement. It keeps it.
+
+=============================================================================
+CHANGE 3 — new function: public-booking-submit
+=============================================================================
+
+New edge function, config.toml entry verify_jwt = false, NO secret required.
+
+Order of operations:
+
+1. Resolve the organisation from organization_slug or organization_id, exactly as
+   external-booking-webhook does. Missing org -> 400 + a failure row (stage 'validation').
+
+2. Rate limits, using the EXISTING helper _shared/rate-limit.ts, which already exports
+   checkAndRecord(supabase, bucket, key, {maxPerWindow, windowSeconds}) and
+   getClientIp(req). Six functions already use it — please reuse it rather than
+   writing a new limiter.
+
+     bucket 'booking_submit_ip'    key getClientIp(req)          5  per 600s
+     bucket 'booking_submit_org'   key organization_id           30 per 3600s
+     bucket 'booking_submit_email' key lowercased email          3  per 3600s
+
+   Blocked -> 429 + a failure row (stage 'rate_limited') carrying the contact details.
+
+3. Validate required fields (email, phone, organisation, scheduled_at). Invalid ->
+   400 + failure row (stage 'validation').
+
+4. Record Origin and User-Agent headers on every submission, success or failure.
+   DO NOT reject on origin mismatch. A hard allowlist fails exactly the way the
+   secret did — silently, on configuration the org owner cannot see — and an org
+   embedding the form on a new domain would lose bookings with no warning. Record
+   now, decide about enforcement later from real data.
+
+5. Call the shared module from CHANGE 2.
+
+6. Any throw from the shared module -> failure row (stage 'db_error') and a 500.
+
+Every failure path writes a row. That is the point of the task.
+
+=============================================================================
+CHANGE 4 — failure rows on the integration path too
+=============================================================================
+
+In external-booking-webhook, write a booking_submission_failures row with
+path = 'integration' and stage = 'auth' on both 401 branches (missing header, invalid
+secret). A misconfigured partner integration should be as visible as a broken form.
+
+=============================================================================
+NOT IN SCOPE — please do not do these
+=============================================================================
+
+- Do not weaken or remove the x-webhook-secret check.
+- Do not add captcha or origin enforcement. Those are Task 3, after real origin data
+  exists.
+- Do not change how total_amount is handled. The endpoint still trusts the client's
+  figure for now; server-side pricing is Task 2 and needs its own decision.
+- Do not change PublicBookingPage. Pointing the browser at the new endpoint is a
+  one-line client change I will make separately once this is deployed.
+
+=============================================================================
+AFTERWARDS — please paste
+=============================================================================
+
+  select column_name, data_type, is_nullable
+  from information_schema.columns
+  where table_schema='public' and table_name='booking_submission_failures'
+  order by ordinal_position;
+
+  -- MOST IMPORTANT: must read ON DELETE SET NULL, not CASCADE
+  select conname, pg_get_constraintdef(oid)
+  from pg_constraint
+  where conrelid='public.booking_submission_failures'::regclass and contype='f';
+
+  select tablename, policyname, cmd, qual
+  from pg_policies where schemaname='public' and tablename='booking_submission_failures';
+
+And confirm in words:
+  - that CHANGE 2 altered no logic, only moved it
+  - that external-booking-webhook still requires x-webhook-secret
+  - that public-booking-submit is verify_jwt = false and requires no secret
+  - that both functions are DEPLOYED, not merely committed
+````
+
+---
+
+## After it deploys — my one-line change
+
+`PublicBookingPage.tsx:575` changes `'external-booking-webhook'` to
+`'public-booking-submit'`. Nothing else in the client moves. I will make that change,
+run tsc and lint, and commit it separately so the client switch is its own revertable
+step.
+
+## Then the test that actually settles it
+
+1. Submit the hosted form for a real org. Confirm a `customers` row, a `bookings` row
+   (`status='pending'`) and a `leads` row (`source='booking_form'`) all appear.
+2. Submit again immediately six times. Confirm the sixth is rate-limited **and** that
+   `booking_submission_failures` has a `rate_limited` row carrying the name and phone.
+3. Submit with a deliberately bad payload. Confirm a `validation` row appears.
+
+Step 2 is the one worth doing carefully: it proves the thing that was missing for
+three months, which is that a failure leaves a trace.
