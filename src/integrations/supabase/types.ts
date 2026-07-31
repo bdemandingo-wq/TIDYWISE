@@ -10771,11 +10771,14 @@ export type Database = {
       }
       billing_revenue_by_confidence: {
         Row: {
-          cash_cents: number | null
           confidence: string | null
-          event_type: string | null
           events: number | null
+          gross_cents: number | null
           month: string | null
+          net_cash_cents: number | null
+          payment_events: number | null
+          reversal_cents: number | null
+          reversal_events: number | null
           stream: string | null
         }
         Relationships: []
