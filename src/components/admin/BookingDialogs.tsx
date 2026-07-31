@@ -31,9 +31,9 @@ import { fmt } from '@/lib/activeCurrency';
 
 const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string }> = [
   { value: "pending", label: "Pending Payment" },
-  { value: "confirmed", label: "Uncleaned" },
+  { value: "confirmed", label: "Scheduled" },
   { value: "in_progress", label: "In Progress" },
-  { value: "completed", label: "Clean Completed" },
+  { value: "completed", label: "Completed" },
   { value: "rescheduled", label: "Rescheduled" },
   { value: "cancelled", label: "Cancelled" },
   { value: "no_show", label: "No Show" },

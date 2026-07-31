@@ -135,9 +135,9 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
 
 const statusLabels: Record<string, string> = {
   pending: 'pending payment',
-  confirmed: 'uncleaned',
+  confirmed: 'scheduled',
   in_progress: 'in progress',
-  completed: 'clean completed',
+  completed: 'completed',
   cancelled: 'cancelled',
   no_show: 'no show',
   rescheduled: 'rescheduled',
@@ -284,7 +284,7 @@ export default function BookingsPage() {
     };
 
     return [...bookings].sort((a, b) => {
-      // Pin today's active (uncleaned/in-progress) bookings to the very top
+      // Pin today's active (scheduled/in-progress) bookings to the very top
       const aTodayActive = isTodayActive(a);
       const bTodayActive = isTodayActive(b);
       if (aTodayActive !== bTodayActive) return aTodayActive ? -1 : 1;
@@ -359,7 +359,10 @@ export default function BookingsPage() {
     return matchesSearch && matchesStatus && matchesDate && matchesTab;
   });
 
-  // Stats - pending payment based on payment_status, uncleaned based on status
+  // Stats - pending payment based on payment_status, scheduled based on status.
+  // `confirmed` = booked and confirmed but not yet done; `completed` = job finished.
+  // Both are COUNTS of bookings, not money — the completed tile used to carry a
+  // DollarSign, which is what made it read as a revenue figure.
   const stats = {
     total: bookings.length,
     pending: bookings.filter(b => b.payment_status === 'pending').length,
@@ -1728,7 +1731,7 @@ export default function BookingsPage() {
                   <div className="p-2 bg-info/10 rounded-xl">
                     <User className="w-5 h-5 text-info" />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground">Uncleaned</span>
+                  <span className="text-sm font-medium text-muted-foreground">Scheduled</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">{stats.confirmed}</p>
               </div>
@@ -1739,9 +1742,9 @@ export default function BookingsPage() {
               <div className="relative">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="p-2 bg-success/10 rounded-xl">
-                    <DollarSign className="w-5 h-5 text-success" />
+                    <CheckCircle className="w-5 h-5 text-success" />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground">Clean Completed</span>
+                  <span className="text-sm font-medium text-muted-foreground">Completed</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
               </div>
@@ -2011,12 +2014,12 @@ export default function BookingsPage() {
                       ) : isCleaned ? (
                         <>
                           <CheckCircle className="w-3 h-3" />
-                          clean completed
+                          completed
                         </>
                       ) : (
                         <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-                          uncleaned
+                          <span className="w-1.5 h-1.5 rounded-full bg-info" />
+                          scheduled
                         </>
                       )}
                     </div>
@@ -2260,11 +2263,11 @@ export default function BookingsPage() {
                                   className="gap-2 cursor-pointer text-amber-600" 
                                   onClick={async () => {
                                     await handleStatusChange(booking.id, 'confirmed');
-                                    toast({ title: "Marked Uncleaned", description: `Booking #${booking.booking_number} marked as uncleaned.` });
+                                    toast({ title: "Marked Scheduled", description: `Booking #${booking.booking_number} moved back to scheduled.` });
                                   }}
                                   disabled={booking.status === 'confirmed'}
                                 >
-                                  <XCircle className="w-4 h-4" /> Mark Uncleaned
+                                  <XCircle className="w-4 h-4" /> Mark Scheduled
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="gap-2 cursor-pointer" 
@@ -2498,7 +2501,7 @@ export default function BookingsPage() {
         onEdit={(b) => { setActionSheetBooking(null); setEditingBooking(b); setAddDialogOpen(true); }}
         onDuplicate={(b) => { setActionSheetBooking(null); handleDuplicate(b); }}
         onMarkCompleteAdjustPay={(b) => { handleStatusChange(b.id, 'completed'); setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
-        onMarkUncleaned={async (b) => { await handleStatusChange(b.id, 'confirmed'); toast({ title: "Marked Uncleaned" }); setActionSheetBooking(null); }}
+        onMarkScheduled={async (b) => { await handleStatusChange(b.id, 'confirmed'); toast({ title: "Marked Scheduled" }); setActionSheetBooking(null); }}
         onMarkCancelled={(b) => { setActionSheetBooking(null); setCancelBookingTarget(b); }}
         onAdjustCleanerPay={(b) => { setActiveBooking(b); setAdjustPaymentOpen(true); setActionSheetBooking(null); }}
         onDelete={(b) => { setActionSheetBooking(null); handleDelete(b); }}

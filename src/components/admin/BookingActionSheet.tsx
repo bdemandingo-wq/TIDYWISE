@@ -36,7 +36,7 @@ interface BookingActionSheetProps {
   onEdit: (booking: BookingWithDetails) => void;
   onDuplicate: (booking: BookingWithDetails) => void;
   onMarkCompleteAdjustPay: (booking: BookingWithDetails) => void;
-  onMarkUncleaned: (booking: BookingWithDetails) => void;
+  onMarkScheduled: (booking: BookingWithDetails) => void;
   onMarkCancelled: (booking: BookingWithDetails) => void;
   onAdjustCleanerPay: (booking: BookingWithDetails) => void;
   onDelete: (booking: BookingWithDetails) => void;
@@ -161,7 +161,7 @@ export function BookingActionSheet({
   maskAmount,
   maskName,
   onViewDetails, onMarkPaid, onMarkComplete, onEdit, onDuplicate,
-  onMarkCompleteAdjustPay, onMarkUncleaned, onMarkCancelled, onAdjustCleanerPay, onDelete,
+  onMarkCompleteAdjustPay, onMarkScheduled, onMarkCancelled, onAdjustCleanerPay, onDelete,
   onMarkUnpaid, onAdditionalCharge, onChargeCard, onPlaceHold, onCaptureHold,
   onReleaseHold, onRefund, onPaymentHistory, onSendReminder, onNotifyCleaner,
   onNotifyOpenJob, onSendReview, onSendTipLink, onSendDepositLink, onAssignCleaner,
@@ -279,8 +279,8 @@ export function BookingActionSheet({
             <ActionBtn colorClass="text-teal-500 hover:bg-teal-500/10" onClick={() => onMarkCompleteAdjustPay(booking)} disabled={booking.status === 'completed'}>
               <CheckCircle className="w-4 h-4" /> Mark Complete & Adjust Pay
             </ActionBtn>
-            <ActionBtn colorClass="text-orange-500 hover:bg-orange-500/10" onClick={() => onMarkUncleaned(booking)} disabled={booking.status === 'confirmed'}>
-              <XCircle className="w-4 h-4" /> Mark Uncleaned
+            <ActionBtn colorClass="text-orange-500 hover:bg-orange-500/10" onClick={() => onMarkScheduled(booking)} disabled={booking.status === 'confirmed'}>
+              <XCircle className="w-4 h-4" /> Mark Scheduled
             </ActionBtn>
             <ActionBtn colorClass="text-emerald-500 hover:bg-emerald-500/10" onClick={() => onAdjustCleanerPay(booking)}>
               <DollarSign className="w-4 h-4" /> Adjust Cleaner Pay
