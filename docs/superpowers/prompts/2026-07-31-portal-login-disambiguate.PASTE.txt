@@ -1,0 +1,86 @@
+Two things in one go: a read-only sizing query, and a fix to the client portal
+login RPC. The fix is correct whether the query returns rows or not — don't gate
+one on the other. Just report the query result alongside.
+
+──────────────────────────────────────────────────────────────────────────────
+PART 1 — Read-only sizing query. Run it and paste the full result back.
+──────────────────────────────────────────────────────────────────────────────
+
+Emails that have a client portal login at more than one business. Every row is a
+customer who can currently be rejected while typing the correct password.
+
+  select lower(c.email)                          as email,
+         count(*)                                as portal_accounts,
+         count(distinct c.organization_id)       as businesses,
+         string_agg(distinct o.name, ' | ')      as business_names,
+         max(cpu.last_login_at)                  as most_recent_login
+  from public.client_portal_users cpu
+  join public.customers c     on c.id = cpu.customer_id
+  join public.organizations o on o.id = c.organization_id
+  where c.email is not null and c.email <> ''
+  group by lower(c.email)
+  having count(distinct c.organization_id) > 1
+  order by count(*) desc;
+
+Report the row count and, if non-empty, every row — those are people who may
+already have given up trying to log in and I want to know who they are.
+
+──────────────────────────────────────────────────────────────────────────────
+PART 2 — Fix public.validate_client_portal_login (migration).
+──────────────────────────────────────────────────────────────────────────────
+
+The bug: the function does a plain SELECT ... INTO with no org filter, no
+ORDER BY and no LIMIT. When one email has portal logins at two businesses,
+Postgres hands back an arbitrary row, so a correct password gets compared
+against the wrong account's hash and the customer is told their password is
+wrong.
+
+Replace it with a multi-candidate version. Keep the signature, the return shape,
+SECURITY DEFINER, and `SET search_path = public` exactly as they are. Do not
+change any grants.
+
+Behaviour:
+
+  - Gather up to 5 candidate portal accounts for LOWER(p_email), ordered by
+    cpu.created_at ASC (then cpu.id ASC as a unique tiebreaker so the cap is
+    deterministic). The cap exists so a pathological email can't be used to burn
+    server time on bcrypt.
+  - Zero candidates: run the existing dummy extensions.crypt() compare and
+    return {"valid": false, "reason": "invalid_credentials"} — unchanged.
+  - Loop the candidates and count how many have
+    cpu.password_hash = extensions.crypt(p_password, cpu.password_hash).
+      * exactly 1 match  -> that is the account. Check is_active ON THE MATCHED
+        ROW (not on whichever candidate came first). Inactive returns
+        {"valid": false, "reason": "inactive"}; active returns
+        {"valid": true, "user_id": <matched id>}.
+      * 0 matches        -> {"valid": false, "reason": "invalid_credentials"}
+      * 2 or more        -> {"valid": false, "reason": "ambiguous_account"} —
+        same email AND same password at two businesses. Do not guess; that
+        guessing is what caused this. Rare enough to handle by hand.
+
+Two properties that must survive the rewrite:
+
+  1. Anti-enumeration. A wrong email and a wrong password must remain
+     indistinguishable to the caller. Never reveal how many accounts an email
+     has, or which businesses they belong to.
+  2. The is_active check applies to the matched account only.
+
+Add this as a comment in the function body, verbatim — I want the tradeoff
+recorded, not solved:
+
+  -- TIMING LEAK, ACCEPTED: comparing N candidate hashes takes measurably
+  -- longer than comparing 1, which leaks that an email exists at more than one
+  -- business. The pre-existing dummy-crypt path already only approximates
+  -- constant time, so padding every call to a fixed 5 compares would cost
+  -- ~500ms per login to close a leak the function never fully closed. Revisit
+  -- only if portal login becomes a targeted enumeration surface.
+
+Also add a COMMENT ON FUNCTION noting that it disambiguates by password because
+the portal login surface at /portal is not org-scoped.
+
+The edge function `client-portal-login` needs no change — it already treats any
+non-valid result as invalid_credentials, and `ambiguous_account` falls into that
+path safely. Leave it alone.
+
+After applying: re-run pg_get_functiondef on the function and confirm the new
+body is live, and confirm a normal single-account login still succeeds.
