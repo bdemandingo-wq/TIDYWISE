@@ -85,12 +85,16 @@ from public.zapier_dispatch_log
 group by event_type
 union all
 select 'ghl', event_type, count(*),
-       count(*) filter (where success),
+       count(*) filter (where status = 'success'),
        min(created_at), max(created_at)
 from public.ghl_dispatch_log
 group by event_type
 order by channel, event_type;
 ```
+
+The two logs record outcome differently and are not interchangeable:
+`zapier_dispatch_log` has a boolean `success`; `ghl_dispatch_log` has a text
+`status` constrained to `('success','failed','retrying')`.
 
 **`estimate.sent` should be absent from both halves entirely.** If it appears, the
 code reading was wrong somewhere and the audit needs revisiting before anyone is

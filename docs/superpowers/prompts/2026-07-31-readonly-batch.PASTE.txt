@@ -1,0 +1,309 @@
+These are READ-ONLY queries. Please run them and paste the results back.
+
+Do not change, insert, update or delete anything. Do not create a migration. Do
+not "fix" anything you notice while running these — several of these queries are
+looking for problems, and the decision about what to do with each answer is mine
+to make, not something to action here.
+
+Please label every result block with its query ID (A1, A2, …) exactly as written
+below. Four unrelated questions are bundled here and I need to know which result
+answers which. If a query returns zero rows, say "A3: 0 rows" rather than
+skipping it — an empty result is a meaningful answer in most of these.
+
+If any query errors, paste the error and carry on to the next one. Don't stop.
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION A — Who has an `estimate.sent` automation that has never fired?
+═══════════════════════════════════════════════════════════════════════════
+Why this is first: there are real businesses on the other end of this one. They
+have an automation wired to `estimate.sent` and believe it works. It has never
+emitted. They don't know they're waiting on an answer, which is exactly why they
+need one.
+
+RUN A1 FIRST AND CHECK IT BEFORE THE REST OF SECTION A.
+
+
+-- A1. THE PREMISE CHECK. `estimate.sent` should be ABSENT from both halves.
+--     If it appears anywhere in this result, the finding is wrong, and A2-A4
+--     should be treated as unreliable — flag that loudly rather than moving on.
+--     Seeing which events DO appear is the control: it proves the dispatch
+--     pipeline works in general, which is what makes estimate.sent's absence
+--     mean something.
+--     Note the two logs record outcome differently: zapier_dispatch_log has a
+--     boolean `success`, ghl_dispatch_log has a text `status` in
+--     ('success','failed','retrying'). Not interchangeable.
+select 'zapier' as channel, event_type, count(*) as dispatches,
+       count(*) filter (where success) as succeeded,
+       min(created_at) as first_seen, max(created_at) as last_seen
+from public.zapier_dispatch_log
+group by event_type
+union all
+select 'ghl', event_type, count(*),
+       count(*) filter (where status = 'success'),
+       min(created_at), max(created_at)
+from public.ghl_dispatch_log
+group by event_type
+order by channel, event_type;
+
+
+-- A2. Zapier subscribers to estimate.sent.
+--     Inactive rows are included deliberately: an org that switched it off
+--     after seeing nothing arrive is still an org that was misled, and is
+--     arguably the one most worth contacting.
+select o.name                          as organization,
+       w.organization_id,
+       w.name                          as zap_name,
+       w.is_active,
+       w.created_at,
+       left(w.webhook_url, 40) || '…'  as webhook
+from public.org_zapier_webhooks w
+join public.organizations o on o.id = w.organization_id
+where w.event_type = 'estimate.sent'
+order by w.is_active desc, w.created_at;
+
+
+-- A3. GoHighLevel subscribers to estimate.sent.
+--     event_enabled_raw is shown rather than filtered because three states
+--     behave differently: 'true' dispatches, 'false' skips, and NULL (key
+--     present with no `enabled` field) ALSO dispatches. Please don't collapse
+--     these into a boolean.
+--     If `?` errors as a bind-parameter placeholder in whatever runs this, swap
+--     `g.event_config ? 'estimate.sent'` for
+--     `jsonb_exists(g.event_config, 'estimate.sent')` — same operator, no clash.
+--     Same substitution applies in A4.
+select o.name                                              as organization,
+       g.organization_id,
+       g.enabled                                           as integration_enabled,
+       (g.event_config -> 'estimate.sent' ->> 'enabled')   as event_enabled_raw,
+       g.updated_at
+from public.org_ghl_settings g
+join public.organizations o on o.id = g.organization_id
+where g.webhook_url is not null
+  and g.event_config ? 'estimate.sent'
+order by g.enabled desc, g.updated_at desc;
+
+
+-- A4. The contact list — who to actually email.
+--     full_name may be blank for owners who signed up after 2026-02-01; that's
+--     a separate known regression, not a data error here.
+select distinct o.id, o.name, p.email, p.full_name, 'zapier' as via
+from public.org_zapier_webhooks w
+join public.organizations o   on o.id = w.organization_id
+join public.org_memberships m on m.organization_id = o.id and m.role = 'owner'
+join public.profiles p        on p.id = m.user_id
+where w.event_type = 'estimate.sent'
+union
+select distinct o.id, o.name, p.email, p.full_name, 'ghl'
+from public.org_ghl_settings g
+join public.organizations o   on o.id = g.organization_id
+join public.org_memberships m on m.organization_id = o.id and m.role = 'owner'
+join public.profiles p        on p.id = m.user_id
+where g.webhook_url is not null and g.event_config ? 'estimate.sent'
+order by name;
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION B — Which loyalty tier ladders have a hole in them?
+═══════════════════════════════════════════════════════════════════════════
+Tier bounds are inclusive and lifetime_spend is numeric(12,2), so two tiers are
+contiguous only when the next tier's min_spending = this tier's max_spending +
+0.01. A ladder of 0-499 / 500-1999 / 2000-4999 / 5000-null has three holes, and
+a customer standing in one matches no tier at all.
+
+
+-- B1. Every hole in every configured ladder.
+--     Empty result = no org has a gap. hole_width of 0.99 is the seeded-default
+--     shape; anything wider is a hand-edited ladder missing a real range.
+with ladder as (
+  select cts.organization_id, cts.tier_name, cts.min_spending, cts.max_spending,
+         lead(cts.min_spending) over (partition by cts.organization_id
+                                      order by cts.min_spending) as next_min,
+         lead(cts.tier_name)    over (partition by cts.organization_id
+                                      order by cts.min_spending) as next_tier
+  from public.client_tier_settings cts
+)
+select o.name                               as organization,
+       l.organization_id,
+       l.tier_name                          as tier_below,
+       l.max_spending                       as covers_up_to,
+       l.next_tier                          as tier_above,
+       l.next_min                           as resumes_at,
+       (l.max_spending + 0.01)              as hole_starts,
+       (l.next_min - 0.01)                  as hole_ends,
+       (l.next_min - l.max_spending - 0.01) as hole_width
+from ladder l
+join public.organizations o on o.id = l.organization_id
+where l.max_spending is not null
+  and l.next_min is not null
+  and l.next_min > l.max_spending + 0.01
+order by o.name, l.min_spending;
+
+
+-- B2. The part that actually matters — customers standing in a hole right now.
+--     A gap only hurts if someone is in it. Two different causes appear here:
+--     spend BELOW the lowest min_spending is not a gap (the org just has no
+--     entry tier starting at 0, working as configured); spend BETWEEN two tiers
+--     is a real hole. Cross-reference against B1 to tell them apart.
+select o.name              as organization,
+       c.organization_id,
+       c.id                as customer_id,
+       c.first_name, c.last_name, c.email,
+       cl.lifetime_spend
+from public.customer_loyalty cl
+join public.customers c     on c.id = cl.customer_id
+join public.organizations o on o.id = c.organization_id
+where exists (select 1 from public.client_tier_settings cts
+              where cts.organization_id = c.organization_id)
+  and not exists (select 1 from public.client_tier_settings cts
+                  where cts.organization_id = c.organization_id
+                    and cl.lifetime_spend >= cts.min_spending
+                    and (cts.max_spending is null
+                         or cl.lifetime_spend <= cts.max_spending))
+order by cl.lifetime_spend desc;
+
+
+-- B3. How widespread the seeded-default shape is.
+select count(distinct organization_id) as orgs_with_the_default_holey_ladder
+from public.client_tier_settings
+where max_spending in (499, 1999, 4999);
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION C — Has any org written copy into `automation_steps`?
+═══════════════════════════════════════════════════════════════════════════
+The automation editor has been live and saving since migration 20260707060120,
+complete with an "Automation saved" toast. No sender reads any of it. So owners
+wrote copy, were told it saved, and reasonably concluded it sends. It never has.
+
+The moment a sender starts reading that table, all of that copy goes live at
+once — untested, unreviewed, possibly a year-old draft. This checks what is
+sitting there before that happens.
+
+DO NOT DELETE ANY OF THESE ROWS. An owner's saved copy is their work even if it
+never sent, and whether to activate it is their decision, not a cleanup.
+
+
+-- C1. Is there anything there at all? No rows = the good outcome.
+select d.automation_key,
+       count(distinct d.organization_id) as orgs,
+       count(s.id)                       as steps,
+       min(s.created_at)                 as first_edit,
+       max(s.updated_at)                 as last_edit
+from public.automation_definitions d
+left join public.automation_steps s on s.automation_id = d.id
+group by d.automation_key
+order by count(s.id) desc, d.automation_key;
+
+
+-- C2. The actual copy, so a human can read it before it can ever send.
+--     Only needed if C1 returned rows. Please paste sms_body and email_subject
+--     IN FULL rather than truncating — the question here isn't "how many", it's
+--     "would I be happy for a customer to receive this tomorrow".
+select o.name                               as organization,
+       d.automation_key,
+       d.enabled                            as definition_enabled,
+       s.position, s.channel,
+       s.recipient_client, s.recipient_cleaner, s.recipient_owner,
+       s.sms_body,
+       s.email_subject,
+       left(coalesce(s.email_body,''), 300) as email_body_start,
+       s.created_at, s.updated_at
+from public.automation_steps s
+join public.automation_definitions d on d.id = s.automation_id
+join public.organizations o          on o.id = s.organization_id
+order by o.name, d.automation_key, s.position;
+
+
+-- C3. The subset that would go live first (quote_stale_reengage is migrated
+--     first, so this is the copy with the shortest fuse).
+select o.name, d.enabled, s.channel, s.sms_body, s.updated_at
+from public.automation_steps s
+join public.automation_definitions d on d.id = s.automation_id
+join public.organizations o          on o.id = s.organization_id
+where d.automation_key = 'quote_stale_reengage'
+order by s.updated_at desc;
+
+
+-- C4. Confirm the live schema matches what the migration claims.
+--     Expected: channel CHECK in (sms,email,both), offset_unit CHECK in
+--     (minutes,hours,days), direction CHECK in (before,after,immediate), a
+--     GENERATED offset_minutes, and a conflict-detection trigger.
+--     `message_class` should NOT exist yet. If it does, tell me.
+select column_name, data_type, is_nullable, column_default, is_generated
+from information_schema.columns
+where table_schema = 'public' and table_name = 'automation_steps'
+order by ordinal_position;
+
+select conname, contype, pg_get_constraintdef(oid) as definition
+from pg_constraint
+where conrelid = 'public.automation_steps'::regclass
+order by contype, conname;
+
+
+═══════════════════════════════════════════════════════════════════════════
+SECTION D — How much refund history is actually recoverable?
+═══════════════════════════════════════════════════════════════════════════
+The refund path overwrote total_amount in place, so the original sale price was
+lost on affected bookings. This sizes what can be restored before anything is
+built. It is a decision gate, not a prelude — if most rows are unrecoverable,
+the honest move is to fix forward with a documented cut-off date rather than
+backfill.
+
+
+-- D1. The three recovery tiers.
+--     A = Stripe-authoritative (payment_intent_id present, so Stripe holds the
+--         original charge and every refund with its real date)
+--     B = Inferred (no payment intent, but `subtotal` survived — the refund
+--         path only ever wrote payment_status and total_amount — so the amount
+--         is derivable, though the DATE is not)
+--     C = Lost (neither)
+select count(*)                                              as refund_affected,
+       count(*) filter (where payment_intent_id is not null) as tier_a_stripe,
+       count(*) filter (where payment_intent_id is null
+                          and coalesce(subtotal,0) > 0)      as tier_b_inferred,
+       count(*) filter (where payment_intent_id is null
+                          and coalesce(subtotal,0) = 0)      as tier_c_lost,
+       sum(case when payment_intent_id is null and coalesce(subtotal,0) > 0
+                then (subtotal - coalesce(discount_amount,0)) - total_amount end)
+                                                             as tier_b_refund_total_usd
+from public.bookings
+where payment_status in ('refunded','partial');
+
+
+-- D2. The 'partial' ambiguity in real numbers.
+--     payment_status = 'partial' currently means BOTH "partially paid" and
+--     "partially refunded" — opposite situations. A booking below its derived
+--     original was refunded; one at or above it was partially paid. If
+--     `undecidable` is high, only Stripe can separate them, and only for tier A.
+select count(*)                                                   as partial_rows,
+       count(*) filter (where coalesce(subtotal,0) > 0
+                          and total_amount <  (subtotal - coalesce(discount_amount,0)) - 0.005)
+                                                                  as looks_refunded,
+       count(*) filter (where coalesce(subtotal,0) > 0
+                          and total_amount >= (subtotal - coalesce(discount_amount,0)) - 0.005)
+                                                                  as looks_partially_paid,
+       count(*) filter (where coalesce(subtotal,0) = 0)           as undecidable
+from public.bookings
+where payment_status = 'partial';
+
+
+-- D3. Payroll exposure.
+--     Cleaner pay reads total_amount only for a percentage-type booking-level
+--     wage with no snapshot and no pay_share. Those are the bookings whose pay
+--     would MOVE if sale prices are restored. Expected to be 0 or near it — if
+--     it isn't, restoring prices changes what payroll would pay, and that needs
+--     deciding before any backfill.
+select count(*) as exposed_bookings
+from public.bookings b
+where b.cleaner_wage_type = 'percentage'
+  and coalesce(b.cleaner_pay_expected, 0) = 0
+  and coalesce(b.cleaner_actual_payment, 0) = 0
+  and not exists (select 1 from public.booking_team_assignments t
+                  where t.booking_id = b.id and coalesce(t.pay_share, 0) > 0);
+
+
+═══════════════════════════════════════════════════════════════════════════
+That's all 14. Results labelled A1-A4, B1-B3, C1-C4, D1-D3 please, including the
+ones that come back empty. Nothing here should have changed any data — if you
+believe something did, say so explicitly.
