@@ -1,6 +1,9 @@
 # What would it take to watch the cron jobs?
 
 **Asked:** 2026-07-31 — shape only, before deciding whether to build.
+**Decided:** outcome signals, watchdog deferred. The query list is in
+`docs/investigations/2026-07-31-cron-outcome-queries.md`, which also revises the
+heartbeat recommendation below from four jobs to none.
 **Prompted by:** the invoices overdue badge now reads a stored status that only
 `send-invoice-payment-reminders` maintains, and nothing alerts if that job stops.
 
