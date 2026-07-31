@@ -1,6 +1,8 @@
 # The recurring bookings count — what it counts and where it spreads
 
-**Investigated:** 2026-07-30. Read-only, nothing changed.
+**Investigated:** 2026-07-30. **Display side fixed same day** — see "What was done" at the foot.
+The data question is separate and queued:
+`docs/superpowers/prompts/2026-07-30-find-duplicate-recurring-series.md`
 
 **Short answer: it counts rows, nothing prevents duplicate rows, and the row count
 overrides a correctly-deduplicated figure on the P&L under a label that says
@@ -243,3 +245,30 @@ My read on what the numbers should be, for you to accept or reject:
 - P&L "Recurring Clients" → **distinct customers**, or stop overriding and let
   `PnLOverview`'s own address-based figure stand. Either is defensible; passing a row
   count is not.
+
+
+---
+
+## What was done — 2026-07-30
+
+All three display decisions taken and shipped. The data question was deliberately
+separated out.
+
+1. **Recurring tab tile relabelled "Total" → "Schedules".** Still a row count, which is
+   the right number for managing schedules; it just no longer invites reading as a
+   customer count. The page subtitle already said "recurring schedules".
+2. **Reports "Recurring Plans" now filters `is_active`.** It was counting every row ever
+   created, so it read higher than the tab it was meant to agree with.
+3. **P&L stopped receiving the row count.** `recurringStats` is no longer passed to
+   `PnLOverview`, and since it fed nothing else, the prop and its interface were removed
+   — `recurringCleans` and `recurringRevenue` were hardcoded `0` and read by nothing.
+   Both "Recurring Clients" cards now use `actuals.totalRecurringClients`, the
+   deduplicated figure the component already computed, which also restores agreement
+   with the revenue rendered directly beneath it.
+
+**One extra, unasked but in the same class:** `ReportsPage`'s state field was named
+`recurringClients` while holding a plan count. That naming is *how* a row count ended up
+in a card labelled "Clients" in the first place. Renamed to `recurringPlans`, and the two
+always-zero sibling fields dropped with it.
+
+`tsc` clean; eslint unchanged on all three files (29/18/18 before and after).

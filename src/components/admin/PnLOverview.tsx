@@ -26,16 +26,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-interface RecurringStats {
-  recurringClients: number;
-  recurringCleans: number;
-  recurringRevenue: number;
-}
-
 interface PnLOverviewProps {
   bookings: BookingWithDetails[];
   customers: any[];
-  recurringStats?: RecurringStats;
 }
 
 interface MonthlyOverheadItem {
@@ -173,7 +166,7 @@ const migrateMarketingChannels = (data: any, channelNames: { [key: string]: stri
   }));
 };
 
-export function PnLOverview({ bookings, customers, recurringStats }: PnLOverviewProps) {
+export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   const orgId = useOrgId();
   const { toast } = useToast();
   const [settings, setSettings] = useState<PnLSettings>(defaultSettings);
@@ -1081,7 +1074,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
         <Card>
           <CardContent className="pt-4">
             <p className="text-xs text-muted-foreground">Recurring Clients</p>
-            <p className="text-xl font-bold">{recurringStats?.recurringClients ?? actuals.totalRecurringClients}</p>
+            <p className="text-xl font-bold">{actuals.totalRecurringClients}</p>
             <p className="text-xs text-muted-foreground">{fmt(actuals.totalRecurringRevenue)} revenue</p>
           </CardContent>
         </Card>
@@ -1225,7 +1218,7 @@ export function PnLOverview({ bookings, customers, recurringStats }: PnLOverview
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Clients</p>
-                  <p className="text-2xl font-bold">{recurringStats?.recurringClients ?? actuals.totalRecurringClients}</p>
+                  <p className="text-2xl font-bold">{actuals.totalRecurringClients}</p>
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Recurring Revenue</p>

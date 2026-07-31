@@ -59,7 +59,11 @@ async function fetchOrgData(orgId: string, staffIds: string[]): Promise<{ whData
   // Customers: fetch most recent 1000 for reports (order by created_at desc)
   const custRes = await client.from('customers').select('id, first_name, last_name, email, created_at, is_recurring, address').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(1000);
   // Recurring bookings: fetch all active + limit to 500
-  const recRes = await client.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id').eq('organization_id', orgId).limit(500);
+  // is_active only: the "Recurring Plans" stat counts live plans, and a paused
+  // schedule is not one. Without this filter the card counted every row ever
+  // created, so it read higher than the Recurring tab, which at least splits
+  // active from paused.
+  const recRes = await client.from('recurring_bookings').select('total_amount, frequency, is_active, customer_id').eq('organization_id', orgId).eq('is_active', true).limit(500);
   return {
     whData,
     custData: custRes.data || [],
@@ -81,11 +85,13 @@ export default function ReportsPage() {
   const [workingHours, setWorkingHours] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [recurringBookings, setRecurringBookings] = useState<any[]>([]);
-  const [recurringStats, setRecurringStats] = useState<{ recurringClients: number; recurringCleans: number; recurringRevenue: number }>({
-    recurringClients: 0,
-    recurringCleans: 0,
-    recurringRevenue: 0
-  });
+  // Named "plans", not "clients": this holds a COUNT OF ROWS in
+  // recurring_bookings (active only), and one customer can hold several. The
+  // old name was recurringClients, which is how a row count ended up rendered
+  // inside two P&L cards labelled "Recurring Clients". Dropped recurringCleans
+  // and recurringRevenue with it — both were hardcoded 0 and read by nothing,
+  // which is its own trap waiting for someone to believe them.
+  const [recurringPlans, setRecurringPlans] = useState<number>(0);
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: startOfYear(new Date()),
@@ -102,12 +108,7 @@ export default function ReportsPage() {
       setCustomers(custData);
       setRecurringBookings(recData);
 
-      const totalRecurringPlans = recData.length;
-      setRecurringStats({
-        recurringClients: totalRecurringPlans,
-        recurringCleans: 0,
-        recurringRevenue: 0,
-      });
+      setRecurringPlans(recData.length);
     };
     loadData();
   }, [organizationId, staff]);
@@ -351,7 +352,7 @@ export default function ReportsPage() {
         />
         <StatCard
           title="Recurring Plans"
-          value={isTestMode ? 'XX' : recurringStats.recurringClients}
+          value={isTestMode ? 'XX' : recurringPlans}
           icon={<UserCheck className="w-6 h-6" />}
         />
         <StatCard
@@ -590,7 +591,14 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="pnl">
-          <PnLOverview bookings={bookings} customers={customers} recurringStats={recurringStats} />
+          {/* recurringStats deliberately NOT passed. Its recurringClients was a
+              recurring_bookings ROW count, and it overrode PnLOverview's own
+              deduplicated figure inside two cards labelled "Recurring Clients" —
+              while the revenue rendered directly beneath came from that
+              deduplicated population. The card's numerator and its subtitle came
+              from different datasets. PnLOverview computes the right number
+              itself; let it. */}
+          <PnLOverview bookings={bookings} customers={customers} />
         </TabsContent>
 
         <TabsContent value="clv">

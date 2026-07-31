@@ -595,7 +595,11 @@ export default function RecurringBookingsPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <RefreshCw className="w-4 h-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Total</span>
+              {/* "Schedules", not "Total": this counts ROWS in recurring_bookings,
+                  and one customer can hold several — legitimately, when they have
+                  more than one property. "Total" invited reading it as a customer
+                  count. The page subtitle already says "recurring schedules". */}
+              <span className="text-sm text-muted-foreground">Schedules</span>
             </div>
             <p className="text-2xl font-bold mt-1">{recurringBookings.length}</p>
           </CardContent>
