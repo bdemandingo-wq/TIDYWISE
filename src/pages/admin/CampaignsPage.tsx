@@ -17,7 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useOrgId } from "@/hooks/useOrgId";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
-  MessageSquare, Send, Loader2, BarChart3, Plus, Mail, TrendingUp, UserX,
+  MessageSquare, Send, Loader2, BarChart3, Plus, TrendingUp, UserX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,21 @@ import {
   useCampaignTrackingStats,
 } from '@/hooks/useCampaigns';
 
-type ChannelFilter = "all" | "sms" | "email" | "opted_out";
+/**
+ * There is no channel to filter on.
+ *
+ * `automated_campaigns` has no `channel` column — the wizard's channel picker
+ * only decides which body it saves — and both senders are SMS-only:
+ * `run-inactive-campaign` reads organization_sms_settings and sends via
+ * OpenPhone, and `process-campaign-queue` is the `campaign_sms` PGMQ worker.
+ * So every stored campaign body is sent as SMS.
+ *
+ * The "SMS" and "Email" tabs were therefore unfilterable and were never wired
+ * into the predicate — they rendered the identical unfiltered list. An Email tab
+ * that can only ever be empty is worse than no tab, because it implies email
+ * campaigns exist. Removed rather than implemented.
+ */
+type ChannelFilter = "all" | "opted_out";
 type StatusFilter = "all" | "draft" | "scheduled" | "sent" | "active";
 
 export default function CampaignsPage() {
@@ -104,7 +118,9 @@ export default function CampaignsPage() {
       }
       return true;
     });
-  }, [campaigns, statusFilter, channelFilter]);
+    // channelFilter is deliberately absent: it selects a VIEW (the opted-out
+    // panel), not a subset of campaigns, so it must not be a dependency here.
+  }, [campaigns, statusFilter]);
 
   // Mutations
 
@@ -138,12 +154,11 @@ export default function CampaignsPage() {
 <div className="portal-v2 portal-v2-scroll">
       <PlanFeatureGate feature="campaigns">
         <div className="space-y-6">
-          {/* Channel Toggle */}
+          {/* Campaigns vs the opted-out roster. Not a channel toggle — see
+              ChannelFilter above for why the SMS/Email tabs were removed. */}
           <Tabs value={channelFilter} onValueChange={(v) => setChannelFilter(v as ChannelFilter)}>
             <TabsList>
-              <TabsTrigger value="all">All Channels</TabsTrigger>
-              <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> SMS</TabsTrigger>
-              <TabsTrigger value="email" className="gap-1.5"><Mail className="w-3.5 h-3.5" /> Email</TabsTrigger>
+              <TabsTrigger value="all">Campaigns</TabsTrigger>
               <TabsTrigger value="opted_out" className="gap-1.5">
                 <UserX className="w-3.5 h-3.5" /> Opted Out
                 {optedOutCount > 0 && (
