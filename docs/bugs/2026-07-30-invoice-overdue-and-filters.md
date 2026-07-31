@@ -5,7 +5,7 @@
 
 ---
 
-## A — every `?filter=` deep link into Invoices is inert (frontend, certain)
+## A — every `?filter=` deep link into Invoices is inert (frontend, certain)  ✅ FIXED 2026-07-31
 
 `InvoicesPage.tsx` never calls `useSearchParams`, `useLocation`, or `URLSearchParams`.
 Confirmed by grep across the whole file.
@@ -31,7 +31,7 @@ statuses. The CHECK constraint (`20260119160901…sql:18`) allows exactly
 links matching zero rows — they need mapping to something real, or the
 notification routes need changing.
 
-## B — the Overdue count is computed and thrown away (frontend, certain)
+## B — the Overdue count is computed and thrown away (frontend, certain)  ✅ FIXED 2026-07-31
 
 `InvoicesPage.tsx:335` computes `stats.overdue`. **It is never rendered.** The six
 cards are Total, Draft, Sent, Paid, Total Paid, Outstanding.
@@ -44,7 +44,12 @@ isolate them.
 So the admin UI currently cannot answer "what's overdue?" — which is the single
 most common thing an owner wants from an invoices screen.
 
-## C — "reading sent when they shouldn't have" — needs a LIVE check
+## C — "reading sent when they shouldn't have" — RESOLVED, NOT A BUG
+
+**Settled 2026-07-31:** the cron is alive and there are zero past-due invoices, so
+nothing is stuck reading `sent`. The section below is kept for the reasoning.
+
+## C (original) — needs a LIVE check
 
 The only `sent → overdue` transition in the entire codebase is
 `send-invoice-reminder/index.ts:43-48`:
@@ -137,3 +142,46 @@ are correct.
 A and B are one coherent piece of work: read the param, add the filter UI, render
 the overdue count. Doing them without settling C risks shipping a filter that
 correctly shows zero overdue invoices because nothing ever marks any.
+
+
+---
+
+## What was done — 2026-07-31
+
+**A and B shipped together**, since a filter without the Overdue card would have been
+half a feature.
+
+- `useSearchParams` now drives the list. `?filter=` and `?customer=` both work, and the
+  five count cards became the filter UI — clicking one sets the URL, so a filtered view
+  is shareable and the back button behaves.
+- **An Overdue card was added**, rendering the `stats.overdue` that had been computed
+  and discarded since the page was written.
+- Counters stay computed from the **full** set deliberately. Filtering to Paid must not
+  zero every other card, or the cards stop being a summary and become a tautology.
+- The empty state now distinguishes "no invoices at all" from "none match this filter" —
+  otherwise a filter with no results would tell an owner with 200 invoices that they
+  had none.
+
+### The three that were NOT wired, and why
+
+`failed`, `refunded` and `disputed` are accepted by neither the filter nor the UI. An
+unrecognised `?filter=` value falls through to no filter rather than an empty list.
+
+- **`failed`** — no invoice can ever hold `status = 'failed'`; it is not in the CHECK
+  constraint. **`useSidebarBadges.ts:125` queries `.eq('status','failed')`, so that
+  sidebar badge is permanently zero** — the same bug, one file over. And
+  `stripe-invoice-webhook`'s `invoice.payment_failed` handler concerns **platform
+  subscription renewals** (TidyWise billing the org) and writes nothing to `invoices`;
+  it only raises an alert. The notification and the page are about different things.
+- **`refunded`** — no refund is recorded anywhere. `process-refund` writes nothing to
+  the database, and there is no refunds table; the only local trace is a mutated
+  `total_amount`. See `docs/bugs/2026-07-30-partial-refunds-investigation.md`.
+- **`disputed`** — the data exists in `public.disputes`, but that table has **no
+  `organization_id`**. It is platform-level, tracking TidyWise's own Stripe disputes.
+  Filtering one org's invoices by it is not safely possible and a naive join would cross
+  tenants.
+
+**So all three notification routes point at a page that cannot answer them.** Fixing
+that means changing where those notifications link, not what this page filters — a
+separate decision, since `invoice.failed` and `invoice.dispute` may not belong in an
+org-facing surface at all.

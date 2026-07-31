@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
@@ -109,6 +110,41 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
  * because that control is right there in the same row, so the message points
  * at a real next step instead of being a dead end.
  */
+type InvoiceStatus = Invoice['status'];
+
+/**
+ * The only values ?filter= will honour — exactly the statuses the CHECK
+ * constraint on `invoices` allows.
+ *
+ * notificationCatalog.ts also links here with filter=failed, filter=refunded and
+ * filter=disputed. None of those is an invoice status and none has local data
+ * behind it, so wiring them would produce a filter that can only ever be empty.
+ * They are deliberately not accepted; an unrecognised value falls through to
+ * "no filter" rather than to an empty list.
+ * See docs/bugs/2026-07-30-invoice-overdue-and-filters.md.
+ */
+const VALID_STATUS_FILTERS: InvoiceStatus[] = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+
+function StatFilterCard({ icon, label, value, active, onClick }: {
+  icon: React.ReactNode; label: string; value: number; active: boolean; onClick: () => void;
+}) {
+  return (
+    <Card
+      role="button"
+      tabIndex={0}
+      aria-pressed={active}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className={`cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'ring-2 ring-primary' : ''}`}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2">{icon}<span className="text-sm text-muted-foreground">{label}</span></div>
+        <p className="text-2xl font-bold mt-1">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 function editBlockedReason(status: Invoice['status']): string {
   if (status === 'cancelled') return "Cancelled invoices can't be edited — duplicate it instead.";
   if (status === 'paid') return "Paid invoices can't be edited — duplicate it instead.";
@@ -328,6 +364,34 @@ export default function InvoicesPage() {
     setFormDialogOpen(true);
   };
 
+  // Deep links into this page were inert: nothing read the query string, so every
+  // ?filter= and ?customer= link landed on the full unfiltered list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawFilter = searchParams.get('filter');
+  const statusFilter = VALID_STATUS_FILTERS.includes(rawFilter as InvoiceStatus)
+    ? (rawFilter as InvoiceStatus)
+    : null;
+  const customerFilter = searchParams.get('customer');
+
+  const setStatusFilter = (next: InvoiceStatus | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (next) params.set('filter', next); else params.delete('filter');
+    setSearchParams(params, { replace: true });
+  };
+  const clearCustomerFilter = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('customer');
+    setSearchParams(params, { replace: true });
+  };
+
+  const visibleInvoices = useMemo(() => invoices.filter(i => {
+    if (statusFilter && i.status !== statusFilter) return false;
+    if (customerFilter && i.customer_id !== customerFilter) return false;
+    return true;
+  }), [invoices, statusFilter, customerFilter]);
+
+  // Counters stay computed from the FULL set. A filter must not make the cards
+  // agree with themselves — clicking "Paid" should not zero every other card.
   const stats = {
     total: invoices.length,
     draft: invoices.filter(i => i.status === 'draft').length,
@@ -355,14 +419,34 @@ export default function InvoicesPage() {
 <div className="portal-v2 portal-v2-scroll">
       <SEOHead title="Invoices | TidyWise" description="Create and manage invoices" noIndex />
       <SubscriptionGate feature="Invoices">
-        <div className="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4 lg:grid-cols-6">
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Total</span></div><p className="text-2xl font-bold mt-1">{stats.total}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">Draft</span></div><p className="text-2xl font-bold mt-1">{stats.draft}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><Clock className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Sent</span></div><p className="text-2xl font-bold mt-1">{stats.sent}</p></CardContent></Card>
-          <Card><CardContent className="p-4"><div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Paid</span></div><p className="text-2xl font-bold mt-1">{stats.paid}</p></CardContent></Card>
+        <div className="grid grid-cols-2 gap-4 mb-6 md:grid-cols-4 lg:grid-cols-7">
+          <StatFilterCard icon={<FileText className="w-4 h-4 text-primary" />} label="Total" value={stats.total} active={statusFilter === null} onClick={() => setStatusFilter(null)} />
+          <StatFilterCard icon={<FileText className="w-4 h-4 text-muted-foreground" />} label="Draft" value={stats.draft} active={statusFilter === 'draft'} onClick={() => setStatusFilter(statusFilter === 'draft' ? null : 'draft')} />
+          <StatFilterCard icon={<Clock className="w-4 h-4 text-primary" />} label="Sent" value={stats.sent} active={statusFilter === 'sent'} onClick={() => setStatusFilter(statusFilter === 'sent' ? null : 'sent')} />
+          <StatFilterCard icon={<AlertCircle className="w-4 h-4 text-destructive" />} label="Overdue" value={stats.overdue} active={statusFilter === 'overdue'} onClick={() => setStatusFilter(statusFilter === 'overdue' ? null : 'overdue')} />
+          <StatFilterCard icon={<CheckCircle2 className="w-4 h-4 text-primary" />} label="Paid" value={stats.paid} active={statusFilter === 'paid'} onClick={() => setStatusFilter(statusFilter === 'paid' ? null : 'paid')} />
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Total Paid</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `${fmt(stats.totalPaid)}`}</p></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-primary" /><span className="text-sm text-muted-foreground">Outstanding</span></div><p className="text-2xl font-bold mt-1">{isTestMode ? '$XXX' : `${fmt(stats.totalOutstanding)}`}</p></CardContent></Card>
         </div>
+
+        {(statusFilter || customerFilter) && (
+          <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+            <span className="text-muted-foreground">Showing</span>
+            {statusFilter && (
+              <Badge variant="secondary" className="gap-1.5">
+                {statusFilter}
+                <button type="button" onClick={() => setStatusFilter(null)} aria-label="Clear status filter" className="hover:text-foreground">×</button>
+              </Badge>
+            )}
+            {customerFilter && (
+              <Badge variant="secondary" className="gap-1.5">
+                one customer
+                <button type="button" onClick={clearCustomerFilter} aria-label="Clear customer filter" className="hover:text-foreground">×</button>
+              </Badge>
+            )}
+            <span className="text-muted-foreground">— {visibleInvoices.length} of {invoices.length}</span>
+          </div>
+        )}
 
         <Card className="hidden md:block">
           <CardContent className="p-0 overflow-x-auto">
@@ -386,14 +470,19 @@ export default function InvoicesPage() {
                       Loading invoices...
                     </TableCell>
                   </TableRow>
-                ) : invoices.length === 0 ? (
+                ) : visibleInvoices.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No invoices yet. Create your first invoice to get started.
+                      {/* "No invoices yet" is only true of an unfiltered, empty list.
+                          With a filter on it would tell an owner with 200 invoices
+                          that they have none. */}
+                      {invoices.length === 0
+                        ? 'No invoices yet. Create your first invoice to get started.'
+                        : 'No invoices match this filter.'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  invoices.map((invoice) => {
+                  visibleInvoices.map((invoice) => {
                     const contact = getInvoiceContact(invoice);
                     const statusConfig = STATUS_CONFIG[invoice.status];
                     const StatusIcon = statusConfig.icon;
@@ -456,10 +545,14 @@ export default function InvoicesPage() {
         <div className="space-y-3 md:hidden">
           {isLoading ? (
             <Card><CardContent className="py-8 text-center text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />Loading invoices...</CardContent></Card>
-          ) : invoices.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No invoices yet. Create your first invoice to get started.</CardContent></Card>
+          ) : visibleInvoices.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">
+              {invoices.length === 0
+                ? 'No invoices yet. Create your first invoice to get started.'
+                : 'No invoices match this filter.'}
+            </CardContent></Card>
           ) : (
-            invoices.map((invoice) => {
+            visibleInvoices.map((invoice) => {
               const contact = getInvoiceContact(invoice);
               const statusConfig = STATUS_CONFIG[invoice.status];
 
