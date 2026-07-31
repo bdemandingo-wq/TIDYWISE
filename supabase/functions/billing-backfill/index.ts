@@ -205,7 +205,7 @@ async function processPage(
         stripe_subscription_id: obj.id,
         stripe_price_id: price?.id ?? null,
         revenue_stream: stream,
-        plan_label: price?.nickname ?? price?.product?.name ?? null,
+        plan_label: description ?? price?.nickname ?? price?.product?.name ?? null,
         unit_amount_cents: price?.unit_amount ?? 0,
         quantity: item?.quantity ?? 1,
         currency: (obj.currency ?? price?.currency ?? "usd").toLowerCase(),
@@ -223,7 +223,6 @@ async function processPage(
           rawReason ??
           null,
         raw: obj,
-        ...(description ? { } : {}),
       });
       continue;
     }
