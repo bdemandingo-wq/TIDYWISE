@@ -39,6 +39,28 @@ function countCompetitorMentions(html: string): number {
   const lower = html.toLowerCase();
   return COMPETITORS.filter((c) => lower.includes(c.toLowerCase())).length;
 }
+function countBrandMentions(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").toLowerCase();
+  return (text.match(/tidywise/g) || []).length;
+}
+function countCompetitorOccurrences(html: string): number {
+  const text = html.replace(/<[^>]+>/g, " ").toLowerCase();
+  let n = 0;
+  for (const c of COMPETITORS) {
+    const escaped = c.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    n += (text.match(new RegExp(escaped, "g")) || []).length;
+  }
+  return n;
+}
+function hasInternalBrandLink(html: string): boolean {
+  // A real conversion path, not a name-drop.
+  return /<a[^>]+href=["']\/(pricing|features|compare|blog)(\/[^"']*)?["']/i.test(html);
+}
+function brandInClosing(html: string): boolean {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  if (!text) return false;
+  return text.slice(Math.floor(text.length * 0.8)).includes("tidywise");
+}
 function countNumericSentences(html: string): number {
   const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   if (!text) return 0;
