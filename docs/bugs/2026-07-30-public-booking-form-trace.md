@@ -6,8 +6,33 @@
 created.** The customer sees an error rather than a false success, so this is loud
 rather than silent — but it means the form has been a dead end for whoever hit it.
 
-**I cannot prove from the repo whether the 401 is live.** One query settles it
-definitively, and it is at the bottom. Run that before anything else.
+**CONFIRMED DEAD 2026-07-30** by the leads query: **zero `booking_form` leads have ever
+existed**, while 384 bookings arrived through other paths since May.
+
+**That is stronger than the diagnosis below and worth revisiting.** The theory was that
+the form broke when the secret check landed around 9 May. If that were the whole story
+there should be `booking_form` leads from *before* that date. Zero-ever means one of:
+
+1. the form never worked at any point, or
+2. the **lead insert specifically** has always failed while the booking insert
+   succeeded — the lead is written last (`:338-345`), after the booking, so a failure
+   there would leave bookings with no matching lead.
+
+Option 2 is checkable and worth checking before the repair, because if the lead insert
+is independently broken, fixing the 401 restores bookings but still captures no leads:
+
+```sql
+-- bookings that look like public-form submissions, and whether any lead accompanies them
+select b.created_at, o.name, b.booking_number, b.status, b.payment_status
+from public.bookings b
+join public.organizations o on o.id = b.organization_id
+where b.status = 'pending' and b.payment_status = 'pending'
+  and b.created_at < '2026-05-09'
+order by b.created_at desc
+limit 50;
+```
+
+Pre-May pending/pending bookings with no `booking_form` leads would confirm option 2.
 
 ---
 
