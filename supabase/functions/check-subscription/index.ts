@@ -19,6 +19,12 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
+const FREE_ACCOUNTS = new Set([
+  "support@tidywisecleaning.com",
+  "applereview@tidywise.com",
+  "goldenroomcleaning@gmail.com",
+]);
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -82,16 +88,36 @@ serve(async (req) => {
 
     const normalizedEmail = user.email.toLowerCase();
 
+    // Resolve org context once so every entitlement branch identifies the
+    // organizations affected. A failed context lookup never blocks the
+    // emergency free-account branch.
+    const { data: contextMemberships, error: contextMembershipError } = await supabaseClient
+      .from("org_memberships")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    const orgIds = (contextMemberships ?? [])
+      .map((membership: any) => membership.organization_id)
+      .filter(Boolean);
+    if (contextMembershipError) {
+      logStep("Organization context lookup failed", {
+        orgIds,
+        message: contextMembershipError.message,
+        code: (contextMembershipError as any).code,
+      });
+    } else {
+      logStep("Organization context resolved", { orgIds });
+    }
+
+    const logBranch = (branch: string, details: Record<string, unknown> = {}) =>
+      logStep(`BRANCH ${branch}`, { orgIds, ...details });
+
     // Bypass subscription check for owner accounts, Apple review, and the
     // @tidywise1.com creator domain. Keyed off the verified auth.users record
     // (NOT user-supplied input). Keep this list short.
-    const FREE_ACCOUNTS = new Set([
-      "support@tidywisecleaning.com",
-      "applereview@tidywise.com",
-    ]);
     const isCreatorDomain = normalizedEmail.endsWith("@tidywise1.com");
     if (FREE_ACCOUNTS.has(normalizedEmail) || isCreatorDomain) {
-      logStep("Free account detected - bypassing subscription check", { email: user.email });
+      logBranch("free_account_granted", { email: normalizedEmail, isCreatorDomain });
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: false,
@@ -103,6 +129,7 @@ serve(async (req) => {
         status: 200,
       });
     }
+    logBranch("free_account_not_applicable", { email: normalizedEmail });
 
     // NOTE: There is intentionally NO blanket "owner/admin bypass" here.
     // Granting subscribed=true to every org owner desynced the frontend from
@@ -132,7 +159,7 @@ serve(async (req) => {
     if (!lifetimePurchase) {
       const { data: gfMembership, error: gfError } = await supabaseClient
         .from("org_memberships")
-        .select("organizations!inner(grandfathered_lifetime, plan_type)")
+        .select("organization_id, organizations!inner(grandfathered_lifetime, plan_type)")
         .eq("user_id", user.id)
         .or("grandfathered_lifetime.eq.true,plan_type.eq.lifetime", { foreignTable: "organizations" })
         .order("created_at", { ascending: true })
@@ -143,10 +170,14 @@ serve(async (req) => {
         logStep("ERROR looking up grandfathered org membership", { message: gfError.message, code: (gfError as any).code });
       }
       grandfatheredOrg = !!gfMembership;
+      logBranch("grandfathered_lookup_complete", {
+        matched: grandfatheredOrg,
+        matchedOrgId: gfMembership?.organization_id ?? null,
+      });
     }
 
     if (lifetimePurchase || grandfatheredOrg) {
-      logStep("Lifetime access found", { email: normalizedEmail, source: lifetimePurchase ? "purchase" : "grandfathered_org" });
+      logBranch("lifetime_access_granted", { email: normalizedEmail, source: lifetimePurchase ? "purchase" : "grandfathered_org" });
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: false,
@@ -159,6 +190,7 @@ serve(async (req) => {
         status: 200,
       });
     }
+    logBranch("lifetime_access_not_found");
 
     // ── Step 0.5: Check for active comped access grant on ANY of the user's
     // owner/admin/manager orgs. Checking only the first membership meant an
@@ -176,6 +208,7 @@ serve(async (req) => {
     }
 
     const compOrgIds = (compMemberships ?? []).map((m: any) => m.organization_id).filter(Boolean);
+    logBranch("comped_memberships_evaluated", { eligibleOrgIds: compOrgIds });
 
     if (compOrgIds.length > 0) {
       const { data: comp, error: compError } = await supabaseClient
@@ -193,7 +226,7 @@ serve(async (req) => {
       }
 
       if (comp) {
-        logStep("Active comped access grant found", { expiresAt: comp.expires_at });
+        logBranch("comped_access_granted", { eligibleOrgIds: compOrgIds, expiresAt: comp.expires_at });
         return new Response(JSON.stringify({
           subscribed: true,
           trial_active: false,
@@ -206,6 +239,9 @@ serve(async (req) => {
           status: 200,
         });
       }
+      logBranch("active_comped_access_not_found", { eligibleOrgIds: compOrgIds });
+    } else {
+      logBranch("no_comped_eligible_memberships");
     }
 
 
@@ -215,7 +251,7 @@ serve(async (req) => {
 
     if (customers.data.length > 0) {
       const customerId = customers.data[0].id;
-      logStep("Found Stripe customer", { customerId });
+      logBranch("stripe_customer_found", { customerId });
 
       const subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -229,10 +265,14 @@ serve(async (req) => {
       const pastDueSubscription = subscriptions.data.find(
         (sub: any) => sub.status === "past_due"
       );
+      logBranch("stripe_subscriptions_evaluated", {
+        customerId,
+        statuses: subscriptions.data.map((subscription: any) => subscription.status),
+      });
 
       // If past_due, block access
       if (!activeSubscription && pastDueSubscription) {
-        logStep("Subscription is past_due - blocking access");
+        logBranch("past_due_access_denied", { subscriptionId: pastDueSubscription.id });
         return new Response(JSON.stringify({
           subscribed: false,
           trial_active: false,
@@ -270,7 +310,7 @@ serve(async (req) => {
 
         const productId = activeSubscription.items.data[0]?.price?.product;
 
-        logStep("Active Stripe subscription found", {
+        logBranch("active_stripe_access_granted", {
           subscriptionId: activeSubscription.id,
           status: activeSubscription.status,
           trialEnd,
@@ -290,9 +330,9 @@ serve(async (req) => {
         });
       }
 
-      logStep("Stripe customer exists but no active subscription");
+      logBranch("stripe_customer_without_active_subscription", { customerId });
     } else {
-      logStep("No Stripe customer found");
+      logBranch("stripe_customer_not_found");
     }
 
     // ── Step 2: No active Stripe subscription — check organization-based 60-day trial ──
@@ -305,7 +345,7 @@ serve(async (req) => {
       .single();
 
     if (membershipError || !membership) {
-      logStep("No organization membership found for user", { userId: user.id, error: membershipError?.message });
+      logBranch("organization_membership_missing_access_denied", { userId: user.id, error: membershipError?.message });
       return new Response(JSON.stringify({
         subscribed: false,
         trial_active: false,
@@ -323,7 +363,7 @@ serve(async (req) => {
     const orgCreatedAt = orgData?.created_at;
 
     if (!orgCreatedAt) {
-      logStep("Organization has no created_at timestamp", { orgId: membership.organization_id });
+      logBranch("organization_created_at_missing_access_denied", { orgId: membership.organization_id });
       return new Response(JSON.stringify({
         subscribed: false,
         trial_active: false,
@@ -342,7 +382,7 @@ serve(async (req) => {
     const now = Date.now();
     const isWithinTrial = now < trialEndMs;
 
-    logStep("Organization trial check", {
+    logBranch("organization_trial_evaluated", {
       orgId: membership.organization_id,
       orgCreatedAt,
       trialEndIso,
@@ -356,6 +396,10 @@ serve(async (req) => {
     const orgCreatedAfterCutoff = orgCreatedAt >= TRIAL_CUTOFF_DATE;
 
     if (isWithinTrial && !orgCreatedAfterCutoff) {
+      logBranch("organization_trial_access_granted", {
+        orgId: membership.organization_id,
+        trialEnd: trialEndIso,
+      });
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: true,
@@ -369,6 +413,12 @@ serve(async (req) => {
     }
 
     // Trial has ended — must subscribe
+    logBranch("organization_trial_access_denied", {
+      orgId: membership.organization_id,
+      isWithinTrial,
+      orgCreatedAfterCutoff,
+      trialEnd: trialEndIso,
+    });
     return new Response(JSON.stringify({
       subscribed: false,
       trial_active: false,
