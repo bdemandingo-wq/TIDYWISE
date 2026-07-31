@@ -1,45 +1,9 @@
-# Lovable prompt — automation messages Task 2: migrate `quote_stale_reengage`
+Automation messages Task 2 — make quote_stale_reengage's copy editable.
 
-**Status:** ready to paste. Frontend half is already built and pushed.
-**Gate cleared:** the `automation_steps` audit came back with zero rows across
-zero orgs, so no owner has saved copy that would ship the moment senders start
-reading the table.
+TWO FILES. NO MIGRATION — message_class lives in code, not the schema, so an
+owner cannot reclassify a marketing message and drop its opt-out line.
 
----
-
-## Two things that changed from the plan, both worth reading first
-
-### 1. No migration. `message_class` belongs in code, not the schema.
-
-The plan listed `message_class` as a missing column. Building it, that turned out
-to be the wrong home. The class is a property of the **automation kind**, not of
-an owner's edit — an owner must not be able to reclassify a marketing message as
-transactional and shed the opt-out line. Putting it in a column invites exactly
-that. It now lives in `AUTOMATION_DEFAULTS[key].message_class`, which is
-tamper-proof and needs no migration.
-
-**So Task 2 has no schema change at all.** Two files, one new, one edited.
-
-### 2. The STOP line cannot ship alone — `quote-stale-reengage` does not check opt-outs
-
-You approved adding the STOP sentence as "one sentence that removes a compliance
-question permanently". It is one sentence, but on its own it would create a worse
-question than it answers.
-
-`quote-stale-reengage/index.ts` has **no opt-out check of any kind**. No
-`isOptedOut`, no `isPhoneOptedOut`, no `marketing-guard` import — verified by
-grep. Five other senders do use that guard (`process-campaign-queue`,
-`process-review-sms-queue`, `process-recurring-offers`,
-`followup-abandoned-booking`, `openphone-webhook`).
-
-So shipping only the sentence would mean: we tell a customer to reply STOP, they
-reply STOP, it is recorded — and the next stale quote texts them anyway. Inviting
-an opt-out you then ignore is materially worse than never inviting it. **The
-opt-out check is included below.** It is the other half of the same decision, not
-scope creep, and if you want the sentence without it, say so and I will take both
-back out.
-
----
+Deploy both when done, and confirm DEPLOYED rather than committed.
 
 ## FILE 1 — create `supabase/functions/_shared/automation-templates.ts`
 
