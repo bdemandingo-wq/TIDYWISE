@@ -1,0 +1,390 @@
+// Shared booking-creation logic.
+//
+// PURE MOVE: this file contains the customer upsert, double-booking conflict
+// check, booking insert, lead insert and notification fan-out exactly as they
+// were inside external-booking-webhook (its lines 133..461 before this
+// extraction). No logic was altered — only relocated — so the integration path
+// behaves identically.
+import { z } from "npm:zod@3.25.76";
+
+// Strict input validation schema (moved verbatim from external-booking-webhook)
+export const BookingSchema = z.object({
+// Strict input validation schema
+const BookingSchema = z.object({
+  first_name: z.string().trim().min(1).max(100),
+  last_name: z.string().trim().min(1).max(100),
+  email: z.string().trim().email().max(255).transform(v => v.toLowerCase()),
+  phone: z.string().trim().max(20).regex(/^\+?[0-9\s\-().]{7,20}$/).optional().nullable(),
+  address: z.string().trim().max(500).optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  state: z.string().trim().max(100).optional().nullable(),
+  zip_code: z.string().trim().max(20).optional().nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+  service_name: z.string().trim().max(200).optional().nullable(),
+  scheduled_at: z.string().datetime({ message: "scheduled_at must be a valid ISO 8601 datetime" }),
+  duration: z.number().int().min(15).max(1440).optional().nullable(),
+  total_amount: z.number().min(0).max(100000).optional().nullable(),
+  bedrooms: z.string().trim().max(10).optional().nullable(),
+  bathrooms: z.string().trim().max(10).optional().nullable(),
+  square_footage: z.string().trim().max(20).optional().nullable(),
+  frequency: z.string().trim().max(50).optional().nullable(),
+  notes: z.string().trim().max(5000).optional().nullable(),
+  extras: z.record(z.unknown()).optional().nullable(),
+  organization_slug: z.string().trim().min(1).max(100).optional().nullable(),
+  organization_id: z.string().uuid().optional().nullable(),
+  has_pets: z.boolean().optional().nullable(),
+  room_reductions: z.object({
+    bedroom: z.number().int().min(0).max(50).optional(),
+    bathroom: z.number().int().min(0).max(50).optional(),
+    full_bath: z.number().int().min(0).max(50).optional(),
+  }).partial().optional().nullable(),
+  is_arrival_window: z.boolean().optional().nullable(),
+  arrival_window_start: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  arrival_window_end: z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  referral_code: z.string().trim().min(1).max(64).optional().nullable(),
+});
+
+export type BookingPayload = z.infer<typeof BookingSchema>;
+
+export async function createBookingFromPayload(opts: {
+  // deno-lint-ignore no-explicit-any
+  supabase: any;
+  payload: BookingPayload;
+  organizationId: string;
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  corsHeaders: Record<string, string>;
+}): Promise<Response> {
+  const { supabase, payload, organizationId, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, corsHeaders } = opts;
+
+    console.log("[external-booking-webhook] Using organization:", organizationId);
+
+    // Check if customer exists, create if not
+    let customerId: string;
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('email', payload.email.toLowerCase())
+      .eq('organization_id', organizationId)
+      .maybeSingle();
+
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+      console.log("[external-booking-webhook] Found existing customer:", customerId);
+    } else {
+      // Create new customer
+      const { data: newCustomer, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          first_name: payload.first_name,
+          last_name: payload.last_name,
+          email: payload.email.toLowerCase(),
+          phone: payload.phone || null,
+          address: payload.address || null,
+          city: payload.city || null,
+          state: payload.state || null,
+          zip_code: payload.zip_code || null,
+          latitude: payload.latitude ?? null,
+          longitude: payload.longitude ?? null,
+          organization_id: organizationId,
+          customer_status: 'active',
+          marketing_status: 'active',
+        })
+        .select('id')
+        .single();
+
+      if (customerError || !newCustomer) {
+        console.error("[external-booking-webhook] Failed to create customer:", customerError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Failed to create customer" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      customerId = newCustomer.id;
+      console.log("[external-booking-webhook] Created new customer:", customerId);
+
+    }
+
+    // Find service by name if provided
+    let serviceId: string | null = null;
+    if (payload.service_name) {
+      // Escape SQL LIKE wildcards to prevent pattern injection
+      const safeName = payload.service_name.replace(/%/g, '\\%').replace(/_/g, '\\_');
+      const { data: service } = await supabase
+        .from('services')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .ilike('name', `%${safeName}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      if (service) {
+        serviceId = service.id;
+      }
+    }
+
+    // --- Server-side availability re-check to prevent double-booking ---
+    try {
+      const scheduledDate = new Date(payload.scheduled_at);
+
+      // Get org timezone
+      const { data: bizSettings } = await supabase
+        .from('business_settings')
+        .select('timezone, booking_buffer_minutes')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const orgTimezone = bizSettings?.timezone || 'America/New_York';
+      const bufferMinutes = bizSettings?.booking_buffer_minutes || 0;
+
+      // Get service duration
+      let serviceDuration = 120;
+      if (serviceId) {
+        const { data: svcData } = await supabase
+          .from('services')
+          .select('duration')
+          .eq('id', serviceId)
+          .maybeSingle();
+        if (svcData?.duration) serviceDuration = svcData.duration;
+      }
+
+      // Check for overlapping bookings with any staff
+      const slotStart = scheduledDate;
+      const slotEnd = new Date(scheduledDate.getTime() + serviceDuration * 60000);
+
+      // Find bookings that overlap with this slot
+      const { data: conflictingBookings } = await supabase
+        .from('bookings')
+        .select('id, staff_id, scheduled_at, duration')
+        .eq('organization_id', organizationId)
+        .in('status', ['pending', 'confirmed'])
+        .gte('scheduled_at', new Date(slotStart.getTime() - 24 * 60 * 60000).toISOString())
+        .lte('scheduled_at', new Date(slotEnd.getTime() + 24 * 60 * 60000).toISOString());
+
+      // Get all active staff
+      const { data: activeStaff } = await supabase
+        .from('staff')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true);
+
+      const staffIds = (activeStaff || []).map((s: any) => s.id);
+
+      // Check if ANY staff is available for this slot
+      const slotStartMs = slotStart.getTime();
+      const slotEndMs = slotEnd.getTime();
+
+      // Count ALL overlapping bookings — assigned or not — since each one
+      // consumes a unit of org capacity. Mirrors check-availability so the
+      // submit guard matches what the customer was shown.
+      let overlappingCount = 0;
+      for (const cb of (conflictingBookings || [])) {
+        const cbStart = new Date(cb.scheduled_at).getTime();
+        const cbEnd = cbStart + ((cb.duration || 120) + bufferMinutes) * 60000;
+        if (slotStartMs < cbEnd && slotEndMs > cbStart) {
+          overlappingCount++;
+        }
+      }
+
+      if (staffIds.length > 0 && overlappingCount >= staffIds.length) {
+        console.log("[external-booking-webhook] Slot conflict detected, no available staff");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "That time was just booked—pick another time.",
+            conflict: true 
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (conflictErr) {
+      console.error("[external-booking-webhook] Conflict check error (non-blocking):", conflictErr);
+      // Non-blocking - continue with booking creation
+    }
+
+    // Create the booking
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        customer_id: customerId,
+        organization_id: organizationId,
+        service_id: serviceId,
+        scheduled_at: payload.scheduled_at,
+        duration: payload.duration || 120,
+        total_amount: payload.total_amount || 0,
+        address: payload.address || null,
+        city: payload.city || null,
+        state: payload.state || null,
+        zip_code: payload.zip_code || null,
+        latitude: payload.latitude ?? null,
+        longitude: payload.longitude ?? null,
+        bedrooms: payload.bedrooms || null,
+        bathrooms: payload.bathrooms || null,
+        square_footage: payload.square_footage || null,
+        frequency: payload.frequency || 'one-time',
+        notes: payload.notes ? `[From External Website] ${payload.notes}` : '[From External Website]',
+        extras: payload.extras || null,
+        has_pets: payload.has_pets ?? false,
+        room_reductions: payload.room_reductions ?? null,
+        is_arrival_window: payload.is_arrival_window ?? false,
+        arrival_window_start: payload.arrival_window_start ?? null,
+        arrival_window_end: payload.arrival_window_end ?? null,
+        referral_code: payload.referral_code ? payload.referral_code.trim() : null,
+        status: 'pending',
+        payment_status: 'pending',
+      })
+      .select('id, booking_number')
+      .single();
+
+    if (bookingError || !booking) {
+      console.error("[external-booking-webhook] Failed to create booking:", bookingError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to create booking" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("[external-booking-webhook] Created booking:", booking.id, "Number:", booking.booking_number);
+
+
+    // Create a lead entry for this customer automatically
+    try {
+      const { data: existingLead, error: existingLeadErr } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('email', payload.email.toLowerCase())
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      if (existingLeadErr) {
+        console.error("[external-booking-webhook] Lead dedupe check failed, skipping lead creation to avoid a possible duplicate:", existingLeadErr);
+      } else if (!existingLead) {
+        const { error: leadInsertErr } = await supabase
+          .from('leads')
+          .insert({
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            email: payload.email.toLowerCase(),
+            phone: payload.phone || null,
+            source: 'booking_form',
+            status: 'new',
+            notes: `Auto-created from public booking form (BK-${booking.booking_number})`,
+            organization_id: organizationId,
+          });
+        if (leadInsertErr) {
+          console.error("[external-booking-webhook] Lead insert failed:", leadInsertErr);
+        } else {
+          console.log("[external-booking-webhook] Auto-created lead for customer");
+        }
+      }
+    } catch (leadErr) {
+      console.error("[external-booking-webhook] Failed to create lead:", leadErr);
+      // Non-blocking
+    }
+
+    // Send SMS notification to admin phone via OpenPhone
+    try {
+      const { data: smsSettings } = await supabase
+        .from('organization_sms_settings')
+        .select('openphone_api_key, openphone_phone_number_id, sms_enabled')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const { data: bizSettings } = await supabase
+        .from('business_settings')
+        .select('company_phone, company_name, timezone')
+        .eq('organization_id', organizationId)
+        .maybeSingle();
+
+      const apiKeyRaw = (smsSettings?.openphone_api_key || '').trim().replace(/^Bearer\s+/i, '');
+      const phoneNumberId = (smsSettings?.openphone_phone_number_id || '').trim();
+      const smsEnabled = smsSettings?.sms_enabled !== false;
+
+      if (apiKeyRaw && phoneNumberId && bizSettings?.company_phone && smsEnabled) {
+        let adminPhone = bizSettings.company_phone.replace(/\D/g, '');
+        if (adminPhone.length === 10) adminPhone = '1' + adminPhone;
+        if (!adminPhone.startsWith('+')) adminPhone = '+' + adminPhone;
+
+        const orgTimezone = bizSettings?.timezone || "America/New_York";
+        const bookingDate = new Date(payload.scheduled_at);
+        const dateStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, weekday: 'short', month: 'short', day: 'numeric' }).format(bookingDate);
+        const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, hour: 'numeric', minute: '2-digit', hour12: true }).format(bookingDate);
+
+        const smsBody = `📋 New Online Booking #BK-${booking.booking_number}\n` +
+          `Customer: ${payload.first_name} ${payload.last_name}\n` +
+          `Service: ${payload.service_name || 'N/A'}\n` +
+          `Date: ${dateStr} at ${timeStr}\n` +
+          `Address: ${payload.address || 'N/A'}\n` +
+          `Total: $${payload.total_amount?.toFixed(2) || '0.00'}`;
+
+        const sendOpenPhone = (authHeader: string) =>
+          fetch('https://api.openphone.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content: smsBody,
+              to: [adminPhone],
+              from: phoneNumberId,
+            }),
+          });
+
+        let opResp = await sendOpenPhone(apiKeyRaw);
+        // Some OpenPhone tokens require Bearer; retry once on 401
+        if (opResp.status === 401) {
+          await opResp.text();
+          opResp = await sendOpenPhone(`Bearer ${apiKeyRaw}`);
+        }
+
+        const respBody = await opResp.text();
+        if (opResp.ok) {
+          console.log(
+            `[external-booking-webhook] Admin SMS sent ok org=${organizationId} to=${adminPhone} status=${opResp.status}`,
+          );
+        } else {
+          console.error(
+            `[external-booking-webhook] Admin SMS FAILED org=${organizationId} to=${adminPhone} status=${opResp.status} body=${respBody.slice(0, 300)}`,
+          );
+        }
+      } else {
+        console.log(
+          `[external-booking-webhook] Admin SMS skipped org=${organizationId} hasKey=${!!apiKeyRaw} hasPhoneId=${!!phoneNumberId} hasCompanyPhone=${!!bizSettings?.company_phone} smsEnabled=${smsEnabled}`,
+        );
+      }
+    } catch (smsErr) {
+      console.error("[external-booking-webhook] Failed to send SMS notification:", smsErr);
+      // Non-blocking
+    }
+
+    // Optionally send admin email notification
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/send-admin-booking-notification`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          organizationId,
+        }),
+      });
+    } catch (notifyError) {
+      console.error("[external-booking-webhook] Failed to send admin notification:", notifyError);
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        booking_id: booking.id,
+        booking_number: booking.booking_number,
+        customer_id: customerId,
+        message: "Booking created successfully"
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+}
