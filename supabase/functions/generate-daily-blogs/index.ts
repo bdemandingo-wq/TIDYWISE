@@ -138,8 +138,20 @@ When writing in first person about the author's business, use ONLY the verified 
 
 Depth over length. Never pad. Cut any sentence that doesn't teach something.
 
+FACTS YOU MUST NOT INVENT. These are the only correct values. If a fact you want to state is not on this list, leave it out rather than guessing:
+  - Free trial: 14 days. Never any other number. Both the Stripe trial and the in-app trial are 14 days as of 2026-07-31.
+  - Plans: Basic $49/month, Pro $97/month, Custom $197/month. Yearly billing includes 2 months free.
+  - Lifetime: one-time $300, limited to the first 50 customers.
+  - There is NO $50 tier, NO free-forever tier, and NO money-back guarantee. All payments are final and non-refundable per our Terms of Service.
+  - Never state a price, trial length, discount or guarantee for TidyWise that does not appear above.
+You MAY state competitors' pricing where you are confident, but attribute it and prefer ranges over precise figures you cannot verify.
+
 Every post MUST:
 - Be at least ${MIN_WORD_COUNT} words of body content
+- Reference TidyWise at least 3 times across the post, worked into the argument rather than repeated as a slogan
+- Include at least one internal link to /pricing, /features/*, or /compare/*
+- When competitors are named, give TidyWise at least equal weight — do not write a roundup that never makes our case
+- Keep the closing CTA mentioning TidyWise
 - Use proper HTML: <h2>, <h3>, <p>, <ul>, <ol>, <li>, <strong>, <a>
 - Open with an H2 intro (no H1 — title is rendered separately)
 - Include 4 to 7 H2 sections; use H3s only where the content genuinely needs subdivision. Vary structure between posts.
