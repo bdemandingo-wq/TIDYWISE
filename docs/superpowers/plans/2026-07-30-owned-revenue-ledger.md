@@ -264,7 +264,20 @@ Two further defects, both inside report A:
 | certain | merchant_cleaning | 679 | $148,050.00 | −$18,517.15 | $129,532.85 |
 | probable | merchant_cleaning | 147 | $27,545.50 | −$2,112.00 | $25,433.50 |
 | inferred | merchant_cleaning | 60 | $13,608.77 | −$49.00 | $13,559.77 |
-| probable | plan | 50 | $2,378.00 | −$199.00 | **$2,179.00** |
+| probable | plan | 38 | $1,489.00 | −$199.00 | **$1,290.00** |
 | certain | ai_credits | 1 | $10.00 | $0.00 | $10.00 |
 
 The $49 that went missing between the two reports is now a visible `reversal_cents` value rather than a discrepancy.
+
+### The charge/invoice pairing rule — customer id + seconds, never org + day
+
+The rule used to identify the 12 duplicates was: **same `stripe_customer_id`, same `amount_cents`, within a 60-second window** (observed maximum gap across the 12: 9 seconds; four pairs share an identical Stripe id token). Four of the pairs sit at 0 seconds.
+
+An earlier proposal was to pair on **organisation + date + amount**. That rule would have been wrong, and there is a live counterexample in this data: **PrimeWorks Cleaning has two genuinely separate $50 payments on 2026-03-24**, 20 hours apart, under two different Stripe customer ids. Org+day pairing collapses them into one and silently deletes $50 of real revenue. Clean Castillo is a second near-miss — two $99 payments that only stay distinct because they fall in different months.
+
+Whoever revisits this: pair on the customer identity and a seconds-level window. Organisation is too coarse — one org can hold several Stripe customers, and a day is far too wide a window for what is a two-row artefact of a single API call.
+
+### The 21 zero-dollar rows stay counted
+
+21 of the surviving cash-bearing plan rows are $0.00 `invoice.paid` events — trial cycles and zero-amount periods. These are deliberately **not** suppressed. A $0 trial cycle is a real cash event whose value happens to be zero; dropping it would silently erase trial volume from the event counts while changing no dollar figure. `events` in the view is a count of cash events, not a count of non-zero ones.
+
