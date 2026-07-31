@@ -119,10 +119,18 @@ so the Stripe-path refunds are self-describing on retrieval.
 **So Path A is fully reconstructible**: every Stripe refund ever issued, with amount and
 date, joinable back to a booking via `payment_intent`.
 
-**Path B is not.** Manual refunds never touched Stripe, so they exist nowhere except as
-an already-applied reduction in `total_amount`. Those are unrecoverable — you cannot
-even count them. Any backfill will silently under-report by however many manual refunds
-have been recorded.
+**Path B is partly recoverable — I was too pessimistic here.** Corrected while planning
+the fix: the refund path writes only `payment_status` and `total_amount`. **`subtotal` is
+never touched.** So for a manually-refunded booking the pre-discount sale price survives,
+and the original total is derivable as `subtotal − COALESCE(discount_amount, 0)`, with
+the refund as the difference from the current `total_amount`.
+
+That is an inference rather than a fact, and its real limitation is the **date** — an
+inferred refund has no timestamp, which is the whole point of recording refunds
+separately. But it converts most of what I called unrecoverable into "recoverable,
+flagged as inferred". Only bookings with no payment intent *and* no usable `subtotal` are
+genuinely lost. Sizing query in
+`docs/superpowers/plans/2026-07-30-refund-history-repair.md`, Task 0.
 
 **The original sale price is also partly recoverable** — `payment_intent.amount` is what
 was actually charged, so for Stripe-paid bookings you can restore the pre-refund total
@@ -245,6 +253,6 @@ Stripe can tell the two apart — and only for the Stripe-paid ones.
 | What is written? | `payment_status`, and `total_amount` overwritten with the reduced figure |
 | Is refunded money counted as revenue? | **No** — but only because the source was mutated |
 | So what is wrong with reports? | **Prior periods silently restate.** A July refund changes June. |
-| Can Stripe reconstruct it? | **Path A fully. Path B (manual) not at all** — those are lost |
+| Can Stripe reconstruct it? | **Path A fully.** Path B is inferrable from the untouched `subtotal` — amount yes, date no. Only no-intent-and-no-subtotal is lost |
 | Column or table? | **Table** — repeat partials, and a refund needs its own date |
 | Does payroll break? | **No, by design** — snapshots and hourly rates. One narrow exposure, query 1 sizes it |
