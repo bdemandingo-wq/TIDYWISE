@@ -44,6 +44,7 @@ import { squareFootageRanges } from '@/data/pricingData';
 import { usePublicOrgPricing } from '@/hooks/usePublicOrgPricing';
 import { calculateBasePrice } from '@/lib/pricingEngine';
 import { isUsHoliday } from '@/lib/usHolidays';
+import { readEdgeFunctionErrorBody, firstFieldError } from '@/lib/edgeFunctionError';
 import {
   configFromBusinessSettings,
   getFrequencyDiscountMultiplier,
@@ -624,14 +625,36 @@ export default function PublicBookingPage() {
 
         if (webhookError) {
           console.error('Booking creation error:', webhookError);
-          // Check for conflict (double-booking)
-          if (webhookResult?.conflict) {
-            toast.error("That time was just booked — pick another time.");
+
+          // The body has to be read off error.context. supabase.functions.invoke
+          // sets `data` to null on ANY non-2xx, so the previous
+          // `webhookResult?.conflict` was always undefined and this branch had
+          // never once fired — a double-booking showed the same generic message
+          // as everything else, and never sent the customer back to re-pick.
+          const body = await readEdgeFunctionErrorBody(webhookError);
+          const serverMessage = typeof body?.error === 'string' && body.error.trim()
+            ? body.error.trim()
+            : null;
+
+          // Conflict: the slot went while they were filling the form. Send them
+          // back to step 2 with fresh availability, which was always the intent.
+          if (body?.conflict === true || webhookResult?.conflict === true) {
+            toast.error(serverMessage || 'That time was just booked — pick another time.');
             setStep(2);
             fetchAvailability(); // Refresh slots
-          } else {
-            toast.error('Failed to create booking. Please try again.');
+            setIsSubmitting(false);
+            return;
           }
+
+          // Field-level validation beats "Invalid input" — the function returns
+          // zod's flatten().fieldErrors under `details`.
+          const fieldMessage = firstFieldError(body?.details);
+
+          // Prefer whatever the function actually said. It writes for customers:
+          // "Too many booking attempts. Please wait a few minutes and try again."
+          // is both true and actionable, where the old fallback told a
+          // rate-limited customer to retry — the one thing being throttled.
+          toast.error(fieldMessage || serverMessage || 'Failed to create booking. Please try again.');
           setIsSubmitting(false);
           return;
         }

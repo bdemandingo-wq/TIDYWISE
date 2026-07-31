@@ -18,6 +18,86 @@ interface MaybeFunctionsHttpError {
 }
 
 /**
+ * The same problem one level down: sometimes the caller needs a FIELD from the
+ * body, not just its message.
+ *
+ * `supabase.functions.invoke` sets `data` to **null** on any non-2xx, so this
+ * reads naturally and is always wrong:
+ *
+ *     const { data, error } = await supabase.functions.invoke(fn, { body });
+ *     if (error) {
+ *       if (data?.conflict) { … }   // `data` is null here, always
+ *     }
+ *
+ * That exact shape sat in PublicBookingPage's booking submission, so its
+ * double-booking branch — meant to say "that time was just booked" and send the
+ * customer back to pick another slot — could never fire. Every failure, conflict
+ * included, showed one generic message.
+ *
+ * Returns the parsed object, or null when there is nothing readable. Never throws:
+ * failing to read a body must not replace the caller's real error with a second one.
+ *
+ * Clones the Response before reading, so calling this does NOT consume the body —
+ * `readEdgeFunctionError` above still works on the same error afterwards.
+ */
+export async function readEdgeFunctionErrorBody(
+  error: unknown,
+): Promise<Record<string, unknown> | null> {
+  if (!error || typeof error !== "object") return null;
+  const ctx = (error as { context?: unknown }).context;
+  if (!ctx || typeof ctx !== "object") return null;
+
+  const asObject = (raw: unknown): Record<string, unknown> | null =>
+    raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : null;
+
+  // Newer supabase-js: context is a Response. Clone first — the body is a
+  // single-use stream and another reader may want it.
+  const maybeResponse = ctx as { clone?: () => { json?: () => Promise<unknown> } };
+  if (typeof maybeResponse.clone === "function") {
+    try {
+      const cloned = maybeResponse.clone();
+      if (typeof cloned?.json === "function") return asObject(await cloned.json());
+    } catch {
+      // Not JSON, or already consumed. Fall through to the older shape.
+    }
+  }
+
+  // Older supabase-js: context.body is a plain string.
+  const maybeLegacy = ctx as { body?: unknown };
+  if (typeof maybeLegacy.body === "string" && maybeLegacy.body.trim()) {
+    try {
+      return asObject(JSON.parse(maybeLegacy.body));
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * The first human-readable message out of a zod `flatten().fieldErrors` object.
+ *
+ * Functions validating with zod return `{ error: "Invalid input", details: {
+ * phone: ["Required"] } }`. A customer is far better served by "Required" against
+ * the field than by "Invalid input" on its own.
+ */
+export function firstFieldError(details: unknown): string | null {
+  if (!details || typeof details !== "object" || Array.isArray(details)) return null;
+  for (const value of Object.values(details as Record<string, unknown>)) {
+    if (Array.isArray(value)) {
+      const first = value.find((v) => typeof v === "string" && v.trim().length > 0);
+      if (typeof first === "string") return first;
+    } else if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
  * Returns the function's own error message when it sent one, otherwise the
  * supplied fallback. Never throws — it is called from a catch path.
  */
