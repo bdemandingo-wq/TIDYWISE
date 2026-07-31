@@ -2,6 +2,10 @@
 
 **Status:** not yet run.
 **Found:** 2026-07-30 backlog investigation.
+**Premises re-verified 2026-07-31**, after Lovable ran several migrations: neither
+`client_portal_users` nor `merge_customers` was touched by any of them, the
+`UNIQUE (customer_id)` constraint is still the latest word on that table, and the current
+`merge_customers` definition still contains zero references to `client_portal_users`.
 **Severity:** MEDIUM — silent, customer-facing, and self-inflicted by an admin action.
 
 ---
