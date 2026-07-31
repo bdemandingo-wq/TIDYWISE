@@ -353,7 +353,7 @@ serve(async (req) => {
         const { data: slugClash } = await supabase.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
         if (slugClash) slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
 
-        const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount });
+        const { score, notes } = calcQualityScore({ wordCount, hasFaq, competitorCount, hasH2, hasH3, hasMeta, targetKeyword: queueRow.keyword, numericSentenceCount, brandCount, hasBrandLink, brandClosing, competitorOccurrences });
         const validationNotes: string[] = [...notes];
         if (similar) validationNotes.push(`⚠️ Similar to: "${similar.title}"`);
 
