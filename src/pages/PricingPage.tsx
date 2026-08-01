@@ -904,6 +904,12 @@ export default function PricingPage() {
                         sr-only label still carry the actual answer, so this reads
                         the same to a screen reader and to anyone who can't
                         distinguish the two weights.
+
+                        This applies to the LABEL only. Dimming the checkmarks was
+                        tried and reversed — a light tick reads as "partially
+                        included", which is a worse misreading than the ambiguity
+                        it was meant to fix. The answer column is uniform; only
+                        the row label carries the weight.
                       */
                       const decides =
                         !row.sub && !(row.basic === row.pro && row.pro === row.custom);
@@ -924,10 +930,16 @@ export default function PricingPage() {
                           <td key={tierId} className="px-2 py-2.5 text-center">
                             {row[tierId] ? (
                               <>
-                                <Check
-                                  aria-hidden="true"
-                                  className={`inline h-4 w-4 ${decides ? 'text-primary' : 'text-primary/40'}`}
-                                />
+                                {/*
+                                  Uniform, full strength, every row. A dimmed
+                                  tick was tried and read as PARTIALLY included
+                                  — a lesser version of the feature — which is a
+                                  worse problem than the one it solved. The
+                                  answer column states what you get; it is not
+                                  the place to editorialise about how useful the
+                                  row is. Emphasis lives on the label instead.
+                                */}
+                                <Check aria-hidden="true" className="inline h-4 w-4 text-primary" />
                                 <span className="sr-only">Included</span>
                               </>
                             ) : (
