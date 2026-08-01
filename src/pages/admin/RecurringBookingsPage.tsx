@@ -36,6 +36,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format, addDays, addWeeks, addMonths, isBefore, startOfDay, differenceInDays } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfDay, orgDayOfWeek, orgDateKey, orgYMD, orgAddDays, orgSetTimeOnDay } from '@/lib/orgDateRange';
 import { useCustomers, useServices, useStaff } from '@/hooks/useBookings';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
@@ -84,6 +86,7 @@ const TIME_SLOTS = Array.from({ length: 19 }, (_, i) => {
 function computeNextDate(
   booking: RecurringBooking,
   latestBookingDate: Date | null,
+  timeZone: string,
   existingBookingDates?: Set<string>,
   customFrequencies?: { id: string; name: string; interval_days: number; days_of_week: number[] | null }[]
 ): Date | null {
@@ -93,12 +96,13 @@ function computeNextDate(
 
   // Determine the anchor: latest actual booking > stored next_scheduled_at > created_at
   let anchor: Date;
+  // All three are stored instants, so their day is an org-calendar question.
   if (latestBookingDate) {
-    anchor = startOfDay(latestBookingDate);
+    anchor = orgStartOfDay(latestBookingDate, timeZone);
   } else if (booking.next_scheduled_at) {
-    anchor = startOfDay(new Date(booking.next_scheduled_at));
+    anchor = orgStartOfDay(new Date(booking.next_scheduled_at), timeZone);
   } else {
-    anchor = startOfDay(new Date(booking.created_at));
+    anchor = orgStartOfDay(new Date(booking.created_at), timeZone);
   }
 
   // Handle multi-day custom frequencies (M/W/F, Tue/Thu, etc.)
@@ -106,17 +110,20 @@ function computeNextDate(
   if (isCustom && booking.recurring_days_of_week && booking.recurring_days_of_week.length > 1) {
     const sortedDays = [...booking.recurring_days_of_week].sort((a, b) => a - b);
     // Walk forward from anchor day by day to find the next pattern day
-    let cursor = addDays(anchor, 1);
+    let cursor = orgAddDays(anchor, 1, timeZone);
     let safety = 0;
+    const todayKey = orgDateKey(now, timeZone);
     while (safety < 60) {
-      if (sortedDays.includes(cursor.getDay())) {
-        if (!isBefore(cursor, startOfDay(now))) {
-          if (!existingBookingDates || !existingBookingDates.has(formatDateKey(cursor))) {
+      // recurring_days_of_week is the business's weekdays, so the cursor's
+      // weekday must be read in the business's zone to match it.
+      if (sortedDays.includes(orgDayOfWeek(cursor, timeZone))) {
+        if (orgDateKey(cursor, timeZone) >= todayKey) {
+          if (!existingBookingDates || !existingBookingDates.has(formatDateKey(cursor, timeZone))) {
             return cursor;
           }
         }
       }
-      cursor = addDays(cursor, 1);
+      cursor = orgAddDays(cursor, 1, timeZone);
       safety++;
     }
     return null;
@@ -129,21 +136,21 @@ function computeNextDate(
 
   // Use explicit preferred_date_of_month, or derive from anchor date for non-week-based frequencies
   const effectiveDateOfMonth = !isWeekBased
-    ? (preferredDateOfMonth ?? anchor.getDate())
+    ? (preferredDateOfMonth ?? orgYMD(anchor, timeZone).d)
     : null;
 
   // For week-based: align to preferred weekday; for others: align to date-of-month
   const alignToPreferred = (d: Date): Date => {
     if (!isWeekBased && effectiveDateOfMonth != null) {
-      const year = d.getFullYear();
-      const month = d.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const { y, m } = orgYMD(d, timeZone);
+      // Day 0 of the next month is the last day of this one.
+      const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
       const day = Math.min(effectiveDateOfMonth, daysInMonth);
-      return new Date(year, month, day);
+      return orgSetTimeOnDay(y, m, day, 0, 0, timeZone);
     }
     if (isWeekBased && preferredDay !== null) {
-      while (d.getDay() !== preferredDay) {
-        d = addDays(d, 1);
+      while (orgDayOfWeek(d, timeZone) !== preferredDay) {
+        d = orgAddDays(d, 1, timeZone);
       }
     }
     return d;
@@ -153,9 +160,10 @@ function computeNextDate(
   let nextDate = alignToPreferred(intervalAdder(anchor));
 
   // Keep advancing until we're past the latest existing booking AND in the future
-  const mustBeAfter = latestBookingDate ? startOfDay(latestBookingDate) : startOfDay(now);
+  const mustBeAfter = latestBookingDate ? orgStartOfDay(latestBookingDate, timeZone) : orgStartOfDay(now, timeZone);
   let safety = 0;
-  while ((isBefore(nextDate, mustBeAfter) || isBefore(nextDate, startOfDay(now))) && safety < 200) {
+  const nowKey = orgDateKey(now, timeZone);
+  while ((isBefore(nextDate, mustBeAfter) || orgDateKey(nextDate, timeZone) < nowKey) && safety < 200) {
     nextDate = alignToPreferred(intervalAdder(nextDate));
     safety++;
   }
@@ -163,7 +171,7 @@ function computeNextDate(
   // Conflict protection: skip dates that already have a booking
   if (existingBookingDates) {
     let conflictSafety = 0;
-    while (existingBookingDates.has(formatDateKey(nextDate)) && conflictSafety < 52) {
+    while (existingBookingDates.has(formatDateKey(nextDate, timeZone)) && conflictSafety < 52) {
       nextDate = alignToPreferred(intervalAdder(nextDate));
       conflictSafety++;
     }
@@ -190,11 +198,20 @@ function getIntervalAdder(frequency: string, customFrequencies?: { id: string; n
   }
 }
 
-function formatDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/*
+  A booking's day is the day it falls on in the BUSINESS's calendar, not the
+  admin's. A 22:00 Monday job in New York is already Tuesday in Manila, so an
+  admin abroad keyed it to the wrong day — which then drives the M/W/F pattern
+  match, the duplicate check, and the per-day price lookup.
+*/
+function formatDateKey(d: Date, timeZone: string): string {
+  return orgDateKey(d, timeZone);
 }
 
 export default function RecurringBookingsPage() {
+  // Recurrence is the BUSINESS's calendar: which weekday a series lands on,
+  // and therefore which per-day price applies.
+  const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<RecurringBooking | null>(null);
   const queryClient = useQueryClient();
@@ -275,7 +292,7 @@ export default function RecurringBookingsPage() {
     if (!existingDatesMap.has(key)) {
       existingDatesMap.set(key, new Set());
     }
-    existingDatesMap.get(key)!.add(formatDateKey(startOfDay(bDate)));
+    existingDatesMap.get(key)!.add(formatDateKey(bDate, orgTimezone));
     // Customer-only maps (for multi-service recurring series)
     if (!latestByCustomer.has(custKey) || bDate > latestByCustomer.get(custKey)!) {
       latestByCustomer.set(custKey, bDate);
@@ -283,7 +300,7 @@ export default function RecurringBookingsPage() {
     if (!existingDatesByCustomer.has(custKey)) {
       existingDatesByCustomer.set(custKey, new Set());
     }
-    existingDatesByCustomer.get(custKey)!.add(formatDateKey(startOfDay(bDate)));
+    existingDatesByCustomer.get(custKey)!.add(formatDateKey(bDate, orgTimezone));
   }
 
   const createMutation = useMutation({
@@ -370,7 +387,12 @@ export default function RecurringBookingsPage() {
         let hour24 = hours;
         if (period === 'PM' && hours !== 12) hour24 += 12;
         if (period === 'AM' && hours === 12) hour24 = 0;
-        date.setHours(hour24, minutes, 0, 0);
+        // preferred_time is the BUSINESS's wall clock ("9:00 AM" means 9am to
+        // the customer and the cleaner). setHours would have written 9am in the
+        // admin's zone — a different instant, and on a device far enough east
+        // or west, a different day.
+        const { y, m, d } = orgYMD(date, orgTimezone);
+        return orgSetTimeOnDay(y, m, d, hour24, minutes, orgTimezone);
       }
       return date;
     };
@@ -417,37 +439,42 @@ export default function RecurringBookingsPage() {
       // Find the anchor: latest booking or stored next_scheduled_at or created_at
       const now = new Date();
       let anchor: Date;
+      // Same as computeNextDate: these are stored instants, so their calendar
+      // day belongs to the business, not to whoever pressed Generate.
       if (latestDate) {
-        anchor = startOfDay(latestDate);
+        anchor = orgStartOfDay(latestDate, orgTimezone);
       } else if (recurring.next_scheduled_at) {
-        anchor = startOfDay(new Date(recurring.next_scheduled_at));
+        anchor = orgStartOfDay(new Date(recurring.next_scheduled_at), orgTimezone);
       } else {
-        anchor = startOfDay(new Date(recurring.created_at));
+        anchor = orgStartOfDay(new Date(recurring.created_at), orgTimezone);
       }
 
       // Sort custom days to establish the pattern order (e.g., Mon=1, Wed=3, Fri=5)
       const sortedDays = [...customDays].sort((a, b) => a - b);
 
       // Find which day in the pattern the anchor falls on, then continue from there
-      const anchorDayOfWeek = anchor.getDay();
+      const anchorDayOfWeek = orgDayOfWeek(anchor, orgTimezone);
       
       // Generate the next occurrence of each day in pattern order, starting from anchor
       const bookingsToInsert: any[] = [];
       
       // Find the next day in the pattern after the anchor
       // Walk forward day by day from anchor+1, collecting each pattern day we hit
-      let cursor = addDays(anchor, 1);
+      let cursor = orgAddDays(anchor, 1, orgTimezone);
       const collectedDays = new Set<number>();
       let safety = 0;
       
       while (collectedDays.size < sortedDays.length && safety < 14) {
-        if (sortedDays.includes(cursor.getDay())) {
-          const dayIdx = cursor.getDay();
+        // customDays are the business's weekdays (Mon=1 …), so the cursor's
+        // weekday must be read in the business's zone or a M/W/F series
+        // generates on the wrong days — and picks the wrong per-day price.
+        if (sortedDays.includes(orgDayOfWeek(cursor, orgTimezone))) {
+          const dayIdx = orgDayOfWeek(cursor, orgTimezone);
           if (!collectedDays.has(dayIdx)) {
             let candidate = new Date(cursor);
             // Skip past existing bookings and past dates
             let skipSafety = 0;
-            while ((isBefore(candidate, now) || existingDates.has(formatDateKey(candidate))) && skipSafety < 60) {
+            while ((isBefore(candidate, now) || existingDates.has(formatDateKey(candidate, orgTimezone))) && skipSafety < 60) {
               candidate = addWeeks(candidate, 1);
               skipSafety++;
             }
@@ -509,7 +536,7 @@ export default function RecurringBookingsPage() {
       const key = `${recurring.customer_id}__${recurring.service_id}`;
       const latestDate = latestBookingMap.get(key) || latestByCustomer.get(recurring.customer_id) || null;
       const existingDates = existingDatesMap.get(key) || existingDatesByCustomer.get(recurring.customer_id);
-      const nextDate = computeNextDate(recurring, latestDate, existingDates, customFrequencies);
+      const nextDate = computeNextDate(recurring, latestDate, orgTimezone, existingDates, customFrequencies);
 
       if (!nextDate) {
         toast.error('Could not compute next date');
@@ -518,7 +545,8 @@ export default function RecurringBookingsPage() {
 
       let bookingAmount = recurring.total_amount;
       let bookingServiceId = recurring.service_id;
-      const dayOfWeek = nextDate.getDay().toString();
+      // This selects the per-day price. A wrong weekday charges the wrong amount.
+      const dayOfWeek = orgDayOfWeek(nextDate, orgTimezone).toString();
       if (dayPrices && dayPrices[dayOfWeek] != null) {
         bookingAmount = dayPrices[dayOfWeek];
       }
@@ -568,8 +596,8 @@ export default function RecurringBookingsPage() {
     const latB = bIsCustomMulti ? (latestByCustomer.get(b.customer_id) || null) : (latestBookingMap.get(`${b.customer_id}__${b.service_id}`) || null);
     const exA = aIsCustomMulti ? existingDatesByCustomer.get(a.customer_id) : existingDatesMap.get(`${a.customer_id}__${a.service_id}`);
     const exB = bIsCustomMulti ? existingDatesByCustomer.get(b.customer_id) : existingDatesMap.get(`${b.customer_id}__${b.service_id}`);
-    const nextA = computeNextDate(a, latA, exA, customFrequencies);
-    const nextB = computeNextDate(b, latB, exB, customFrequencies);
+    const nextA = computeNextDate(a, latA, orgTimezone, exA, customFrequencies);
+    const nextB = computeNextDate(b, latB, orgTimezone, exB, customFrequencies);
     if (!nextA && !nextB) return 0;
     if (!nextA) return 1;
     if (!nextB) return -1;
@@ -716,7 +744,7 @@ export default function RecurringBookingsPage() {
                         const existingDates = isCustomMultiDay
                           ? existingDatesByCustomer.get(booking.customer_id)
                           : existingDatesMap.get(`${booking.customer_id}__${booking.service_id}`);
-                        const nextDate = computeNextDate(booking, latestDate, existingDates, customFrequencies);
+                        const nextDate = computeNextDate(booking, latestDate, orgTimezone, existingDates, customFrequencies);
                         return nextDate ? (
                           format(nextDate, 'MMM d, yyyy')
                         ) : (
