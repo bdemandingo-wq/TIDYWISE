@@ -229,6 +229,8 @@ serve(async (req: Request): Promise<Response> => {
             metadata: {
               customer_name: customerName,
               service_name: serviceName,
+              used_default: resolved.usedDefault,
+              template_warning: resolved.warning,
               sent_at: new Date().toISOString(),
             },
           });
