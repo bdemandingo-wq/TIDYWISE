@@ -152,7 +152,35 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
         }
       }
 
-      // Always send SMS regardless of GPS result
+      // No ETA despite a good GPS fix means the destination could not be
+      // resolved — no stored coordinates, and geocode-address is US-only. That
+      // is the ORG's data problem, not the cleaner's: they cannot act on it and
+      // telling them would be noise. Surfaced to the admin instead, best-effort
+      // so it can never interfere with the send.
+      if (trackingResult && trackingResult.etaMinutes == null && booking.organization_id) {
+        void supabase.from('admin_system_notifications').insert({
+          organization_id: booking.organization_id,
+          type: 'staff_activity',
+          title: '📍 No ETA sent to customer',
+          message: `Couldn't work out a travel time for booking #${booking.booking_number ?? booking.id.slice(0, 8)} — the address has no saved coordinates and couldn't be looked up. The customer got an on-the-way text with no ETA. Adding the address via the map picker fixes it for future jobs.`,
+          link: `/dashboard/bookings`,
+          metadata: { booking_id: booking.id, staff_id: staffInfo.id, reason: 'geocode_failed' },
+        }).then(({ error: notifyErr }) => {
+          if (notifyErr) console.warn('[on-the-way] could not record missing-ETA notice:', notifyErr);
+        });
+      }
+
+      // The SMS is a NOTIFICATION about a state change, not the state change
+      // itself — so a customer with no phone must not stop the cleaner marking
+      // themselves on the way. Nothing above blocks on it either: permission
+      // denial, a GPS error and a failed geocode all still send.
+      const customerPhone = booking.customer?.phone;
+      if (!customerPhone) {
+        toast.success('Marked as on the way. No phone number on file, so no text was sent.');
+        setOnTheWaySent(true);
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('send-on-the-way-sms', {
         body: {
           bookingId: booking.id,
@@ -172,7 +200,10 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
         );
         setOnTheWaySent(true);
       } else {
-        toast.error(data?.error || 'Failed to send notification');
+        // The text failed, but the cleaner IS on the way — record the state so
+        // they aren't locked out of starting the job by a messaging problem.
+        toast.error(data?.error || 'Couldn\'t text the customer, but you\'re marked as on the way.');
+        setOnTheWaySent(true);
       }
     } catch (error) {
       console.error('Error sending on the way SMS:', error);
@@ -220,6 +251,23 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
     );
   })();
   const NOT_TODAY_TOOLTIP = 'Available on the day of the job';
+
+  /**
+   * Forward-only job flow: On The Way → I've Arrived → Start → Complete.
+   *
+   * Only two links were enforced before — Arrived required On The Way, and
+   * Complete required Start — while Start required nothing but the calendar
+   * date. So the usable sequence was [nothing] → Start → Complete, and a
+   * cleaner could finish a job having never said they were coming.
+   *
+   * ADMIN OVERRIDE, deliberately not a new flag: an admin setting the booking
+   * to in_progress from the admin app skips this gate entirely and reveals
+   * Complete, because Complete keys off status alone. A cleaner whose phone
+   * dies mid-shift is unblocked by their admin with no schema change. This
+   * message is what makes that route discoverable rather than folklore.
+   */
+  const START_NEEDS_ARRIVAL =
+    'Tap “On The Way” then “I’ve Arrived” first. If you can’t, ask your admin to start this job for you.';
 
   const handleDirectionsClick = () => {
     openDirections({
@@ -368,8 +416,14 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
 
         <div className="flex flex-wrap gap-2 pt-2">
 
-          {/* On The Way Button - only show for confirmed jobs */}
-          {booking.status === 'confirmed' && booking.customer?.phone && (
+          {/* On The Way — always rendered for a confirmed job.
+              It used to require booking.customer?.phone, welding two different
+              things together: marking yourself on the way is a STATE CHANGE
+              about the cleaner; texting the customer is a NOTIFICATION. With
+              Start now gated behind this, requiring a phone would have made a
+              job for a phoneless customer impossible to begin. The SMS is
+              skipped when there's no number; the state change always happens. */}
+          {booking.status === 'confirmed' && (
             <div className="flex flex-col gap-1">
               <Button
                 variant={onTheWaySent ? "secondary" : "default"}
@@ -429,8 +483,8 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
               organizationId={booking.organization_id}
               bookingAddress={destAddress || null}
               type="check_in"
-              disabled={!isScheduledToday}
-              disabledReason={NOT_TODAY_TOOLTIP}
+              disabled={!isScheduledToday || !hasArrived}
+              disabledReason={!isScheduledToday ? NOT_TODAY_TOOLTIP : START_NEEDS_ARRIVAL}
             />
           )}
           {/* GPS Check-Out when completing job */}

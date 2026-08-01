@@ -438,6 +438,38 @@ export default function StaffPortal() {
 
   const currentTab = activeTab || (hasSetAvailability === false ? 'availability' : 'my-jobs');
 
+  /**
+   * How many jobs this cleaner finished today.
+   *
+   * Completing a job flips its status to 'completed', which drops it out of the
+   * assignedBookings query (pending/confirmed/in_progress) — so the card simply
+   * vanished and nothing acknowledged the work. There was no today-completed
+   * count anywhere in the portal; the job reappeared only in the History tab,
+   * which loads on demand and sorts by scheduled_at rather than by completion.
+   *
+   * Deliberately its OWN query rather than reusing jobHistory: that one is
+   * `enabled` only while the History tab is open and capped at 50 rows, so it
+   * cannot answer this on the my-jobs tab.
+   */
+  const { data: completedToday = 0 } = useQuery({
+    queryKey: ['staff-completed-today', staffInfo?.id],
+    enabled: !!staffInfo?.id,
+    queryFn: async () => {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const { count, error } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('staff_id', staffInfo!.id)
+        .eq('status', 'completed')
+        .gte('scheduled_at', start.toISOString());
+      // Not swallowed into 0 — "you finished nothing today" is a worse thing to
+      // show by accident than nothing at all (CLAUDE.md rule 5).
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
   // Fetch job history (completed, cancelled, no_show) - only when history tab is active
   const { data: jobHistory = [], isLoading: loadingHistory } = useQuery({
     queryKey: ['staff-bookings', 'history', staffInfo?.id],
@@ -976,6 +1008,11 @@ export default function StaffPortal() {
           {/* My Jobs Tab */}
           <TabsContent value="my-jobs" className="space-y-4">
             <div>
+              {completedToday > 0 && (
+                <p className="text-sm font-medium text-success mb-1">
+                  ✓ {completedToday} completed today
+                </p>
+              )}
               <h2 className="pv-display text-2xl">Your upcoming jobs</h2>
               <p className="pv-meta mt-1">Jobs assigned to you that are coming up.</p>
             </div>
