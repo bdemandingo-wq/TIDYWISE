@@ -9,6 +9,8 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { format, addDays, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfMonth, orgEndOfMonth, orgDayOfWeek, orgDateKey, orgAddDays, orgYMD, calendarDayKey } from '@/lib/orgDateRange';
 
 interface DiscountSuggestion {
   icon: string;
@@ -29,9 +31,18 @@ interface Holiday {
   icon: string;
 }
 
-function getUpcomingHolidays(daysAhead: number = 60): Holiday[] {
+/*
+  US holidays are CALENDAR DATES. "Thanksgiving 2026 is 26 November" is true in
+  every timezone, and the weekday walks below ("last Monday of May") operate on
+  those calendar dates rather than on instants — so reading local fields is
+  correct here, and converting them would move the holiday.
+
+  The one thing that is an instant is which YEAR we are in, so that comes from
+  the org's clock.
+*/
+function getUpcomingHolidays(timeZone: string, daysAhead: number = 60): Holiday[] {
   const now = new Date();
-  const year = now.getFullYear();
+  const year = orgYMD(now, timeZone).y;
 
   // Easter calculation (Anonymous Gregorian algorithm)
   const a = year % 19;
@@ -50,6 +61,7 @@ function getUpcomingHolidays(daysAhead: number = 60): Holiday[] {
   const day = ((h + l - 7 * m + 114) % 31) + 1;
   const easterDate = new Date(year, month, day);
 
+  /* eslint-disable local/no-device-local-dates -- calendar-date construction, see above */
   // Memorial Day: last Monday of May
   const memorialDay = new Date(year, 4, 31);
   while (memorialDay.getDay() !== 1) memorialDay.setDate(memorialDay.getDate() - 1);
@@ -72,6 +84,7 @@ function getUpcomingHolidays(daysAhead: number = 60): Holiday[] {
   const thanksgiving = new Date(year, 10, 1);
   while (thanksgiving.getDay() !== 4) thanksgiving.setDate(thanksgiving.getDate() + 1);
   thanksgiving.setDate(thanksgiving.getDate() + 21);
+  /* eslint-enable local/no-device-local-dates */
 
   const allHolidays: Holiday[] = [
     { name: "New Year's Day", date: new Date(year, 0, 1), icon: '🎆' },
@@ -97,8 +110,10 @@ function getUpcomingHolidays(daysAhead: number = 60): Holiday[] {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
-function getSeason(): { name: string; icon: string } {
-  const month = new Date().getMonth();
+function getSeason(timeZone: string): { name: string; icon: string } {
+  // Which season the BUSINESS is in — at a month boundary an admin abroad
+  // would otherwise flip the seasonal promo a day early or late.
+  const month = orgYMD(new Date(), timeZone).m - 1;
   if (month >= 2 && month <= 4) return { name: 'Spring', icon: '🌸' };
   if (month >= 5 && month <= 7) return { name: 'Summer', icon: '☀️' };
   if (month >= 8 && month <= 10) return { name: 'Fall', icon: '🍂' };
@@ -118,9 +133,12 @@ interface AIDiscountSuggestionsProps {
 
 export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestionsProps) {
   const { organization } = useOrganization();
+  // Every window and validity date below belongs to the business's calendar,
+  // not to whichever device is looking at the suggestions.
+  const orgTimezone = useOrgTimezone();
   const now = new Date();
-  const holidays = useMemo(() => getUpcomingHolidays(60), []);
-  const season = useMemo(() => getSeason(), []);
+  const holidays = useMemo(() => getUpcomingHolidays(orgTimezone, 60), [orgTimezone]);
+  const season = useMemo(() => getSeason(orgTimezone), [orgTimezone]);
 
   // Fetch business data for suggestions
   const { data: businessData, isLoading } = useQuery({
@@ -129,8 +147,10 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       if (!organization?.id) return null;
 
       const sixtyDaysAgo = addDays(now, -60).toISOString();
-      const monthStart = startOfMonth(now).toISOString();
-      const monthEnd = endOfMonth(now).toISOString();
+      // "This month" is the business's month. This is the same fault that made
+      // the dashboard read $888 in Miami and $616 in Manila on the same day.
+      const monthStart = orgStartOfMonth(now, orgTimezone).toISOString();
+      const monthEnd = orgEndOfMonth(now, orgTimezone).toISOString();
 
       const [recentBookingsRes, bookingsRes, newClientsRes] = await Promise.all([
         // Customers with a booking in the last 60 days — used to derive inactive count
@@ -171,7 +191,10 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       // Day of week analysis
       const dayCounts: Record<number, number> = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
       (bookingsRes.data || []).forEach((b: any) => {
-        const day = new Date(b.scheduled_at).getDay();
+        // scheduled_at is an instant; the weekday it counts toward is the
+        // business's. Read from the device, the histogram shifts by a day and
+        // the suggested slow-day discount targets the wrong weekday.
+        const day = orgDayOfWeek(new Date(b.scheduled_at), orgTimezone);
         dayCounts[day]++;
       });
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -244,8 +267,9 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
     // Holiday-based suggestions
     holidays.slice(0, 3).forEach((holiday) => {
       const daysUntil = differenceInDays(holiday.date, now);
-      const validFrom = format(now, 'yyyy-MM-dd');
-      const validUntil = format(addDays(holiday.date, 1), 'yyyy-MM-dd');
+      const validFrom = orgDateKey(now, orgTimezone);
+      // holiday.date is a calendar-date token — +1 day is a calendar step.
+      const validUntil = calendarDayKey(addDays(holiday.date, 1));
       const code = holiday.name.replace(/[^A-Z]/gi, '').toUpperCase().slice(0, 8) + (daysUntil <= 7 ? 'FLASH' : Math.round(Math.random() * 10 + 10));
 
       result.push({
@@ -272,8 +296,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
         discountType: 'percentage',
         discountValue: 20,
         eligibleCount: businessData.inactiveCount,
-        validFrom: format(now, 'yyyy-MM-dd'),
-        validUntil: format(addDays(now, 30), 'yyyy-MM-dd'),
+        validFrom: orgDateKey(now, orgTimezone),
+        validUntil: orgDateKey(orgAddDays(now, 30, orgTimezone), orgTimezone),
         reason: 'win_back',
       });
     }
@@ -288,8 +312,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
         discountType: 'percentage',
         discountValue: 10,
         eligibleCount: 0,
-        validFrom: format(now, 'yyyy-MM-dd'),
-        validUntil: format(addDays(now, 60), 'yyyy-MM-dd'),
+        validFrom: orgDateKey(now, orgTimezone),
+        validUntil: orgDateKey(orgAddDays(now, 60, orgTimezone), orgTimezone),
         reason: 'slow_day',
       });
     }
@@ -304,8 +328,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
         discountType: 'flat',
         discountValue: 15,
         eligibleCount: businessData.newClientCount,
-        validFrom: format(now, 'yyyy-MM-dd'),
-        validUntil: format(addDays(now, 21), 'yyyy-MM-dd'),
+        validFrom: orgDateKey(now, orgTimezone),
+        validUntil: orgDateKey(orgAddDays(now, 21, orgTimezone), orgTimezone),
         reason: 'rebook',
       });
     }
@@ -319,8 +343,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       discountType: 'percentage',
       discountValue: 10,
       eligibleCount: 0,
-      validFrom: format(now, 'yyyy-MM-dd'),
-      validUntil: format(addDays(now, 45), 'yyyy-MM-dd'),
+      validFrom: orgDateKey(now, orgTimezone),
+      validUntil: orgDateKey(orgAddDays(now, 45, orgTimezone), orgTimezone),
       reason: 'seasonal',
     });
 
@@ -473,8 +497,8 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
                             description: `${h.name} special discount`,
                             discount_type: 'percentage',
                             discount_value: '15',
-                            valid_from: format(now, 'yyyy-MM-dd'),
-                            valid_until: format(addDays(h.date, 1), 'yyyy-MM-dd'),
+                            valid_from: orgDateKey(now, orgTimezone),
+                            valid_until: calendarDayKey(addDays(h.date, 1)),
                           });
                         }}
                       >
