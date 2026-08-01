@@ -185,23 +185,23 @@ export function BookingActionSheet({
   // token flips with it. The others stay white — their fills are dark in both.
   const statusBadgeClass = {
     pending: 'bg-warning text-warning-foreground',
-    confirmed: 'bg-info text-white',
+    confirmed: 'bg-info text-info-foreground',
     in_progress: 'bg-purple-500 text-white',
     completed: 'bg-success text-success-foreground',
-    cancelled: 'bg-destructive text-white',
+    cancelled: 'bg-destructive text-destructive-foreground',
     no_show: 'bg-muted-foreground text-background',
     // See statusConfig/statusLabels in BookingsPage — all three maps must agree.
     // Omitting this made one status resolve to 'pending' via statusCfg and to
     // info-blue via this map, in the same component, at the same time.
-    rescheduled: 'bg-info text-white',
-  }[booking.status] || 'bg-info text-white';
+    rescheduled: 'bg-info text-info-foreground',
+  }[booking.status] || 'bg-info text-info-foreground';
 
   const paymentBadgeClass = {
     paid: 'bg-success text-success-foreground',
-    pending: 'bg-destructive text-white',
+    pending: 'bg-destructive text-destructive-foreground',
     refunded: 'bg-muted-foreground text-background',
     partial: 'bg-warning text-warning-foreground',
-  }[booking.payment_status] || 'bg-destructive text-white';
+  }[booking.payment_status] || 'bg-destructive text-destructive-foreground';
 
   const isDisabledHold = cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id;
   const isDisabledRefund = booking.payment_status === 'refunded' || (booking.payment_status !== 'paid' && !(booking as any).payment_intent_id);

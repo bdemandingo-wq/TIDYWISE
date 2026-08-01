@@ -163,6 +163,30 @@ function measureRoles() {
   return seen;
 }
 
+/** `bg-<token>` and a literal text colour occurring in the same class string. */
+function measureLiteralPairs() {
+  const out = new Map([['text-white', new Set()], ['text-black', new Set()]]);
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.tsx') || e.name.endsWith('.ts')) {
+        const src = readFileSync(p, 'utf8');
+        for (const m of src.matchAll(/['\"`]([^'\"`]*\bbg-[a-z][a-z0-9-]*[^'\"`]*)['\"`]/g)) {
+          const chunk = m[1];
+          const bg = chunk.match(/\bbg-([a-z][a-z0-9-]*)(?![\w-])/);
+          if (!bg) continue;
+          for (const lit of ['text-white', 'text-black']) {
+            if (chunk.includes(lit)) out.get(lit).add(bg[1]);
+          }
+        }
+      }
+    }
+  };
+  walk(join(ROOT, 'src'));
+  return out;
+}
+
 /** Pairs whose foreground does not follow the `-foreground` suffix. */
 const EXTRA_PAIRS = {
   background: 'foreground',
@@ -310,6 +334,7 @@ for (const rel of FILES) {
 // ─── Part 2: the ratios ──────────────────────────────────────────────────────
 const css = readFileSync(join(ROOT, 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 const roles = measureRoles();
+const literalPairs = measureLiteralPairs();
 
 const scopeBlocks = [];
 {
@@ -380,6 +405,25 @@ const report = (scope, label, r, bar) => {
 for (const [scope, sels] of Object.entries(SCOPES)) {
   const env = {};
   for (const s of sels) Object.assign(env, declsFor(s));
+
+  /*
+    HARDCODED foregrounds on a token fill.
+
+    Part 2 checks --X-foreground against bg-X. It does not see `bg-info
+    text-white`, where the partner is a literal class rather than a token — so
+    when --info and --destructive moved on 2026-08-01, six pills in
+    BookingActionSheet silently went from 7.55:1 to 3.63:1 and from 4.34:1 to
+    3.37:1. Both regressions were introduced by a change this script approved.
+
+    A token can move. A literal cannot. So the literal has to be measured.
+  */
+  for (const [cls, rgbLiteral] of [['text-white', [0, 0, 100]], ['text-black', [0, 0, 0]]]) {
+    for (const base of literalPairs.get(cls) ?? []) {
+      const c = value(env, base);
+      if (!c) continue;
+      report(scope, `${cls} on bg-${base}`, contrast(rgbLiteral, c), 4.5);
+    }
+  }
 
   for (const [base, fg] of allPairs) {
     const c = value(env, base);
