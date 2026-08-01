@@ -38,6 +38,8 @@ import { DueDateSheet } from './invoice/DueDateSheet';
 import { SendScheduleSheet } from './invoice/SendScheduleSheet';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
 import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgDateKey, orgAddDays, formatInOrgTz } from '@/lib/orgDateRange';
 import { formatInvoiceNumber } from '@/lib/invoiceUtils';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -83,6 +85,9 @@ export function InvoiceFormDialog({
   const [additionalOpen, setAdditionalOpen] = useState(false);
 
   // Sheet states
+  // Invoice due dates are calendar dates in the BUSINESS's calendar — a
+  // payment deadline the customer sees, not a device-local one.
+  const orgTimezone = useOrgTimezone();
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
@@ -97,7 +102,7 @@ export function InvoiceFormDialog({
     tax_percent: defaultTaxPercent.toString(),
     discount_percent: '0',
     notes: '',
-    due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+    due_date: orgDateKey(orgAddDays(new Date(), 7, orgTimezone), orgTimezone),
     due_label: 'In 7 days',
     send_immediately: true,
     scheduled_send_at: null as string | null,
@@ -171,8 +176,8 @@ export function InvoiceFormDialog({
           tax_percent: (invoice.tax_percent || defaultTaxPercent).toString(),
           discount_percent: (invoice.discount_percent || 0).toString(),
           notes: invoice.notes || '',
-          due_date: invoice.due_date || format(addDays(new Date(), 7), 'yyyy-MM-dd'),
-          due_label: invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : 'Upon receipt',
+          due_date: invoice.due_date || orgDateKey(orgAddDays(new Date(), 7, orgTimezone), orgTimezone),
+          due_label: invoice.due_date ? formatInOrgTz(new Date(invoice.due_date + 'T12:00:00Z'), orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Upon receipt',
           send_immediately: !invoice.scheduled_send_at,
           scheduled_send_at: invoice.scheduled_send_at || null,
           scheduled_time: '09:00',
@@ -204,7 +209,7 @@ export function InvoiceFormDialog({
           tax_percent: defaultTaxPercent.toString(),
           discount_percent: '0',
           notes: '',
-          due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+          due_date: orgDateKey(orgAddDays(new Date(), 7, orgTimezone), orgTimezone),
           due_label: 'In 7 days',
           send_immediately: true,
           scheduled_send_at: null,
@@ -1034,7 +1039,7 @@ export function InvoiceFormDialog({
         open={dueDateOpen}
         onOpenChange={setDueDateOpen}
         value={formData.due_date}
-        onChange={(date, label) => setFormData({ ...formData, due_date: date || format(new Date(), 'yyyy-MM-dd'), due_label: label })}
+        onChange={(date, label) => setFormData({ ...formData, due_date: date || orgDateKey(new Date(), orgTimezone), due_label: label })}
       />
       <SendScheduleSheet
         open={sendScheduleOpen}
@@ -1066,7 +1071,7 @@ export function InvoiceFormDialog({
                   footerMessage={businessInfo.footerMessage}
                   invoiceNumber={isEditing ? formatInvoiceNumber(invoice.invoice_number) : 'INV-NEW'}
                   invoiceDate={new Date().toISOString()}
-                  dueDate={formData.due_date || format(addDays(new Date(), 7), 'yyyy-MM-dd')}
+                  dueDate={formData.due_date || orgDateKey(orgAddDays(new Date(), 7, orgTimezone), orgTimezone)}
                   customerName={formData.customer_type === 'customer' ? `${selectedCustomer.first_name} ${selectedCustomer.last_name}` : selectedCustomer.name}
                   customerEmail={selectedCustomer.email}
                   customerPhone={selectedCustomer.phone}

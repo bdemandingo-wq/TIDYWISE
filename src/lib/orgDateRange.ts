@@ -126,7 +126,21 @@ function zonedTimeToInstant(
   y: number, m: number, d: number, hh: number, mm: number, ss: number, ms: number,
   timeZone: string,
 ): Date {
-  const naive = Date.UTC(y, m - 1, d, hh, mm, ss, ms);
+  /* eslint-disable-next-line no-param-reassign -- normalised in place below */
+  /*
+    Normalise first. Date.UTC happily accepts day 33 or hour 25 and rolls them
+    over, but the gap loop below compares the RESOLVED date against the numbers
+    passed in — so an un-normalised 33 could never match, all eight probes ran,
+    and the result came back four hours late. Found when orgAddDaysPreservingTime
+    passed d + days without rolling it over first; the trap was open to every
+    caller, not just that one.
+  */
+  const norm = new Date(Date.UTC(y, m - 1, d, hh, mm, ss, ms));
+  y = norm.getUTCFullYear();
+  m = norm.getUTCMonth() + 1;
+  d = norm.getUTCDate();
+
+  const naive = norm.getTime();
   let instant = new Date(naive - offsetMinutes(new Date(naive), timeZone) * 60000);
   instant = new Date(naive - offsetMinutes(instant, timeZone) * 60000);
 
@@ -265,6 +279,26 @@ export function orgAddDays(instant: Date, days: number, timeZone: string): Date 
 }
 
 /** Whole calendar days between two instants, in org-local terms. */
+/**
+ * N org-calendar days later, KEEPING the org-local time of day.
+ *
+ * orgAddDays returns midnight, which is right for a range boundary and wrong
+ * for anything scheduled. Stepping a booking with `d.setDate(d.getDate() + 1)`
+ * instead adds a fixed 24 hours, so a recurring 9am job crosses its own DST
+ * transition and becomes 10am — or 8am — for the rest of the series.
+ *
+ * "Same time next week" means the same WALL CLOCK time, not the same elapsed
+ * seconds. That is what this does.
+ */
+export function orgAddDaysPreservingTime(instant: Date, days: number, timeZone: string): Date {
+  const { y, m, d } = orgYMD(instant, timeZone);
+  const [hh, mm] = formatInOrgTz(instant, timeZone, {
+    hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23',
+  }).split(':').map(Number);
+  // Date.UTC normalises day overflow, so d + days may exceed the month length.
+  return orgSetTimeOnDay(y, m, d + days, hh, mm, timeZone);
+}
+
 export function orgDaysBetween(a: Date, b: Date, timeZone: string): number {
   const x = orgYMD(a, timeZone);
   const y2 = orgYMD(b, timeZone);

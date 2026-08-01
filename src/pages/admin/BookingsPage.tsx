@@ -95,6 +95,7 @@ import {
 import { useBookings, useDraftBookings, useUpdateBooking, useDeleteBooking, useStaff, useServices, BookingWithDetails } from '@/hooks/useBookings';
 import { format, isWithinInterval, startOfDay, endOfDay, differenceInDays, differenceInHours, addDays } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfDay, orgEndOfDay, orgDateKey, formatInOrgTz } from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
 import { AddBookingDialog } from '@/components/admin/AddBookingDialog';
 import { BookingDetailsDialog, AdjustPaymentDialog } from '@/components/admin/BookingDialogs';
@@ -345,9 +346,13 @@ export default function BookingsPage() {
     // Date range filter
     let matchesDate = true;
     if (dateRange?.from) {
+      // dateRange.from/to are picker tokens, but they are used here as an
+      // INSTANT window against scheduled_at. Resolved in the admin's zone, a
+      // 9pm booking fell outside a "today" filter set from a device further
+      // east — the row simply was not there.
       const bookingDate = new Date(booking.scheduled_at);
-      const start = startOfDay(dateRange.from);
-      const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+      const start = orgStartOfDay(dateRange.from, orgTz);
+      const end = orgEndOfDay(dateRange.to ?? dateRange.from, orgTz);
       matchesDate = isWithinInterval(bookingDate, { start, end });
     }
 
@@ -395,9 +400,10 @@ export default function BookingsPage() {
 
     // Send cancellation SMS notification if status changed to cancelled
     if (newStatus === 'cancelled' && booking && organization?.id) {
-      // Format date/time on client-side for timezone accuracy
+      // "for timezone accuracy" — but with no timeZone this was the ADMIN's
+      // clock, and the string goes into an SMS the CUSTOMER receives.
       const scheduledDate = new Date(booking.scheduled_at);
-      const formattedDate = scheduledDate.toLocaleDateString('en-US', {
+      const formattedDate = formatInOrgTz(scheduledDate, orgTz, {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -456,8 +462,9 @@ export default function BookingsPage() {
     // Reuse handleStatusChange's SMS notify by simulating its effect (already updated above; trigger SMS):
     if (organization?.id) {
       const scheduledDate = new Date(cancelBookingTarget.scheduled_at);
-      const formattedDate = scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const formattedTime = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      // Also customer-facing — see the note in handleStatusChange.
+      const formattedDate = formatInOrgTz(scheduledDate, orgTz, { weekday: 'short', month: 'short', day: 'numeric' });
+      const formattedTime = formatInOrgTz(scheduledDate, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true });
       supabase.functions.invoke('send-cancellation-sms-notification', {
         body: {
           customerName: cancelBookingTarget.customer ? `${cancelBookingTarget.customer.first_name} ${cancelBookingTarget.customer.last_name}` : 'Customer',
@@ -1544,7 +1551,7 @@ export default function BookingsPage() {
     setExporting(true);
     try {
       const { headers, rows } = getExportRows();
-      const filename = `bookings-${format(new Date(), 'yyyy-MM-dd')}`;
+      const filename = `bookings-${orgDateKey(new Date(), orgTz)}`;
 
       if (type === 'csv') {
         const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');

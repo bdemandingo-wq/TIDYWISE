@@ -1,9 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  orgStartOfDay, orgEndOfDay, isSameOrgDay, isOrgToday, orgDayOfWeek,
-  orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth,
-  orgDateKey, parseWeekStartDay, orgYMD, orgAddDays, orgDaysBetween, offsetFromParts,
+  orgStartOfDay,
+  orgEndOfDay,
+  isSameOrgDay,
+  isOrgToday,
+  orgDayOfWeek,
+  orgStartOfWeek,
+  orgEndOfWeek,
+  orgStartOfMonth,
+  orgEndOfMonth,
+  orgDateKey,
+  parseWeekStartDay,
+  orgYMD,
+  orgAddDays,
+  orgDaysBetween,
+  offsetFromParts,
+  orgSetTimeOnDay,
+  formatInOrgTz,
+  orgAddDaysPreservingTime,
 } from './orgDateRange.ts';
 
 const NY = 'America/New_York';
@@ -237,4 +252,44 @@ test('DST gap: a normal day is still exactly midnight', () => {
     timeZone: 'America/Havana', hour: '2-digit', hour12: false, hourCycle: 'h23',
   }).format(start);
   assert.equal(hour, '00');
+});
+
+// ── orgAddDaysPreservingTime ────────────────────────────────────────────────
+test('orgAddDaysPreservingTime keeps the wall-clock time across a DST start', () => {
+  // 7 Mar 2026 09:00 New York is EST; 9 Mar is EDT. A fixed +48h would land at
+  // 10:00. The wall clock must stay 09:00.
+  const base = orgSetTimeOnDay(2026, 3, 7, 9, 0, 'America/New_York');
+  const two = orgAddDaysPreservingTime(base, 2, 'America/New_York');
+  assert.equal(orgDateKey(two, 'America/New_York'), '2026-03-09');
+  assert.equal(
+    formatInOrgTz(two, 'America/New_York', { hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23' }),
+    '09:00',
+  );
+  // and it really is 47 hours, not 48 — the day it crossed was 23 hours long
+  assert.equal((two.getTime() - base.getTime()) / 3600000, 47);
+});
+
+test('orgAddDaysPreservingTime keeps the wall-clock time across a DST end', () => {
+  const base = orgSetTimeOnDay(2026, 10, 31, 9, 0, 'America/New_York');
+  const two = orgAddDaysPreservingTime(base, 2, 'America/New_York');
+  assert.equal(orgDateKey(two, 'America/New_York'), '2026-11-02');
+  assert.equal(
+    formatInOrgTz(two, 'America/New_York', { hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23' }),
+    '09:00',
+  );
+  assert.equal((two.getTime() - base.getTime()) / 3600000, 49);
+});
+
+test('orgAddDaysPreservingTime rolls over a month end', () => {
+  const base = orgSetTimeOnDay(2026, 8, 30, 14, 30, 'America/New_York');
+  const five = orgAddDaysPreservingTime(base, 5, 'America/New_York');
+  assert.equal(orgDateKey(five, 'America/New_York'), '2026-09-04');
+});
+
+test('an overflowed day is normalised, not treated as a DST gap', () => {
+  // Day 33 of October is 2 November. Before normalising, the gap loop could
+  // never match `wanted` and ran all 8 probes, returning 13:00 instead of 09:00.
+  const viaOverflow = orgSetTimeOnDay(2026, 10, 33, 9, 0, 'America/New_York');
+  const direct = orgSetTimeOnDay(2026, 11, 2, 9, 0, 'America/New_York');
+  assert.equal(viaOverflow.toISOString(), direct.toISOString());
 });

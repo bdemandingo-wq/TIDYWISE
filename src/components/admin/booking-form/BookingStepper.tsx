@@ -41,6 +41,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
+import { orgAddDaysPreservingTime } from '@/lib/orgDateRange';
 import { useCreateBooking, useUpdateBooking, useCreateCustomer, BookingWithDetails, useBookings } from '@/hooks/useBookings';
 import { extras as extrasData } from '@/data/pricingData';
 import { useBookingForm } from './BookingFormContext';
@@ -395,7 +396,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       }
 
       // The customer has the quote. Now record it.
+      // A DURATION from now, not a calendar boundary — "valid for 7 days" is
+      // 7 days of elapsed time, and the stored value is a timestamp. No org
+      // calendar is involved.
       const validUntil = new Date();
+      /* eslint-disable-next-line local/no-device-local-dates -- ditto */
       validUntil.setDate(validUntil.getDate() + 7); // Valid for 7 days
 
       const { error: quoteError } = await supabase.from('quotes').insert({
@@ -461,9 +466,18 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     
     setSendingConfirmationEmail(true);
     try {
+      /*
+        WALL-CLOCK CARRIER. selectedDate is a picker token and selectedTime is
+        the org's wall time, so building and formatting in the same zone cancels
+        out: the strings below read "9:00 AM" on the picked day whatever zone
+        the admin is in. The booking ITSELF is stored via
+        selectedDateTimeToUTCISO(..., orgTimezone) — this only renders text.
+      */
+      /* eslint-disable local/no-device-local-dates -- wall-clock carrier, see above */
       const scheduledDate = new Date(selectedDate!);
       const [hours, minutes] = selectedTime.split(':').map(Number);
       scheduledDate.setHours(hours, minutes, 0, 0);
+      /* eslint-enable local/no-device-local-dates */
 
       const { error } = await supabase.functions.invoke('send-booking-email', {
         body: {
@@ -785,8 +799,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       let safetyCounter = 0;
 
       while (bookingsToCreate.length < numBookings && safetyCounter < 120) {
-        cursor = new Date(cursor);
-        cursor.setDate(cursor.getDate() + 1);
+        // setDate(+1) added a fixed 24 hours to a real instant. The weekday is
+        // then read in the ORG's zone, so across the org's DST transition a
+        // recurring 9am job became 10am (or 8am) for the rest of the series —
+        // and every booking created from this cursor carries that drift.
+        cursor = orgAddDaysPreservingTime(cursor, 1, orgTimezone);
         safetyCounter += 1;
 
         const weekdayLabel = formatInTimezone(cursor, orgTimezone, { weekday: 'short' });
@@ -808,8 +825,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       for (let i = 1; i <= numBookings; i++) {
         let nextDate: Date;
         if (frequency === 'custom' && customFrequencyDays) {
-          nextDate = new Date(baseDate);
-          nextDate.setDate(nextDate.getDate() + customFrequencyDays * i);
+          // Same as the custom-weekday branch: a fixed N x 24h drifts the
+          // series' time of day across the org's DST transition.
+          nextDate = orgAddDaysPreservingTime(baseDate, customFrequencyDays * i, orgTimezone);
         } else if (frequency === 'weekly') {
           nextDate = addWeeks(baseDate, i);
         } else if (frequency === 'biweekly') {
@@ -1281,10 +1299,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
 
         if (!isDraft) {
+          /* eslint-disable local/no-device-local-dates -- wall-clock carrier: built
+             and formatted in the same zone, so the rendered strings are the picked
+             day and time regardless of where the admin is. */
           const adminScheduledDate = new Date(selectedDate!);
           // Parse 24h time format (HH:mm)
           const [adminHours, adminMinutes] = selectedTime.split(':').map(Number);
           adminScheduledDate.setHours(adminHours, adminMinutes, 0, 0);
+          /* eslint-enable local/no-device-local-dates */
           
           const formattedDateStr = format(adminScheduledDate, 'MMMM d, yyyy');
           const formattedTimeStr = format(adminScheduledDate, 'h:mm a');
@@ -1315,8 +1337,10 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 // Parse 24h time format (HH:mm)
                 const [hours, minutes] = selectedTime.split(':').map(Number);
 
+                /* eslint-disable local/no-device-local-dates -- wall-clock carrier, as above */
                 const scheduledDate = new Date(selectedDate!);
                 scheduledDate.setHours(hours, minutes, 0, 0);
+                /* eslint-enable local/no-device-local-dates */
 
                 const formattedDate = format(scheduledDate, 'MMMM d, yyyy');
                 const formattedTime = format(scheduledDate, 'h:mm a');

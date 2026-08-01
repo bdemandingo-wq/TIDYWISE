@@ -33,6 +33,8 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgDateKey, orgAddDays, formatInOrgTz } from '@/lib/orgDateRange';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { InvoiceViewDialog } from '@/components/admin/InvoiceViewDialog';
 import { InvoiceFormDialog } from '@/components/admin/InvoiceFormDialog';
@@ -159,6 +161,9 @@ export default function InvoicesPage() {
   const [sendingInvoice, setSendingInvoice] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
+  // Invoice due dates are calendar dates in the BUSINESS's calendar — a
+  // payment deadline the customer sees, not a device-local one.
+  const orgTimezone = useOrgTimezone();
   const { organization } = useOrganization();
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -359,7 +364,7 @@ export default function InvoicesPage() {
       stripe_invoice_url: null,
       sent_at: null,
       paid_at: null,
-        due_date: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+        due_date: orgDateKey(orgAddDays(new Date(), 7, orgTimezone), orgTimezone),
     });
     setFormDialogOpen(true);
   };
@@ -504,7 +509,7 @@ export default function InvoicesPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>{format(new Date(invoice.created_at), 'MMM d, yyyy')}</TableCell>
-                        <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : '-'}</TableCell>
+                        <TableCell>{invoice.due_date ? formatInOrgTz(new Date(invoice.due_date + 'T12:00:00Z'), orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }} title="View invoice"><Eye className="w-4 h-4" /></Button>
@@ -565,7 +570,7 @@ export default function InvoicesPage() {
                         <div className="text-lg font-bold">{maskAmount(invoice.total_amount)}</div>
                         <div className="text-sm text-muted-foreground truncate">{maskName(contact.name)}</div>
                         <div className="text-xs text-muted-foreground">{format(new Date(invoice.created_at), 'MMM d, yyyy')}</div>
-                        {invoice.due_date && <div className="text-xs text-muted-foreground">Due {format(new Date(invoice.due_date), 'MMM d, yyyy')}</div>}
+                        {invoice.due_date && <div className="text-xs text-muted-foreground">Due {formatInOrgTz(new Date(invoice.due_date + 'T12:00:00Z'), orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}</div>}
                       </div>
                       <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                     </div>

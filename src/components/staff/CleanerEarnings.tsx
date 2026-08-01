@@ -8,9 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns';
-import {
-  orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth, orgStartOfYear, orgDateKey,
-} from '@/lib/orgDateRange';
+import { orgDateKey, orgEndOfDay, orgEndOfMonth, orgEndOfWeek, orgStartOfMonth, orgStartOfWeek, orgStartOfYear } from '@/lib/orgDateRange';
 import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText, Clock, CalendarDays } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
@@ -47,7 +45,9 @@ const resolveEarnings = resolveCleanerPay;
 export function CleanerEarnings({ staffId, staffName }: Props) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     // Placeholder; corrected by the effect below once the org's zone loads.
+    /* eslint-disable-next-line local/no-device-local-dates -- provisional, replaced by the effect */
     from: startOfMonth(new Date()),
+    /* eslint-disable-next-line local/no-device-local-dates -- ditto */
     to: endOfMonth(new Date()),
   });
 
@@ -64,11 +64,6 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     },
     enabled: !!staffId,
   });
-
-  const fromISO = dateRange?.from?.toISOString();
-  const toEndOfDay = dateRange?.to ? new Date(dateRange.to) : null;
-  if (toEndOfDay) toEndOfDay.setHours(23, 59, 59, 999);
-  const toISO = toEndOfDay?.toISOString();
 
   // Upcoming week bounds
   /**
@@ -108,6 +103,12 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   // Org time. A cleaner in another timezone was seeing a different week than
   // their admin for the same payroll period, with nothing on screen to explain
   // why the two numbers differed.
+  const fromISO = dateRange?.from?.toISOString();
+  // dateRange.to is org-derived (see the effect below); setHours re-anchored it
+  // to the CLEANER's end of day, so a cleaner east of the org lost the last
+  // hours of their own earnings window and one west gained the next day's.
+  const toISO = dateRange?.to ? orgEndOfDay(dateRange.to, orgTimezone).toISOString() : undefined;
+
   const upcomingWeekStart = orgStartOfWeek(new Date(), orgTimezone, 1);
   const upcomingWeekEnd = orgEndOfWeek(new Date(), orgTimezone, 1);
 
@@ -115,8 +116,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   const { data: upcomingBookings = [] } = useQuery({
     queryKey: ['cleaner-upcoming-week', staffId],
     queryFn: async () => {
-      const wEnd = new Date(upcomingWeekEnd);
-      wEnd.setHours(23, 59, 59, 999);
+      // upcomingWeekEnd is already org-resolved; its end of day is too.
+      const wEnd = orgEndOfDay(upcomingWeekEnd, orgTimezone);
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -142,8 +143,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   const { data: upcomingTeamAssignments = [] } = useQuery({
     queryKey: ['cleaner-upcoming-team', staffId],
     queryFn: async () => {
-      const wEnd = new Date(upcomingWeekEnd);
-      wEnd.setHours(23, 59, 59, 999);
+      // upcomingWeekEnd is already org-resolved; its end of day is too.
+      const wEnd = orgEndOfDay(upcomingWeekEnd, orgTimezone);
       // Find team assignments for this cleaner
       const { data: assignments, error: aErr } = await supabase
         .from('booking_team_assignments')
@@ -320,7 +321,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     rows.push(['Average Per Hour', stats.avgPerHour.toFixed(2)]);
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const fileName = `earnings-${staffName.replace(/\s+/g, '-')}-${format(dateRange?.from || new Date(), 'yyyy-MM-dd')}-to-${format(dateRange?.to || new Date(), 'yyyy-MM-dd')}.csv`;
+    const fileName = `earnings-${staffName.replace(/\s+/g, '-')}-${orgDateKey(dateRange?.from || new Date(), orgTimezone)}-to-${orgDateKey(dateRange?.to || new Date(), orgTimezone)}.csv`;
     // saveBlob → share sheet on iOS; <a download> is ignored in WKWebView.
     void saveBlob(blob, fileName);
   };

@@ -26,6 +26,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getTimeInTimezone } from "@/lib/timezoneUtils";
 import { useOrgTimezone } from "@/hooks/useOrgTimezone";
+import { orgDateKey, formatInOrgTz } from "@/lib/orgDateRange";
 import { AdminLiveTracking } from "./AdminLiveTracking";
 import { fmt } from '@/lib/activeCurrency';
 
@@ -151,7 +152,10 @@ export function BookingDetailsDialog({
           total_amount: booking.total_amount,
           notes: booking.notes || null,
           status: 'draft',
-          valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          // A quote's validity is a calendar date in the BUSINESS's calendar.
+          // Slicing toISOString() gave the UTC date, a day early for anyone
+          // east of UTC and for late-evening creation in the Americas.
+          valid_until: orgDateKey(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), orgTimezone),
         })
         .select()
         .single();
@@ -338,6 +342,7 @@ export function EditBookingDialog({
 }) {
   const { organizationId } = useOrgId();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
+  const orgTimezone = useOrgTimezone();
   const updateBooking = useUpdateBooking();
 
   const initial = useMemo(() => {
@@ -346,8 +351,12 @@ export function EditBookingDialog({
     const bookingAny = booking as any;
     return {
       status: booking.status,
-      date: format(d, "yyyy-MM-dd"),
-      time: format(d, "HH:mm"),
+      // Prefill for the edit form. This rendered the instant in the ADMIN's
+      // zone while the read-only view two hundred lines up already used
+      // getTimeInTimezone(orgTimezone) — so opening Edit showed a different
+      // time than the booking displayed, and saving would have written it.
+      date: orgDateKey(d, orgTimezone),
+      time: formatInOrgTz(d, orgTimezone, { hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23' }),
       staffId: booking.staff?.id || "__unassigned__",
       notes: booking.notes || "",
       amount: String(booking.total_amount ?? ""),
