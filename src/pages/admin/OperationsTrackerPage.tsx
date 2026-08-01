@@ -176,7 +176,7 @@ export default function OperationsTrackerPage() {
       : '0';
 
     return { weeklyTotals, monthlyTotals, weeklyCloseRate, monthlyCloseRate };
-  }, [entries]);
+  }, [entries, orgTimezone]);
 
   const exportToExcel = async () => {
     const headers = ['Date', 'Incoming Calls', 'Closed Deals', 'Revenue Booked', 'Cold Emails', 'Cold Calls', 'Leads Followed Up', 'Notes'];

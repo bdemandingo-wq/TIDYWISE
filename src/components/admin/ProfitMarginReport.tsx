@@ -160,7 +160,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
         return isWithinInterval(b.scheduledAt, { start, end });
       })
       .sort((a, b) => b.marginPercent - a.marginPercent);
-  }, [bookings, dateRange, teamPaysByBooking]);
+  }, [bookings, dateRange, teamPaysByBooking, orgTimezone]);
 
   const summaryStats = useMemo(() => {
     const totalRevenue = profitData.reduce((sum, b) => sum + b.revenue, 0);

@@ -51,6 +51,8 @@ import { fmt } from '@/lib/activeCurrency';
 import { dispatchZapier } from '@/lib/zapier';
 import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/components/admin/LeadTagsEditor';
 import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgDateKey } from '@/lib/orgDateRange';
 
 
 
@@ -92,6 +94,8 @@ const SOURCE_OPTIONS = [
 ];
 
 export default function LeadsPage() {
+  // Leads are grouped and exported by the BUSINESS's month and day.
+  const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -305,10 +309,14 @@ export default function LeadsPage() {
     const options = [{ value: 'all', label: 'All Months' }];
     for (let i = 0; i < 12; i++) {
       const d = subMonths(new Date(), i);
-      options.push({ value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') });
+      // Labels for the last 12 months. The VALUE is a yyyy-MM key matched
+      // against each lead's org month below, so it is built the same way.
+      options.push({ value: orgDateKey(d, orgTimezone).slice(0, 7), label: format(d, 'MMMM yyyy') });
     }
     return options;
-  }, []);
+    // orgTimezone matters: useOrgTimezone returns a fallback on first render,
+    // so memoising on [] would freeze these keys to the wrong zone's months.
+  }, [orgTimezone]);
 
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
@@ -318,14 +326,15 @@ export default function LeadsPage() {
       const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
       let matchesMonth = true;
       if (monthFilter !== 'all') {
-        const [year, month] = monthFilter.split('-').map(Number);
-        const monthStart = startOfMonth(new Date(year, month - 1));
-        const monthEnd = endOfMonth(new Date(year, month - 1));
-        matchesMonth = isWithinInterval(new Date(lead.created_at), { start: monthStart, end: monthEnd });
+        // created_at is an instant; the month it belongs to is the org's. The
+        // old form built a device-local month window and tested the instant
+        // against it, so a lead created near a month edge landed in the wrong
+        // month — and the counts per month did not add up to the total.
+        matchesMonth = orgDateKey(new Date(lead.created_at), orgTimezone).startsWith(monthFilter);
       }
       return matchesSearch && matchesStatus && matchesSource && matchesMonth;
     });
-  }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter]);
+  }, [leads, searchTerm, statusFilter, sourceFilter, monthFilter, orgTimezone]);
 
   // Build suggestion list of all tags previously used on any lead.
   const tagSuggestions = useMemo<LeadTag[]>(() => {
@@ -399,12 +408,12 @@ export default function LeadsPage() {
       lead.status,
       lead.notes || '',
       lead.message || '',
-      format(new Date(lead.created_at), 'yyyy-MM-dd'),
+      orgDateKey(new Date(lead.created_at), orgTimezone),
     ]);
 
     const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
     const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(`leads-export-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
+    await exportFile(`leads-export-${orgDateKey(new Date(), orgTimezone)}.csv`, csv, 'text/csv');
     toast.success('Leads exported successfully');
   };
 

@@ -425,7 +425,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       const matchesStaff = !staffFilter || b.staff_id === staffFilter;
       return inDateRange && matchesStatus && matchesStaff;
     });
-  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone, pendingDeleteIds]);
+  }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone, pendingDeleteIds, orgTimezone]);
 
   const { year, month, days, monthWeekRows } = useMemo(() => {
     /* eslint-disable local/no-device-local-dates -- grid geometry: which month

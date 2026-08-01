@@ -365,7 +365,7 @@ export function EditBookingDialog({
       cleanerOverrideHours: bookingAny.cleaner_override_hours ? String(bookingAny.cleaner_override_hours) : "",
       cleanerActualPayment: bookingAny.cleaner_actual_payment ? String(bookingAny.cleaner_actual_payment) : "",
     };
-  }, [booking]);
+  }, [booking, orgTimezone]);
 
   const [status, setStatus] = useState<BookingWithDetails["status"]>("pending");
   const [date, setDate] = useState<string>("");

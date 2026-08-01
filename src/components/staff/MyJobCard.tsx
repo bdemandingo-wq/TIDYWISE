@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
+import { orgDateKey } from '@/lib/orgDateRange';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
 import { BookingChecklist } from './BookingChecklist';
 import { GpsCheckin } from './GpsCheckin';
@@ -239,17 +240,19 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
   
   const hasAddress = Boolean(booking.address);
 
-  // Day-of gate for On The Way / Start Job / GPS Check-In — calendar-date
-  // comparison only (local device time), not a time-of-day check.
-  const isScheduledToday = (() => {
-    const scheduled = new Date(booking.scheduled_at);
-    const now = new Date();
-    return (
-      scheduled.getFullYear() === now.getFullYear() &&
-      scheduled.getMonth() === now.getMonth() &&
-      scheduled.getDate() === now.getDate()
-    );
-  })();
+  /*
+    Day-of gate for On The Way / Start Job / GPS Check-In — a calendar-date
+    comparison, not a time-of-day check.
+
+    It used to say "local device time" and mean it. That gate decides whether a
+    cleaner can start their shift at all, so a phone in a different zone than
+    the business either locked them out of a job they were standing at, or
+    unlocked tomorrow's a few hours early. The job's date and time are already
+    rendered with formatInTimezone(orgTimezone) further down this same file, so
+    the card was showing the org's day and gating on the device's.
+  */
+  const isScheduledToday =
+    orgDateKey(new Date(booking.scheduled_at), orgTimezone) === orgDateKey(new Date(), orgTimezone);
   const NOT_TODAY_TOOLTIP = 'Available on the day of the job';
 
   /**

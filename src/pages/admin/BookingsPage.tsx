@@ -306,7 +306,7 @@ export default function BookingsPage() {
       // Within completed: most recent first
       return new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime();
     });
-  }, [bookings, isMobile, isFullyDone, orgTz]);
+  }, [bookings, isMobile, isFullyDone, orgTz, orgTz]);
 
   // Draft bookings: true is_draft rows fetched separately (useBookings excludes them),
   // plus non-draft rows with pending status + pending payment (legacy "draft" behavior).

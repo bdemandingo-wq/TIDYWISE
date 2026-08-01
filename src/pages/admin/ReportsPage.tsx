@@ -106,7 +106,6 @@ const axisMoney = (v: number): string => {
 
 export default function ReportsPage() {
   const { organizationId } = useOrgId();
-  const orgTz = useOrgTimezone();
   const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { data: services = [], isLoading: servicesLoading } = useServices();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
@@ -176,7 +175,7 @@ export default function ReportsPage() {
         end: orgEndOfDay(dateRange.to, orgTimezone),
       });
     });
-  }, [bookings, dateRange]);
+  }, [bookings, dateRange, orgTimezone]);
 
   const { serviceStats, serviceStatsAllTime, staffStats, monthlyData, totalStats, recurringCleansCount, recurringCleansRevenue } = useMemo(() => {
     // Build a set of recurring customer IDs for quick lookup
@@ -282,7 +281,7 @@ export default function ReportsPage() {
         // same window. Matches the status handling in totalStats below.
         if (b.status === 'cancelled') return false;
         // bookingDate IS an instant, so the month it counts toward is the org's.
-        const bm = orgYMD(new Date(b.scheduled_at), orgTz);
+        const bm = orgYMD(new Date(b.scheduled_at), orgTimezone);
         return bm.m - 1 === monthIndex && bm.y === year;
       });
       if (monthBookings.length > 0 || i < 3) {
@@ -321,7 +320,7 @@ export default function ReportsPage() {
       recurringCleansCount,
       recurringCleansRevenue,
     };
-  }, [filteredBookings, staff, customers, recurringBookings]);
+  }, [filteredBookings, staff, customers, recurringBookings, orgTimezone]);
 
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -401,7 +400,7 @@ export default function ReportsPage() {
           icon={<Calendar className="w-6 h-6" />}
         />
         <StatCard
-          title={`Recurring Cleans (${orgYMD(new Date(), orgTz).y})`}
+          title={`Recurring Cleans (${orgYMD(new Date(), orgTimezone).y})`}
           value={isTestMode ? 'XX' : recurringCleansCount}
           change={0}
           changeLabel={isTestMode ? '$X,XXX revenue' : `${fmt(recurringCleansRevenue)} revenue`}
@@ -641,7 +640,7 @@ export default function ReportsPage() {
                     {totalStats.cancelledList.slice(0, 50).map((b: any) => (
                       <tr key={b.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2.5 whitespace-nowrap">
-                          {formatInTimezone(b.cancelled_at || b.scheduled_at, orgTz, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          {formatInTimezone(b.cancelled_at || b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
                         </td>
                         <td className="py-2.5">
                           {maskName(`${b.customer?.first_name || ''} ${b.customer?.last_name || ''}`.trim() || 'Unknown')}

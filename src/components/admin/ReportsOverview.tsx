@@ -79,7 +79,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     }
 
     return { start, end };
-  }, [period, bookings, customers, orgTimezone]);
+  }, [period, bookings, customers, orgTimezone, orgTimezone]);
 
   const dateRangeLabel = useMemo(() => {
     return `${format(dateRange.start, 'MMM yyyy')} – ${format(dateRange.end, 'MMM yyyy')}`;

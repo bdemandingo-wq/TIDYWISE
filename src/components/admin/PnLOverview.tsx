@@ -455,7 +455,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       retentionRate,
       uniqueCustomers: uniqueAddresses.size,
     };
-  }, [bookings, currentYear]);
+  }, [bookings, currentYear, orgTimezone]);
 
   const saveSettings = async () => {
     if (!organizationId) return;

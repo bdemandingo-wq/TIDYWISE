@@ -349,7 +349,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
     });
 
     return result;
-  }, [businessData, holidays, season, now]);
+  }, [businessData, holidays, season, now, orgTimezone]);
 
   const handleCreateFromSuggestion = (s: DiscountSuggestion) => {
     onCreateDiscount({

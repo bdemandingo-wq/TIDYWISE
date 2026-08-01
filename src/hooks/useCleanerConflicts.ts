@@ -260,7 +260,7 @@ export function useCleanerConflicts(
     }
 
     return conflicts;
-  }, [allBookingsOnDate, selectedDate, selectedTime, duration, currentBookingId]);
+  }, [allBookingsOnDate, selectedDate, selectedTime, duration, currentBookingId, orgTimezone]);
 
   // Get availability status for all staff - now includes working hours check
   const getStaffAvailability = useCallback((staffIds: string[]): Map<string, StaffAvailability> => {
