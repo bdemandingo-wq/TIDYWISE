@@ -565,7 +565,7 @@ export function AutomationsTab() {
         items.push({
           date: r.created_at,
           automationName: 'Review Request',
-          clientName: customerMap[r.customer_id] || 'Unknown',
+          clientName: (r.customer_id && customerMap[r.customer_id]) || 'Unknown',
           messagePreview: 'Review request SMS sent after cleaning',
           status: r.error ? 'failed' : r.sent ? 'delivered' : 'pending',
         });

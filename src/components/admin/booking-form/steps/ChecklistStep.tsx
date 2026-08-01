@@ -29,6 +29,10 @@ export function ChecklistStep() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ['checklist-templates-active', organization?.id],
     queryFn: async () => {
+      // Unreachable: gated by `enabled: !!organization?.id`. Present so the
+      // guarantee is provable rather than asserted.
+      const orgId = organization?.id;
+      if (!orgId) return [];
       const { data, error } = await supabase
         .from('checklist_templates')
         .select(`
@@ -38,7 +42,7 @@ export function ChecklistStep() {
           service_id,
           items:checklist_items(id, title, description, requires_photo, sort_order)
         `)
-        .eq('organization_id', organization?.id)
+        .eq('organization_id', orgId)
         .eq('is_active', true)
         .order('name');
       

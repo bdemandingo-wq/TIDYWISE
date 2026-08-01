@@ -31,13 +31,13 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
     return null;
   }
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score: number | null) => {
     if (score >= 70) return 'text-success bg-success/10';
     if (score >= 40) return 'text-warning bg-warning/10';
     return 'text-destructive bg-destructive/10';
   };
 
-  const getContactIcon = (method: string) => {
+  const getContactIcon = (method: string | null) => {
     switch (method) {
       case 'call': return <Phone className="h-3 w-3" />;
       case 'sms': return <MessageSquare className="h-3 w-3" />;

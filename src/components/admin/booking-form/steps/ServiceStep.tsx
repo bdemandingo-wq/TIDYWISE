@@ -87,10 +87,14 @@ export function ServiceStep() {
   const { data: customFrequencies = [] } = useQuery({
     queryKey: ['custom-frequencies', organization?.id],
     queryFn: async () => {
+      // Unreachable: the query is gated by `enabled: !!organization?.id`.
+      // Present so the guarantee is provable rather than asserted.
+      const orgId = organization?.id;
+      if (!orgId) return [];
       const { data, error } = await supabase
         .from('custom_frequencies')
         .select('*')
-        .eq('organization_id', organization?.id)
+        .eq('organization_id', orgId)
         .eq('is_active', true)
         .order('interval_days', { ascending: true });
       if (error) throw error;
@@ -103,6 +107,10 @@ export function ServiceStep() {
   const { data: checklistTemplates = [] } = useQuery({
     queryKey: ['checklist-templates-active', organization?.id],
     queryFn: async () => {
+      // Unreachable: the query is gated by `enabled: !!organization?.id`.
+      // Present so the guarantee is provable rather than asserted.
+      const orgId = organization?.id;
+      if (!orgId) return [];
       const { data, error } = await supabase
         .from('checklist_templates')
         .select(`
@@ -112,7 +120,7 @@ export function ServiceStep() {
           service_id,
           items:checklist_items(id, title, description, requires_photo, sort_order)
         `)
-        .eq('organization_id', organization?.id)
+        .eq('organization_id', orgId)
         .eq('is_active', true)
         .order('name');
       

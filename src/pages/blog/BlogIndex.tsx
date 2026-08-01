@@ -232,7 +232,10 @@ export default function BlogIndex() {
       excerpt: post.excerpt,
       category: post.category,
       readTime: post.read_time,
-      date: format(new Date(post.published_at), "MMMM yyyy"),
+      // published_at is nullable. new Date(null) is Invalid Date and date-fns
+      // format() THROWS on it — that took the whole index down rather than
+      // hiding one post. An unpublished post simply shows no date.
+      date: post.published_at ? format(new Date(post.published_at), "MMMM yyyy") : "",
       featured: post.is_featured,
       isStatic: false as const,
       isFeaturePage: false as const

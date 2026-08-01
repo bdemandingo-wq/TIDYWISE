@@ -75,7 +75,7 @@ function useQueueDetails(orgId: string | undefined, table: string, enabled: bool
           const { data: customers } = await supabase
             .from('customers')
             .select('id, first_name, last_name')
-            .in('id', customerIds);
+            .in('id', customerIds as string[]);
           (customers || []).forEach((c: any) => {
             customerMap[c.id] = `${c.first_name || ''} ${c.last_name || ''}`.trim();
           });

@@ -193,7 +193,7 @@ export default function DynamicBlogPost() {
               </span>
               <span className="flex items-center gap-1">
                 <Calendar className="h-4 w-4" />
-                {format(new Date(post.published_at), "MMMM d, yyyy")}
+                {post.published_at ? format(new Date(post.published_at), "MMMM d, yyyy") : null}
               </span>
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-6">

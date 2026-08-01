@@ -31,7 +31,7 @@ export function CustomerChurnIndicator({ customerId, compact = false }: Customer
     return null;
   }
 
-  const getChurnBadge = (level: string) => {
+  const getChurnBadge = (level: string | null) => {
     switch (level) {
       case 'critical':
         return (
