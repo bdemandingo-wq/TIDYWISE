@@ -69,7 +69,25 @@
     --sidebar-border: 0 0% 6%;
     --sidebar-ring: 230 100% 50%;
 
-    --success: 140 80% 35%;
+    /*
+      --success had the same shape of fault as --warning: one value, 140 80% 35%,
+      serving both themes because .dark never overrode it. At 3.40:1 on white it
+      failed AA for the 222 places using `text-success` as text — and unlike
+      --warning it also failed on its own solid fills, where white foreground sat
+      at that same 3.40:1 in BOTH themes. Dark was carrying it at 5.77:1.
+
+      26% is what clears 4.5:1 on white (5.65:1) and on the bg-success/10 tint
+      that 65 callers pair with it (4.90:1). Hue stays 140 — the app's own green,
+      and within a couple of degrees of the green-600 the codebase hand-rolled.
+
+      Not adopting --pv-success (152 55% 38%): it is only 3.71:1 on white, so it
+      fails the very case this is fixing. Its hue is also more teal than the rest
+      of the app.
+
+      Foreground stays white: it was already correct here and the darker green
+      only improves it, 3.40 -> 5.65.
+    */
+    --success: 140 80% 26%;
     --success-foreground: 0 0% 100%;
     /*
       --warning was 45 100% 50% — a bright gold — in BOTH themes, because .dark
@@ -125,6 +143,16 @@
     */
     --warning: 38 95% 66%;
     --warning-foreground: 0 0% 6%;
+
+    /*
+      Same reasoning as --warning: :root's green had to go dark enough to read on
+      white, and this theme would have inherited it at roughly 2.9:1 on the page.
+      A lighter green restores the contrast the old value gave here (5.77:1) and
+      then some, and flips the foreground to near-black — white on a green this
+      light is 2.2:1. Hue held at 140 so the two themes stay the same green.
+    */
+    --success: 140 70% 55%;
+    --success-foreground: 0 0% 6%;
 
     /* Linear dark: near-black with cool tint */
     --background: 240 10% 5%;
@@ -1055,6 +1083,14 @@ body {
   /* shadcn semantic aliases inside .portal-v2 */
   --surface-raised:   var(--pv-raised);
   --success:          var(--pv-success);
+  /*
+    Pinned for the same reason as --warning-foreground below: the portal
+    overrides --success but never its foreground, so it inherited :root's white.
+    .dark now sets that foreground to near-black, which on --pv-success (a light
+    green in this theme) the portal never asked for. Holding white keeps every
+    portal pairing exactly where it was.
+  */
+  --success-foreground: 0 0% 100%;
   --warning:          var(--pv-warn);
   /*
     Pinned, not inherited. The portal overrides --warning but never overrode its

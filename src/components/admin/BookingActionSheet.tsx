@@ -187,7 +187,7 @@ export function BookingActionSheet({
     pending: 'bg-warning text-warning-foreground',
     confirmed: 'bg-info text-white',
     in_progress: 'bg-purple-500 text-white',
-    completed: 'bg-success text-white',
+    completed: 'bg-success text-success-foreground',
     cancelled: 'bg-destructive text-white',
     no_show: 'bg-muted-foreground text-background',
     // See statusConfig/statusLabels in BookingsPage — all three maps must agree.
@@ -197,7 +197,7 @@ export function BookingActionSheet({
   }[booking.status] || 'bg-info text-white';
 
   const paymentBadgeClass = {
-    paid: 'bg-success text-white',
+    paid: 'bg-success text-success-foreground',
     pending: 'bg-destructive text-white',
     refunded: 'bg-muted-foreground text-background',
     partial: 'bg-warning text-warning-foreground',
@@ -245,7 +245,7 @@ export function BookingActionSheet({
             <Eye className="w-4 h-4" /> View Details
           </Button>
           <Button
-            className="w-full justify-start gap-2.5 h-11 bg-success hover:bg-success/90 text-white font-semibold text-[13px] rounded-lg shadow-sm disabled:opacity-40"
+            className="w-full justify-start gap-2.5 h-11 bg-success hover:bg-success/90 text-success-foreground font-semibold text-[13px] rounded-lg shadow-sm disabled:opacity-40"
             onClick={() => onMarkPaid(booking)}
             disabled={booking.payment_status === 'paid'}
           >
