@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, BookOpen, Clock, Calendar, Loader2 } from "lucid
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 // Static cornerstone posts that have dedicated pages
 const staticPosts = [
@@ -361,7 +362,7 @@ export default function BlogIndex() {
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-7xl mx-auto text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} TIDYWISE. All rights reserved.
+          © <CopyrightYear /> TIDYWISE. All rights reserved.
         </div>
       </footer>
     </div>

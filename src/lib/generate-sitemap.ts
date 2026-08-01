@@ -169,6 +169,9 @@ function extractRoutePaths(source: string): string[] {
 type SitemapEntry = { path: string; lastmod?: string };
 
 function buildSitemap(entries: SitemapEntry[]): string {
+  // <lastmod> is specified as a UTC date; this is the one place where slicing
+  // toISOString() is exactly what the format asks for.
+  /* eslint-disable-next-line local/no-device-local-dates */
   const today = new Date().toISOString().slice(0, 10);
   const sorted = [...entries].sort((a, b) => {
     if (a.path === "/") return -1;

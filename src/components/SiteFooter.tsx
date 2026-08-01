@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TermsOfServiceDialog } from "@/components/legal/TermsOfServiceDialog";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 // FooterAccordionSection — collapses on mobile, permanently expanded on md+.
 // The grid-template-rows: 0fr → 1fr trick animates height smoothly. Children
@@ -161,7 +162,7 @@ export function SiteFooter() {
 
           {/* ── 2. Bottom bar — copyright, always visible ─────────────── */}
           <div className="border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} TIDYWISE. All rights reserved.
+            © <CopyrightYear /> TIDYWISE. All rights reserved.
           </div>
         </div>
       </div>

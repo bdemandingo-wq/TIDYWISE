@@ -4,6 +4,7 @@ import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles"
 import { Button } from "@/components/ui/button";
 import { locationData } from "@/data/locationData";
 import { useState } from "react";
+import { CopyrightYear } from '@/components/CopyrightYear';
 import {
   Calendar,
   CreditCard,
@@ -455,7 +456,7 @@ export default function LocationSoftwarePage() {
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} TIDYWISE. All rights reserved.</span>
+          <span>© <CopyrightYear /> TIDYWISE. All rights reserved.</span>
           <div className="flex items-center gap-4">
             <Link to="/cleaning-business-software" className="hover:text-foreground transition-colors">
               All Markets

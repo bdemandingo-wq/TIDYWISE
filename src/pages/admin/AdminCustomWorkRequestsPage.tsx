@@ -173,7 +173,9 @@ export default function AdminCustomWorkRequestsPage() {
                         <p className="text-xs text-muted-foreground">
                           Submitted {new Date(r.submitted_at).toLocaleString()} ·
                           Period{' '}
+                          {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                           {new Date(r.billing_period_start).toLocaleDateString()} →{' '}
+                          {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                           {new Date(r.billing_period_end).toLocaleDateString()}
                         </p>
                       </div>

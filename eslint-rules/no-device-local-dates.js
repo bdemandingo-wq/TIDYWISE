@@ -78,7 +78,11 @@ export default {
     const filename = context.filename ?? context.getFilename();
     // The primitives themselves must be free to do this — they are the one
     // place the raw arithmetic is correct by construction.
-    if (filename.includes('orgDateRange')) return {};
+    // The primitive libraries themselves — they are the one place the raw
+    // arithmetic is correct by construction, and timezoneUtils is the same kind
+    // of module as orgDateRange (it reads a picker token's calendar fields to
+    // hand them to orgTimeToUTCISO).
+    if (/orgDateRange|timezoneUtils/.test(filename)) return {};
 
     return {
       CallExpression(node) {

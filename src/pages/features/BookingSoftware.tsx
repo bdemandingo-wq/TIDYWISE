@@ -8,6 +8,7 @@ import {
   Clock, Smartphone, Bell, Menu, X
 } from "lucide-react";
 import { useState } from "react";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 const features = [
   "Instant online booking available 24/7",
@@ -152,7 +153,7 @@ export default function BookingSoftware() {
       </section>
 
       <footer className="border-t border-border py-8 px-4 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} TidyWise. All rights reserved.</p>
+        <p>© <CopyrightYear /> TidyWise. All rights reserved.</p>
       </footer>
     </div>
   );

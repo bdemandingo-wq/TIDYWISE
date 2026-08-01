@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp,
 } from "lucide-react";
 import emmanuelPhoto from "@/assets/emmanuel-headshot.webp";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 const testimonials = [
   {
@@ -209,7 +210,7 @@ export default function DemoPage() {
       </div>
 
       <footer className="border-t border-border py-8 px-4 text-center text-sm text-muted-foreground pb-20 md:pb-8">
-        <p>© {new Date().getFullYear()} TidyWise. All rights reserved.</p>
+        <p>© <CopyrightYear /> TidyWise. All rights reserved.</p>
       </footer>
     </div>
   );

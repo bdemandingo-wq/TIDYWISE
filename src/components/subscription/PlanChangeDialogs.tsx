@@ -162,6 +162,7 @@ export function UpgradePlanDialog({
               <span className="text-muted-foreground">Next billing date</span>
               <span>
                 {preview.next_billing_date
+                  /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
                   ? new Date(preview.next_billing_date).toLocaleDateString()
                   : "—"}
               </span>
@@ -241,6 +242,7 @@ export function DowngradePlanDialog({
       if ((data as any)?.error) throw new Error((data as any).error);
       const scheduled = (data as any)?.scheduled_at || periodEnd;
       const dateStr = scheduled
+        /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
         ? new Date(scheduled).toLocaleDateString()
         : "your next billing date";
       toast.success(
@@ -297,6 +299,7 @@ export function DowngradePlanDialog({
             <span>
               Switches on{" "}
               <span className="font-semibold">
+                {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                 {periodEnd ? new Date(periodEnd).toLocaleDateString() : "next billing date"}
               </span>
             </span>

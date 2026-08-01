@@ -214,6 +214,7 @@ export default function ChurnRetentionTab() {
                         {REASON_LABELS[f.reason] ?? f.reason}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
+                        {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                         {new Date(f.canceled_at).toLocaleDateString()}
                       </span>
                     </div>

@@ -18,7 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
-import { orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
+import { orgDateKey, orgEndOfMonth, orgStartOfMonth } from '@/lib/orgDateRange';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { 
   CalendarIcon, 
@@ -64,7 +64,9 @@ export default function FinancePage() {
   
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     // Placeholder; corrected below once orgTz resolves.
+    /* eslint-disable-next-line local/no-device-local-dates -- provisional, replaced once the org zone resolves */
     from: startOfMonth(new Date()),
+    /* eslint-disable-next-line local/no-device-local-dates -- ditto */
     to: endOfMonth(new Date()),
   });
   /**
@@ -359,7 +361,8 @@ export default function FinancePage() {
   const exportQuickBooksCSV = () => {
     const headers = ['Date', 'Transaction ID', 'Customer', 'Service', 'Gross Amount', 'Processing Fee', 'Net Amount', 'Category'];
     const rows = transactions.map(t => [
-      format(new Date(t.scheduled_at), 'yyyy-MM-dd'),
+      // An instant, so its day is the org's.
+      orgDateKey(new Date(t.scheduled_at), orgTz),
       `#${t.booking_number}`,
       t.customer_name,
       t.service_name,
@@ -401,7 +404,7 @@ export default function FinancePage() {
   const downloadCSV = async (filename: string, headers: string[], rows: string[][]) => {
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
     const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(`${filename}-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
+    await exportFile(`${filename}-${orgDateKey(new Date(), orgTz)}.csv`, csv, 'text/csv');
   };
 
   return (

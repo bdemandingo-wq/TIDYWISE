@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react";
 import { useState } from "react";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 const features = [
   {
@@ -520,7 +521,7 @@ export default function CleaningBusinessSoftware() {
 
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="max-w-5xl mx-auto text-center">
-          <p className="text-muted-foreground text-sm">© {new Date().getFullYear()} TidyWise. Cleaning business software for maid services and cleaning companies — plans from $49/mo.</p>
+          <p className="text-muted-foreground text-sm">© <CopyrightYear /> TidyWise. Cleaning business software for maid services and cleaning companies — plans from $49/mo.</p>
           <div className="flex flex-wrap justify-center gap-6 mt-4">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
             <Link to="/features/scheduling-software" className="text-sm text-muted-foreground hover:text-foreground">Scheduling</Link>

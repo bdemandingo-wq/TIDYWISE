@@ -196,6 +196,7 @@ export default function DepositPage() {
             </p>
             {depositDetails.scheduledAt && (
               <p className="text-xs text-blue-600 mt-1">
+                {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                 Scheduled: {new Date(depositDetails.scheduledAt).toLocaleDateString('en-US', {
                   weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
                 })}

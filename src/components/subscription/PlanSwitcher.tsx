@@ -190,6 +190,7 @@ export function PlanSwitcher() {
                 <>
                   {" "}on{" "}
                   <span className="font-semibold">
+                    {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                     {new Date(downgrade.date).toLocaleDateString()}
                   </span>
                 </>

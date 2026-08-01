@@ -119,10 +119,12 @@ export function validateDate(dateString: string, options?: {
   }
   
   if (options?.minDate && date < options.minDate) {
+    /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
     return `Date must be after ${options.minDate.toLocaleDateString()}`;
   }
   
   if (options?.maxDate && date > options.maxDate) {
+    /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
     return `Date must be before ${options.maxDate.toLocaleDateString()}`;
   }
   

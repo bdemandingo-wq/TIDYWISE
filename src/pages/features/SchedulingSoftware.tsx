@@ -8,6 +8,7 @@ import {
   Bell, Repeat, CalendarCheck, MousePointer, Menu, X
 } from "lucide-react";
 import { useState } from "react";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 const benefits = [
   { icon: MousePointer, title: "Drag-and-Drop Scheduling", description: "See your entire week at a glance. Drag jobs to reschedule. Assign cleaners with a click." },
@@ -151,7 +152,7 @@ export default function SchedulingSoftware() {
 
       <footer className="border-t border-border py-8 px-4 text-center text-sm text-muted-foreground">
         <div className="max-w-5xl mx-auto">
-          <p>© {new Date().getFullYear()} TidyWise. All rights reserved.</p>
+          <p>© <CopyrightYear /> TidyWise. All rights reserved.</p>
           <div className="flex flex-wrap justify-center gap-6 mt-4">
             <Link to="/" className="text-muted-foreground hover:text-foreground">Home</Link>
             <Link to="/features/booking" className="text-muted-foreground hover:text-foreground">Booking</Link>

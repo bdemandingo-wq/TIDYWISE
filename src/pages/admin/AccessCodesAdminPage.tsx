@@ -446,7 +446,9 @@ export default function AccessCodesAdminPage() {
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {c.revoked_at
+                              /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
                               ? `Revoked ${new Date(c.revoked_at).toLocaleDateString()}`
+                              /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
                               : `Expired ${new Date(c.expires_at).toLocaleDateString()}`}
                           </TableCell>
                           <TableCell className="max-w-xs truncate text-xs text-muted-foreground">

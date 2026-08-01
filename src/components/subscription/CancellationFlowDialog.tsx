@@ -404,6 +404,7 @@ export default function CancellationFlowDialog({
                 Your subscription will remain active until{" "}
                 <span className="font-medium text-foreground">
                   {periodEndDate
+                    /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant (billing/subscription/audit date), not a business-day boundary; see src/lib/orgDateRange.ts */
                     ? new Date(periodEndDate).toLocaleDateString()
                     : "the end of your current billing period"}
                 </span>

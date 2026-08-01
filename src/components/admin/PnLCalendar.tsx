@@ -27,6 +27,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
   orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday, orgDateKey, orgYMD,
+  orgStartOfYear, orgSetTimeOnDay,
 } from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -63,8 +64,11 @@ export function PnLCalendar() {
   const queryRange = useMemo(() => {
     if (viewMode === 'year') {
       return {
-        from: startOfYear(currentMonth).toISOString(),
-        to: endOfYear(currentMonth).toISOString(),
+        // The month branch below is org-resolved; this one was not, so the
+        // YEAR view queried a window offset by the admin's zone while the month
+        // view queried the right one — the same screen disagreeing with itself.
+        from: orgStartOfYear(currentMonth, timezone).toISOString(),
+        to: orgEndOfMonth(orgSetTimeOnDay(orgYMD(currentMonth, timezone).y, 12, 1, 12, 0, timezone), timezone).toISOString(),
       };
     }
     // For month view, fetch current month's full calendar range (includes overflow days)
@@ -168,6 +172,9 @@ export function PnLCalendar() {
       try {
         dateKey = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(scheduledDate);
       } catch {
+        // Degraded path only: reached if Intl rejects the zone, in which case
+        // the device's day is the best remaining answer.
+        /* eslint-disable-next-line local/no-device-local-dates */
         dateKey = format(scheduledDate, 'yyyy-MM-dd');
       }
 
@@ -243,6 +250,7 @@ export function PnLCalendar() {
     const monthEnd = orgEndOfMonth(currentMonth, timezone);
     const calendarStart = orgStartOfWeek(monthStart, timezone, 1);
     const calendarEnd = orgEndOfWeek(monthEnd, timezone, 1);
+    /* eslint-disable-next-line local/no-device-local-dates -- grid geometry */
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentMonth, timezone]);
 
@@ -255,6 +263,7 @@ export function PnLCalendar() {
     setViewMode('month');
   };
 
+  /* eslint-disable-next-line local/no-device-local-dates -- which year is displayed */
   const currentYear = currentMonth.getFullYear();
 
   // Monthly total for header

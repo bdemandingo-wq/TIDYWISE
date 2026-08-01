@@ -126,7 +126,6 @@ function zonedTimeToInstant(
   y: number, m: number, d: number, hh: number, mm: number, ss: number, ms: number,
   timeZone: string,
 ): Date {
-  /* eslint-disable-next-line no-param-reassign -- normalised in place below */
   /*
     Normalise first. Date.UTC happily accepts day 33 or hour 25 and rolls them
     over, but the gap loop below compares the RESOLVED date against the numbers

@@ -216,7 +216,8 @@ export default function CustomWorkRequestPage() {
                   )}
                   <p className="text-xs text-muted-foreground mt-3">
                     Your next request unlocks{' '}
-                    {new Date(activeThisPeriod.billing_period_end).toLocaleDateString(
+                    {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
+                {new Date(activeThisPeriod.billing_period_end).toLocaleDateString(
                       'en-US',
                       { month: 'long', day: 'numeric' },
                     )}
@@ -358,11 +359,13 @@ export default function CustomWorkRequestPage() {
                               Note from support: {r.admin_notes}
                             </p>
                           )}
+                          {/* eslint-disable local/no-device-local-dates -- viewer-local display of stored instants, not business-day boundaries */}
                           <p className="text-xs text-muted-foreground mt-2">
                             Submitted {new Date(r.submitted_at).toLocaleDateString()}
                             {r.fulfilled_at &&
                               ` · Completed ${new Date(r.fulfilled_at).toLocaleDateString()}`}
                           </p>
+                          {/* eslint-enable local/no-device-local-dates */}
                         </div>
                       </div>
                     );

@@ -3,6 +3,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { Button } from "@/components/ui/button";
 import { RelatedArticles, allArticles } from "@/components/blog/RelatedArticles";
+import { CopyrightYear } from '@/components/CopyrightYear';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -408,7 +409,7 @@ export default function HowToStartCleaningBusiness() {
       {/* Footer */}
       <footer className="py-8 px-4 border-t border-border">
         <div className="max-w-4xl mx-auto text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} TIDYWISE. All rights reserved.
+          © <CopyrightYear /> TIDYWISE. All rights reserved.
         </div>
       </footer>
     </div>

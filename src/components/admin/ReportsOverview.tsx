@@ -107,6 +107,9 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     let formatStr: string;
     
     if (daysDiff <= 14) {
+      /* eslint-disable local/no-device-local-dates -- bucket geometry inside an
+         already org-resolved window (see orgStartOfDay above); these only decide
+         which column a point lands in. */
       intervals = eachDayOfInterval({ start, end });
       matchFn = (bookingDate, intervalDate) => isSameDay(bookingDate, intervalDate);
       formatStr = 'yyyy-MM-dd';
@@ -117,6 +120,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     } else {
       intervals = eachMonthOfInterval({ start, end });
       matchFn = (bookingDate, intervalDate) => isSameMonth(bookingDate, intervalDate);
+      /* eslint-enable local/no-device-local-dates */
       formatStr = 'yyyy-MM';
     }
 

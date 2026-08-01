@@ -1,3 +1,11 @@
+/*
+  CALENDAR-DATE ARITHMETIC, not instants. "Last Monday of May" and "4th
+  Thursday of November" resolve to the same date in every timezone, and the
+  helpers below build and compare those dates as calendar values. Converting
+  them through a zone would MOVE the holiday, which is the opposite of
+  correct. Every raw Date read in this file is that pattern.
+*/
+/* eslint-disable local/no-device-local-dates -- see the note above */
 /**
  * US federal holidays, computed rather than listed.
  *

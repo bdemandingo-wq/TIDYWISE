@@ -160,6 +160,7 @@ export function StaffProductivityMetrics({ bookings, staff }: StaffProductivityM
 
   const weeklyTrends = useMemo(() => {
     const startDate = subMonths(new Date(), 3);
+    /* eslint-disable-next-line local/no-device-local-dates -- chart bucket geometry, display only */
     const weeks = eachWeekOfInterval({ start: startDate, end: new Date() });
     
     return weeks.map(weekStart => {

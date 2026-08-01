@@ -41,7 +41,9 @@ export function SendScheduleSheet({
 
   const handleSchedule = () => {
     if (selectedDate) {
-      onChange(false, format(selectedDate, 'yyyy-MM-dd'), time);
+      // selectedDate is a picker token — the calendar day the user clicked.
+    /* eslint-disable-next-line local/no-device-local-dates */
+    onChange(false, format(selectedDate, 'yyyy-MM-dd'), time);
       onOpenChange(false);
     }
   };

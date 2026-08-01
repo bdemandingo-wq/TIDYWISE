@@ -70,6 +70,10 @@ export function PerformanceAnalytics({ entries }: PerformanceAnalyticsProps) {
     const dates = entries.map(e => parseISO(e.track_date));
     const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
     const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
+    /* eslint-disable local/no-device-local-dates -- chart bucket geometry: the
+       intervals spanning the data's own min/max, not a business-day boundary.
+       Every bucket is labelled from the same series it slices, so a shifted
+       edge moves a point between adjacent buckets at worst. Display only. */
     const weeks = eachWeekOfInterval({ start: minDate, end: maxDate }, { weekStartsOn: 1 });
 
     return weeks.map(weekStart => {
@@ -102,6 +106,7 @@ export function PerformanceAnalytics({ entries }: PerformanceAnalyticsProps) {
 
     return months.map(monthStart => {
       const mEnd = endOfMonth(monthStart);
+      /* eslint-enable local/no-device-local-dates */
       const monthEntries = entries.filter(e => {
         const d = parseISO(e.track_date);
         return d >= monthStart && d <= mEnd;

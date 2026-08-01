@@ -8,6 +8,7 @@ import {
   MessageSquare, Heart, FileText, Menu, X
 } from "lucide-react";
 import { useState } from "react";
+import { CopyrightYear } from '@/components/CopyrightYear';
 
 const capabilities = [
   { icon: FileText, title: "Full Job & Payment History", description: "View every client's complete job history and payment records in one place." },
@@ -139,7 +140,7 @@ export default function CRMSoftware() {
       </section>
 
       <footer className="border-t border-border py-8 px-4 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} TidyWise. All rights reserved.</p>
+        <p>© <CopyrightYear /> TidyWise. All rights reserved.</p>
       </footer>
     </div>
   );

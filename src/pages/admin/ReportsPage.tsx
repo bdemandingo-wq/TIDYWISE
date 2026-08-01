@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { format, subMonths, isAfter, startOfYear, endOfMonth, isWithinInterval } from 'date-fns';
-import { orgStartOfYear, orgEndOfMonth, orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
+import { orgStartOfYear, orgEndOfMonth, orgStartOfDay, orgEndOfDay, orgYMD } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -123,7 +123,9 @@ export default function ReportsPage() {
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     // Placeholder; corrected below once the org's timezone resolves.
+    /* eslint-disable-next-line local/no-device-local-dates -- provisional; the effect below re-sets both once the org zone resolves */
     from: startOfYear(new Date()),
+    /* eslint-disable-next-line local/no-device-local-dates -- ditto */
     to: endOfMonth(new Date()),
   });
   /**
@@ -269,16 +271,19 @@ export default function ReportsPage() {
     const monthlyData = [];
     for (let i = 5; i >= 0; i--) {
       const monthDate = subMonths(new Date(), i);
+      /* eslint-disable local/no-device-local-dates -- monthDate is a chart bucket label */
       const monthIndex = monthDate.getMonth();
       const year = monthDate.getFullYear();
+      /* eslint-enable local/no-device-local-dates */
       
       const monthBookings = filteredBookings.filter(b => {
         // Cancelled work is not revenue. Without this the bar counted it,
         // which is why it read higher than Finance's Total Sales for the
         // same window. Matches the status handling in totalStats below.
         if (b.status === 'cancelled') return false;
-        const bookingDate = new Date(b.scheduled_at);
-        return bookingDate.getMonth() === monthIndex && bookingDate.getFullYear() === year;
+        // bookingDate IS an instant, so the month it counts toward is the org's.
+        const bm = orgYMD(new Date(b.scheduled_at), orgTz);
+        return bm.m - 1 === monthIndex && bm.y === year;
       });
       if (monthBookings.length > 0 || i < 3) {
         monthlyData.push({
@@ -396,7 +401,7 @@ export default function ReportsPage() {
           icon={<Calendar className="w-6 h-6" />}
         />
         <StatCard
-          title={`Recurring Cleans (${new Date().getFullYear()})`}
+          title={`Recurring Cleans (${orgYMD(new Date(), orgTz).y})`}
           value={isTestMode ? 'XX' : recurringCleansCount}
           change={0}
           changeLabel={isTestMode ? '$X,XXX revenue' : `${fmt(recurringCleansRevenue)} revenue`}

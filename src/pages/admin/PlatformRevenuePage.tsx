@@ -223,6 +223,7 @@ function MonthlyTable({ rows, streams, label }: { rows: RevenueRow[]; streams: s
           {months.map((m) => (
             <tr key={m.month}>
               <td className="py-2 whitespace-nowrap">
+                {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                 {new Date(`${m.month}T00:00:00`).toLocaleDateString(undefined, {
                   month: 'short', year: 'numeric',
                 })}
@@ -279,6 +280,7 @@ function PlanPayersPanel({ planRows }: { planRows: RevenueRow[] }) {
     p.organization_name ?? p.customer_email ?? (p.organization_id ? 'Unnamed organisation' : 'Unattributed');
 
   const when = (iso: string | null) =>
+    // eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary
     iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   return (

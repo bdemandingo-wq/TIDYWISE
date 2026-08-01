@@ -430,6 +430,7 @@ export default function PaymentIntegrationPage() {
                       )}
                       {connectionStatus.connected_at && (
                         <p className="text-xs text-muted-foreground mt-1">
+                          {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                           Connected since {new Date(connectionStatus.connected_at).toLocaleDateString()}
                         </p>
                       )}

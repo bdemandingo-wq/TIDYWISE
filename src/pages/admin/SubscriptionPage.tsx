@@ -85,6 +85,7 @@ export default function SubscriptionPage() {
                     <>
                       {" "}Next billing date:{" "}
                       <span className="font-medium text-foreground">
+                        {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant */}
                         {new Date(periodEnd).toLocaleDateString()}
                       </span>
                       .
