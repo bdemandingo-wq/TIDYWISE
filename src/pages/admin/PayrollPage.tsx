@@ -35,7 +35,7 @@ import { getCurrentPeriod, getNextPeriod, getPeriodStart, getPeriodEnd, getPerio
 import { addDays as addDaysFn } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
-  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgStartOfYear, orgDateKey, orgAddDays,
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgStartOfYear, orgDateKey, orgAddDays, orgEndOfDay,
   parseWeekStartDay, type WeekStartDay,
 } from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
@@ -195,7 +195,9 @@ export default function PayrollPage() {
     // Placeholder only. useOrgTimezone returns its fallback on the first
     // render, so the real month bounds are set by the effect below once the
     // org's zone has actually loaded — see the note there.
+    /* eslint-disable-next-line local/no-device-local-dates -- provisional; the effect below replaces both once useOrgTimezone resolves */
     from: startOfMonth(new Date()),
+    /* eslint-disable-next-line local/no-device-local-dates -- ditto */
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
@@ -484,8 +486,11 @@ export default function PayrollPage() {
     queryKey: ['bookings-payroll', dateRange, organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const toEndOfDay = new Date(dateRange.to);
-      toEndOfDay.setHours(23, 59, 59, 999);
+      // dateRange.to is already the org's end-of-month instant. setHours(23,59)
+      // re-anchored it to the DEVICE's end of day, which for an admin west of
+      // the org pushes the bound hours PAST the period and pulls the next
+      // period's bookings into this payroll run.
+      const toEndOfDay = orgEndOfDay(dateRange.to, orgTimezone);
       const { data, error } = await supabase
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
@@ -504,8 +509,11 @@ export default function PayrollPage() {
     queryKey: ['team-assignments-payroll', dateRange, organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
-      const toEndOfDay = new Date(dateRange.to);
-      toEndOfDay.setHours(23, 59, 59, 999);
+      // dateRange.to is already the org's end-of-month instant. setHours(23,59)
+      // re-anchored it to the DEVICE's end of day, which for an admin west of
+      // the org pushes the bound hours PAST the period and pulls the next
+      // period's bookings into this payroll run.
+      const toEndOfDay = orgEndOfDay(dateRange.to, orgTimezone);
       const { data: bookingIds } = await supabase
         .from('bookings')
         .select('id')
@@ -570,8 +578,8 @@ export default function PayrollPage() {
     queryKey: ['forecast-bookings', organizationId, currentWeekStart.toISOString(), nextWeekEnd.toISOString()],
     queryFn: async () => {
       if (!organizationId) return [];
-      const nwEnd = new Date(nextWeekEnd);
-      nwEnd.setHours(23, 59, 59, 999);
+      // Same as above: nextWeekEnd is org-derived, so its end of day is too.
+      const nwEnd = orgEndOfDay(nextWeekEnd, orgTimezone);
       const { data, error } = await supabase
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
@@ -999,7 +1007,12 @@ export default function PayrollPage() {
   // Bucket bookings into weeks using the booking's calendar date *in the org timezone*,
   // not the admin's browser local — otherwise a Sunday-night booking can fall into
   // the wrong week when admin and org are in different timezones.
-  const toDayStr = (d: Date) => format(d, 'yyyy-MM-dd');
+  // This said format(d, 'yyyy-MM-dd') — the DEVICE's day — directly under a
+  // comment promising the org's. The bookings side (getDateInTimezone below)
+  // was already org-resolved, so the two ends of the comparison disagreed: an
+  // org period ending Sunday 23:59 EDT reads as MONDAY in Manila, so Monday's
+  // bookings counted in this week's forecast and next week's both.
+  const toDayStr = (d: Date) => orgDateKey(d, orgTimezone);
   const currentWeekStartStr = toDayStr(currentWeekStart);
   const currentWeekEndStr = toDayStr(currentWeekEnd);
   const nextWeekStartStr = toDayStr(nextWeekStart);
@@ -1028,7 +1041,7 @@ export default function PayrollPage() {
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    await saveBlob(blob, `payroll-report-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
+    await saveBlob(blob, `payroll-report-${orgDateKey(dateRange.from, orgTimezone)}-to-${orgDateKey(dateRange.to, orgTimezone)}.csv`);
   };
 
   const exportDetailedCSV = async () => {
@@ -1047,7 +1060,7 @@ export default function PayrollPage() {
     ]);
     const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    await saveBlob(blob, `payroll-details-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
+    await saveBlob(blob, `payroll-details-${orgDateKey(dateRange.from, orgTimezone)}-to-${orgDateKey(dateRange.to, orgTimezone)}.csv`);
   };
 
   const exportCleanerCSV = async () => {
@@ -1064,7 +1077,7 @@ export default function PayrollPage() {
     const csv = [headers, ...rows].map((row) => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const staffSuffix = staffFilterId !== 'all' ? `-${(staff.find((s: any) => s.id === staffFilterId)?.name || 'cleaner').replace(/\s+/g, '_')}` : '';
-    await saveBlob(blob, `cleaner-payroll${staffSuffix}-${format(dateRange.from, 'yyyy-MM-dd')}-to-${format(dateRange.to, 'yyyy-MM-dd')}.csv`);
+    await saveBlob(blob, `cleaner-payroll${staffSuffix}-${orgDateKey(dateRange.from, orgTimezone)}-to-${orgDateKey(dateRange.to, orgTimezone)}.csv`);
   };
 
   const getRowHighlight = (detail: BookingPayrollDetail) => {
