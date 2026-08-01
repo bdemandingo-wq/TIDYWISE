@@ -202,8 +202,26 @@
     --accent-foreground: 234 60% 80%;
     --accent-glow: 234 60% 65%;
 
-    --destructive: 358 75% 55%;
-    --destructive-foreground: 0 0% 100%;
+    /*
+      LIGHTENED, not darkened — the two failures pulled in opposite directions
+      and the fill had to move toward the text, not away from it.
+
+      At 55% the white foreground was 4.34:1 on the 158 solid fills AND
+      text-destructive was 4.28:1 on a card across 382 sites. Darkening fixes
+      the first and worsens the second. Lightening fixes the second, breaks
+      white-on-fill entirely (3.37:1), and is therefore only viable WITH the
+      foreground flipped to near-black — which is why these two could never be
+      nudged separately.
+
+      64%: text 5.51 on a card, 5.81 on the page, 4.94 on the bg-destructive/10
+      tint that 59 callers pair with it, and near-black on the fill at 5.67.
+
+      Still a danger red — a lighter one. The 4 bg-destructive/20 tints sit at
+      4.28 and no lightness in a sane range clears them; a 20% tint behind body
+      text is the wrong pattern rather than the wrong colour.
+    */
+    --destructive: 358 75% 64%;
+    --destructive-foreground: 0 0% 6%;
 
     --border: 240 6% 16%;
     --input: 240 6% 16%;

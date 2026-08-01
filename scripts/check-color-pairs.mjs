@@ -112,6 +112,10 @@ function contrast(a, b) {
     - every entry prints on every run
 */
 const KNOWN = new Set([
+  // Was nine, then six, then three, now one. The dark --destructive pair came
+  // off together — they could only ever move together, since darkening the fill
+  // fixed one and broke the other.
+  //
   // Was nine, then six, now three. The light --accent and the two dark
   // text-info entries came off with this change; --info additionally stopped
   // sharing a value with --primary, which is what had made it look expensive.
@@ -126,8 +130,6 @@ const KNOWN = new Set([
   // property — each fails in two directions at once and needs its foreground
   // flipped, which is a visible repaint rather than a nudge.
   'dark|--primary-foreground on bg-primary',
-  'dark|--destructive-foreground on bg-destructive',
-  'dark|text-destructive on --card',
 ]);
 
 /** Tokens that ARE surfaces — they are what text sits on, so they are not text. */
