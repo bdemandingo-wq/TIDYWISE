@@ -60,6 +60,7 @@ import { toast } from 'sonner';
 import { applyPublicBranding, clearPublicBranding } from '@/hooks/useBrandingColors';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
+import { orgDateKey, calendarDayKey } from '@/lib/orgDateRange';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 
@@ -181,11 +182,9 @@ export default function PublicBookingPage() {
     setLoadingSlots(true);
     setSelectedTime(null);
     try {
-      // Format date as YYYY-MM-DD in customer's local perspective
-      const y = selectedDate.getFullYear();
-      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const d = String(selectedDate.getDate()).padStart(2, '0');
-      const dateStr = `${y}-${m}-${d}`;
+      // The day the customer clicked on the calendar. Correct to read from the
+      // picker token as-is — see calendarDayKey.
+      const dateStr = calendarDayKey(selectedDate);
 
       const { data, error } = await supabase.functions.invoke('check-availability', {
         body: { organization_id: organizationId, date: dateStr, service_id: selectedService },
@@ -529,6 +528,10 @@ export default function PublicBookingPage() {
     let multiplier = 1;
 
     // Weekend
+    // selectedDate is a date-picker token, and a calendar date falls on the same
+    // weekday in every timezone. 1 Aug 2026 is a Saturday in Manila and in Miami
+    // alike, so there is nothing to convert here.
+    // eslint-disable-next-line local/no-device-local-dates
     const dow = selectedDate.getDay(); // 0=Sun, 6=Sat
     if (surge_weekend_enabled && (dow === 0 || dow === 6)) {
       multiplier = Math.max(multiplier, surge_weekend_multiplier);
@@ -536,7 +539,13 @@ export default function PublicBookingPage() {
 
     // Last-minute (booking date within N hours from now)
     if (surge_lastminute_enabled && selectedTime) {
-      const scheduledMs = new Date(`${selectedDate.toISOString().split('T')[0]}T${selectedTime}`).getTime();
+      // toISOString() gave the UTC calendar date, which is the PREVIOUS day for
+      // anyone east of UTC — so a customer there had last-minute surge priced
+      // off the wrong day. selectedDateTimeToUTCISO resolves the picked day and
+      // time against the ORG's clock, which is what "9am" on that booking means.
+      const scheduledMs = new Date(
+        selectedDateTimeToUTCISO(selectedDate, selectedTime, orgTimezone),
+      ).getTime();
       const hoursUntil = (scheduledMs - Date.now()) / 3600000;
       if (hoursUntil > 0 && hoursUntil <= surge_lastminute_hours) {
         multiplier = Math.max(multiplier, surge_lastminute_multiplier);
@@ -1326,9 +1335,22 @@ export default function PublicBookingPage() {
                       selected={selectedDate}
                       onSelect={setSelectedDate}
                       disabled={(date) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return date < today || date.getDay() === 0;
+                        // "Today" must be the BUSINESS's today, not the
+                        // visitor's. This compared against a device-local
+                        // midnight, so a customer ahead of the business saw
+                        // today already greyed out while the business would
+                        // still take the booking — and one behind could pick a
+                        // day the business had finished. Across US zones that
+                        // is a 3-hour window each evening.
+                        //
+                        // `date` is a picker token for a calendar cell, so its
+                        // day is read as-is; only the comparison point moves.
+                        // getDay() is left alone deliberately: the weekday of a
+                        // calendar date is the same in every timezone.
+                        const cell = calendarDayKey(date);
+                        const orgToday = orgDateKey(new Date(), orgTimezone);
+                        // eslint-disable-next-line local/no-device-local-dates -- weekday of a calendar date is timezone-independent
+                        return cell < orgToday || date.getDay() === 0;
                       }}
                       className="rounded-md border"
                     />
@@ -1729,6 +1751,7 @@ export default function PublicBookingPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">Date</p>
                       <p className="font-medium">
+                        {/* eslint-disable-next-line local/no-device-local-dates -- renders the day the customer picked, not an instant */}
                         {selectedDate?.toLocaleDateString('en-US', {
                           weekday: 'long',
                           year: 'numeric',

@@ -167,6 +167,24 @@ export function orgSetTimeOnDay(
   return zonedTimeToInstant(y, m, d, hours, minutes, 0, 0, timeZone);
 }
 
+/**
+ * The calendar day a DATE-PICKER token represents, as `yyyy-MM-dd`.
+ *
+ * react-day-picker hands back a local-midnight Date standing for the cell the
+ * user clicked — it is a token for a calendar day, not an instant on a
+ * timeline. Reading its local fields is therefore correct, and converting it
+ * through a timezone would be wrong: it would shift the day the user picked.
+ *
+ * Use this ONLY for picker output. For a real instant (a scheduled_at, a
+ * created_at) use orgDateKey, which resolves against the org's clock.
+ */
+export function calendarDayKey(pickerDate: Date): string {
+  const y = pickerDate.getFullYear();
+  const m = pickerDate.getMonth() + 1;
+  const d = pickerDate.getDate();
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 /** First instant of the org-local day containing `instant`. */
 export function orgStartOfDay(instant: Date, timeZone: string): Date {
   const { y, m, d } = orgYMD(instant, timeZone);
