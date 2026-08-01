@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { CalendarOff, Send, Loader2, Trash2 } from 'lucide-react';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface Props {
   staffId: string;
@@ -34,6 +36,8 @@ const statusStyle: Record<Row['status'], string> = {
 };
 
 export function TimeOffRequests({ staffId, organizationId }: Props) {
+  // Time-off dates are the business's calendar days.
+  const orgTimezone = useOrgTimezone();
   const qc = useQueryClient();
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -100,7 +104,9 @@ export function TimeOffRequests({ staffId, organizationId }: Props) {
     onError: (e: any) => toast.error(e.message || 'Failed'),
   });
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Was the UTC date — a request made on a US evening compared against
+  // tomorrow, so "past" dates could be rejected a day early.
+  const today = useMemo(() => orgDateKey(new Date(), orgTimezone), [orgTimezone]);
 
   return (
     <div className="space-y-4">

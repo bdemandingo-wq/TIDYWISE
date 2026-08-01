@@ -7,8 +7,12 @@ import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import { TrackingPixels } from '@/components/TrackingPixels';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 export default function ReviewPage() {
+  // feedback_date is a DATE column.
+  const orgTimezone = useOrgTimezone();
   const { token } = useParams<{ token: string }>();
   const [searchParams] = useSearchParams();
   const initialRating = parseInt(searchParams.get('rating') || '0');
@@ -139,7 +143,9 @@ export default function ReviewPage() {
               customer_name: `${customerData.first_name} ${customerData.last_name}`,
               issue_description: feedback || `Customer gave ${rating} star rating`,
               organization_id: customerData.organization_id,
-              feedback_date: new Date().toISOString().split('T')[0],
+              // Was the UTC date, which rolls over mid-afternoon in the Americas, so
+      // an evening review was filed under tomorrow.
+      feedback_date: orgDateKey(new Date(), orgTimezone),
               is_resolved: false,
               followup_needed: true
             });

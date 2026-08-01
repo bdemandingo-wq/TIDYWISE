@@ -7,6 +7,8 @@ import { Calendar, Clock, User, ChevronLeft, ChevronRight, Check, X } from 'luci
 import { format, addDays, startOfWeek, isSameDay, isAfter, isBefore, parse } from 'date-fns';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
+import { calendarDayKey, orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface CleanerAvailabilityDashboardProps {
   bookings: BookingWithDetails[];
@@ -37,9 +39,15 @@ const timeSlots = [
 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: CleanerAvailabilityDashboardProps) {
+  // Availability is judged against the BUSINESS's today.
+  const orgTimezone = useOrgTimezone();
+  // The cell's own calendar day against the org's today — the ring used to
+  // come from isSameDay(day, new Date()), i.e. the viewer's.
+  const isOrgTodayCell = (day: Date) => calendarDayKey(day) === orgDateKey(new Date(), orgTimezone);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedCleaner, setSelectedCleaner] = useState<string | null>(null);
   
+  /* eslint-disable-next-line local/no-device-local-dates -- grid geometry: which week is displayed */
   const weekStart = startOfWeek(addDays(new Date(), weekOffset * 7));
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -47,7 +55,8 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
 
   const getCleanerAvailability = useMemo(() => {
     return (cleanerId: string, date: Date) => {
-      const dayOfWeek = date.getDay();
+      /* eslint-disable-next-line local/no-device-local-dates -- weekday of a grid cell is timezone-independent */
+    const dayOfWeek = date.getDay();
       
       // Get working hours for this cleaner on this day
       const hours = workingHours.find(
@@ -58,7 +67,10 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
       const dayBookings = bookings.filter(b => {
         if (b.staff?.id !== cleanerId) return false;
         const bookingDate = new Date(b.scheduled_at);
-        return isSameDay(bookingDate, date) && !['cancelled', 'no_show'].includes(b.status);
+        // bookingDate is an INSTANT and `date` is a grid token, so this compared
+    // two different kinds of thing. The booking's day belongs to the org.
+    return orgDateKey(bookingDate, orgTimezone) === calendarDayKey(date)
+      && !['cancelled', 'no_show'].includes(b.status);
       });
 
       return {
@@ -73,7 +85,7 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
         }, 0),
       };
     };
-  }, [bookings, workingHours]);
+  }, [bookings, workingHours, orgTimezone]);
 
   const cleanerStats = useMemo(() => {
     return activeStaff.map(cleaner => {
@@ -217,13 +229,14 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
                     key={idx} 
                     className={cn(
                       "text-center p-2 rounded-lg",
-                      isSameDay(day, new Date()) && "bg-primary/10"
+                      isOrgTodayCell(day) && "bg-primary/10"
                     )}
                   >
+                    {/* eslint-disable-next-line local/no-device-local-dates -- weekday label of a grid cell */}
                     <p className="text-xs text-muted-foreground">{dayNames[day.getDay()]}</p>
                     <p className={cn(
                       "font-medium",
-                      isSameDay(day, new Date()) && "text-primary"
+                      isOrgTodayCell(day) && "text-primary"
                     )}>{format(day, 'd')}</p>
                   </div>
                 ))}
@@ -243,7 +256,7 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
                   </div>
                   {weekDays.map((day, idx) => {
                     const availability = getCleanerAvailability(cleaner.id, day);
-                    const isPast = isBefore(day, new Date()) && !isSameDay(day, new Date());
+                    const isPast = calendarDayKey(day) < orgDateKey(new Date(), orgTimezone);
                     
                     return (
                       <div 

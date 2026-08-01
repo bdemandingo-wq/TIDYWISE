@@ -7,6 +7,8 @@ import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
 import { useDismissedBadges } from '@/hooks/useDismissedBadges';
 import { NOTIFICATION_TYPES, isChannelEnabled } from '@/lib/notificationCatalog';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 /**
  * Centralized sidebar badge counts + breakdowns.
@@ -35,6 +37,8 @@ export interface SidebarBadgeData {
 }
 
 export function useSidebarBadgesFull(): SidebarBadgeData {
+  // Badge counts are per BUSINESS day.
+  const orgTimezone = useOrgTimezone();
   const { organization } = useOrganization();
   const { hasFinancialAccess, isOwner } = useOrgRole();
   const orgId = organization?.id;
@@ -163,7 +167,9 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     refetchInterval,
     queryFn: async () => {
       if (!orgId) return { open: 0, overdue: 0 };
-      const today = new Date().toISOString().slice(0, 10);
+      // Was the UTC date, so the "due today" badge changed over mid-afternoon
+      // in the Americas instead of at the business's midnight.
+      const today = orgDateKey(new Date(), orgTimezone);
       const { data } = await supabase
         .from('tasks_and_notes')
         .select('due_date, is_completed, type')

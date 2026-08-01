@@ -30,7 +30,7 @@ import {
   isWithinInterval,
   differenceInMonths
 } from 'date-fns';
-import { orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
+import { orgEndOfMonth, orgStartOfMonth, orgYMD } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface RevenueForecastingProps {
@@ -66,6 +66,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
     // extrapolating from.
     const startDate = orgStartOfMonth(subMonths(new Date(), 12), orgTimezone);
     const endDate = orgEndOfMonth(new Date(), orgTimezone);
+    /* eslint-disable-next-line local/no-device-local-dates -- chart bucket geometry over an org-resolved span */
     const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
     return months.map(rawMonth => {
@@ -94,6 +95,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
     const monthTotals: { [key: number]: { sum: number; count: number } } = {};
     
     historicalData.forEach(d => {
+      /* eslint-disable-next-line local/no-device-local-dates -- bucket label */
       const month = d.date.getMonth();
       if (!monthTotals[month]) {
         monthTotals[month] = { sum: 0, count: 0 };
@@ -162,7 +164,8 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
     // Add forecast months
     for (let i = 1; i <= forecastMonths; i++) {
       const futureDate = addMonths(new Date(), i);
-      const monthIndex = futureDate.getMonth();
+      /* eslint-disable-next-line local/no-device-local-dates -- bucket label */
+    const monthIndex = futureDate.getMonth();
       const seasonalFactor = seasonalFactors[monthIndex]?.factor || 1;
       
       // Base forecast with trend + recurring + seasonal adjustment
@@ -209,11 +212,11 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
       .reduce((sum, d) => sum + (d.forecast || 0), 0);
 
     // Calculate YTD directly from bookings for accuracy (matches dashboard)
-    const currentYear = new Date().getFullYear();
+    const currentYear = orgYMD(new Date(), orgTimezone).y;
     const ytdRevenue = bookings
       .filter(b => 
         b.status !== 'cancelled' && 
-        new Date(b.scheduled_at).getFullYear() === currentYear
+        orgYMD(new Date(b.scheduled_at), orgTimezone).y === currentYear
       )
       .reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
 
@@ -232,7 +235,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
       recurringMonthlyRevenue,
       isGrowing
     };
-  }, [historicalData, forecastData, recurringMonthlyRevenue, bookings]);
+  }, [historicalData, forecastData, recurringMonthlyRevenue, bookings, orgTimezone]);
 
   return (
     <div className="space-y-6">

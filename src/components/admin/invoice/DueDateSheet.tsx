@@ -38,7 +38,9 @@ export function DueDateSheet({ open, onOpenChange, value, onChange }: DueDateShe
       onChange('', 'Upon receipt');
     } else {
       const date = addDays(new Date(), days);
-      onChange(format(date, 'yyyy-MM-dd'), label);
+      // Everything here is the calendar day the user picked from the sheet.
+    /* eslint-disable local/no-device-local-dates -- picker tokens throughout */
+    onChange(format(date, 'yyyy-MM-dd'), label);
     }
     onOpenChange(false);
   };
@@ -81,6 +83,7 @@ export function DueDateSheet({ open, onOpenChange, value, onChange }: DueDateShe
               const isSelected = option.days === 0 
                 ? !value 
                 : value === format(addDays(new Date(), option.days), 'yyyy-MM-dd');
+  /* eslint-enable local/no-device-local-dates */
               
               return (
                 <button

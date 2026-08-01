@@ -61,6 +61,11 @@ export function zonedWallClockToIso(
 
   // The picker's Date carries the chosen calendar day in the browser's zone;
   // only its Y/M/D are meaningful here.
+  /* eslint-disable local/no-device-local-dates -- WALL-CLOCK CARRIER: this module
+     exists to convert a picked calendar date plus an "HH:MM" string into an
+     instant in a named zone. Reading the picker token's own calendar fields is
+     the input to that conversion, and converting them first would double-apply
+     an offset. See the module header. */
   const y = date.getFullYear();
   const m = date.getMonth();
   const d = date.getDate();
@@ -117,6 +122,7 @@ export function wallClockInZone(instant: Date, timeZone: string | null | undefin
     return { hour: get("hour") % 24, minute: get("minute") };
   } catch {
     return { hour: instant.getHours(), minute: instant.getMinutes() };
+  /* eslint-enable local/no-device-local-dates */
   }
 }
 

@@ -35,6 +35,8 @@ import { toast } from 'sonner';
 import { SortableTaskList } from '@/components/admin/tasks/SortableTaskList';
 import { SEOHead } from '@/components/SEOHead';
 import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 type TaskType = 'daily' | 'weekly' | 'monthly' | 'note';
 
@@ -53,6 +55,8 @@ interface Task {
 }
 
 export default function TasksPage() {
+  // Task resets and due dates are the business's calendar days.
+  const orgTimezone = useOrgTimezone();
   const { organizationId } = useOrgId();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -68,7 +72,10 @@ export default function TasksPage() {
     queryFn: async () => {
       if (!organizationId) return [];
       
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Written to last_reset_at and compared against it to decide whether
+      // today's recurring tasks have been reset yet. The device's day resets
+      // them on the wrong day for an admin outside the org's zone.
+      const today = orgDateKey(new Date(), orgTimezone);
       await supabase
         .from('tasks_and_notes')
         .update({ is_completed: false, last_reset_at: today, updated_at: new Date().toISOString() })
@@ -201,6 +208,7 @@ export default function TasksPage() {
     createMutation.mutate({
       type: newType,
       content: newContent.trim(),
+      /* eslint-disable-next-line local/no-device-local-dates -- newDueDate is a picker token: the calendar day chosen */
       due_date: newDueDate ? format(newDueDate, 'yyyy-MM-dd') : undefined,
     });
   };

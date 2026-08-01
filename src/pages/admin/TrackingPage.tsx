@@ -16,6 +16,7 @@ import { useDistanceUnit, useOrgCountryCode } from '@/hooks/useDistanceUnit';
 import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
+import { orgStartOfDay } from '@/lib/orgDateRange';
 
 interface ActiveTracking {
   id: string;
@@ -276,8 +277,8 @@ export default function TrackingPage() {
 
   const fetchHistory = useCallback(async () => {
     if (!orgId) return;
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    // "Today's routes" is the business's day.
+    const todayStart = orgStartOfDay(new Date(), orgTz);
 
     // Include *all* tracking records from today, not just is_active=false.
     // Some rows never flip to inactive (native app in background never calls
@@ -306,7 +307,7 @@ export default function TrackingPage() {
       });
       setHistoricalJobs(completed as any);
     }
-  }, [orgId, activeJobs]);
+  }, [orgId, activeJobs, orgTz]);
 
   const fetchSettings = useCallback(async () => {
     if (!orgId) return;

@@ -150,6 +150,10 @@ export function useCleanerConflicts(
     };
 
     fetchData();
+  // toDateString() here is only a memo KEY — a stable string identifying the
+  // picked calendar day so the query refetches when it changes. Nothing is
+  // computed from it; the conflict window itself is org-resolved above.
+  /* eslint-disable-next-line local/no-device-local-dates -- memo key, not a computed boundary */
   }, [selectedDate?.toDateString(), organizationId, orgTimezone]);
 
   // Check if staff is within their working hours for the selected date/time

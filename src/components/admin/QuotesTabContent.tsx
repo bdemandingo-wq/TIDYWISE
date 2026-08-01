@@ -37,6 +37,8 @@ import { useCustomers, useServices } from '@/hooks/useBookings';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { fmt } from '@/lib/activeCurrency';
+import { orgAddDays, orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface Quote {
   id: string;
@@ -66,6 +68,8 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 };
 
 export function QuotesTabContent() {
+  // A quote's validity is a calendar date the CUSTOMER is held to.
+  const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);
@@ -279,7 +283,7 @@ export function QuotesTabContent() {
     discount_amount: 0,
     total_amount: 0,
     notes: '',
-    valid_until: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+    valid_until: orgDateKey(orgAddDays(new Date(), 30, orgTimezone), orgTimezone),
   });
 
   const handleOpenDialog = (quote?: Quote) => {
@@ -294,7 +298,7 @@ export function QuotesTabContent() {
         discount_amount: quote.discount_amount || 0,
         total_amount: quote.total_amount || 0,
         notes: quote.notes || '',
-        valid_until: quote.valid_until || format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+        valid_until: quote.valid_until || orgDateKey(orgAddDays(new Date(), 30, orgTimezone), orgTimezone),
       });
     } else {
       setEditingQuote(null);
@@ -307,7 +311,7 @@ export function QuotesTabContent() {
         discount_amount: 0,
         total_amount: 0,
         notes: '',
-        valid_until: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+        valid_until: orgDateKey(orgAddDays(new Date(), 30, orgTimezone), orgTimezone),
       });
     }
     setDialogOpen(true);

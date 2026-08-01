@@ -19,6 +19,8 @@ import {
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 
 type SendMethod = 'resend' | 'gmail_smtp';
@@ -51,6 +53,8 @@ const defaultEmailSettings: EmailSettings = {
 };
 
 export function EmailSettingsCard() {
+  // Send counts are per BUSINESS day.
+  const orgTimezone = useOrgTimezone();
   const { organization, isAdmin } = useOrganization();
   const [settings, setSettings] = useState<EmailSettings>(defaultEmailSettings);
   const [loading, setLoading] = useState(true);
@@ -104,7 +108,9 @@ export function EmailSettingsCard() {
 
   const fetchDailyStats = async () => {
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      // Was the UTC date, so the daily send counter rolled over mid-afternoon
+      // for the Americas rather than at the business's midnight.
+      const today = orgDateKey(new Date(), orgTimezone);
       const { data } = await supabase
         .from('org_email_daily_sends' as never)
         .select('method, sent_count')

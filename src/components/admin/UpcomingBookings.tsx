@@ -20,6 +20,7 @@ import { EditCustomerDialog } from './EditCustomerDialog';
 import { AddBookingDialog } from './AddBookingDialog';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { formatInOrgTz } from '@/lib/orgDateRange';
 
 interface UpcomingBookingsProps {
   bookings: BookingWithDetails[];
@@ -174,8 +175,12 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
     setSendingClientNotif(true);
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const formattedDate = scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const formattedTime = scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      // These strings go into an SMS the CUSTOMER receives. Without a timeZone
+      // they were the admin's clock — the third place in this codebase sending
+      // send-booking-reminder a device-local time (see SchedulerCalendar and
+      // BookingsPage).
+      const formattedDate = formatInOrgTz(scheduledDate, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric' });
+      const formattedTime = formatInOrgTz(scheduledDate, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true });
       const response = await supabase.functions.invoke('send-booking-reminder', {
         body: {
           bookingId: booking.id,

@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
+import { orgStartOfMonth } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface DemoRequest {
   id: string;
@@ -36,6 +38,8 @@ const statusColors: Record<string, string> = {
 };
 
 export function DemoRequestsTab() {
+  // Demo counts are per BUSINESS month.
+  const orgTimezone = useOrgTimezone();
   const queryClient = useQueryClient();
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState('');
@@ -66,7 +70,8 @@ export function DemoRequestsTab() {
     },
   });
 
-  const thisMonth = demos.filter(d => new Date(d.created_at) >= startOfMonth(new Date()));
+  // created_at is an instant, so "this month" is the business's month.
+  const thisMonth = demos.filter(d => new Date(d.created_at) >= orgStartOfMonth(new Date(), orgTimezone));
   const pending = demos.filter(d => d.status === 'pending');
   const converted = demos.filter(d => d.status === 'converted');
   const conversionRate = demos.length > 0 ? Math.round((converted.length / demos.length) * 100) : 0;

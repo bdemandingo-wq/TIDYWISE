@@ -219,8 +219,12 @@ export default function FinancePage() {
         .from('expenses')
         .select('*')
         .eq('organization_id', organizationId)
+        // expense_date is a DATE column and dateRange holds picker tokens, so
+        // this is calendar day compared with calendar day.
+        /* eslint-disable local/no-device-local-dates -- date-column comparison */
         .gte('expense_date', format(dateRange.from, 'yyyy-MM-dd'))
         .lte('expense_date', format(dateRange.to, 'yyyy-MM-dd'));
+        /* eslint-enable local/no-device-local-dates */
       if (error) throw error;
       return data;
     },

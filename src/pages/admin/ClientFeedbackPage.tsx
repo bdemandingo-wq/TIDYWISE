@@ -32,6 +32,8 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { dispatchZapier } from '@/lib/zapier';
 import { AttentionStrip } from '@/components/admin/AttentionStrip';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface FeedbackEntry {
   id: string;
@@ -44,6 +46,8 @@ interface FeedbackEntry {
 }
 
 export default function ClientFeedbackPage() {
+  // feedback_date is a DATE column: the business's calendar day.
+  const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<FeedbackEntry | null>(null);
   const [filterResolved, setFilterResolved] = useState<string>('all');
@@ -182,7 +186,7 @@ export default function ClientFeedbackPage() {
     ].join('\n');
 
     const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(`client-feedback-${format(new Date(), 'yyyy-MM-dd')}.csv`, csvContent, 'text/csv');
+    await exportFile(`client-feedback-${orgDateKey(new Date(), orgTimezone)}.csv`, csvContent, 'text/csv');
   };
 
   return (
@@ -411,9 +415,11 @@ function FeedbackDialog({
   entry: FeedbackEntry | null;
   onSave: (data: Partial<FeedbackEntry>) => void;
 }) {
+  const orgTimezone = useOrgTimezone();
   const [formData, setFormData] = useState({
     customer_name: '',
-    feedback_date: format(new Date(), 'yyyy-MM-dd'),
+    // The business's day, not whichever one the admin's device is in.
+    feedback_date: orgDateKey(new Date(), orgTimezone),
     is_resolved: false,
     followup_needed: false,
     issue_description: '',
@@ -425,7 +431,7 @@ function FeedbackDialog({
     if (open) {
       setFormData({
         customer_name: entry?.customer_name || '',
-        feedback_date: entry?.feedback_date || format(new Date(), 'yyyy-MM-dd'),
+        feedback_date: entry?.feedback_date || orgDateKey(new Date(), orgTimezone),
         is_resolved: entry?.is_resolved || false,
         followup_needed: entry?.followup_needed || false,
         issue_description: entry?.issue_description || '',

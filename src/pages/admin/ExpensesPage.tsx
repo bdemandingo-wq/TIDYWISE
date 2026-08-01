@@ -118,7 +118,10 @@ export default function ExpensesPage() {
         description: data.description,
         amount: parseFloat(data.amount),
         vendor: data.vendor || null,
-        expense_date: format(data.expense_date, 'yyyy-MM-dd'),
+        // data.expense_date is a picker token; expense_date is a DATE column.
+      /* eslint-disable-next-line local/no-device-local-dates -- picker token -> date column */
+      /* eslint-disable-next-line local/no-device-local-dates -- picker token -> date column */
+      expense_date: format(data.expense_date, 'yyyy-MM-dd'),
         organization_id: organization.id,
       });
       if (error) throw error;

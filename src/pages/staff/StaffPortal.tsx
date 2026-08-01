@@ -24,6 +24,8 @@ import { PullToRefreshIndicator } from '@/components/admin/PullToRefreshIndicato
 import { SEOHead } from '@/components/SEOHead';
 import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
 import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
+import { orgStartOfDay } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 
 // Lazy-load heavy tab components to speed up initial render
@@ -93,6 +95,8 @@ interface StaffInfo {
 }
 
 export default function StaffPortal() {
+  // A cleaner's "today" is the business's day, not their phone's.
+  const orgTimezone = useOrgTimezone();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -455,8 +459,9 @@ export default function StaffPortal() {
     queryKey: ['staff-completed-today', staffInfo?.id],
     enabled: !!staffInfo?.id,
     queryFn: async () => {
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
+      // "Completed today" counts jobs on the BUSINESS's day. A cleaner whose
+      // phone is east of the org saw the count reset hours early.
+      const start = orgStartOfDay(new Date(), orgTimezone);
       const { count, error } = await supabase
         .from('bookings')
         .select('id', { count: 'exact', head: true })

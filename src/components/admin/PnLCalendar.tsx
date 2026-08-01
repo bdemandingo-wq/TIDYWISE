@@ -60,6 +60,14 @@ export function PnLCalendar() {
   const organizationId = organization?.id;
   const timezone = useOrgTimezone();
 
+  /*
+    Month KEYS: which month is on screen, and the values of the month selector.
+    Grid labels, not instants — "2026-08" identifies a column, and the data
+    behind each column is bucketed in the org's zone elsewhere in this file.
+  */
+  // eslint-disable-next-line local/no-device-local-dates
+  const monthKeyOf = (d: Date) => format(d, 'yyyy-MM');
+
   // Determine the query date range based on view mode
   const queryRange = useMemo(() => {
     if (viewMode === 'year') {
@@ -269,7 +277,7 @@ export function PnLCalendar() {
   // Monthly total for header
   const monthTotal = useMemo(() => {
     let total = 0;
-    const monthKey = format(currentMonth, 'yyyy-MM');
+    const monthKey = monthKeyOf(currentMonth);
     dailyPnL.forEach((val, dateKey) => {
       if (dateKey.startsWith(monthKey)) total += getDayValue(val);
     });
@@ -335,7 +343,7 @@ export function PnLCalendar() {
             </ToggleGroup>
 
             <Select
-              value={format(currentMonth, 'yyyy-MM')}
+              value={monthKeyOf(currentMonth)}
               onValueChange={(v) => setCurrentMonth(new Date(v + '-01'))}
             >
               <SelectTrigger className="w-[120px] min-h-[44px] text-sm">
@@ -345,7 +353,7 @@ export function PnLCalendar() {
                 {Array.from({ length: 12 }, (_, i) => {
                   const d = new Date(currentYear, i, 1);
                   return (
-                    <SelectItem key={i} value={format(d, 'yyyy-MM')}>
+                    <SelectItem key={i} value={monthKeyOf(d)}>
                       {format(d, 'MMM yyyy')}
                     </SelectItem>
                   );
@@ -461,7 +469,8 @@ export function PnLCalendar() {
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             {Array.from({ length: 12 }, (_, i) => {
               const monthDate = new Date(currentYear, i, 1);
-              const monthKey = format(monthDate, 'yyyy-MM');
+              /* eslint-disable-next-line local/no-device-local-dates -- chart bucket label */
+    const monthKey = format(monthDate, 'yyyy-MM');
               const value = monthlyTotals.get(monthKey) || 0;
               const hasData = value !== 0;
 

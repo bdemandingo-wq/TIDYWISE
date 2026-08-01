@@ -51,6 +51,11 @@ function DashboardSkeleton() {
 }
 
 function getGreeting() {
+  // "Good morning" is about the VIEWER's time of day, not the business's. A
+  // person opening this at 9am in Manila should be greeted accordingly even
+  // if the org is in New York — this is one of the few places where the
+  // device clock is the correct source.
+  /* eslint-disable-next-line local/no-device-local-dates -- greeting reflects the viewer's local time of day, deliberately */
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';

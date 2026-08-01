@@ -60,6 +60,7 @@ import { tierProgressPercent, type TierDef } from "@/lib/loyaltyTier";
 
 import { usePlatform } from "@/hooks/usePlatform";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { orgAddDays } from '@/lib/orgDateRange';
 
 interface Booking {
   id: string;
@@ -639,9 +640,9 @@ export default function PortalDashboardPage() {
   const getDateLabel = (dateStr: string) => {
     const bookingDay = getDateInTimezone(dateStr, orgTimezone);
     const todayStr = getDateInTimezone(new Date(), orgTimezone);
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = getDateInTimezone(tomorrow, orgTimezone);
+    // now + 24h read in the org's zone is usually tomorrow and is not on a
+    // DST day. orgAddDays steps the org CALENDAR, which is what "Tomorrow" means.
+    const tomorrowStr = getDateInTimezone(orgAddDays(new Date(), 1, orgTimezone), orgTimezone);
     if (bookingDay === todayStr) return "Today";
     if (bookingDay === tomorrowStr) return "Tomorrow";
     return formatInTimezone(dateStr, orgTimezone, { weekday: "short", month: "short", day: "numeric" });
