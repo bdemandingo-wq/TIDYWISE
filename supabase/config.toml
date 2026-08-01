@@ -81,8 +81,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.quote-stale-reengage]
     verify_jwt = false
-  [functions.recurring-booking-lapse-alert]
-    verify_jwt = false
   [functions.seasonal-promo-sender]
     verify_jwt = false
   [functions.process-recurring-offers]
