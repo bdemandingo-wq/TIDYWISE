@@ -1,6 +1,9 @@
 # Lovable prompt — let a cleaner drop a job they picked up
 
-**Status:** ready to paste, queued until credits.
+**Status:** ⛔ CANCELLED 2026-07-31 — do not run. The feature was dropped.
+The one part worth keeping was extracted to
+`2026-07-31-orphaned-pay-shares.sql`, which stands on its own: a stale
+pay_share is live money regardless of whether cleaners can ever release a job.
 **Why it costs a credit:** there is no frontend-only version. Both staff `UPDATE`
 policies on `bookings` carry a `WITH CHECK` requiring the resulting row's
 `staff_id` to be the caller's own staff record, so `staff_id → NULL` is rejected
