@@ -1,10 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SEOHead } from '@/components/SEOHead';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Clock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Clock, Download, Loader2 } from 'lucide-react';
 import { fmt } from '@/lib/activeCurrency';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
+import { saveBlob } from '@/lib/fileActions';
+import { buildPlatformRevenueCsv, type BillingEventRow } from '@/lib/platformRevenueExport';
 import {
   useBillingRevenue,
   useBackfillFreshness,
@@ -388,6 +393,58 @@ function PlanPayersPanel({ planRows }: { planRows: RevenueRow[] }) {
 export default function PlatformRevenuePage() {
   const { data: rows, isLoading, error } = useBillingRevenue();
   const { data: freshness } = useBackfillFreshness();
+  const { data: payers } = useBillingPlanPayers();
+  const [exporting, setExporting] = useState(false);
+
+  /*
+    Exit-readiness: one file someone can be handed without access to Lovable,
+    Supabase or this repo.
+
+    billing_events is fetched HERE rather than by a hook, because the page never
+    needs it — it is several orders larger than the two views and would be dead
+    weight on every page load for a button that is pressed rarely.
+  */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data: events, error: eventsError } = await supabase
+        .from('billing_events')
+        .select(
+          'occurred_at, organization_name, customer_email, event_type, revenue_stream, ' +
+          'revenue_stream_corrected, correction_confidence, correction_basis, counts_as_cash, ' +
+          'is_proration, currency, amount_cents, fee_cents, net_cents, description, ' +
+          'stripe_charge_id, stripe_invoice_id, stripe_subscription_id, stripe_customer_id',
+        )
+        // Ordered by a unique tiebreaker as well as the date — CLAUDE.md rule 3.
+        .order('occurred_at', { ascending: true })
+        .order('id', { ascending: true });
+
+      // Not swallowed into an empty section: a file that silently omits the
+      // evidence is worse than one that fails to download (CLAUDE.md rule 5).
+      if (eventsError) throw eventsError;
+
+      const csv = buildPlatformRevenueCsv({
+        revenue: rows ?? [],
+        payers: payers ?? [],
+        // PostgREST types a string select() as GenericStringError[]; the shape
+        // is asserted once here rather than per field inside the builder.
+        events: (events ?? []) as unknown as BillingEventRow[],
+        generatedAt: new Date(),
+      });
+      const stamp = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(new Date());
+      await saveBlob(
+        new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+        `tidywise-platform-revenue-${stamp}.csv`,
+      );
+    } catch (e) {
+      console.error('[PlatformRevenue] export failed', e);
+      toast.error(e instanceof Error ? e.message : 'Could not build the export.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const saas = useMemo(() => (rows ?? []).filter((r) => SAAS_STREAMS.includes(r.stream)), [rows]);
   const cleaning = useMemo(() => (rows ?? []).filter((r) => CLEANING_STREAMS.includes(r.stream)), [rows]);
