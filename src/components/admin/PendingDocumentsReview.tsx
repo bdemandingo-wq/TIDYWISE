@@ -89,8 +89,10 @@ export function PendingDocumentsReview() {
             : `Your ${docLabel} was rejected.${note ? ` Note: ${note}` : ' Please re-upload.'}`,
         });
         if (notifErr1) console.error('[cleaner-notify] insert failed:', notifErr1);
-        sendPushBestEffort({
-          organizationId: organizationId,
+        // A push with no organisation cannot be routed. Skipping here is
+        // visible; passing '' would be a silent no-op inside the helper.
+        if (organizationId) sendPushBestEffort({
+          organizationId,
           staffId: doc.staff_id,
           title: status === 'approved' ? 'Document approved' : 'Document rejected',
           body: status === 'approved' ? 'Your document was approved.' : 'Your document was rejected. Please re-upload.',

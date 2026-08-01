@@ -227,6 +227,10 @@ export function QuotesTabContent() {
   };
 
   const sendQuoteReminderSms = async (quote: Quote) => {
+    // A quote raised against a LEAD has no customer to remind. The button is
+    // already disabled for those (see disabled={... || !quote.customer_id}) —
+    // this states the same guarantee where the query can see it.
+    if (!quote.customer_id) return;
     // Get customer phone and organization_id from the full customer object
     const { data: customer } = await supabase
       .from('customers')

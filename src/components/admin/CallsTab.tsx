@@ -25,18 +25,20 @@ interface OpenPhoneCall {
   id: string;
   organization_id: string;
   openphone_call_id: string;
+  // Nullable in openphone_calls. The interface claimed otherwise, which is
+  // what made assigning a query row to it fail.
   direction: string;
   status: string;
-  duration: number;
+  duration: number | null;
   caller_phone: string | null;
   caller_name: string | null;
   phone_number_id: string | null;
   started_at: string | null;
   ended_at: string | null;
-  has_recording: boolean;
-  has_transcript: boolean;
-  has_summary: boolean;
-  has_voicemail: boolean;
+  has_recording: boolean | null;
+  has_transcript: boolean | null;
+  has_summary: boolean | null;
+  has_voicemail: boolean | null;
   ai_summary: string | null;
   transcript: any;
   recording_url: string | null;
@@ -53,7 +55,8 @@ interface CallsTabProps {
   organizationId: string;
 }
 
-const formatDuration = (seconds: number): string => {
+const formatDuration = (seconds: number | null): string => {
+  // `!seconds` already covered null before the type said so.
   if (!seconds || seconds <= 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;

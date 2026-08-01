@@ -26,7 +26,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, formatInOrgTz } from '@/lib/orgDateRange';
 
 /** Wraps supabase.functions.invoke and shows the credit-limit modal when a 402 comes back. */
-async function invokeAi(fn: string, body: unknown) {
+async function invokeAi(fn: string, body: Record<string, unknown>) {
   const result = await supabase.functions.invoke(fn, { body });
   if (result.error) {
     const handled = await handlePossibleAiCreditError(result.error);

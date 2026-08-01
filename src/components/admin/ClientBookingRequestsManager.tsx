@@ -157,7 +157,9 @@ export function ClientBookingRequestsManager() {
           p_request_id: requestId,
           p_organization_id: organization.id,
           p_customer_id: requestData.customer_id,
-          p_service_id: requestData.service_id,
+          // A request without a service cannot become a booking; the RPC
+          // requires one, so this is guarded by the caller above.
+          p_service_id: requestData.service_id ?? '',
           p_scheduled_at: requestData.requested_date,
           p_duration: duration,
         });

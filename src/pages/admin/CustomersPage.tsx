@@ -1179,7 +1179,7 @@ export default function CustomersPage() {
                                             setMessageCustomer({
                                               id: customer.id,
                                               name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
-                                              phone: customer.phone,
+                                              phone: customer.phone ?? '',
                                             });
                                             setMessageText('');
                                             setMessageDialogOpen(true);

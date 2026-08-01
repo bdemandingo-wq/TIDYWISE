@@ -427,7 +427,8 @@ export function useUpdateBooking() {
           message: `Booking #${booking.booking_number}${when ? ` on ${when}` : ''} was assigned to you.`,
         });
         if (notifErr3) console.error('[cleaner-notify] insert failed:', notifErr3);
-        sendPushBestEffort({
+        // Same as PendingDocumentsReview: unroutable without an organisation.
+        if (booking.organization_id) sendPushBestEffort({
           organizationId: booking.organization_id,
           staffId: data.staff_id,
           title: 'New job assigned',

@@ -38,7 +38,7 @@ interface HelpVideo {
   title: string;
   description: string | null;
   loom_url: string;
-  sort_order: number;
+  sort_order: number | null;
   created_at: string;
   organization_id: string | null;
 }

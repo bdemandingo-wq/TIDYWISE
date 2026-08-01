@@ -97,7 +97,7 @@ export function OpenPhoneDebugTools() {
       });
 
       addResult({
-        success: settings.sms_enabled && hasApiKey && Boolean(phoneNumberId),
+        success: Boolean(settings.sms_enabled) && hasApiKey && Boolean(phoneNumberId),
         message: 'Configuration check complete',
         details: {
           smsEnabled: settings.sms_enabled,

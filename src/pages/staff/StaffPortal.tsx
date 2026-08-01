@@ -723,6 +723,10 @@ export default function StaffPortal() {
           // Percentage and flat do not vary with hours by design, so capping
           // them by hours would be wrong. An absent wage type counts as
           // hourly, matching getActualHours.
+          // Payroll settings are per-organisation; a booking with none cannot
+          // resolve them. Falls through to the defaults below, which is what
+          // .eq(col, null) produced anyway — now it says so.
+          const bookingOrgId = bookingData.organization_id ?? '';
           const wageType = (bookingData.cleaner_wage_type || 'hourly').toLowerCase();
           const staff = wageRow as { hourly_rate: number | null; percentage_rate: number | null; base_wage: number | null } | null;
           const hourlyRate = Number(
@@ -735,7 +739,7 @@ export default function StaffPortal() {
             const { data: payrollSettings } = await supabase
               .from('payroll_settings')
               .select('hours_overage_cap_ratio, hours_absolute_ceiling')
-              .eq('organization_id', bookingData.organization_id)
+              .eq('organization_id', bookingOrgId)
               .maybeSingle();
             const capRatio = Number((payrollSettings as any)?.hours_overage_cap_ratio ?? 1.25);
             const ceiling = Number((payrollSettings as any)?.hours_absolute_ceiling ?? 12);

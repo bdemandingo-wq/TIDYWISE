@@ -32,6 +32,9 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
   }
 
   const getScoreColor = (score: number | null) => {
+    // No score yet reads as the lowest band, which is what it rendered before
+    // the parameter was widened — null >= 70 and null >= 40 are both false.
+    if (score == null) return 'text-muted-foreground bg-muted';
     if (score >= 70) return 'text-success bg-success/10';
     if (score >= 40) return 'text-warning bg-warning/10';
     return 'text-destructive bg-destructive/10';

@@ -147,7 +147,7 @@ export default function PortalRequestPage() {
       const { data } = await supabase
         .from("business_settings")
         .select("timezone")
-        .eq("organization_id", user.organization_id)
+        .eq("organization_id", orgId)
         .maybeSingle();
 
       if (data?.timezone) setOrgTimezone(data.timezone);

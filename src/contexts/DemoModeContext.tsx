@@ -3,7 +3,10 @@ import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 
 interface DemoModeContextType {
   isDemoMode: boolean;
-  toggleDemoMode: () => Promise<boolean>;
+  // useOrganizationSettings returns Promise<boolean | undefined> — undefined
+  // when there is no settings row yet. The context declared Promise<boolean>,
+  // which was simply untrue.
+  toggleDemoMode: () => Promise<boolean | undefined>;
   loading: boolean;
 }
 

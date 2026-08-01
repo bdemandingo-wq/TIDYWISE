@@ -264,6 +264,9 @@ export default function ChecklistsPage() {
   const updateTemplate = useMutation({
     mutationFn: async (data: TemplateFormData) => {
       if (!data.id) throw new Error('Template ID required');
+      // Captured: the guard above is the real guarantee, but it does not narrow
+      // inside the .map() callback that builds the item rows below.
+      const templateId = data.id;
 
       // Update template
       const { error } = await supabase
@@ -291,7 +294,7 @@ export default function ChecklistsPage() {
           .from('checklist_items')
           .insert(
             data.items.map((item, index) => ({
-              template_id: data.id,
+              template_id: templateId,
               title: item.title,
               description: item.description || null,
               requires_photo: item.requires_photo,

@@ -295,7 +295,9 @@ export default function PaymentIntegrationPage() {
     setIsDisconnecting(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
-        body: { action: "disconnect", organization_id: organization.id },
+        // The disconnect button only renders for a connected org, but that is
+        // a UI guarantee TypeScript cannot see.
+        body: { action: "disconnect", organization_id: organization?.id },
       });
       if (error) throw error;
       setConnectionStatus({ connected: false });

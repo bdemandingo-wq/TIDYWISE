@@ -9,12 +9,14 @@ import { Search, FileDown, Loader2, Clock, CalendarDays, Activity, Timer, Globe 
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
+// Nullable in the database. The interface claimed otherwise, which is why
+// assigning a query result to it failed — the interface was the wrong half.
 interface SessionRow {
   id: string;
   session_start: string;
   session_end: string | null;
-  duration_seconds: number;
-  is_active: boolean;
+  duration_seconds: number | null;
+  is_active: boolean | null;
 }
 
 interface PageView {
@@ -43,7 +45,10 @@ interface SessionReport {
   pageSummary: PageSummary[];
 }
 
-function formatDuration(seconds: number): string {
+// duration_seconds is nullable; a session still in progress has none.
+function formatDuration(seconds: number | null): string {
+  // `!seconds` already covered null before the type said so — widening the
+  // parameter changes nothing at runtime, which is the point.
   if (!seconds || seconds <= 0) return '< 1m';
   if (seconds < 60) return `${seconds}s`;
   const hours = Math.floor(seconds / 3600);
