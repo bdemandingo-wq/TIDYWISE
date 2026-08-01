@@ -54,12 +54,13 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useBookings, useUpdateBooking, useDeleteBooking, BookingWithDetails } from '@/hooks/useBookings';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays, isSameDay, setHours, setMinutes, parseISO } from 'date-fns';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, startOfMonth, endOfMonth, addDays } from 'date-fns';
 import { AddBookingDialog } from './AddBookingDialog';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { calendarDayKey, orgDateKey, orgSetTimeOnDay, formatInOrgTz } from '@/lib/orgDateRange';
 import { getDateInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -390,6 +391,16 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     // Compute the full visible grid date range (including overflow days from prev/next month)
     let startStr: string, endStr: string;
 
+    /*
+      GRID GEOMETRY. currentDate is which week/month is on screen, and these
+      derive the cells around it. A month spans the same days and starts on the
+      same weekday in every timezone, so device-local arithmetic yields the
+      right calendar — and the keys produced here are compared against
+      getDateInTimezone(scheduled_at, orgTimezone) just below, which is what
+      makes the two sides agree. What must NOT come from the device is which
+      cell is today; that is isOrgTodayCell, and it does not.
+    */
+    /* eslint-disable local/no-device-local-dates -- grid geometry, see above */
     if (viewMode === 'week') {
       startStr = format(startOfWeek(currentDate), 'yyyy-MM-dd');
       endStr = format(endOfWeek(currentDate), 'yyyy-MM-dd');
@@ -403,6 +414,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       startStr = format(gridStart, 'yyyy-MM-dd');
       endStr = format(gridEnd, 'yyyy-MM-dd');
     }
+    /* eslint-enable local/no-device-local-dates */
 
     // Use timezone-aware comparison (same as getBookingsForDate) to avoid mismatches
     return allBookings.filter(b => {
@@ -416,6 +428,8 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   }, [allBookings, currentDate, viewMode, statusFilter, staffFilter, orgTimezone, pendingDeleteIds]);
 
   const { year, month, days, monthWeekRows } = useMemo(() => {
+    /* eslint-disable local/no-device-local-dates -- grid geometry: which month
+       is displayed, and the cells composing it. Not instants. */
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
@@ -452,10 +466,15 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       days.push(new Date(year, month + 1, nextDay++));
     }
 
+    /* eslint-enable local/no-device-local-dates */
     return { year, month, days, monthWeekRows: totalCells / 7 };
   }, [currentDate, viewMode]);
 
   const getBookingsForDate = (date: Date): BookingWithDetails[] => {
+    // The cell's own calendar day, matched against each booking's day resolved
+    // in the ORG's zone on the next line. Grid key vs org key — the pairing is
+    // the point; converting the grid token too would double-shift it.
+    // eslint-disable-next-line local/no-device-local-dates
     const dateStr = format(date, 'yyyy-MM-dd');
     return bookings.filter(b => getDateInTimezone(b.scheduled_at, orgTimezone) === dateStr);
   };
@@ -475,10 +494,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     setDayBookingsPopup({ date: today, bookings: getBookingsForDate(today) });
   };
 
-  const isToday = (date: Date) => {
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
+  // `date` is a grid token, so its own calendar day is read as-is; what had to
+  // move is the comparison point. This was the device's today, so an admin
+  // outside the org's timezone had the wrong cell ringed for hours each day.
+  const isOrgTodayCell = (date: Date) => calendarDayKey(date) === orgDateKey(new Date(), orgTimezone);
 
   const handleDragStart = (event: DragStartEvent) => {
     const booking = allBookings.find(b => b.id === event.active.id);
@@ -551,19 +570,38 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
     if (!targetId.startsWith('day-')) return;
 
-    // Parse the date string properly to avoid timezone offset issues
-    const targetDate = parseISO(targetId.replace('day-', ''));
+    // The drop target id is the grid cell's key, and those cells are matched
+    // against getDateInTimezone(scheduled_at, orgTimezone) — so the cell means
+    // an ORG calendar day. Read it as three numbers, not as an instant.
+    const [ty, tm, td] = targetId.replace('day-', '').split('-').map(Number);
 
     if (!booking) return;
 
     const currentScheduled = new Date(booking.scheduled_at);
     const previousScheduledISO = booking.scheduled_at; // Store for undo
-    const newScheduled = setMinutes(
-      setHours(targetDate, currentScheduled.getHours()),
-      currentScheduled.getMinutes()
-    );
 
-    if (isSameDay(currentScheduled, newScheduled)) return;
+    /*
+      This used to be setHours(targetDate, currentScheduled.getHours()) — the
+      booking's hour as the ADMIN'S DEVICE renders it, written onto a
+      device-local midnight. Simulated across four device zones it put 8 of 16
+      drags in the wrong place:
+        - an hour off across either zone's DST transition, and
+        - a whole day early for evening jobs, because 22:00 in New York is the
+          next calendar day in Manila or London. The cleaner gets dispatched on
+          the wrong date.
+      It only ever worked when the admin's device happened to match the org.
+
+      What must be preserved is the booking's ORG-local time of day, placed on
+      the ORG day that was dropped on.
+    */
+    const [orgH, orgMin] = formatInOrgTz(currentScheduled, orgTimezone, {
+      hour: '2-digit', minute: '2-digit', hour12: false, hourCycle: 'h23',
+    }).split(':').map(Number);
+    const newScheduled = orgSetTimeOnDay(ty, tm, td, orgH, orgMin, orgTimezone);
+
+    // Same org day => nothing moved. Comparing device days could call a real
+    // move a no-op for exactly the evening bookings described above.
+    if (orgDateKey(currentScheduled, orgTimezone) === orgDateKey(newScheduled, orgTimezone)) return;
 
     const customerName = formatCustomerName(booking.customer);
 
@@ -575,7 +613,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
       
       // Show success toast with undo action
       toast.success(
-        `${customerName} moved to ${format(newScheduled, 'MMM d')}`,
+        `${customerName} moved to ${formatInOrgTz(newScheduled, orgTimezone, { month: 'short', day: 'numeric' })}`,
         {
           duration: 8000,
           action: {
@@ -586,7 +624,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                   id: bookingId,
                   scheduled_at: previousScheduledISO,
                 });
-                toast.success(`Booking restored to ${format(currentScheduled, 'MMM d, yyyy')}`);
+                toast.success(`Booking restored to ${formatInOrgTz(currentScheduled, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}`);
               } catch (undoError) {
                 toast.error('Failed to undo');
                 console.error(undoError);
@@ -695,8 +733,13 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
           serviceName: booking.service?.name || 'Cleaning Service',
           scheduledAt: booking.scheduled_at,
-          formattedDate: scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          formattedTime: scheduledDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          // These two strings go into an SMS the CUSTOMER receives. Rendered
+          // without a timeZone they were the admin's device clock, so an admin
+          // travelling could text a customer the wrong appointment time — the
+          // booking itself unchanged, only the message wrong. The org's clock
+          // is the one the customer's appointment is actually in.
+          formattedDate: formatInOrgTz(scheduledDate, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric' }),
+          formattedTime: formatInOrgTz(scheduledDate, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
           address: booking.address || '',
           totalAmount: booking.total_amount,
           organizationId: organization?.id,
@@ -728,7 +771,9 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
 
   const getHeaderTitle = () => {
     if (viewMode === 'week') {
+      /* eslint-disable-next-line local/no-device-local-dates -- header label for the displayed week; grid geometry */
       const weekStart = startOfWeek(currentDate);
+      /* eslint-disable-next-line local/no-device-local-dates -- ditto */
       const weekEnd = endOfWeek(currentDate);
       return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
     }
@@ -909,10 +954,14 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           ) : (
             days.map((date, index) => {
                const dayBookings = getBookingsForDate(date);
+               // Is this cell an overflow day from the neighbouring month?
+               // Cell vs displayed month — both grid tokens, no instant.
+               // eslint-disable-next-line local/no-device-local-dates
                const isOutsideMonth = date.getMonth() !== month;
                return (
                 <DroppableDay
                   key={index}
+                  /* eslint-disable-next-line local/no-device-local-dates -- the cell's key; parsed back as an ORG day by the drop handler */
                   id={`day-${format(date, 'yyyy-MM-dd')}`}
                   disabled={isOutsideMonth}
                   className={cn(
@@ -920,7 +969,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                     viewMode === 'week'
                       ? (isMobile ? 'min-h-[100px]' : 'min-h-[200px]')
                       : '',
-                    isToday(date) && 'today',
+                    isOrgTodayCell(date) && 'today',
                     isOutsideMonth && 'bg-muted/20 opacity-40'
                   )}
                 >
@@ -928,10 +977,11 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                       <span
                         className={cn(
                           'text-[10px] md:text-sm font-medium mb-0.5 md:mb-1',
-                          isToday(date) && 'text-primary',
+                          isOrgTodayCell(date) && 'text-primary',
                           isOutsideMonth && 'text-muted-foreground'
                         )}
                       >
+                        {/* eslint-disable-next-line local/no-device-local-dates -- the number printed in the cell IS the cell's day */}
                         {viewMode === 'week' ? (isMobile ? format(date, 'd') : format(date, 'MMM d')) : date.getDate()}
                       </span>
                         <div

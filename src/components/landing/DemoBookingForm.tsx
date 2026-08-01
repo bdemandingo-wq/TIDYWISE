@@ -9,6 +9,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, isBefore, startOfDay, addDays } from "date-fns";
 import { DEFAULT_AVAILABILITY, parseAvailability, slotsForDay, type WeeklyAvailability } from "@/lib/demoAvailability";
+import { orgTimeToUTCISO } from "@/lib/timezoneUtils";
+import { calendarDayKey, orgDateKey } from "@/lib/orgDateRange";
+
+/**
+ * The demo is run by TIDYWISE from New York, and every slot in
+ * demo_availability is a New York wall-clock time. So "today" here means New
+ * York's today, not the visitor's — a visitor in Manila must not have a day
+ * greyed out that the business would still take, and a visitor in Hawaii must
+ * not be offered one it has finished.
+ */
+const DEMO_TZ = "America/New_York";
+
+/** New York's current calendar day, as yyyy-MM-dd. */
+const demoToday = () => orgDateKey(new Date(), DEMO_TZ);
 
 const teamSizeOptions = ["Just me", "2-5 cleaners", "6-10 cleaners", "10+ cleaners"];
 const challengeOptions = [
@@ -39,42 +53,29 @@ function getLocalTimezone(): string {
 
 function convertESTToLocal(date: Date, estTime: string, localTz: string): string {
   const [h, m] = estTime.split(":").map(Number);
-  // Create a date in EST
-  const estDate = new Date(date);
-  estDate.setHours(h, m, 0, 0);
-  
-  // Format using EST then local
-  const formatter = new Intl.DateTimeFormat("en-US", {
+
+  /*
+    This used to derive the EST/EDT offset by hand, via an isEDT() helper that
+    computed DST as starting on the THIRD Sunday of March. The US rule is the
+    second. So for one week every March — 8–14 Mar 2026, 14–20 Mar 2027 — it
+    picked -5 instead of -4 and showed every visitor a demo time one hour wrong.
+
+    orgTimeToUTCISO resolves the wall time against the real IANA zone, so the
+    transition is the OS's problem and not ours. Verified round-tripping at
+    every 2026-28 boundary including 8 Mar 2026, the date the old code missed.
+  */
+  // `date` is a calendar-grid token from the picker below: its y/m/d ARE the day
+  // the visitor clicked, so resolving them through a timezone would shift the
+  // day they chose. Only the TIME is converted.
+  // eslint-disable-next-line local/no-device-local-dates
+  const utcISO = orgTimeToUTCISO(date.getFullYear(), date.getMonth(), date.getDate(), h, m, DEMO_TZ);
+
+  return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
     timeZone: localTz,
-  });
-  
-  // Approximate: create UTC date accounting for EST offset (-5 or -4 for EDT)
-  // Check if EST or EDT
-  const jan = new Date(date.getFullYear(), 0, 1);
-  const jul = new Date(date.getFullYear(), 6, 1);
-  const isDST = date.getTimezoneOffset() < Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-  
-  // EST is UTC-5, EDT is UTC-4
-  // We need to figure out if the target date is in EDT
-  const estOffset = isEDT(date) ? -4 : -5;
-  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), h - estOffset, m));
-  
-  return formatter.format(utcDate);
-}
-
-function isEDT(date: Date): boolean {
-  // Simple EDT check: March 2nd Sunday to Nov 1st Sunday
-  const year = date.getFullYear();
-  const marchStart = new Date(year, 2, 1);
-  const marchDay = marchStart.getDay();
-  const dstStart = new Date(year, 2, 8 + (7 - marchDay) % 7 + 7); // 2nd Sunday
-  const novStart = new Date(year, 10, 1);
-  const novDay = novStart.getDay();
-  const dstEnd = new Date(year, 10, 1 + (7 - novDay) % 7); // 1st Sunday
-  return date >= dstStart && date < dstEnd;
+  }).format(new Date(utcISO));
 }
 
 interface FormData {
@@ -163,20 +164,39 @@ export function DemoBookingForm() {
     fetchSlots();
   }, []);
 
-  // Calendar days
+  /*
+    Calendar GRID GEOMETRY, not instants. "March 2026" spans the same 31 days
+    and starts on the same weekday in every timezone, so building the grid from
+    device-local dates produces the correct calendar. What must not come from
+    the device is which cell is TODAY and which are PAST — those are New York's
+    call and are handled separately below.
+
+    The one soft edge: currentMonth starts at new Date(), so a visitor near a
+    month boundary may open on their month rather than New York's. The grid is
+    navigable and every cell is still judged against New York, so at worst they
+    start one month over.
+  */
   const calendarDays = useMemo(() => {
+    /* eslint-disable local/no-device-local-dates -- grid geometry, see above */
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const calStart = startOfWeek(monthStart);
     const calEnd = endOfWeek(monthEnd);
     return eachDayOfInterval({ start: calStart, end: calEnd });
+    /* eslint-enable local/no-device-local-dates */
   }, [currentMonth]);
 
   const isDayAvailable = (date: Date): boolean => {
+    // getDay() on a grid token is correct: the weekday of a calendar date is
+    // the same in every timezone. 8 Mar 2026 is a Sunday in Manila and in NY.
+    // eslint-disable-next-line local/no-device-local-dates
     const dow = date.getDay();
     if (!availability[dow]) return false;
-    if (isBefore(startOfDay(date), startOfDay(new Date()))) return false;
-    const dateStr = format(date, "yyyy-MM-dd");
+    // Was isBefore(startOfDay(date), startOfDay(new Date())) — the VISITOR's
+    // midnight. A visitor ahead of New York saw today already gone while the
+    // business would still take it. Compared as calendar days against NY's.
+    if (calendarDayKey(date) < demoToday()) return false;
+    const dateStr = calendarDayKey(date);
     if (blockedDates.includes(dateStr)) return false;
     // Check if all slots are booked
     const slots = slotsForDay(availability, dow);
@@ -186,7 +206,7 @@ export function DemoBookingForm() {
   };
 
   const isSlotBooked = (date: Date, time: string): boolean => {
-    const dateStr = format(date, "yyyy-MM-dd");
+    const dateStr = calendarDayKey(date);
     return bookedSlots.some(s => s.date === dateStr && s.time === time);
   };
 
@@ -231,7 +251,8 @@ export function DemoBookingForm() {
 
     setSubmitting(true);
     try {
-      const bookedDate = format(selectedDate, "yyyy-MM-dd");
+      // The calendar day the visitor clicked, stored alongside a New York time.
+      const bookedDate = calendarDayKey(selectedDate);
       const bookedTime = selectedTime + ":00"; // HH:MM:SS
 
       // Save to demo_bookings
@@ -474,6 +495,8 @@ export function DemoBookingForm() {
   }
 
   // Schedule step
+  // Weekday of the selected calendar date — timezone-independent.
+  // eslint-disable-next-line local/no-device-local-dates
   const timeSlots = selectedDate ? slotsForDay(availability, selectedDate.getDay()) : [];
 
   return (
@@ -502,7 +525,10 @@ export function DemoBookingForm() {
               type="button"
               onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
               className="p-2 hover:bg-muted rounded-lg transition-colors"
-              disabled={isBefore(endOfMonth(subMonths(currentMonth, 1)), startOfDay(new Date()))}
+              // Whether the previous month is entirely past is a New York
+              // question, not the visitor's — same reason as isDayAvailable.
+              /* eslint-disable-next-line local/no-device-local-dates -- endOfMonth is grid geometry; the comparison is against New York */
+              disabled={calendarDayKey(endOfMonth(subMonths(currentMonth, 1))) < demoToday()}
             >
               <ChevronLeft className="h-5 w-5 text-foreground" />
             </button>
@@ -530,13 +556,21 @@ export function DemoBookingForm() {
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day, i) => {
+              // Both compare two grid tokens to each other — "is this cell in the
+              // month being shown", "is this cell the one clicked". Neither
+              // involves now, so neither can be wrong by timezone.
+              /* eslint-disable local/no-device-local-dates */
               const inMonth = isSameMonth(day, currentMonth);
               const available = inMonth && isDayAvailable(day);
               const selected = selectedDate && isSameDay(day, selectedDate);
-              const today = isToday(day);
-              const dateStr = format(day, "yyyy-MM-dd");
+              /* eslint-enable local/no-device-local-dates */
+              // Both of these were the visitor's "today". The demo runs on New
+              // York's calendar, so a visitor 12 hours ahead had the wrong cell
+              // ringed as today and the wrong cells shaded as past.
+              const dateStr = calendarDayKey(day);
+              const today = dateStr === demoToday();
               const isBlocked = blockedDates.includes(dateStr);
-              const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
+              const isPast = dateStr < demoToday();
 
               return (
                 <button
