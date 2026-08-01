@@ -80,6 +80,47 @@ serve(async (req: Request): Promise<Response> => {
       const companyName = (bs as { company_name?: string } | null)?.company_name ??
         "Our team";
 
+      // ── template lookup ──────────────────────────────────────────────
+      // One join, once per org — hoisted above the per-quote loop.
+      // A missing definition, a missing step, or a query error ALL leave
+      // templateBody null, which resolveTemplate turns into the seeded
+      // default. There is deliberately no path here that skips a customer:
+      // a lookup failure degrades to stock wording, never to silence.
+      let templateBody: string | null = null;
+      {
+        const { data: def, error: defErr } = await supabase
+          .from("automation_definitions")
+          .select("id, enabled")
+          .eq("organization_id", orgId)
+          .eq("automation_key", "quote_stale_reengage")
+          .maybeSingle();
+
+        if (defErr) {
+          console.warn(
+            `[quote-stale-reengage] template lookup failed org=${orgId}, using default:`,
+            defErr,
+          );
+        } else if (def && def.enabled !== false) {
+          const { data: step, error: stepErr } = await supabase
+            .from("automation_steps")
+            .select("sms_body")
+            .eq("automation_id", def.id)
+            .in("channel", ["sms", "both"])
+            .eq("recipient_client", true)
+            .order("position", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (stepErr) {
+            console.warn(
+              `[quote-stale-reengage] step lookup failed org=${orgId}, using default:`,
+              stepErr,
+            );
+          } else {
+            templateBody = step?.sms_body ?? null;
+          }
+        }
+      }
+
       for (const q of staleQuotes) {
         const quote = q as unknown as {
           id: string;
