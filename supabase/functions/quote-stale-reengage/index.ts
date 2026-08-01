@@ -119,7 +119,42 @@ serve(async (req: Request): Promise<Response> => {
         const customerName = quote.customer.first_name ?? "there";
         const serviceName = quote.service?.name ?? "cleaning service";
         const quoteLink = `${QUOTE_LINK_BASE}/${quote.id}`;
-        const message = `Hi ${customerName} — just checking in on your ${serviceName} quote from ${companyName}. Still interested? View it here: ${quoteLink}. Reply if you have questions!`;
+
+        // ── opt-out check — a quote nudge is classed marketing, so someone
+        // who has opted out must not receive it however the copy is worded.
+        // Argument order is (supabase, organizationId, customerId) — org FIRST.
+        // Both are strings, so reversing them type-checks and then fails CLOSED,
+        // muting the whole automation. If a run reports zero sends, check here.
+        if (quote.customer_id) {
+          if (await isOptedOut(supabase, orgId, quote.customer_id)) {
+            summary.skipped += 1;
+            continue;
+          }
+        } else if (await isPhoneOptedOut(supabase, orgId, quote.customer.phone)) {
+          summary.skipped += 1;
+          continue;
+        }
+
+        // ── resolve ──────────────────────────────────────────────────────
+        const resolved = resolveTemplate("quote_stale_reengage", templateBody, {
+          customer_name: customerName,
+          service_name: serviceName,
+          company_name: companyName,
+          quote_link: quoteLink,
+        });
+        if (resolved.warning) {
+          console.warn(
+            `[quote-stale-reengage] org=${orgId} quote=${quote.id}: ${resolved.warning}`,
+          );
+        }
+
+        // ── STOP line — appended by code, never part of the editable body ──
+        // withStopSentence is idempotent, so an owner who types their own STOP
+        // sentence does not get two.
+        const message =
+          AUTOMATION_DEFAULTS.quote_stale_reengage.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         try {
           const res = await fetch(
