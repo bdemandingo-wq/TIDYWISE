@@ -53,7 +53,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
               <AdminNotificationBell />
               <Button variant="ghost" size="icon" onClick={toggleTestMode}
                 title={isTestMode ? 'Disable Demo Mode' : 'Enable Demo Mode'}
-                className={cn("h-9 w-9", isTestMode ? 'text-accent' : '')}>
+                className={cn("h-9 w-9", isTestMode ? 'text-warning' : '')}>
                 {isTestMode ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </Button>
               <ThemeToggle />
@@ -68,7 +68,7 @@ export function AdminHeader({ title, actions }: AdminHeaderProps) {
               <AdminNotificationBell />
               <Button variant="ghost" size="icon" onClick={toggleTestMode}
                 title={isTestMode ? 'Disable Demo Mode' : 'Enable Demo Mode'}
-                className={cn("h-10 w-10", isTestMode ? 'text-accent' : '')}>
+                className={cn("h-10 w-10", isTestMode ? 'text-warning' : '')}>
                 {isTestMode ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </Button>
               <ThemeToggle />

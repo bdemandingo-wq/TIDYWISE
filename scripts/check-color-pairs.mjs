@@ -41,11 +41,118 @@
  * Run: node scripts/check-color-pairs.mjs
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const FILES = ['src/index.css'];
+
+/*
+  ─── Part 2: does the pairing actually WORK ────────────────────────────────
+  Part 1 proves a pairing travelled. That is not the same as it being legible,
+  and the bug that started all of this proves the gap: --warning was bright gold
+  on white at 1.65:1. The pairing existed. It was declared in the same block as
+  its foreground. Part 1 would have passed it every time.
+
+  So the ratios are computed here, from the HSL already in the file.
+
+  THRESHOLDS
+    4.5:1  a foreground on its own fill, and any token used as text, measured
+           against --background and --card (which is how the aliases get used)
+    3:1    tokens that are only ever a border or an icon
+
+  ROLES ARE MEASURED, NOT DECLARED. Which tier a token lands in comes from
+  grepping the TSX for `text-x` / `bg-x` / `border-x`, because a token's role is
+  what the components do with it, not what its name suggests. --accent sounds
+  like a text colour and resolves to a surface inside .portal-v2.
+*/
+
+/** sRGB relative luminance, per WCAG 2.x. Input is an [h, s%, l%] triple. */
+function luminance([h, s, l]) {
+  const S = s / 100;
+  const L = l / 100;
+  const c = (1 - Math.abs(2 * L - 1)) * S;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = L - c / 2;
+  const [r, g, b] = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][
+    Math.floor(h / 60) % 6
+  ].map((v) => v + m);
+  const lin = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function contrast(a, b) {
+  const [x, y] = [luminance(a), luminance(b)];
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/**
+ * The four ways this app renders. A token's value depends on which of these
+ * you are in — .portal-v2 is applied by 71 pages, so "the app's colour" and
+ * ":root's colour" are different questions.
+ */
+/*
+  KNOWN, MEASURED, NOT YET FIXED.
+
+  Adding the ratio maths surfaced nine pre-existing failures in :root/.dark —
+  the base theme, which governs everything Radix portals to document.body
+  (dialogs, toasts, dropdowns, popovers) since those render outside .portal-v2.
+
+  They are listed rather than fixed because each needs a decision, not a nudge:
+  dark --destructive fails its white foreground AND text-on-card in OPPOSITE
+  directions, so it cannot be solved by moving lightness — the foreground has to
+  flip. Dark --primary is the same, and flipping it turns every primary button's
+  label from white to near-black across 355 call sites. That is a visible
+  repaint, and it is the owner's call, not a side effect of adding a checker.
+
+  This list is not a mute button:
+    - anything NOT on it fails the build, so regressions still bite
+    - anything ON it that starts passing ALSO fails the build, so the list
+      cannot quietly rot after the underlying value is fixed
+    - every entry prints on every run
+*/
+const KNOWN = new Set([
+  'light|--accent-foreground on bg-accent',
+  'light|--destructive-foreground on bg-destructive',
+  'light|text-destructive on --background',
+  'light|text-destructive on --card',
+  'dark|--primary-foreground on bg-primary',
+  'dark|--destructive-foreground on bg-destructive',
+  'dark|text-destructive on --card',
+  'dark|text-info on --background',
+  'dark|text-info on --card',
+]);
+
+/** Tokens that ARE surfaces — they are what text sits on, so they are not text. */
+const SURFACES = new Set(['background', 'card', 'popover']);
+
+const SCOPES = {
+  light: [':root'],
+  dark: [':root', '.dark'],
+  'portal light': [':root', '.portal-v2'],
+  'portal dark': [':root', '.dark', '.portal-v2', '.dark .portal-v2'],
+};
+
+/** Every Tailwind class prefix that puts a token somewhere on screen. */
+function measureRoles() {
+  const seen = { text: new Set(), bg: new Set(), edge: new Set() };
+  const walk = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (e.name.endsWith('.tsx') || e.name.endsWith('.ts')) {
+        const src = readFileSync(p, 'utf8');
+        // (?![\w-]) so `text-muted` does not match inside `text-muted-foreground`
+        for (const m of src.matchAll(/\b(text|bg|border|fill|stroke|ring)-([a-z][a-z0-9-]*)(?![\w-])/g)) {
+          const bucket = m[1] === 'text' ? 'text' : m[1] === 'bg' ? 'bg' : 'edge';
+          seen[bucket].add(m[2]);
+        }
+      }
+    }
+  };
+  walk(join(ROOT, 'src'));
+  return seen;
+}
 
 /** Pairs whose foreground does not follow the `-foreground` suffix. */
 const EXTRA_PAIRS = {
@@ -115,6 +222,8 @@ function parseBlocks(css) {
 
 let failures = 0;
 let checked = 0;
+/** Pair vocabulary, hoisted so Part 2 can measure the same pairs Part 1 enforces. */
+const allPairs = new Map();
 
 for (const rel of FILES) {
   const path = join(ROOT, rel);
@@ -122,7 +231,8 @@ for (const rel of FILES) {
   const { blocks, optOuts } = parseBlocks(css);
 
   // Vocabulary: every --X that has a --X-foreground somewhere in this file.
-  const pairs = new Map(Object.entries(EXTRA_PAIRS));
+  const pairs = allPairs;
+  for (const [k, v] of Object.entries(EXTRA_PAIRS)) pairs.set(k, v);
   for (const m of css.matchAll(/--([a-z0-9-]+)-foreground\s*:/g)) {
     pairs.set(m[1], `${m[1]}-foreground`);
   }
@@ -188,8 +298,132 @@ for (const rel of FILES) {
   }
 }
 
-if (failures) {
-  console.error(`✖ ${failures} colour token${failures === 1 ? '' : 's'} overridden without its foreground.`);
+// ─── Part 2: the ratios ──────────────────────────────────────────────────────
+const css = readFileSync(join(ROOT, 'src/index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const roles = measureRoles();
+
+const scopeBlocks = [];
+{
+  const stack = [];
+  let buf = '';
+  for (let i = 0; i < css.length; i += 1) {
+    const ch = css[i];
+    if (ch === '{') { stack.push({ sel: buf.trim().replace(/\s+/g, ' '), s: i + 1 }); buf = ''; }
+    else if (ch === '}') {
+      const f = stack.pop();
+      if (f) {
+        /*
+          At-rule frames are dropped from the selector path. :root and .dark live
+          inside `@layer base`, so composing the raw path gave "@layer base :root",
+          which matched no scope — the light and dark scopes silently resolved to
+          nothing and every ratio in them went unchecked. The red-green run caught
+          it: restoring the original gold --warning did not fail.
+        */
+        const path = stack.filter((x) => !x.sel.startsWith('@')).map((x) => x.sel);
+        if (!f.sel.startsWith('@')) path.push(f.sel);
+        scopeBlocks.push({ sel: path.join(' '), text: css.slice(f.s, i) });
+      }
+      buf = '';
+    } else buf += ch;
+  }
+}
+const declsFor = (sel) => {
+  const out = {};
+  for (const b of scopeBlocks) {
+    if (b.sel !== sel) continue;
+    for (const m of b.text.replace(/\{[^{}]*\}/g, '').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) {
+      out[m[1]] = m[2].trim();
+    }
+  }
+  return out;
+};
+/** Resolve a token to an [h,s,l] triple in a given scope, following var() chains. */
+const value = (env, token, seen = new Set()) => {
+  const raw = env[token];
+  if (raw === undefined || seen.has(token)) return null;
+  seen.add(token);
+  const alias = raw.match(/^var\(\s*--([a-z0-9-]+)\s*\)$/);
+  if (alias) return value(env, alias[1], seen);
+  const hsl = raw.match(/^([\d.]+)\s+([\d.]+)%\s+([\d.]+)%$/);
+  return hsl ? [+hsl[1], +hsl[2], +hsl[3]] : null;
+};
+
+let low = 0;
+let ratios = 0;
+let iconTier = 0;
+let stale = 0;
+const knownSeen = [];
+const report = (scope, label, r, bar) => {
+  ratios += 1;
+  const key = `${scope}|${label}`;
+  if (r >= bar) {
+    if (KNOWN.has(key)) {
+      stale += 1;
+      console.error(`  ${scope.padEnd(13)} ${r.toFixed(2).padStart(5)}:1  now PASSES — remove from KNOWN: ${label}`);
+    }
+    return;
+  }
+  if (KNOWN.has(key)) { knownSeen.push(`  ${scope.padEnd(13)} ${r.toFixed(2).padStart(5)}:1  ${label}`); return; }
+  low += 1;
+  console.error(`  ${scope.padEnd(13)} ${r.toFixed(2).padStart(5)}:1  (needs ${bar})  ${label}`);
+};
+
+for (const [scope, sels] of Object.entries(SCOPES)) {
+  const env = {};
+  for (const s of sels) Object.assign(env, declsFor(s));
+
+  for (const [base, fg] of allPairs) {
+    const c = value(env, base);
+    if (!c) continue;
+
+    // A foreground only has to work if something actually fills with this token.
+    if (roles.bg.has(base)) {
+      const f = value(env, fg);
+      if (f) report(scope, `--${fg} on bg-${base}`, contrast(f, c), 4.5);
+    }
+
+    // Used as text? Then it must hold against the surfaces it lands on.
+    //
+    // SURFACES are excluded from this tier, because a surface is not text. They
+    // do appear behind `text-`: `bg-muted-foreground text-background` is an
+    // inverse pill, and --background there is deliberately the same colour as
+    // the page. Measuring it against --card would only ever restate that.
+    //
+    // The limit this leaves: it cannot see WHICH background a `text-` class
+    // actually landed on, only that the token is used as text somewhere. So an
+    // inverse token misapplied to a card is a component bug this will not
+    // catch. Every non-surface token is still checked against both surfaces,
+    // which is what caught --accent.
+    if (roles.text.has(base) && !SURFACES.has(base)) {
+      for (const surface of ['background', 'card']) {
+        if (base === surface) continue;
+        const s = value(env, surface);
+        if (s) report(scope, `text-${base} on --${surface}`, contrast(c, s), 4.5);
+      }
+    } else if (roles.edge.has(base) && !roles.bg.has(base)) {
+      // Border/icon only — a 3:1 object, not text.
+      iconTier += 1;
+      for (const surface of ['background', 'card']) {
+        const s = value(env, surface);
+        if (s) report(scope, `border/icon --${base} on --${surface}`, contrast(c, s), 3);
+      }
+    }
+  }
+}
+
+if (knownSeen.length) {
+  console.log(`⚠ ${knownSeen.length} known contrast failures in the base theme, not yet fixed:`);
+  for (const l of knownSeen) console.log(l);
+  console.log('  (see KNOWN in scripts/check-color-pairs.mjs — each needs a foreground flip, not a nudge)');
+}
+if (stale) console.error(`✖ ${stale} KNOWN entr${stale === 1 ? 'y' : 'ies'} now pass and must be deleted.`);
+if (failures || low || stale) {
+  if (failures) console.error(`✖ ${failures} colour token${failures === 1 ? '' : 's'} overridden without its foreground.`);
+  if (low) console.error(`✖ ${low} pairing${low === 1 ? '' : 's'} below its contrast threshold.`);
   process.exit(1);
 }
-console.log(`✓ colour pairs intact — ${checked} override${checked === 1 ? '' : 's'} checked, each carries its foreground.`);
+console.log(
+  `✓ colour pairs intact — ${checked} overrides carry their foreground; ` +
+    `${ratios} contrast ratios pass across ${Object.keys(SCOPES).length} scopes.` +
+    (iconTier === 0 ? '\n  (3:1 icon/border tier implemented but currently unpopulated — every token in use is text or a fill.)' : ''),
+);

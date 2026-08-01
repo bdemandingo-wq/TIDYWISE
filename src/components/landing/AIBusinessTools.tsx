@@ -190,7 +190,7 @@ export function AIBusinessTools() {
                       <p className="text-sm text-muted-foreground">Saved weekly on admin</p>
                     </div>
                     <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                      <Users className="h-8 w-8 text-accent mx-auto mb-2" />
+                      <Users className="h-8 w-8 text-primary mx-auto mb-2" />
                       <p className="text-2xl font-bold text-foreground">40%</p>
                       <p className="text-sm text-muted-foreground">More repeat customers</p>
                     </div>

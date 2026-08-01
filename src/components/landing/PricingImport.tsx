@@ -153,7 +153,7 @@ export function PricingImport() {
                         <FileSpreadsheet className="h-8 w-8 text-primary" />
                       </div>
                       <div className="w-16 h-16 rounded-xl bg-accent/10 flex items-center justify-center">
-                        <FileText className="h-8 w-8 text-accent" />
+                        <FileText className="h-8 w-8 text-primary" />
                       </div>
                     </div>
                     <h3 className="text-xl font-semibold text-foreground mb-2">

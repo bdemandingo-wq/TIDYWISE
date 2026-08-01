@@ -491,7 +491,10 @@ export default function LandingPage() {
       >
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 rounded-full text-accent text-sm font-medium mb-4">
+            {/* --accent is a SURFACE inside .portal-v2 (it resolves to --pv-sunken),
+                so accent-on-accent rendered this pill at 1.06:1 — invisible on a
+                live public page. --primary is the brand token and is text-safe. */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full text-primary text-sm font-medium mb-4">
               <Zap className="h-4 w-4" />
               Powerful Features
             </div>

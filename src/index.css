@@ -1060,7 +1060,11 @@ body {
   /* Ink ramp */
   --pv-ink:        222 20% 11%;
   --pv-ink-2:      222 12% 30%;        /* secondary text */
-  --pv-ink-3:      220 9% 46%;         /* tertiary / meta */
+  /* 44%, not 46%: the ramp above is labelled AA on --pv-bg and --pv-surface,
+     and it is (4.69, 4.85). But --muted aliases to --pv-sunken, which was
+     never in that claim, and this sat at 4.42 on it. Same shape as --pv-warn:
+     verified against one surface, used on another. Now 4.75 on sunken. */
+  --pv-ink-3:      220 9% 44%;         /* tertiary / meta */
   --pv-ink-4:      220 10% 62%;        /* icons on quiet surfaces */
 
   /* Hairline borders */
