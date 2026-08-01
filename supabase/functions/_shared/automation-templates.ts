@@ -10,10 +10,10 @@
  * ───────────────────────────────────────────────────────────────────────────
  *
  * KEEP IN SYNC: this is a verbatim copy of `src/lib/automationTemplates.ts`.
- * verbatim copy of the resolver and the defaults, because the sender runs in
- * Deno and cannot import from `src/`. Vocabulary and defaults must match, or an
- * owner will be allowed to save a token that the sender then cannot resolve.
- * The tests in automationTemplates.test.ts pin the behaviour both copies owe.
+ * The editor validates against that copy; this one resolves at send time. If
+ * they drift, an owner will be allowed to save a token the sender cannot
+ * resolve. The tests in src/lib/automationTemplates.test.ts pin the behaviour
+ * both copies owe — run them after any change here.
  */
 
 export type AutomationKey = 'quote_stale_reengage';
