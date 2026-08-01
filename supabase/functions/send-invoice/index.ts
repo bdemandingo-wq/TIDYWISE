@@ -251,33 +251,40 @@ const handler = async (req: Request): Promise<Response> => {
 </head>
 <body style="margin:0;padding:24px;background:${BG};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:${SLATE};">
   <div style="max-width:760px;margin:0 auto;background:#ffffff;border:1px solid ${BORDER};border-radius:20px;overflow:hidden;">
-    <div style="padding:32px;border-bottom:1px solid ${BORDER};display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;">
-      <div>
-        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="max-height:48px;max-width:180px;object-fit:contain;display:block;margin-bottom:12px;" />` : ""}
-        <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};">${escapeHtml(companyName)}</div>
-        ${companyMeta.map((line) => `<div style="font-size:14px;line-height:1.6;color:${MUTED};margin-top:4px;">${renderAddress(line)}</div>`).join("")}
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${brandColor};">Invoice</div>
-        <div style="font-size:34px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};margin-top:6px;">${invoiceNumber}</div>
-        <div style="display:inline-block;margin-top:12px;padding:6px 12px;border-radius:999px;background:#e0f2fe;color:${ACCENT};font-size:12px;font-weight:700;">Sent</div>
-      </div>
-    </div>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+           style="border-bottom:1px solid ${BORDER};">
+      <tr>
+        <td align="left" valign="top" style="padding:32px 12px 32px 32px;">
+          ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(companyName)}" style="max-height:48px;max-width:180px;height:auto;width:auto;display:block;border:0;margin-bottom:12px;" />` : ""}
+          <div style="font-size:28px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};">${escapeHtml(companyName)}</div>
+          ${companyMeta.map((line) => `<div style="font-size:14px;line-height:1.6;color:${MUTED};margin-top:4px;">${renderAddress(line)}</div>`).join("")}
+        </td>
+        <td align="right" valign="top" style="padding:32px 32px 32px 12px;">
+          <div style="text-align:right;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${brandColor};">Invoice</div>
+          <div style="text-align:right;font-size:34px;font-weight:800;letter-spacing:-0.03em;color:${SLATE};margin-top:6px;">${invoiceNumber}</div>
+          <div style="text-align:right;"><span style="display:inline-block;margin-top:12px;padding:6px 12px;border-radius:999px;background:#e0f2fe;color:${ACCENT};font-size:12px;font-weight:700;">Sent</span></div>
+        </td>
+      </tr>
+    </table>
 
-    <div style="padding:32px;border-bottom:1px solid ${BORDER};display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;">
-      <div>
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin-bottom:10px;">Bill To</div>
-        <div style="font-size:16px;font-weight:700;color:${SLATE};">${escapeHtml(customerName)}</div>
-        <div style="font-size:14px;color:${MUTED};margin-top:6px;">${escapeHtml(customerEmail)}</div>
-        ${data.customerPhone ? `<div style="font-size:14px;color:${MUTED};margin-top:4px;">${escapeHtml(data.customerPhone)}</div>` : ""}
-        ${data.address ? `<div style="font-size:14px;color:${MUTED};margin-top:10px;line-height:1.6;">${renderAddress(data.address)}</div>` : ""}
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin-bottom:10px;">Invoice Date</div>
-        <div style="font-size:16px;font-weight:600;color:${SLATE};">${escapeHtml(formatDateLabel(data.invoiceDate) || formatDateLabel(new Date().toISOString()))}</div>
-        ${data.dueDate ? `<div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin:18px 0 10px;">Due Date</div><div style="font-size:16px;font-weight:600;color:${SLATE};">${escapeHtml(formatDateLabel(data.dueDate))}</div>` : ""}
-      </div>
-    </div>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"
+           style="border-bottom:1px solid ${BORDER};">
+      <tr>
+        <td align="left" valign="top" width="50%" style="padding:32px 12px 32px 32px;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin-bottom:10px;">Bill To</div>
+          <div style="font-size:16px;font-weight:700;color:${SLATE};">${escapeHtml(customerName)}</div>
+          <div style="font-size:14px;color:${MUTED};margin-top:6px;">${escapeHtml(customerEmail)}</div>
+          ${data.customerPhone ? `<div style="font-size:14px;color:${MUTED};margin-top:4px;">${escapeHtml(data.customerPhone)}</div>` : ""}
+          ${data.address ? `<div style="font-size:14px;color:${MUTED};margin-top:10px;line-height:1.6;">${renderAddress(data.address)}</div>` : ""}
+        </td>
+        <td align="right" valign="top" width="50%" style="padding:32px 32px 32px 12px;text-align:right;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin-bottom:10px;">Invoice Date</div>
+          <div style="font-size:16px;font-weight:600;color:${SLATE};">${escapeHtml(formatDateLabel(data.invoiceDate) || formatDateLabel(new Date().toISOString()))}</div>
+          ${data.dueDate ? `<div style="font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:${ACCENT};margin:18px 0 10px;">Due Date</div><div style="font-size:16px;font-weight:600;color:${SLATE};">${escapeHtml(formatDateLabel(data.dueDate))}</div>` : ""}
+        </td>
+      </tr>
+    </table>
+
 
     <div style="padding:24px 32px;">
       <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
