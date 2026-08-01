@@ -1,4 +1,25 @@
-import { addDays, startOfDay, format } from 'date-fns';
+import {
+  orgStartOfDay, orgAddDays, orgDayOfWeek, orgDaysBetween, orgDateKey, formatInOrgTz,
+} from '@/lib/orgDateRange';
+
+/**
+ * Pay-period boundaries in the ORG's timezone.
+ *
+ * Every function here previously used date-fns startOfDay/getDay/addDays, all
+ * of which run in BROWSER-LOCAL time. Two problems, and the second is sharper
+ * than the timezone one:
+ *
+ *  1. Boundaries moved with the viewer. An admin abroad computed a different
+ *     period than the office did for the same day.
+ *
+ *  2. The biweekly anchor divided a millisecond delta by 86400000. Across a DST
+ *     change a local day is 23 or 25 hours, so that quotient could floor to one
+ *     day short, flipping the odd/even week test and shifting the ENTIRE
+ *     biweekly period by seven days. That was wrong for everyone, in one zone,
+ *     twice a year.
+ *
+ * Both are gone: all arithmetic is now whole calendar days in org time.
+ */
 
 export interface PayrollPeriodConfig {
   payroll_frequency: 'weekly' | 'biweekly';
@@ -27,48 +48,56 @@ export function getEndDay(config: PayrollPeriodConfig): number {
 /**
  * Get the start date of the payroll period that contains `date`.
  */
-export function getPeriodStart(date: Date, config: PayrollPeriodConfig): Date {
-  const d = startOfDay(date);
-  const currentDay = d.getDay();
+export function getPeriodStart(date: Date, config: PayrollPeriodConfig, timeZone: string): Date {
+  const d = orgStartOfDay(date, timeZone);
+  const currentDay = orgDayOfWeek(d, timeZone);
   let diff = currentDay - config.payroll_start_day;
   if (diff < 0) diff += 7;
 
-  // For biweekly, we need a stable anchor. Use epoch-based calculation.
+  const candidateStart = orgAddDays(d, -diff, timeZone);
+
   if (config.payroll_frequency === 'biweekly') {
-    // Anchor: find the most recent start day, then check if it's within a 14-day period
-    const candidateStart = addDays(d, -diff);
-    // Use a fixed anchor point (Jan 1, 2024 was a Monday)
-    const anchor = new Date(2024, 0, 1); // Monday Jan 1 2024
-    const daysSinceAnchor = Math.floor((candidateStart.getTime() - anchor.getTime()) / (86400000));
+    // Stable anchor: Monday 1 Jan 2024, as an org-local calendar date. Counting
+    // in whole calendar days rather than milliseconds is what makes the parity
+    // test survive DST — see the note at the top of this file.
+    const anchor = orgStartOfDay(new Date(Date.UTC(2024, 0, 1, 12)), timeZone);
+    const daysSinceAnchor = orgDaysBetween(anchor, candidateStart, timeZone);
     const weeksSinceAnchor = Math.floor(daysSinceAnchor / 7);
-    // If weeksSinceAnchor is odd, go back one more week
     if (weeksSinceAnchor % 2 !== 0) {
-      return addDays(candidateStart, -7);
+      return orgAddDays(candidateStart, -7, timeZone);
     }
     return candidateStart;
   }
 
-  return addDays(d, -diff);
+  return candidateStart;
 }
 
-export function getPeriodEnd(periodStart: Date, config: PayrollPeriodConfig): Date {
+export function getPeriodEnd(periodStart: Date, config: PayrollPeriodConfig, timeZone: string): Date {
   const span = config.payroll_frequency === 'biweekly' ? 13 : 6;
-  return addDays(periodStart, span);
+  return orgAddDays(periodStart, span, timeZone);
 }
 
-export function getCurrentPeriod(config: PayrollPeriodConfig): { start: Date; end: Date } {
-  const start = getPeriodStart(new Date(), config);
-  return { start, end: getPeriodEnd(start, config) };
+export function getCurrentPeriod(config: PayrollPeriodConfig, timeZone: string): { start: Date; end: Date } {
+  const start = getPeriodStart(new Date(), config, timeZone);
+  return { start, end: getPeriodEnd(start, config, timeZone) };
 }
 
-export function getNextPeriod(config: PayrollPeriodConfig): { start: Date; end: Date } {
-  const current = getCurrentPeriod(config);
-  const nextStart = addDays(current.end, 1);
-  return { start: nextStart, end: getPeriodEnd(nextStart, config) };
+export function getNextPeriod(config: PayrollPeriodConfig, timeZone: string): { start: Date; end: Date } {
+  const current = getCurrentPeriod(config, timeZone);
+  const nextStart = orgAddDays(current.end, 1, timeZone);
+  return { start: nextStart, end: getPeriodEnd(nextStart, config, timeZone) };
 }
 
-export function formatPeriodLabel(start: Date, end: Date): string {
-  return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
+export function formatPeriodLabel(start: Date, end: Date, timeZone: string): string {
+  // Rendered in org time too. A label formatted device-side could name a
+  // different day than the boundary it describes.
+  return `${formatInOrgTz(start, timeZone, { month: 'short', day: 'numeric' })} – ` +
+         `${formatInOrgTz(end, timeZone, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+/** yyyy-MM-dd for a period boundary, for keys and query bounds. */
+export function periodDateKey(d: Date, timeZone: string): string {
+  return orgDateKey(d, timeZone);
 }
 
 export function getPeriodTitle(config: PayrollPeriodConfig, which: 'current' | 'next'): string {

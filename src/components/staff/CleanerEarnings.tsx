@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,6 +8,9 @@ import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format, startOfMonth, endOfMonth, startOfYear, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import {
+  orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth, orgStartOfYear, orgDateKey,
+} from '@/lib/orgDateRange';
 import { CalendarIcon, Download, DollarSign, TrendingUp, Briefcase, FileText, Clock, CalendarDays } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { DateRange } from 'react-day-picker';
@@ -43,6 +46,7 @@ const resolveEarnings = resolveCleanerPay;
 
 export function CleanerEarnings({ staffId, staffName }: Props) {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    // Placeholder; corrected by the effect below once the org's zone loads.
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
@@ -52,11 +56,11 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('staff')
-        .select('base_wage, hourly_rate, default_hours')
+        .select('base_wage, hourly_rate, default_hours, organization_id')
         .eq('id', staffId)
         .single();
       if (error) throw error;
-      return data as WageStaff;
+      return data as WageStaff & { organization_id: string | null };
     },
     enabled: !!staffId,
   });
@@ -67,8 +71,39 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   const toISO = toEndOfDay?.toISOString();
 
   // Upcoming week bounds
-  const upcomingWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const upcomingWeekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  /**
+   * The cleaner's own organisation's timezone.
+   *
+   * NOT useOrgTimezone(): that reads OrganizationContext, which resolves from
+   * org_memberships — and a cleaner is a row in `staff`, not necessarily a
+   * member. It would have quietly returned the America/New_York fallback for
+   * every cleaner outside it, which is the same silent-default failure this
+   * whole change exists to remove.
+   *
+   * Resolved from the staff row's organization_id instead. business_settings
+   * is readable by anyone ("Anyone can view settings"), so a cleaner can see
+   * their own employer's zone.
+   */
+  const { data: orgTimezone = 'America/New_York' } = useQuery({
+    queryKey: ['cleaner-org-timezone', staffInfo?.organization_id],
+    enabled: !!staffInfo?.organization_id,
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('business_settings')
+        .select('timezone')
+        .eq('organization_id', staffInfo!.organization_id!)
+        .maybeSingle();
+      if (error || !data?.timezone) return 'America/New_York';
+      return data.timezone;
+    },
+  });
+
+  // Org time. A cleaner in another timezone was seeing a different week than
+  // their admin for the same payroll period, with nothing on screen to explain
+  // why the two numbers differed.
+  const upcomingWeekStart = orgStartOfWeek(new Date(), orgTimezone, 1);
+  const upcomingWeekEnd = orgEndOfWeek(new Date(), orgTimezone, 1);
 
   // Fetch upcoming week bookings for this cleaner (all non-cancelled statuses)
   const { data: upcomingBookings = [] } = useQuery({
@@ -262,7 +297,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     const rows = allEntries.map(({ booking, payShare }) => {
       const { calculatedPay, hoursWorked } = resolveEarnings(booking, staffInfo, payShare);
       return [
-        format(new Date(booking.scheduled_at), 'yyyy-MM-dd'),
+        orgDateKey(new Date(booking.scheduled_at), orgTimezone),
         booking.booking_number,
         booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service'),
         booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'N/A',
@@ -284,16 +319,30 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     void saveBlob(blob, fileName);
   };
 
+  // Same correction as PayrollPage: the useState initialiser runs before the
+  // timezone query resolves, so the default month is re-derived once it does —
+  // and only while the range is still untouched.
+  const rangeTouchedRef = useRef(false);
+  const appliedTzRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (rangeTouchedRef.current) return;
+    if (appliedTzRef.current === orgTimezone) return;
+    appliedTzRef.current = orgTimezone;
+    const now = new Date();
+    setDateRange({ from: orgStartOfMonth(now, orgTimezone), to: orgEndOfMonth(now, orgTimezone) });
+  }, [orgTimezone]);
+
   const setPreset = (preset: 'month' | 'quarter' | 'ytd' | 'year') => {
     const now = new Date();
     let from: Date;
     let to: Date = now;
     switch (preset) {
-      case 'month':   from = startOfMonth(now); to = endOfMonth(now); break;
-      case 'quarter': from = subMonths(startOfMonth(now), 2); break;
-      case 'ytd':     from = startOfYear(now); break;
-      case 'year':    from = subMonths(now, 12); break;
+      case 'month':   from = orgStartOfMonth(now, orgTimezone); to = orgEndOfMonth(now, orgTimezone); break;
+      case 'quarter': from = orgStartOfMonth(subMonths(now, 2), orgTimezone); break;
+      case 'ytd':     from = orgStartOfYear(now, orgTimezone); break;
+      case 'year':    from = orgStartOfMonth(subMonths(now, 12), orgTimezone); break;
     }
+    rangeTouchedRef.current = true;
     setDateRange({ from, to });
   };
 

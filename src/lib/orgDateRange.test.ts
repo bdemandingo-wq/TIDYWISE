@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   orgStartOfDay, orgEndOfDay, isSameOrgDay, isOrgToday, orgDayOfWeek,
   orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth,
-  orgDateKey, parseWeekStartDay, orgYMD,
+  orgDateKey, parseWeekStartDay, orgYMD, orgAddDays, orgDaysBetween,
 } from './orgDateRange.ts';
 
 const NY = 'America/New_York';
@@ -148,4 +148,26 @@ test('orgYMD reads the wall clock, not the UTC date', () => {
   const t = new Date('2026-08-01T02:00:00Z');
   assert.deepEqual(orgYMD(t, NY), { y: 2026, m: 7, d: 31 });
   assert.deepEqual(orgYMD(t, MANILA), { y: 2026, m: 8, d: 1 });
+});
+
+// ─── day arithmetic across DST ────────────────────────────────────────────
+test('orgAddDays steps calendar days, not 86400000ms', () => {
+  // 7 Mar 2026 → 9 Mar crosses US spring-forward. Millisecond arithmetic would
+  // land at 23:00 on the 8th; calendar stepping lands on the 9th.
+  const mar7 = new Date('2026-03-07T17:00:00Z');
+  assert.equal(orgDateKey(orgAddDays(mar7, 2, NY), NY), '2026-03-09');
+  assert.equal(orgDateKey(orgAddDays(mar7, -2, NY), NY), '2026-03-05');
+  assert.equal(orgDateKey(orgAddDays(mar7, 0, NY), NY), '2026-03-07');
+});
+
+test('orgAddDays over a 13-day biweekly span crossing DST', () => {
+  const start = new Date('2026-03-02T17:00:00Z'); // Mon 2 Mar
+  assert.equal(orgDateKey(orgAddDays(start, 13, NY), NY), '2026-03-15');
+});
+
+test('orgDaysBetween counts calendar days, DST or not', () => {
+  const a = new Date('2026-03-07T17:00:00Z');
+  const b = new Date('2026-03-09T16:00:00Z'); // one hour "shorter" in real time
+  assert.equal(orgDaysBetween(a, b, NY), 2);
+  assert.equal(orgDaysBetween(b, a, NY), -2);
 });

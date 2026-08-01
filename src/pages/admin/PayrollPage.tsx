@@ -35,7 +35,7 @@ import { getCurrentPeriod, getNextPeriod, getPeriodStart, getPeriodEnd, getPerio
 import { addDays as addDaysFn } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
-  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgStartOfYear, orgDateKey,
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgStartOfYear, orgDateKey, orgAddDays,
   parseWeekStartDay, type WeekStartDay,
 } from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
@@ -549,13 +549,15 @@ export default function PayrollPage() {
   const { config: periodConfig } = usePayrollPeriodConfig();
   const currentPeriod = useMemo(() => {
     const todayInOrgTz = getLocalDateInTimezone(new Date(), orgTimezone);
-    const start = getPeriodStart(todayInOrgTz, periodConfig);
-    return { start, end: getPeriodEnd(start, periodConfig) };
+    const start = getPeriodStart(todayInOrgTz, periodConfig, orgTimezone);
+    return { start, end: getPeriodEnd(start, periodConfig, orgTimezone) };
   }, [periodConfig, orgTimezone]);
   const nextPeriod = useMemo(() => {
-    const nextStart = addDaysFn(currentPeriod.end, 1);
-    return { start: nextStart, end: getPeriodEnd(nextStart, periodConfig) };
-  }, [currentPeriod, periodConfig]);
+    // Calendar day, not +86400000ms — across DST the latter lands on the wrong
+    // date and the next period starts a day early or late.
+    const nextStart = orgAddDays(currentPeriod.end, 1, orgTimezone);
+    return { start: nextStart, end: getPeriodEnd(nextStart, periodConfig, orgTimezone) };
+  }, [currentPeriod, periodConfig, orgTimezone]);
 
   const currentWeekStart = currentPeriod.start;
   const currentWeekEnd = currentPeriod.end;
@@ -1156,7 +1158,7 @@ export default function PayrollPage() {
           variant="secondary"
           className="gap-2"
           onClick={() => {
-            const period = getCurrentPeriod(periodConfig);
+            const period = getCurrentPeriod(periodConfig, orgTimezone);
             rangeTouchedRef.current = true;
             setDateRange({ from: period.start, to: period.end });
             setPayPeriodSelected(true);
@@ -1376,12 +1378,12 @@ export default function PayrollPage() {
         <ForecastCard
           title={getPeriodTitle(periodConfig, 'current')}
           forecast={currentWeekForecast}
-          weekLabel={formatPeriodLabel(currentWeekStart, currentWeekEnd)}
+          weekLabel={formatPeriodLabel(currentWeekStart, currentWeekEnd, orgTimezone)}
         />
         <ForecastCard
           title={getPeriodTitle(periodConfig, 'next')}
           forecast={nextWeekForecast}
-          weekLabel={formatPeriodLabel(nextWeekStart, nextWeekEnd)}
+          weekLabel={formatPeriodLabel(nextWeekStart, nextWeekEnd, orgTimezone)}
         />
       </div>
 

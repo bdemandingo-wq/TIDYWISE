@@ -166,6 +166,31 @@ export function orgEndOfWeek(
   );
 }
 
+/**
+ * Add (or subtract) whole CALENDAR days in the org's timezone.
+ *
+ * Not `instant + n * 86400000`. Across a DST change a local day is 23 or 25
+ * hours, so millisecond arithmetic drifts off midnight and eventually lands on
+ * the wrong date. Steps on the calendar, then resolves back to an instant.
+ */
+export function orgAddDays(instant: Date, days: number, timeZone: string): Date {
+  const { y, m, d } = orgYMD(instant, timeZone);
+  const stepped = new Date(Date.UTC(y, m - 1, d + days));
+  return zonedTimeToInstant(
+    stepped.getUTCFullYear(), stepped.getUTCMonth() + 1, stepped.getUTCDate(),
+    0, 0, 0, 0, timeZone,
+  );
+}
+
+/** Whole calendar days between two instants, in org-local terms. */
+export function orgDaysBetween(a: Date, b: Date, timeZone: string): number {
+  const x = orgYMD(a, timeZone);
+  const y2 = orgYMD(b, timeZone);
+  const ax = Date.UTC(x.y, x.m - 1, x.d);
+  const bx = Date.UTC(y2.y, y2.m - 1, y2.d);
+  return Math.round((bx - ax) / 86400000);
+}
+
 export function orgStartOfYear(instant: Date, timeZone: string): Date {
   const { y } = orgYMD(instant, timeZone);
   return zonedTimeToInstant(y, 1, 1, 0, 0, 0, 0, timeZone);
@@ -180,6 +205,19 @@ export function orgEndOfMonth(instant: Date, timeZone: string): Date {
   const { y, m } = orgYMD(instant, timeZone);
   const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
   return zonedTimeToInstant(y, m, lastDay, 23, 59, 59, 999, timeZone);
+}
+
+/**
+ * Format an instant using the ORG's wall clock.
+ *
+ * A label rendered with date-fns `format()` uses the device's clock, so it can
+ * name a different day than the boundary it is describing — the label and the
+ * data disagreeing is worse than either being wrong alone.
+ */
+export function formatInOrgTz(
+  instant: Date, timeZone: string, options: Intl.DateTimeFormatOptions,
+): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone, ...options }).format(instant);
 }
 
 /**
