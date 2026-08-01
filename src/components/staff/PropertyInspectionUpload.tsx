@@ -168,7 +168,22 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
         console.warn('Admin notification insert failed:', notifyErr);
       }
 
-      toast.success(`Inspection report submitted (${items.length} photo${items.length === 1 ? '' : 's'})`);
+      // Report what actually landed, not what was attempted. This said
+      // items.length, so after a warning naming which photos failed it claimed
+      // all of them were submitted — the two toasts contradicted each other.
+      //
+      // And when some failed, KEEP them. The warning tells the cleaner they can
+      // add those again; clearing the list and closing the dialog destroyed the
+      // photo, the note and the category, so the thing it promised was
+      // impossible. Only the ones that succeeded are removed.
+      if (failed.length > 0) {
+        const failedIdx = new Set(failed.map((n) => n - 1));
+        setItems((prev) => prev.filter((_, i) => failedIdx.has(i)));
+        onSubmitted?.();
+        return; // dialog stays open, holding exactly what still needs sending
+      }
+
+      toast.success(`Inspection report submitted (${uploadedCount} photo${uploadedCount === 1 ? '' : 's'})`);
       setItems([]);
       setIsOpen(false);
       onSubmitted?.();

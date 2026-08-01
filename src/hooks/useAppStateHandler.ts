@@ -144,7 +144,17 @@ export function useAppStateHandler() {
       // The session lookup is async, so guard against the effect being torn
       // down while it is in flight — otherwise a fast unmount leaves a listener
       // attached with no way to remove it.
-      void (async () => {
+      //
+      // AND it must re-run on sign-in. This effect has [] deps and is mounted
+      // once for the life of the tab, so a single getSession() at mount saw no
+      // session for the ordinary flow — land signed-out, log in, get routed to
+      // /dashboard by client-side navigation — and the guard then never
+      // installed at all. It only worked on a hard refresh while already
+      // authenticated. onAuthStateChange re-runs install() on SIGNED_IN, and
+      // tears the listener down again on SIGNED_OUT so a signed-out user
+      // browsing the marketing site is never intercepted.
+      const install = async () => {
+        if (cleanupPop) return; // already installed
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
         if (!session) return;
@@ -157,10 +167,23 @@ export function useAppStateHandler() {
         window.history.pushState({ appGuard: true }, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
         cleanupPop = () => window.removeEventListener('popstate', handlePopState);
-      })();
+      };
+
+      void install();
+
+      const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+        if (cancelled) return;
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+          void install();
+        } else if (event === 'SIGNED_OUT') {
+          cleanupPop?.();
+          cleanupPop = undefined;
+        }
+      });
 
       return () => {
         cancelled = true;
+        authSub?.subscription?.unsubscribe();
         cleanupPop?.();
       };
     }
