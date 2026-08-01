@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
@@ -34,6 +34,10 @@ import { usePayrollPeriodConfig } from '@/hooks/usePayrollPeriodConfig';
 import { getCurrentPeriod, getNextPeriod, getPeriodStart, getPeriodEnd, getPeriodTitle, formatPeriodLabel } from '@/lib/payrollPeriod';
 import { addDays as addDaysFn } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import {
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgStartOfYear, orgDateKey,
+  parseWeekStartDay, type WeekStartDay,
+} from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/lib/timezoneUtils';
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 import { PayrollCostSettings } from '@/components/admin/PayrollCostSettings';
@@ -188,6 +192,9 @@ function calcBookingFinancials(booking: any, laborCost: number, settings: Payrol
 export default function PayrollPage() {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    // Placeholder only. useOrgTimezone returns its fallback on the first
+    // render, so the real month bounds are set by the effect below once the
+    // org's zone has actually loaded — see the note there.
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
@@ -200,7 +207,72 @@ export default function PayrollPage() {
   const queryClient = useQueryClient();
   const orgTimezone = useOrgTimezone();
 
-  const weekStart = format(startOfWeek(dateRange.from, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  /**
+   * When this business's payroll week begins.
+   *
+   * payroll_settings.payroll_week_start_day existed and was read by NOTHING —
+   * PayrollPage hardcoded Monday. This is the one place it has a home. Defaults
+   * to Monday via parseWeekStartDay, so behaviour is unchanged for every org
+   * that never set it.
+   */
+  const { data: weekStartSetting } = useQuery({
+    queryKey: ['payroll-week-start', organizationId],
+    enabled: !!organizationId,
+    staleTime: 1000 * 60 * 10,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_settings')
+        .select('payroll_week_start_day')
+        .eq('organization_id', organizationId!)
+        .maybeSingle();
+      // Falls back to Monday rather than throwing: an unreadable preference
+      // must not take the payroll page down, and Monday is what this file
+      // hardcoded before the setting was wired up at all.
+      if (error) return null;
+      return data?.payroll_week_start_day ?? null;
+    },
+  });
+  const weekStartsOn: WeekStartDay = parseWeekStartDay(weekStartSetting);
+
+  /**
+   * Re-derive the default month once the org's real timezone arrives.
+   *
+   * useOrgTimezone returns its America/New_York fallback on the first render
+   * and the real value a moment later, so the useState initialiser above can
+   * only ever see the fallback. Without this, an org in another zone would open
+   * on a month computed for New York — the same class of error this whole
+   * change exists to remove, one layer up.
+   *
+   * Guarded so it only ever fires while the range is still the untouched
+   * default: an admin who has picked a custom range must not have it snatched
+   * back when the timezone query resolves.
+   */
+  const rangeTouchedRef = useRef(false);
+  const appliedTzRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (rangeTouchedRef.current) return;
+    if (appliedTzRef.current === orgTimezone) return;
+    appliedTzRef.current = orgTimezone;
+    const now = new Date();
+    setDateRange({
+      from: orgStartOfMonth(now, orgTimezone),
+      to: orgEndOfMonth(now, orgTimezone),
+    });
+  }, [orgTimezone]);
+
+  /**
+   * The key payroll_payments rows are read and written under (:246, :304, :337).
+   *
+   * This used to be `format(startOfWeek(...), 'yyyy-MM-dd')` — both date-fns
+   * calls run in BROWSER-LOCAL time, so an admin working from a different
+   * timezone derived a different key for the same payroll week and filed
+   * payments under it. This is the only value in the file that reaches the
+   * database, so it is the one that had to move first.
+   */
+  const weekStart = orgDateKey(
+    orgStartOfWeek(dateRange.from, orgTimezone, weekStartsOn),
+    orgTimezone,
+  );
 
   // Fetch payroll settings
   const { data: payrollSettings } = useQuery({
@@ -539,7 +611,7 @@ export default function PayrollPage() {
         .select('*')
         .eq('organization_id', organizationId)
         .eq('status', 'completed')
-        .gte('scheduled_at', startOfYear(new Date()).toISOString());
+        .gte('scheduled_at', orgStartOfYear(new Date(), orgTimezone).toISOString());
       if (error) throw error;
       return data;
     },
@@ -554,7 +626,7 @@ export default function PayrollPage() {
         .select('id')
         .eq('organization_id', organizationId)
         .eq('status', 'completed')
-        .gte('scheduled_at', startOfYear(new Date()).toISOString());
+        .gte('scheduled_at', orgStartOfYear(new Date(), orgTimezone).toISOString());
       if (!bookingIds?.length) return [];
       const { data, error } = await supabase
         .from('booking_team_assignments')
@@ -1070,6 +1142,7 @@ export default function PayrollPage() {
               selected={{ from: dateRange.from, to: dateRange.to }}
               onSelect={(range) => {
                 if (range?.from) {
+                  rangeTouchedRef.current = true;
                   setDateRange({ from: range.from, to: range.to || range.from });
                   setPayPeriodSelected(true);
                 }
@@ -1084,6 +1157,7 @@ export default function PayrollPage() {
           className="gap-2"
           onClick={() => {
             const period = getCurrentPeriod(periodConfig);
+            rangeTouchedRef.current = true;
             setDateRange({ from: period.start, to: period.end });
             setPayPeriodSelected(true);
           }}

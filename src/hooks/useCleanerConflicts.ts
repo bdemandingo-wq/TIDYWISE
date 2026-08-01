@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { differenceInMinutes, parseISO, format, isSameDay, getDay } from 'date-fns';
+import { orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useOrgId } from '@/hooks/useOrgId';
 
 export interface ConflictInfo {
@@ -37,6 +39,7 @@ export function useCleanerConflicts(
   duration: number = 120, // default 2 hours
   currentBookingId?: string // Exclude this booking when editing
 ) {
+  const orgTimezone = useOrgTimezone();
   const [allBookingsOnDate, setAllBookingsOnDate] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [timeOffStaffIds, setTimeOffStaffIds] = useState<Set<string>>(new Set());
@@ -55,10 +58,13 @@ export function useCleanerConflicts(
     const fetchData = async () => {
       setLoading(true);
       try {
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        // Org time, not the device's. setHours() operates in BROWSER-LOCAL
+        // time, so an admin scheduling from another timezone fetched a
+        // 24-hour band offset from the business's day — and a clash sitting
+        // in the missing hours would not be found. This is the double-booking
+        // check: a false negative here sends two cleaners to one house.
+        const startOfDay = orgStartOfDay(new Date(selectedDate), orgTimezone);
+        const endOfDay = orgEndOfDay(new Date(selectedDate), orgTimezone);
 
         // SECURITY: Fetch bookings scoped to this organization only
         const { data: bookingsData, error: bookingsError } = await supabase

@@ -1,4 +1,6 @@
 import { useMemo, useEffect, lazy, Suspense } from 'react';
+import { isOrgToday } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
@@ -85,14 +87,25 @@ export default function AdminDashboard() {
 
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
+  const orgTimezone = useOrgTimezone();
+
 
   const todayStats = useMemo(() => {
-    const todayBookings = bookings.filter(b => isToday(new Date(b.scheduled_at)) && b.status !== 'cancelled');
+    // isOrgToday, not date-fns isToday. isToday compares against the BROWSER's
+    // calendar day, which is why this card read $888 in Miami and $616 on a
+    // phone in Manila on 2026-07-31: the phone's "today" ran from noon on the
+    // 31st to noon on the 1st in Miami terms, a band matching neither day.
+    // See docs/bugs/2026-07-31-device-clock-date-windows.md.
+    const todayBookings = bookings.filter(
+      b => isOrgToday(new Date(b.scheduled_at), orgTimezone) && b.status !== 'cancelled',
+    );
     const grossVolume = todayBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
     const payments = todayBookings.filter(b => b.payment_status === 'paid').length;
-    const todayCustomers = customers.filter(c => isToday(new Date(c.created_at))).length;
+    const todayCustomers = customers.filter(
+      c => isOrgToday(new Date(c.created_at), orgTimezone),
+    ).length;
     return { grossVolume, payments, customers: todayCustomers };
-  }, [bookings, customers]);
+  }, [bookings, customers, orgTimezone]);
 
   const isLoading = bookingsLoading || customersLoading;
 
