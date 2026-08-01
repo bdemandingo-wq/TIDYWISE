@@ -270,6 +270,7 @@ export default function PortalDashboardPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [requests, setRequests] = useState<BookingRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
   const [inspectionReports, setInspectionReports] = useState<InspectionReport[]>([]);
   const [referrals, setReferrals] = useState<{id:string;referred_email:string;status:string;credit_amount:number;credit_awarded:boolean;created_at:string}[]>([]);
   const [referralCode, setReferralCode] = useState<string | null>(null);
@@ -401,6 +402,65 @@ export default function PortalDashboardPage() {
       return;
     }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
+  };
+
+  /**
+   * Mark every unread notification read.
+   *
+   * A LOOP, not a new RPC, deliberately. mark_client_notification_read is
+   * per-notification and — since the 2026-07-29 lockdown — reachable only
+   * through client-portal-api, so each one is an authenticated edge-function
+   * round-trip rather than a direct RPC.
+   *
+   * Three things keep that acceptable:
+   *   - only UNREAD rows are sent, and unread is what the badge shows, so the
+   *     realistic count is what a person was willing to look at — not the
+   *     lifetime total.
+   *   - bounded concurrency, so a long list doesn't open 200 sockets at once.
+   *   - the UI updates from what actually succeeded, so a partial failure
+   *     leaves the remaining ones visibly unread rather than silently lost.
+   *
+   * If this ever needs to handle hundreds, it wants a mark_all RPC instead —
+   * roughly where a spinner outlasts someone's patience, call it 50.
+   */
+  const markAllNotificationsRead = async () => {
+    if (!user) return;
+    const unread = notifications.filter((n) => !n.is_read);
+    if (unread.length === 0) return;
+
+    setMarkingAllRead(true);
+    const succeeded = new Set<string>();
+    const CONCURRENCY = 4;
+
+    try {
+      for (let i = 0; i < unread.length; i += CONCURRENCY) {
+        const batch = unread.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(
+          batch.map(async (n) => {
+            const { error } = await invokePortal("client-portal-api", {
+              body: { action: "mark_notification_read", notificationId: n.id },
+            });
+            return { id: n.id, ok: !error };
+          }),
+        );
+        for (const r of results) if (r.ok) succeeded.add(r.id);
+      }
+
+      setNotifications((prev) =>
+        prev.map((n) => (succeeded.has(n.id) ? { ...n, is_read: true } : n)),
+      );
+
+      const failed = unread.length - succeeded.size;
+      if (failed === 0) {
+        toast.success(`Marked ${succeeded.size} as read`);
+      } else if (succeeded.size === 0) {
+        toast.error("Couldn't mark those as read. Please try again.");
+      } else {
+        toast.warning(`Marked ${succeeded.size} as read, ${failed} didn't go through.`);
+      }
+    } finally {
+      setMarkingAllRead(false);
+    }
   };
 
   const deleteNotification = async (id: string, e: React.MouseEvent) => {
@@ -922,6 +982,23 @@ export default function PortalDashboardPage() {
 
               {/* Alerts */}
               <TabsContent value="notifications" className="space-y-3 mt-5">
+                {/* Only offered when there is something to do — a Mark all read
+                    that does nothing is a button that teaches people the app is
+                    unresponsive. */}
+                {unreadCount > 0 && (
+                  <div className="flex justify-end mb-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={markAllNotificationsRead}
+                      disabled={markingAllRead}
+                      className="gap-1.5"
+                    >
+                      {markingAllRead && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      Mark all read ({unreadCount})
+                    </Button>
+                  </div>
+                )}
                 {loadingData ? (
                   <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--pv-ink-4))]" /></div>
                 ) : notifications.length === 0 ? (

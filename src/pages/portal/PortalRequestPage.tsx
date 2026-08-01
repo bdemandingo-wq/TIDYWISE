@@ -89,6 +89,7 @@ export default function PortalRequestPage() {
   const [selectedService, setSelectedService] = useState<string>(searchParams.get("service") || "");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [notes, setNotes] = useState(searchParams.get("notes") || "");
+  const [loyaltyTier, setLoyaltyTier] = useState("");
   const [isTurnover, setIsTurnover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>("America/New_York");
@@ -222,7 +223,14 @@ export default function PortalRequestPage() {
 
     try {
       const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
-      const combinedNotes = [turnoverLine, notes.trim()].filter(Boolean).join("\n") || null;
+      // Rides in on the existing notes field rather than widening
+      // submit_client_booking_request, which would have meant a migration and a
+      // new overload for what is ultimately a line of text for a human to read.
+      // Same shape as turnoverLine directly above.
+      const loyaltyTierLine = loyaltyTier.trim()
+        ? `Loyalty tier requested: ${loyaltyTier.trim()}`
+        : null;
+      const combinedNotes = [turnoverLine, loyaltyTierLine, notes.trim()].filter(Boolean).join("\n") || null;
       const selectedLocationRecord = locations.find((location) => location.id === selectedLocation);
       const isSyntheticPrimaryAddress = Boolean(
         selectedLocationRecord &&
@@ -580,6 +588,26 @@ export default function PortalRequestPage() {
                 )}
               </div>
             )}
+
+            {/* Loyalty tier — free text on purpose. The business decides what
+                tiers exist and whether to honour a request, so a dropdown would
+                imply a validated list the portal has no way to know. It rides
+                into the notes field on submit; no schema change. */}
+            <div className="space-y-2">
+              <Label htmlFor="loyalty-tier">Loyalty tier (Optional)</Label>
+              <Input
+                id="loyalty-tier"
+                value={loyaltyTier}
+                onChange={(e) => setLoyaltyTier(e.target.value)}
+                placeholder="e.g. Gold"
+                maxLength={60}
+              />
+              <p className="text-xs text-muted-foreground">
+                If you think a loyalty tier applies to this booking, tell us here and
+                we&apos;ll check it. Please keep track of your own tier — we can&apos;t
+                confirm it automatically.
+              </p>
+            </div>
 
             {/* Notes */}
             <div className="space-y-2">
