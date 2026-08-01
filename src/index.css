@@ -71,8 +71,26 @@
 
     --success: 140 80% 35%;
     --success-foreground: 0 0% 100%;
-    --warning: 45 100% 50%;
-    --warning-foreground: 0 0% 6%;
+    /*
+      --warning was 45 100% 50% — a bright gold — in BOTH themes, because .dark
+      never overrode it. On this theme's white page that is 1.65:1, and 168
+      places in the app use `text-warning` as actual text. It was legible only
+      because dark is the default theme; anyone toggling to light lost it.
+
+      A single value cannot serve both. Gold is 11.88:1 on the dark page and
+      1.65:1 on the white one, so the fix is two values, not a compromise.
+
+      33% lightness is what it takes to clear 4.5:1 on white (5.34:1) AND on the
+      bg-warning/10 tint that 72 callers pair with it (4.66:1). Darkening that
+      far flips the foreground: near-black on this amber is 3.4:1, so
+      --warning-foreground becomes white, which reads at 5.34:1.
+
+      Hue 32 matches the amber the codebase kept hand-rolling and the portal's
+      own --pv-warn. Not adopting --pv-warn's lightness directly: it is 46%,
+      designed for chips on --pv-warn-soft, and only reaches 2.98:1 on white.
+    */
+    --warning: 32 90% 33%;
+    --warning-foreground: 0 0% 100%;
     --info: 230 100% 50%;
     --info-foreground: 0 0% 100%;
 
@@ -97,6 +115,17 @@
   }
 
   .dark {
+    /*
+      Semantic state colours the light theme cannot share. --warning is the only
+      one that had to move: it was inherited from :root, so darkening :root far
+      enough to read on white would have made it muddy here (5.4:1 instead of
+      the 11.9:1 gold was giving). This is the portal's own dark amber, which
+      holds 11.77:1 on the page — parity with what gold gave — and lets the
+      foreground stay near-black at 11.49:1.
+    */
+    --warning: 38 95% 66%;
+    --warning-foreground: 0 0% 6%;
+
     /* Linear dark: near-black with cool tint */
     --background: 240 10% 5%;
     --foreground: 240 6% 95%;
@@ -1027,6 +1056,14 @@ body {
   --surface-raised:   var(--pv-raised);
   --success:          var(--pv-success);
   --warning:          var(--pv-warn);
+  /*
+    Pinned, not inherited. The portal overrides --warning but never overrode its
+    foreground, so it used to pick up :root's near-black. :root's foreground is
+    now white (it pairs with a much darker amber out there), and white on
+    --pv-warn would be 2.98:1. Holding near-black keeps the portal at the 6.41:1
+    it already had — this token change is meant to have zero effect in here.
+  */
+  --warning-foreground: 0 0% 6%;
   --info:             var(--pv-brand);
   --destructive:      var(--pv-danger);
   --success-soft:     var(--pv-success-soft);

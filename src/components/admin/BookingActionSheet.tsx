@@ -178,9 +178,13 @@ export function BookingActionSheet({
   const statusStyle = statusCfg[booking.status] || statusCfg.pending;
   const paymentInfo = getPaymentStatusInfo(booking);
 
-  // Status badge colors - bold solid pills
+  // Status badge colors - bold solid pills.
+  // The warning pills use text-warning-foreground rather than text-white: the
+  // warning amber is dark in the light theme and light in the dark one, so a
+  // fixed white sat at 1.65:1 in one of them whichever way the theme went. The
+  // token flips with it. The others stay white — their fills are dark in both.
   const statusBadgeClass = {
-    pending: 'bg-warning text-white',
+    pending: 'bg-warning text-warning-foreground',
     confirmed: 'bg-info text-white',
     in_progress: 'bg-purple-500 text-white',
     completed: 'bg-success text-white',
@@ -196,7 +200,7 @@ export function BookingActionSheet({
     paid: 'bg-success text-white',
     pending: 'bg-destructive text-white',
     refunded: 'bg-muted-foreground text-background',
-    partial: 'bg-warning text-white',
+    partial: 'bg-warning text-warning-foreground',
   }[booking.payment_status] || 'bg-destructive text-white';
 
   const isDisabledHold = cancelingHold === booking.id || booking.payment_status === 'paid' || booking.payment_status === 'refunded' || !(booking as any).payment_intent_id;
