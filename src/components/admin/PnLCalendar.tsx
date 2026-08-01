@@ -26,7 +26,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
-  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday,
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday, orgDateKey, orgYMD,
 } from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -397,9 +397,16 @@ export function PnLCalendar() {
             {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((day) => {
-                const dateKey = format(day, 'yyyy-MM-dd');
+                // Org-keyed, matching how dailyPnL is built (Intl 'en-CA' in the
+                // org's zone). This was device-local format(), so for a viewer
+                // in a different zone the lookup key was a day off from the
+                // data key and every cell showed the wrong day's figures — or
+                // none. That is the "disagrees with itself" failure this file
+                // was singled out for; the query range was converted and the
+                // lookup was not.
+                const dateKey = orgDateKey(day, timezone);
                 const pnl = dailyPnL.get(dateKey);
-                const inMonth = isSameMonth(day, currentMonth);
+                const inMonth = orgYMD(day, timezone).m === orgYMD(currentMonth, timezone).m;
                 const today = isOrgToday(day, timezone);
                 const dayValue = getDayValue(pnl);
                 const hasData = pnl != null && pnl.revenue > 0;

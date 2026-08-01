@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { differenceInMinutes, parseISO, format, isSameDay, getDay } from 'date-fns';
-import { orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
+import { orgStartOfDay, orgEndOfDay, orgYMD, orgDateKey, orgSetTimeOnDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useOrgId } from '@/hooks/useOrgId';
 
@@ -128,7 +128,9 @@ export function useCleanerConflicts(
         setWorkingHours(hoursData || []);
 
         // Approved time-off requests overlapping the selected date
-        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+        // Org day, not the device's — this keys a time-off lookup that must agree
+    // with the booking window above.
+    const dateStr = orgDateKey(new Date(selectedDate), orgTimezone);
         const { data: toData } = await (supabase as any)
           .from('time_off_requests')
           .select('staff_id')
@@ -148,7 +150,7 @@ export function useCleanerConflicts(
     };
 
     fetchData();
-  }, [selectedDate?.toDateString(), organizationId]);
+  }, [selectedDate?.toDateString(), organizationId, orgTimezone]);
 
   // Check if staff is within their working hours for the selected date/time
   // Returns false ONLY if the staff has working hours configured AND the day is explicitly blocked/unavailable
@@ -188,7 +190,7 @@ export function useCleanerConflicts(
     // Check if the booking START time falls within working hours
     // We don't block on booking end time going over - admin can override that
     return selectedMinutes >= startMinutes && selectedMinutes < endMinutes;
-  }, [selectedDate, selectedTime, duration, workingHours]);
+  }, [selectedDate, selectedTime, duration, workingHours, orgTimezone]);
 
   // Check conflicts for a specific staff member
   const checkConflictsForStaff = useCallback((staffId: string): ConflictInfo[] => {
@@ -197,8 +199,14 @@ export function useCleanerConflicts(
     }
 
     const [hours, minutes] = selectedTime.split(':').map(Number);
-    const newBookingStart = new Date(selectedDate);
-    newBookingStart.setHours(hours, minutes, 0, 0);
+    // Org-local, matching the fetch window. These were left device-local when
+    // the window moved to org time, so the two halves of the check could point
+    // at different calendar days — the fetched bookings would not contain the
+    // day the candidate is actually on, and a real clash returned "no
+    // conflict". Before that change both were device-local and at least
+    // self-consistent; half-converting made it worse than the bug it fixed.
+    const { y, m, d } = orgYMD(new Date(selectedDate), orgTimezone);
+    const newBookingStart = orgSetTimeOnDay(y, m, d, hours, minutes, orgTimezone);
     const newBookingEnd = new Date(newBookingStart.getTime() + duration * 60 * 1000);
 
     const conflicts: ConflictInfo[] = [];

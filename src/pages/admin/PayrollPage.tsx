@@ -261,7 +261,9 @@ export default function PayrollPage() {
   }, [orgTimezone]);
 
   /**
-   * The key payroll_payments rows are read and written under (:246, :304, :337).
+   * The key payroll_payments rows are read and written under — grep
+   * `week_start` in this file rather than trusting a line number here, which
+   * has already gone stale once.
    *
    * This used to be `format(startOfWeek(...), 'yyyy-MM-dd')` — both date-fns
    * calls run in BROWSER-LOCAL time, so an admin working from a different
@@ -290,7 +292,7 @@ export default function PayrollPage() {
         processing_fee_mode: data.processing_fee_mode,
         processing_fee_percent: Number(data.processing_fee_percent),
         // Tolerates the column not existing yet, so this behaves correctly if
-        // it ships ahead of the migration (same pattern as StaffPortal:697).
+        // it ships ahead of the migration (same pattern as StaffPortal's inline settings fallback).
         processing_fee_flat: Number(
           (data as Record<string, unknown>).processing_fee_flat ?? DEFAULT_SETTINGS.processing_fee_flat,
         ),

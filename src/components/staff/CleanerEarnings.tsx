@@ -94,8 +94,14 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         .select('timezone')
         .eq('organization_id', staffInfo!.organization_id!)
         .maybeSingle();
-      if (error || !data?.timezone) return 'America/New_York';
-      return data.timezone;
+      // A real fetch failure must NOT collapse into the same silent default as
+      // "no business_settings row yet". Those are different situations: the
+      // second is normal, the first means the cleaner is about to be shown
+      // Eastern week boundaries with nothing on screen to say why. Throwing
+      // puts it in react-query's error state (CLAUDE.md rule 5); the caller's
+      // `= 'America/New_York'` default still covers the genuinely-absent case.
+      if (error) throw error;
+      return data?.timezone ?? 'America/New_York';
     },
   });
 

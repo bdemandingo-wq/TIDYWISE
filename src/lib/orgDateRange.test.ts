@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   orgStartOfDay, orgEndOfDay, isSameOrgDay, isOrgToday, orgDayOfWeek,
   orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth,
-  orgDateKey, parseWeekStartDay, orgYMD, orgAddDays, orgDaysBetween,
+  orgDateKey, parseWeekStartDay, orgYMD, orgAddDays, orgDaysBetween, offsetFromParts,
 } from './orgDateRange.ts';
 
 const NY = 'America/New_York';
@@ -170,4 +170,71 @@ test('orgDaysBetween counts calendar days, DST or not', () => {
   const b = new Date('2026-03-09T16:00:00Z'); // one hour "shorter" in real time
   assert.equal(orgDaysBetween(a, b, NY), 2);
   assert.equal(orgDaysBetween(b, a, NY), -2);
+});
+
+// ─── finding 1: the WebKit hour-24 day-slip ───────────────────────────────
+// These drive offsetFromParts directly with hand-written parts. Node's Intl
+// never emits hour "24", so a test using the real formatter CANNOT fail before
+// the fix and therefore cannot prove it. Testing the transform can.
+test('offsetFromParts: WebKit hour-24 midnight resolves to the same offset as V8', () => {
+  // 2026-08-01T04:00Z is 00:00 EDT on 1 Aug. V8 renders it as 1 Aug 00:00;
+  // WebKit can render it as 31 Jul 24:00 — the day that is ENDING.
+  const instant = Date.parse('2026-08-01T04:00:00Z');
+  const v8     = { year:'2026', month:'08', day:'01', hour:'00', minute:'00', second:'00' };
+  const webkit = { year:'2026', month:'07', day:'31', hour:'24', minute:'00', second:'00' };
+  assert.equal(offsetFromParts(v8, instant), -240);
+  // Before the fix this returned -1680: exactly 1440 minutes — one day — out.
+  assert.equal(offsetFromParts(webkit, instant), -240);
+});
+
+test('offsetFromParts: hour-24 rolls correctly over a month end', () => {
+  const instant = Date.parse('2026-09-01T04:00:00Z'); // 00:00 EDT 1 Sep
+  const webkit = { year:'2026', month:'08', day:'31', hour:'24', minute:'00', second:'00' };
+  assert.equal(offsetFromParts(webkit, instant), -240);
+});
+
+test('offsetFromParts: hour-24 rolls correctly over a year end', () => {
+  const instant = Date.parse('2027-01-01T05:00:00Z'); // 00:00 EST 1 Jan
+  const webkit = { year:'2026', month:'12', day:'31', hour:'24', minute:'00', second:'00' };
+  assert.equal(offsetFromParts(webkit, instant), -300);
+});
+
+test('offsetFromParts: ordinary hours are unaffected by the guard', () => {
+  const instant = Date.parse('2026-08-01T16:00:00Z'); // 12:00 EDT
+  const parts = { year:'2026', month:'08', day:'01', hour:'12', minute:'00', second:'00' };
+  assert.equal(offsetFromParts(parts, instant), -240);
+});
+
+// ─── finding 2: DST gap at local midnight ─────────────────────────────────
+// Zones whose spring-forward is AT midnight, so 00:00 does not exist that day.
+test('DST gap: orgStartOfDay never returns the previous day', () => {
+  const cases: [string, string][] = [
+    ['America/Havana',  '2026-03-08'],
+    ['Africa/Cairo',    '2026-04-24'],
+    ['Asia/Beirut',     '2026-03-29'],
+    ['America/Santiago','2026-09-06'],
+    ['Atlantic/Azores', '2026-03-29'],
+  ];
+  for (const [zone, date] of cases) {
+    const noon = new Date(`${date}T12:00:00Z`);
+    const start = orgStartOfDay(noon, zone);
+    assert.equal(orgDateKey(start, zone), date, `${zone} start-of-day landed on the wrong date`);
+  }
+});
+
+test('DST gap: the returned instant is the first that exists on that day', () => {
+  // Havana skips 00:00→01:00 on 2026-03-08, so the day begins at 01:00 local.
+  const start = orgStartOfDay(new Date('2026-03-08T12:00:00Z'), 'America/Havana');
+  const hour = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Havana', hour: '2-digit', hour12: false, hourCycle: 'h23',
+  }).format(start);
+  assert.equal(hour, '01');
+});
+
+test('DST gap: a normal day is still exactly midnight', () => {
+  const start = orgStartOfDay(new Date('2026-06-15T12:00:00Z'), 'America/Havana');
+  const hour = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Havana', hour: '2-digit', hour12: false, hourCycle: 'h23',
+  }).format(start);
+  assert.equal(hour, '00');
 });

@@ -66,7 +66,25 @@ const DialogContent = React.forwardRef<
    *
    * Falls back to the CSS classes untouched when visualViewport is unavailable.
    */
-  const viewportStyle: React.CSSProperties = vv.ready
+  // Only override while the visible area is ACTUALLY reduced — i.e. the
+  // keyboard (or similar) is covering part of the screen.
+  //
+  // The first version applied the inline cap unconditionally whenever
+  // visualViewport existed, which is every modern browser including desktop
+  // with nothing open. An inline style beats a class regardless of which value
+  // is smaller, so `vv.height - 32` silently REPLACED a caller's
+  // `max-h-[80vh]` — and being larger, loosened it. 27 dialogs whose authors
+  // had deliberately capped them got taller everywhere, all the time. Measured:
+  // 1048px against an 864px cap on a 1080px desktop.
+  //
+  // CSS min() does not fix this: `100%` resolves against the containing block,
+  // not against the caller's class, and inline still wins outright. The only
+  // way an inline value cannot loosen a class is to not set it unless it is
+  // genuinely tighter — which is exactly when the viewport has shrunk.
+  const layoutHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+  const viewportIsReduced = vv.ready && layoutHeight > 0 && vv.height < layoutHeight - 100;
+
+  const viewportStyle: React.CSSProperties = viewportIsReduced
     ? {
         maxHeight: `${Math.max(0, vv.height - 32)}px`,
         top: `${vv.offsetTop + vv.height / 2}px`,
