@@ -192,6 +192,10 @@ export function QuotesTabContent() {
       // Notify the customer that their quote was approved (email + SMS).
       // Fire-and-forget; never blocks the accept flow.
       try {
+        // A quote can be raised against a LEAD, in which case customer_id is
+        // genuinely null — the old code sent .eq('id', null), which matches
+        // nothing and silently produced a notification with no recipient.
+        if (!quote.customer_id) return;
         const { data: cust } = await supabase
           .from('customers')
           .select('first_name, last_name, email, phone')

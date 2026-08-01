@@ -140,6 +140,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
           }
 
           (bookings || []).forEach(b => {
+            if (!b.customer_id) return; // unattributable booking — forEach, so return
             const existing = bookingsByCustomer.get(b.customer_id) || [];
             existing.push(b);
             bookingsByCustomer.set(b.customer_id, existing);

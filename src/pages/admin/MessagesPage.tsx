@@ -407,6 +407,11 @@ export default function MessagesPage() {
 
   // ─── Fetch conversations ──────────────────────────
   const fetchConversations = async (showSpinner = false) => {
+    // strictNullChecks surfaced this: organizationId is string | null and there
+    // was no guard, so before the org resolved these queries ran as
+    // .eq('organization_id', null) and came back empty — indistinguishable from
+    // "this org has no conversations" (CLAUDE.md rule 5).
+    if (!organizationId) return;
     if (showSpinner && !initialLoadDone.current) setLoading(true);
     try {
       const [convsRes, customersRes, staffRes, leadsRes] = await Promise.all([

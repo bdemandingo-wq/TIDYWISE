@@ -251,6 +251,7 @@ export function AIAnalysisCenter() {
       // first entry is the most recent visit and its service).
       const byCustomer = new Map<string, { dates: Date[]; latestServiceId: string | null }>();
       for (const b of pastBookings || []) {
+        if (!b.customer_id) continue; // no customer to attribute this to
         const entry = byCustomer.get(b.customer_id);
         if (entry) {
           entry.dates.push(new Date(b.scheduled_at));

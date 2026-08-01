@@ -549,7 +549,7 @@ export function AutomationsTab() {
         .limit(20);
 
       // Get customer names for review entries
-      const customerIds = [...new Set((reviews || []).map(r => r.customer_id).filter(Boolean))];
+      const customerIds = [...new Set((reviews || []).map(r => r.customer_id).filter((id): id is string => Boolean(id)))];
       let customerMap: Record<string, string> = {};
       if (customerIds.length > 0) {
         const { data: customers } = await supabase

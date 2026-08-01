@@ -40,12 +40,17 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
       };
     }
 
+    // `user` is guarded above, but the narrowing does not reach into this
+    // nested async function — it could in principle run after a re-render. The
+    // capture makes the guarantee explicit rather than asserted.
+    const currentUser = user;
+
     async function check() {
       const { data, error } = await supabase
         .from("org_memberships")
         .select("organization_id, role")
         .eq("organization_id", PLATFORM_ORG_ID)
-        .eq("user_id", user.id)
+        .eq("user_id", currentUser.id)
         .in("role", ["owner", "admin"])
         .maybeSingle();
 
@@ -58,7 +63,7 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
         console.warn("[PlatformAdminRoute] role check failed:", error.message);
         setAllowed(false);
         setRole(null);
-        setCheckedUserId(user.id);
+        setCheckedUserId(currentUser.id);
         return;
       }
 
@@ -67,7 +72,7 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
 
       setAllowed(granted);
       setRole(nextRole);
-      setCheckedUserId(user.id);
+      setCheckedUserId(currentUser.id);
     }
 
     void check();
@@ -97,7 +102,7 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
     // line, but userId + role only. Never the email, and only on denial.
     console.warn(
       "[SECURITY] Non-platform-admin attempted to access platform route",
-      { userId: user.id, role }
+      { userId: user?.id, role }
     );
     return <Navigate to="/dashboard" state={{ from: location }} replace />;
   }

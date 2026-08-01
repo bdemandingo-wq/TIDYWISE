@@ -120,12 +120,15 @@ export default function PortalRequestPage() {
 
   useEffect(() => {
     if (!user?.organization_id) return;
+    // Guarded above; captured so the narrowing survives into the async closure
+    // rather than being asserted away with `!`.
+    const orgId = user.organization_id;
 
     const fetchServices = async () => {
       const { data } = await supabase
         .from("services")
         .select("id, name")
-        .eq("organization_id", user.organization_id)
+        .eq("organization_id", orgId)
         .eq("is_active", true)
         .order("name");
 
