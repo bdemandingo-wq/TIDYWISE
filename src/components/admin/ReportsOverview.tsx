@@ -17,7 +17,7 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
-import { orgStartOfDay, orgEndOfDay, orgStartOfMonth, orgStartOfYear } from '@/lib/orgDateRange';
+import { orgEndOfDay, orgStartOfDay, orgStartOfMonth, orgStartOfQuarter, orgStartOfYear } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useTestMode } from '@/contexts/TestModeContext';
 
@@ -57,7 +57,10 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
         start = orgStartOfMonth(now, orgTimezone);
         break;
       case 'QTD':
-        start = orgStartOfDay(startOfQuarter(now), orgTimezone);
+        // Was orgStartOfDay(startOfQuarter(now), orgTimezone) — the quarter
+        // boundary chosen on the DEVICE, then snapped to the org's midnight.
+        // MTD and YTD either side of this were already fully org-resolved.
+        start = orgStartOfQuarter(now, orgTimezone);
         break;
       case 'YTD':
         start = orgStartOfYear(now, orgTimezone);

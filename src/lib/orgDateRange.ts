@@ -311,6 +311,21 @@ export function orgStartOfYear(instant: Date, timeZone: string): Date {
   return zonedTimeToInstant(y, 1, 1, 0, 0, 0, 0, timeZone);
 }
 
+/**
+ * First instant of the org-local QUARTER containing `instant`.
+ *
+ * Added because ReportsOverview had orgStartOfDay(startOfQuarter(now), tz) —
+ * the quarter boundary picked in the DEVICE's zone, then snapped to the org's
+ * midnight. Its MTD and YTD neighbours were both fully org-resolved; only QTD
+ * was left, in an adjacent switch case. Without an org-aware quarter helper
+ * there was nothing else to reach for, which is how it survived the sweep.
+ */
+export function orgStartOfQuarter(instant: Date, timeZone: string): Date {
+  const { y, m } = orgYMD(instant, timeZone);
+  const firstMonthOfQuarter = Math.floor((m - 1) / 3) * 3 + 1;
+  return orgSetTimeOnDay(y, firstMonthOfQuarter, 1, 0, 0, timeZone);
+}
+
 export function orgStartOfMonth(instant: Date, timeZone: string): Date {
   const { y, m } = orgYMD(instant, timeZone);
   return zonedTimeToInstant(y, m, 1, 0, 0, 0, 0, timeZone);

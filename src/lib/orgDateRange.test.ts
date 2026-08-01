@@ -1,24 +1,25 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  orgStartOfDay,
-  orgEndOfDay,
-  isSameOrgDay,
-  isOrgToday,
-  orgDayOfWeek,
-  orgStartOfWeek,
-  orgEndOfWeek,
-  orgStartOfMonth,
-  orgEndOfMonth,
-  orgDateKey,
-  parseWeekStartDay,
-  orgYMD,
-  orgAddDays,
-  orgDaysBetween,
-  offsetFromParts,
-  orgSetTimeOnDay,
   formatInOrgTz,
+  isOrgToday,
+  isSameOrgDay,
+  offsetFromParts,
+  orgAddDays,
   orgAddDaysPreservingTime,
+  orgDateKey,
+  orgDayOfWeek,
+  orgDaysBetween,
+  orgEndOfDay,
+  orgEndOfMonth,
+  orgEndOfWeek,
+  orgSetTimeOnDay,
+  orgStartOfDay,
+  orgStartOfMonth,
+  orgStartOfQuarter,
+  orgStartOfWeek,
+  orgYMD,
+  parseWeekStartDay,
 } from './orgDateRange.ts';
 
 const NY = 'America/New_York';
@@ -292,4 +293,18 @@ test('an overflowed day is normalised, not treated as a DST gap', () => {
   const viaOverflow = orgSetTimeOnDay(2026, 10, 33, 9, 0, 'America/New_York');
   const direct = orgSetTimeOnDay(2026, 11, 2, 9, 0, 'America/New_York');
   assert.equal(viaOverflow.toISOString(), direct.toISOString());
+});
+
+test('orgStartOfQuarter uses the ORG quarter, not the device one', () => {
+  const TZ = 'America/New_York';
+  // 1 Jan 2026 02:00 New York is still 31 Dec in Honolulu and already 1 Jan in
+  // Manila. The quarter start must be New York's Q1, whoever is looking.
+  const justAfterNY = new Date('2026-01-01T07:00:00Z'); // 02:00 EST
+  assert.equal(orgDateKey(orgStartOfQuarter(justAfterNY, TZ), TZ), '2026-01-01');
+  // mid-quarter lands on the quarter's first day, not the month's
+  assert.equal(orgDateKey(orgStartOfQuarter(new Date('2026-05-20T12:00:00Z'), TZ), TZ), '2026-04-01');
+  assert.equal(orgDateKey(orgStartOfQuarter(new Date('2026-11-20T12:00:00Z'), TZ), TZ), '2026-10-01');
+  // an instant that is 1 Jan in UTC but still 31 Dec in New York belongs to Q4
+  const stillDecNY = new Date('2026-01-01T02:00:00Z'); // 21:00 EST on 31 Dec
+  assert.equal(orgDateKey(orgStartOfQuarter(stillDecNY, TZ), TZ), '2025-10-01');
 });
