@@ -1073,35 +1073,50 @@ body {
   --pv-brand-soft:    230 90% 96%;
 
   /* Semantic status (soft pairs) */
-  --pv-success:       152 55% 38%;
+  /*
+    These two were the app's real contrast problem, not :root's. .portal-v2 is
+    applied by 71 pages — every admin screen, the landing page, pricing, login,
+    signup, the staff portal and the client portal — so for most of the app it
+    is THESE values that `text-success` and `text-warning` resolve to, not the
+    ones in :root.
+
+    At 38% and 46% they were 3.71:1 and 2.98:1 on a portal card. Both were
+    designed for the .pv-chip-* pattern, which puts them on a --*-soft pastel;
+    they were never checked as text on a plain surface, which is how the
+    shadcn aliases below let them be used.
+
+    Now 5.52:1 and 5.34:1 on a card, and still clear the soft chips at 5.03:1
+    and 4.86:1. Hues untouched.
+  */
+  --pv-success:       152 55% 30%;
   --pv-success-soft:  152 55% 94%;
-  --pv-warn:          32 90% 46%;
+  --pv-warn:          32 90% 33%;
   --pv-warn-soft:     36 100% 94%;
   --pv-danger:        352 72% 50%;
   --pv-danger-soft:   352 85% 96%;
 
   /* shadcn semantic aliases inside .portal-v2 */
   --surface-raised:   var(--pv-raised);
-  --success:          var(--pv-success);
   /*
-    Pinned for the same reason as --warning-foreground below: the portal
-    overrides --success but never its foreground, so it inherited :root's white.
-    .dark now sets that foreground to near-black, which on --pv-success (a light
-    green in this theme) the portal never asked for. Holding white keeps every
-    portal pairing exactly where it was.
+    EVERY alias below states its own foreground. The pattern of overriding a
+    colour and letting its foreground fall through from :root has now produced
+    four separate defects — success, warning, info and destructive — because the
+    inherited foreground was chosen against a different colour than the one that
+    ends up rendering here. If you add an alias, add its foreground with it.
+
+    These are the LIGHT values; .dark .portal-v2 flips the three that need it.
   */
+  --success:          var(--pv-success);
   --success-foreground: 0 0% 100%;
   --warning:          var(--pv-warn);
-  /*
-    Pinned, not inherited. The portal overrides --warning but never overrode its
-    foreground, so it used to pick up :root's near-black. :root's foreground is
-    now white (it pairs with a much darker amber out there), and white on
-    --pv-warn would be 2.98:1. Holding near-black keeps the portal at the 6.41:1
-    it already had — this token change is meant to have zero effect in here.
-  */
-  --warning-foreground: 0 0% 6%;
+  --warning-foreground: 0 0% 100%;
   --info:             var(--pv-brand);
+  /* The portal already had the right value for this and never wired it up:
+     --pv-brand-ink is white in this theme and near-black in dark, so one
+     declaration covers both. Inherited white was 2.66:1 on the dark brand. */
+  --info-foreground:  var(--pv-brand-ink);
   --destructive:      var(--pv-danger);
+  --destructive-foreground: 0 0% 100%;
   --success-soft:     var(--pv-success-soft);
   --warning-soft:     var(--pv-warn-soft);
   --info-soft:        var(--pv-brand-soft);
@@ -1430,6 +1445,17 @@ body {
   --pv-danger:        352 85% 68%;
   --pv-danger-soft:   352 55% 20%;
 
+  /*
+    In this theme every semantic colour is LIGHT, so a white foreground fails on
+    all of them: success was 1.76:1, brand/info 2.66:1, danger 2.97:1. All three
+    were inheriting white because .portal-v2 set the colour and not the pairing.
+    --info-foreground is not repeated here: it points at --pv-brand-ink, which
+    this block already flips to near-black.
+  */
+  --success-foreground:     0 0% 6%;
+  --warning-foreground:     0 0% 6%;
+  --destructive-foreground: 0 0% 6%;
+
   /* Elevation — deeper, softer for dark */
   --pv-shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.35);
   --pv-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 1px 1px hsl(0 0% 0% / 0.28);
@@ -1464,6 +1490,11 @@ body {
     --pv-warn-soft:     36 55% 18%;
     --pv-danger:        352 85% 68%;
     --pv-danger-soft:   352 55% 20%;
+
+    /* Mirrors .dark .portal-v2 — see the note there. */
+    --success-foreground:     0 0% 6%;
+    --warning-foreground:     0 0% 6%;
+    --destructive-foreground: 0 0% 6%;
     --pv-shadow-xs: 0 1px 0 0 hsl(0 0% 0% / 0.35);
     --pv-shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4), 0 1px 1px hsl(0 0% 0% / 0.28);
     --pv-shadow-md: 0 6px 16px -6px hsl(0 0% 0% / 0.55), 0 2px 4px -2px hsl(0 0% 0% / 0.35);
