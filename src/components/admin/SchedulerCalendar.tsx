@@ -738,8 +738,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           // travelling could text a customer the wrong appointment time — the
           // booking itself unchanged, only the message wrong. The org's clock
           // is the one the customer's appointment is actually in.
-          formattedDate: formatInOrgTz(scheduledDate, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric' }),
-          formattedTime: formatInOrgTz(scheduledDate, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true }),
           address: booking.address || '',
           totalAmount: booking.total_amount,
           organizationId: organization?.id,

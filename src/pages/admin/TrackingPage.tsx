@@ -221,6 +221,10 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
+            {/* Live tracking: "on the way since" is read against the wall clock
+                of whoever is watching the map right now, which is what makes an
+                elapsed time legible. Not a business-day boundary. */}
+            {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local elapsed time, deliberate */}
             <span>On the way since {startedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
           </div>
           {eta && !isStale && (

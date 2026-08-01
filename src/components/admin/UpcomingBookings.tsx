@@ -175,12 +175,6 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
     setSendingClientNotif(true);
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      // These strings go into an SMS the CUSTOMER receives. Without a timeZone
-      // they were the admin's clock — the third place in this codebase sending
-      // send-booking-reminder a device-local time (see SchedulerCalendar and
-      // BookingsPage).
-      const formattedDate = formatInOrgTz(scheduledDate, orgTimezone, { weekday: 'short', month: 'short', day: 'numeric' });
-      const formattedTime = formatInOrgTz(scheduledDate, orgTimezone, { hour: 'numeric', minute: '2-digit', hour12: true });
       const response = await supabase.functions.invoke('send-booking-reminder', {
         body: {
           bookingId: booking.id,
@@ -188,8 +182,6 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
           customerName: `${booking.customer.first_name} ${booking.customer.last_name}`,
           serviceName: booking.service?.name || 'Cleaning Service',
           scheduledAt: booking.scheduled_at,
-          formattedDate,
-          formattedTime,
           address: booking.address || '',
           totalAmount: booking.total_amount,
           organizationId: organization?.id,

@@ -38,7 +38,7 @@ const DATE_METHODS = new Set([
   'setDate', 'setMonth', 'setFullYear',
   'getDay', 'getDate', 'getMonth', 'getFullYear',
   'getHours', 'getMinutes',
-  'toDateString', 'toLocaleDateString',
+  'toDateString', 'toLocaleDateString', 'toLocaleTimeString', 'toTimeString',
 ]);
 
 const DATE_FNS_BOUNDARY = new Set([
@@ -70,7 +70,7 @@ export default {
       formatKey:
         '`format(x, \'{{fmt}}\')` renders a date key in the DEVICE’s timezone. Use orgDateKey(instant, timeZone) so the key matches the data it will be compared against.',
       localeDate:
-        '`toLocaleDateString()` without an explicit `timeZone` renders in the DEVICE’s timezone. Pass `{ timeZone }` from useOrgTimezone(), or use formatInOrgTz().',
+        '`toLocaleDateString()`/`toLocaleTimeString()` without an explicit `timeZone` renders in the DEVICE’s timezone. Pass `{ timeZone }` from useOrgTimezone(), or use formatInOrgTz().',
     },
   },
 
@@ -122,8 +122,12 @@ export default {
           return;
         }
 
-        // ── toLocaleDateString() with no timeZone option ──
-        if (prop.name === 'toLocaleDateString') {
+        // ── toLocaleDateString()/toLocaleTimeString() with no timeZone ──
+        // toLocaleTimeString was missing from this list until 2026-08-01, and
+        // that gap let a half-converted pair survive review: BookingsPage
+        // formatted the DATE in the org's zone on one line and the TIME in the
+        // device's on the next. The rule saw only the first.
+        if (prop.name === 'toLocaleDateString' || prop.name === 'toLocaleTimeString') {
           const opts = node.arguments[1];
           const hasTz =
             opts && opts.type === 'ObjectExpression' &&

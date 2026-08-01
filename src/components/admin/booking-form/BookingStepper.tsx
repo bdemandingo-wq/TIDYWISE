@@ -1299,25 +1299,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         }
 
         if (!isDraft) {
-          /* eslint-disable local/no-device-local-dates -- wall-clock carrier: built
-             and formatted in the same zone, so the rendered strings are the picked
-             day and time regardless of where the admin is. */
-          const adminScheduledDate = new Date(selectedDate!);
-          // Parse 24h time format (HH:mm)
-          const [adminHours, adminMinutes] = selectedTime.split(':').map(Number);
-          adminScheduledDate.setHours(adminHours, adminMinutes, 0, 0);
-          /* eslint-enable local/no-device-local-dates */
-          
-          const formattedDateStr = format(adminScheduledDate, 'MMMM d, yyyy');
-          const formattedTimeStr = format(adminScheduledDate, 'h:mm a');
-
           supabase.functions.invoke('send-admin-sms-notification', {
             body: {
               customerName,
               serviceName: selectedService?.name,
               scheduledAt: bookingData.scheduled_at,
-              formattedDate: formattedDateStr,
-              formattedTime: formattedTimeStr,
               totalAmount: totalAmount > 0 ? totalAmount : calculatedPrice,
               address,
               organizationId: organizationId ?? undefined,

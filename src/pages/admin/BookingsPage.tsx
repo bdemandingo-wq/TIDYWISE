@@ -400,27 +400,21 @@ export default function BookingsPage() {
 
     // Send cancellation SMS notification if status changed to cancelled
     if (newStatus === 'cancelled' && booking && organization?.id) {
-      // "for timezone accuracy" — but with no timeZone this was the ADMIN's
-      // clock, and the string goes into an SMS the CUSTOMER receives.
-      const scheduledDate = new Date(booking.scheduled_at);
-      const formattedDate = formatInOrgTz(scheduledDate, orgTz, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-      const formattedTime = scheduledDate.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
 
       supabase.functions.invoke('send-cancellation-sms-notification', {
         body: {
           customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
           serviceName: booking.service?.name || 'Cleaning',
           scheduledAt: booking.scheduled_at,
-          formattedDate,
-          formattedTime,
+      /*
+        No formattedDate/formattedTime. All three of these edge functions
+        (send-booking-reminder, send-cancellation-sms-notification,
+        send-admin-sms-notification) already fetch business_settings.timezone
+        and format scheduledAt with it, using these exact option shapes — the
+        client strings were only ever an OVERRIDE of a correct server path with
+        the admin's clock. Three components formatted independently and two of
+        them got it wrong; the fix is to stop having a client opinion at all.
+      */
           bookingNumber: booking.booking_number,
           organizationId: organization.id,
         }
@@ -462,16 +456,11 @@ export default function BookingsPage() {
     // Reuse handleStatusChange's SMS notify by simulating its effect (already updated above; trigger SMS):
     if (organization?.id) {
       const scheduledDate = new Date(cancelBookingTarget.scheduled_at);
-      // Also customer-facing — see the note in handleStatusChange.
-      const formattedDate = formatInOrgTz(scheduledDate, orgTz, { weekday: 'short', month: 'short', day: 'numeric' });
-      const formattedTime = formatInOrgTz(scheduledDate, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true });
       supabase.functions.invoke('send-cancellation-sms-notification', {
         body: {
           customerName: cancelBookingTarget.customer ? `${cancelBookingTarget.customer.first_name} ${cancelBookingTarget.customer.last_name}` : 'Customer',
           serviceName: cancelBookingTarget.service?.name || 'Cleaning',
           scheduledAt: cancelBookingTarget.scheduled_at,
-          formattedDate,
-          formattedTime,
           bookingNumber: cancelBookingTarget.booking_number,
           organizationId: organization.id,
         },
@@ -1483,8 +1472,12 @@ export default function BookingsPage() {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
           const customerName = booking.customer ? `${booking.customer.first_name}` : 'there';
-          const formattedDate = format(scheduledDate, 'EEEE, MMMM d');
-          const formattedTime = format(scheduledDate, 'h:mm a');
+          // scheduled_at is an INSTANT, and the whole composed message goes to
+          // send-openphone-sms — the server only relays text, so there is no
+          // fallback to save this one. The lint rule missed it because
+          // format(x, 'EEEE, MMMM d') is a display pattern, not a date key.
+          const formattedDate = formatInOrgTz(scheduledDate, orgTz, { weekday: 'long', month: 'long', day: 'numeric' });
+          const formattedTime = formatInOrgTz(scheduledDate, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true });
           
           // AI-style friendly reminder message
           const message = `Hey ${customerName}! 👋 Quick reminder: Your ${booking.service?.name || 'cleaning'} is scheduled for ${formattedDate} at ${formattedTime}.\n\n` +

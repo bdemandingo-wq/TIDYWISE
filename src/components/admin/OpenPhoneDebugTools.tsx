@@ -332,6 +332,7 @@ export function OpenPhoneDebugTools() {
                           {result.message}
                         </AlertDescription>
                         <span className="text-xs text-muted-foreground">
+                          {/* eslint-disable-next-line local/no-device-local-dates -- debug console: when the request ran on THIS machine */}
                           {result.timestamp.toLocaleTimeString()}
                         </span>
                         {result.details && (
