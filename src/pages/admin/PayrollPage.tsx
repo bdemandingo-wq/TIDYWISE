@@ -116,6 +116,8 @@ interface BookingPayrollDetail {
 interface PayrollSettings {
   processing_fee_mode: string;
   processing_fee_percent: number;
+  /** Fixed component per transaction — the "+ 30c" half of 2.9% + 30c. */
+  processing_fee_flat: number;
   vendor_cost_mode: string;
   vendor_cost_flat: number;
   vendor_cost_percent: number;
@@ -126,6 +128,7 @@ interface PayrollSettings {
 const DEFAULT_SETTINGS: PayrollSettings = {
   processing_fee_mode: 'percent',
   processing_fee_percent: 2.9,
+  processing_fee_flat: 0.30,
   vendor_cost_mode: 'none',
   vendor_cost_flat: 0,
   vendor_cost_percent: 0,
@@ -134,11 +137,33 @@ const DEFAULT_SETTINGS: PayrollSettings = {
 };
 
 // Financial calculation helpers
-function calcProcessingFee(revenueGross: number, settings: PayrollSettings): number {
-  if (settings.processing_fee_mode === 'percent') {
-    return revenueGross * (settings.processing_fee_percent / 100);
-  }
-  return 0;
+/**
+ * Card processing cost for one booking.
+ *
+ * TWO THINGS THIS GETS RIGHT THAT IT USED TO GET WRONG, both in the same
+ * direction (profit read HIGH):
+ *
+ *  1. Real card pricing is percent + fixed — Stripe US standard is 2.9% + 30c.
+ *     Modelling only the percent understated the fee on EVERY transaction by
+ *     the fixed component, which matters most on small tickets, which is most
+ *     cleans.
+ *  2. The fee was applied to every booking, including cash, cheque and bank
+ *     transfer jobs that never touched Stripe. `payment_intent_id` is only set
+ *     when a Stripe payment actually happened, so it is the honest gate.
+ *
+ * Fixing only (1) would have left (2) as the dominant error while looking like
+ * a correction, so they ship together.
+ */
+function calcProcessingFee(
+  booking: { payment_intent_id?: string | null },
+  revenueGross: number,
+  settings: PayrollSettings,
+): number {
+  // No Stripe payment intent → no card fee. Cash and cheque jobs cost nothing
+  // to process.
+  if (!booking.payment_intent_id) return 0;
+  if (settings.processing_fee_mode !== 'percent') return 0;
+  return revenueGross * (settings.processing_fee_percent / 100) + settings.processing_fee_flat;
 }
 
 function calcVendorCost(revenueNet: number, settings: PayrollSettings): number {
@@ -152,7 +177,7 @@ function calcBookingFinancials(booking: any, laborCost: number, settings: Payrol
   const discountAmount = Number(booking.discount_amount) || 0;
   const subtotal = Number(booking.subtotal) || revenueGross;
   const revenueNet = subtotal - discountAmount;
-  const processingFee = calcProcessingFee(revenueGross, settings);
+  const processingFee = calcProcessingFee(booking, revenueGross, settings);
   const vendorCost = calcVendorCost(revenueNet, settings);
   const profit = revenueNet - laborCost - vendorCost - processingFee;
   const laborPercent = revenueNet > 0 ? (laborCost / revenueNet) * 100 : 0;
@@ -192,6 +217,11 @@ export default function PayrollPage() {
       return {
         processing_fee_mode: data.processing_fee_mode,
         processing_fee_percent: Number(data.processing_fee_percent),
+        // Tolerates the column not existing yet, so this behaves correctly if
+        // it ships ahead of the migration (same pattern as StaffPortal:697).
+        processing_fee_flat: Number(
+          (data as Record<string, unknown>).processing_fee_flat ?? DEFAULT_SETTINGS.processing_fee_flat,
+        ),
         vendor_cost_mode: data.vendor_cost_mode,
         vendor_cost_flat: Number(data.vendor_cost_flat),
         vendor_cost_percent: Number(data.vendor_cost_percent),

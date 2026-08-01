@@ -33,6 +33,7 @@ interface Settings {
   hours_absolute_ceiling: number;
   processing_fee_mode: FeeMode;
   processing_fee_percent: number;
+  processing_fee_flat: number;
   vendor_cost_mode: VendorMode;
   vendor_cost_flat: number;
   vendor_cost_percent: number;
@@ -46,6 +47,7 @@ const DEFAULTS: Settings = {
   hours_absolute_ceiling: 12,
   processing_fee_mode: 'percent',
   processing_fee_percent: 2.9,
+  processing_fee_flat: 0.30,
   vendor_cost_mode: 'none',
   vendor_cost_flat: 0,
   vendor_cost_percent: 0,
@@ -103,6 +105,9 @@ export function PayrollCostSettings() {
       hours_absolute_ceiling: num(data.hours_absolute_ceiling, DEFAULTS.hours_absolute_ceiling),
       processing_fee_mode: (data.processing_fee_mode as FeeMode) ?? DEFAULTS.processing_fee_mode,
       processing_fee_percent: num(data.processing_fee_percent, DEFAULTS.processing_fee_percent),
+      processing_fee_flat: num(
+        (data as Record<string, unknown>).processing_fee_flat, DEFAULTS.processing_fee_flat,
+      ),
       vendor_cost_mode: (data.vendor_cost_mode as VendorMode) ?? DEFAULTS.vendor_cost_mode,
       vendor_cost_flat: num(data.vendor_cost_flat, DEFAULTS.vendor_cost_flat),
       vendor_cost_percent: num(data.vendor_cost_percent, DEFAULTS.vendor_cost_percent),
@@ -128,25 +133,14 @@ export function PayrollCostSettings() {
 
     setSaving(true);
     try {
-      // Select-then-update/insert rather than upsert: organization_id has no
-      // unique constraint on this table, so onConflict:'organization_id' would
-      // fail with 42P10.
-      const { data: existing, error: readErr } = await supabase
+      // payroll_settings carries UNIQUE (organization_id), so one atomic upsert
+      // is correct. An earlier version read-then-updated-or-inserted on the
+      // mistaken belief that the constraint was absent; that left a race where
+      // two concurrent saves could both find no row and both try to insert.
+      const { error } = await supabase
         .from('payroll_settings')
-        .select('id')
-        .eq('organization_id', orgId)
-        .maybeSingle();
-      if (readErr) throw readErr;
-
-      if (existing?.id) {
-        const { error } = await supabase.from('payroll_settings').update(form).eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('payroll_settings')
-          .insert({ ...form, organization_id: orgId });
-        if (error) throw error;
-      }
+        .upsert({ ...form, organization_id: orgId }, { onConflict: 'organization_id' });
+      if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ['payroll-settings-editor', orgId] });
       await queryClient.invalidateQueries({ queryKey: ['payroll-settings', orgId] });
@@ -278,6 +272,31 @@ export function PayrollCostSettings() {
             being right.
           </p>
 
+          {/*
+            Stated up front rather than left to be noticed. Two corrections
+            shipped together and they pull in opposite directions, so an owner
+            comparing this month to last needs to know the numbers moved because
+            the maths got more accurate, not because the business changed.
+          */}
+          <div className="rounded-md border bg-muted/40 p-3 space-y-1.5">
+            <p className="text-xs font-medium">Your profit figures have just changed — here&apos;s why</p>
+            <p className="text-sm text-muted-foreground">
+              Card fees are now worked out the way processors actually charge, and only on
+              jobs that were really paid through Stripe.
+            </p>
+            <ul className="text-sm text-muted-foreground list-disc pl-4 space-y-0.5">
+              <li>Jobs paid by card: profit drops by the fixed fee — about 30¢ each.</li>
+              <li>
+                Jobs paid in cash, by cheque or bank transfer: no card fee is charged now, so
+                profit goes <strong>up</strong> by the full percentage.
+              </li>
+            </ul>
+            <p className="text-sm text-muted-foreground">
+              Most businesses will see total profit rise. Nothing about what you earned has
+              changed — only how accurately it&apos;s reported.
+            </p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs">Card processing</Label>
@@ -299,8 +318,17 @@ export function PayrollCostSettings() {
                     onChange={(e) => set('processing_fee_percent', num(e.target.value, 0))}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    % of the amount charged. The 2.9% default is a guess at a common US card
-                    rate — check yours.
+                    % of the amount charged.
+                  </p>
+                  <Label htmlFor="fee-flat" className="text-xs">Plus, per payment</Label>
+                  <Input
+                    id="fee-flat" type="number" step="0.01" min="0" inputMode="decimal"
+                    value={form.processing_fee_flat}
+                    onChange={(e) => set('processing_fee_flat', num(e.target.value, 0))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Most processors charge a percentage <em>plus</em> a fixed amount. Stripe&apos;s
+                    US standard is 2.9% + 30¢. Set this to 0 if yours has no fixed fee.
                   </p>
                 </>
               )}

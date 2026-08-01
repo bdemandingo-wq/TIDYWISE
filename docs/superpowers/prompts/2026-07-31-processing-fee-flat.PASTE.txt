@@ -1,0 +1,61 @@
+Please run a migration on the main project (slwfkaqczvwvvvavkgpr).
+
+Add one column to public.payroll_settings.
+
+CONTEXT: the app models card processing cost as a percentage only. Real card
+pricing is a percentage PLUS a fixed amount per transaction — Stripe's US
+standard is 2.9% + 30c. Without the fixed half, every profit figure on the
+payroll and booking reports reads slightly high, always in the same direction.
+
+ALTER TABLE public.payroll_settings
+  ADD COLUMN IF NOT EXISTS processing_fee_flat NUMERIC NOT NULL DEFAULT 0.30;
+
+COMMENT ON COLUMN public.payroll_settings.processing_fee_flat IS
+'Fixed component of the card processing fee, per transaction — the "+ 30c" half
+of "2.9% + 30c". Applied in addition to processing_fee_percent whenever
+processing_fee_mode = ''percent''. Set to 0 for a processor with no fixed fee.
+
+Deliberately a FIELD rather than a new processing_fee_mode value: percent-plus-
+fixed is one fee structure, not two, and a processor without a fixed component is
+just flat = 0.
+
+The fee is only charged on bookings where payment_intent_id IS NOT NULL, i.e.
+money actually went through Stripe. Cash, cheque and bank transfer jobs cost
+nothing to process and are no longer charged a notional fee.';
+
+DEFAULT 0.30 is intentional. It is approximately right for the common US card
+rate and matches the existing 2.9% default, which stays as it is. Every existing
+row picks it up, so reported profit changes on the next page load — see the note
+below, which is already shown in the UI.
+
+Please do NOT add a CHECK constraint on processing_fee_mode, and do not change
+processing_fee_percent's default.
+
+AFTERWARDS please paste:
+
+  -- 1. Column exists with the right default, and every org has it.
+  select count(*)                                          as orgs_with_settings,
+         count(*) filter (where processing_fee_flat = 0.30) as at_default,
+         min(processing_fee_flat)                          as lowest,
+         max(processing_fee_flat)                          as highest
+  from public.payroll_settings;
+
+  -- 2. THE SIZE OF THE CORRECTION, so the change in reported profit is a known
+  --    number rather than a surprise. Card jobs each lose the fixed fee from
+  --    profit; non-Stripe jobs each gain back the whole percentage they were
+  --    wrongly charged.
+  select
+    count(*) filter (where payment_intent_id is not null)   as card_jobs,
+    count(*) filter (where payment_intent_id is null)       as non_stripe_jobs,
+    round(count(*) filter (where payment_intent_id is not null) * 0.30, 2)
+                                                            as profit_down_from_flat_fee,
+    round(coalesce(sum(total_amount) filter (where payment_intent_id is null), 0) * 0.029, 2)
+                                                            as profit_up_from_ungating,
+    round(
+      coalesce(sum(total_amount) filter (where payment_intent_id is null), 0) * 0.029
+      - count(*) filter (where payment_intent_id is not null) * 0.30, 2)
+                                                            as net_change_in_reported_profit
+  from public.bookings
+  where status <> 'cancelled';
+
+Confirm the migration RAN, not just that a file was created.
