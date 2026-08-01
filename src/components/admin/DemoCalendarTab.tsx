@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, isBefore, startOfDay, isThisWeek } from 'date-fns';
+import { calendarDayKey, orgDateKey } from '@/lib/orgDateRange';
 import { toast } from 'sonner';
 import { DEFAULT_AVAILABILITY, parseAvailability, slotsForDay, WEEKDAY_LABELS, type WeeklyAvailability } from '@/lib/demoAvailability';
 
@@ -51,16 +52,26 @@ interface DemoBooking {
 const DEMO_TZ = 'America/New_York';
 const DEMO_DURATION_MIN = 45;
 
+/** New York's current calendar day — the demo calendar's "today". */
+const demoToday = () => orgDateKey(new Date(), DEMO_TZ);
+
 function buildGoogleCalendarUrl(demo: DemoBooking): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   const [hh = 0, mm = 0] = demo.booked_time.split(':').map(Number);
 
   // Pure wall-clock arithmetic: build from parts, add duration, read parts back.
+  // The Date is a CARRIER for wall-clock numbers, never an instant — it is
+  // constructed and read in the same zone, so the arithmetic is exact, and the
+  // URL carries ctz=DEMO_TZ so Google does the real conversion. Converting here
+  // would double-apply an offset. (Demo slots run 08:00–17:45, and every DST
+  // transition is in the small hours, so the +45min never crosses one.)
   const [y, mo, d] = demo.booked_date.split('-').map(Number);
   const start = new Date(y, mo - 1, d, hh, mm, 0, 0);
   const end = new Date(start.getTime() + DEMO_DURATION_MIN * 60000);
+  /* eslint-disable local/no-device-local-dates -- wall-clock carrier, see above */
   const stamp = (dt: Date) =>
     `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+  /* eslint-enable local/no-device-local-dates */
 
   const details = [
     `TidyWise demo with ${demo.full_name}${demo.business_name ? ` — ${demo.business_name}` : ''}.`,
@@ -397,15 +408,20 @@ export function DemoCalendarTab() {
 
   // Calendar computation
   const calendarDays = useMemo(() => {
+    /* eslint-disable local/no-device-local-dates -- grid geometry: a month spans
+       the same days and starts on the same weekday everywhere. Which cell is
+       TODAY is the one thing that isn't, and that comes from demoToday(). */
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     return eachDayOfInterval({ start: startOfWeek(monthStart), end: endOfWeek(monthEnd) });
+    /* eslint-enable local/no-device-local-dates */
   }, [currentMonth]);
 
   const blockedDateStrings = blockedDates.map(b => b.blocked_date);
 
   const getBookingsForDate = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
+    // Grid cell key matched against booked_date, itself a stored calendar date.
+    const dateStr = calendarDayKey(date);
     return bookings.filter(b => b.booked_date === dateStr && b.status !== 'cancelled');
   };
 
@@ -531,6 +547,9 @@ export function DemoCalendarTab() {
 
   // Reschedule time slots
   const rescheduleSlots = rescheduleDate
+    // rescheduleDate is a yyyy-MM-dd string; the weekday of a calendar date is
+    // the same in every timezone.
+    /* eslint-disable-next-line local/no-device-local-dates */
     ? slotsForDay(availability, new Date(rescheduleDate + 'T00:00:00').getDay())
     : [];
 
@@ -940,11 +959,15 @@ export function DemoCalendarTab() {
               </div>
               <div className="grid grid-cols-7 gap-0.5">
                 {calendarDays.map((day, i) => {
+                  /* eslint-disable-next-line local/no-device-local-dates -- cell vs displayed month; both grid tokens */
                   const inMonth = isSameMonth(day, currentMonth);
-                  const dateStr = format(day, 'yyyy-MM-dd');
+                  const dateStr = calendarDayKey(day);
                   const isBlocked = blockedDateStrings.includes(dateStr);
                   const dayBookings = getBookingsForDate(day);
-                  const today = isToday(day);
+                  // Was isToday(day) — the ADMIN's today. The demo calendar runs
+                  // on New York's, so an admin abroad had the wrong cell ringed.
+                  const today = dateStr === demoToday();
+                  /* eslint-disable-next-line local/no-device-local-dates -- cell vs clicked cell; both grid tokens */
                   const selected = selectedDate && isSameDay(day, selectedDate);
 
                   return (
@@ -976,9 +999,11 @@ export function DemoCalendarTab() {
               {selectedDate && (
                 <div className="mt-3 pt-3 border-t border-border space-y-2">
                   <div className="flex items-center justify-between">
+                    {/* Labels the clicked cell with its own day — a display
+                        format, not a date key, so the rule does not flag it. */}
                     <p className="text-sm font-medium">{format(selectedDate, 'EEEE, MMM d')}</p>
-                    {blockedDateStrings.includes(format(selectedDate, 'yyyy-MM-dd')) && (
-                      <Button size="sm" variant="ghost" className="text-xs min-h-[44px]" onClick={() => unblockMutation.mutate(format(selectedDate, 'yyyy-MM-dd'))}>
+                    {blockedDateStrings.includes(calendarDayKey(selectedDate)) && (
+                      <Button size="sm" variant="ghost" className="text-xs min-h-[44px]" onClick={() => unblockMutation.mutate(calendarDayKey(selectedDate))}>
                         Unblock
                       </Button>
                     )}
@@ -1014,7 +1039,11 @@ export function DemoCalendarTab() {
                 <div className="space-y-2">
                   {bookings
                     .filter(b => b.status === 'confirmed' || b.status === 'rescheduled')
-                    .filter(b => !isBefore(new Date(b.booked_date + 'T23:59:59'), startOfDay(new Date())))
+                    // booked_date is a New York calendar day, so whether a demo
+                    // is still upcoming is a New York question. Compared against
+                    // the admin's midnight, a demo dropped off this list up to a
+                    // day early — or lingered a day after it had happened.
+                    .filter(b => b.booked_date >= demoToday())
                     .sort((a, b) => a.booked_date.localeCompare(b.booked_date))
                     .map(demo => (
                       <div key={demo.id} className="p-3 bg-muted/50 rounded-lg border border-border space-y-2 text-sm">
@@ -1278,11 +1307,14 @@ export function DemoCalendarTab() {
               disabled={!blockDateRange.start}
               onClick={() => {
                 const dates: { blocked_date: string; reason: string; notes: string }[] = [];
+                // Expanding one yyyy-MM-dd range into the calendar days it
+                // covers. Strings in, strings out — no instant involved.
                 const start = new Date(blockDateRange.start + 'T00:00:00');
                 const end = blockDateRange.end ? new Date(blockDateRange.end + 'T00:00:00') : start;
+                /* eslint-disable-next-line local/no-device-local-dates -- calendar-range expansion, see above */
                 const days = eachDayOfInterval({ start, end });
                 for (const d of days) {
-                  dates.push({ blocked_date: format(d, 'yyyy-MM-dd'), reason: blockReason, notes: blockNotes });
+                  dates.push({ blocked_date: calendarDayKey(d), reason: blockReason, notes: blockNotes });
                 }
                 blockDateMutation.mutate(dates);
               }}

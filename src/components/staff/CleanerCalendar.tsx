@@ -19,6 +19,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { calendarDayKey, orgDateKey, orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
 
 interface Booking {
@@ -49,10 +50,15 @@ export function CleanerCalendar({ staffId }: Props) {
 
   // Fetch all bookings for the month
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['cleaner-calendar', staffId, format(currentMonth, 'yyyy-MM')],
+    /* eslint-disable-next-line local/no-device-local-dates -- cache key: which month is displayed */
+    queryKey: ['cleaner-calendar', staffId, format(currentMonth, 'yyyy-MM'), orgTimezone],
     queryFn: async () => {
-      const monthStart = startOfMonth(currentMonth);
-      const monthEnd = endOfMonth(currentMonth);
+      // These become an INSTANT range against scheduled_at, so the month's
+      // edges belong to the org. Device-local edges shift the window by the
+      // offset — a cleaner in PST viewing an EST org missed jobs at the start
+      // of the month and picked up ones belonging to the next.
+      const monthStart = orgStartOfMonth(currentMonth, orgTimezone);
+      const monthEnd = orgEndOfMonth(currentMonth, orgTimezone);
 
       const { data, error } = await supabase
         .from('bookings')
@@ -74,12 +80,16 @@ export function CleanerCalendar({ staffId }: Props) {
 
   // Generate calendar days
   const calendarDays = useMemo(() => {
+    /* eslint-disable local/no-device-local-dates -- grid geometry: the cells of
+       the displayed month, identical in every timezone. The query window above
+       is an instant range and is org-resolved; this is not. */
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const calendarStart = startOfWeek(monthStart);
     const calendarEnd = endOfWeek(monthEnd);
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    /* eslint-enable local/no-device-local-dates */
   }, [currentMonth]);
 
   // Group bookings by date (in org timezone, so a 9pm EST booking doesn't slip
@@ -99,7 +109,8 @@ export function CleanerCalendar({ staffId }: Props) {
   // Get bookings for selected date
   const selectedDateBookings = useMemo(() => {
     if (!selectedDate) return [];
-    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    // Grid cell key, looked up in a map keyed by each booking's ORG day.
+    const dateKey = calendarDayKey(selectedDate);
     return bookingsByDate[dateKey] || [];
   }, [selectedDate, bookingsByDate]);
 
@@ -176,11 +187,16 @@ export function CleanerCalendar({ staffId }: Props) {
           {/* Calendar grid */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((day) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
+              const dateKey = calendarDayKey(day);
               const dayBookings = bookingsByDate[dateKey] || [];
+              /* eslint-disable local/no-device-local-dates -- cell vs displayed month, cell vs clicked cell: grid tokens both sides */
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isSelected = selectedDate && isSameDay(day, selectedDate);
+              /* eslint-enable local/no-device-local-dates */
               const hasJobs = dayBookings.length > 0;
+              // isToday(day) was the CLEANER's today. Their jobs are scheduled
+              // on the org's calendar, so that is the day to ring.
+              const isOrgToday = dateKey === orgDateKey(new Date(), orgTimezone);
 
               return (
                 <button
@@ -190,13 +206,13 @@ export function CleanerCalendar({ staffId }: Props) {
                     relative min-h-[60px] sm:min-h-[80px] p-1 rounded-lg border transition-all
                     ${isCurrentMonth ? 'bg-card' : 'bg-muted/30 text-muted-foreground'}
                     ${isSelected ? 'ring-2 ring-primary border-primary' : 'border-border/50 hover:border-primary/50'}
-                    ${isToday(day) ? 'bg-primary/5' : ''}
+                    ${isOrgToday ? 'bg-primary/5' : ''}
                   `}
                 >
                   <span
                     className={`
                       text-sm font-medium
-                      ${isToday(day) ? 'bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto' : ''}
+                      ${isOrgToday ? 'bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center mx-auto' : ''}
                     `}
                   >
                     {format(day, 'd')}

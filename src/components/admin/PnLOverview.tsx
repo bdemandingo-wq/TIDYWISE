@@ -15,7 +15,7 @@ import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, T
 import { Link } from 'react-router-dom';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
-import { orgStartOfYear, orgEndOfMonth } from '@/lib/orgDateRange';
+import { orgStartOfYear, orgEndOfMonth, orgYMD } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import type { Json } from '@/integrations/supabase/types';
 import { fmt } from '@/lib/activeCurrency';
@@ -82,6 +82,9 @@ interface PnLSettings {
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const defaultSettings: PnLSettings = {
+  /* eslint-disable-next-line local/no-device-local-dates -- module scope, no hook
+     available; overwritten by the org-resolved currentYear once the component
+     mounts, and only ever a default before settings load */
   year: new Date().getFullYear(),
   annual_revenue_goal: 0,
   last_year_revenue: 0,
@@ -176,10 +179,14 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('revenue-map');
-  const [selectedOverheadMonth, setSelectedOverheadMonth] = useState(new Date().getMonth());
-  const [selectedMarketingMonth, setSelectedMarketingMonth] = useState(new Date().getMonth());
+  // Which month/year the BUSINESS is in. Every slice below — YTD, QTD, MTD,
+  // the goal-pace badge — is cut against this, and they are all money figures.
+  const orgNow = orgYMD(new Date(), orgTimezone);
+  const orgMonthIdx = orgNow.m - 1;
+  const [selectedOverheadMonth, setSelectedOverheadMonth] = useState(orgMonthIdx);
+  const [selectedMarketingMonth, setSelectedMarketingMonth] = useState(orgMonthIdx);
   const [summaryPeriod, setSummaryPeriod] = useState<'month' | 'year'>('year');
-  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(new Date().getMonth());
+  const [selectedSummaryMonth, setSelectedSummaryMonth] = useState(orgMonthIdx);
   const [netProfitPeriod, setNetProfitPeriod] = useState<'ytd' | 'qtd' | 'mtd' | '1y' | '4w' | '1w'>('ytd');
 
   // Expense category to overhead mapping
@@ -201,7 +208,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     total: number[];  // monthly totals
   }>({ byCategory: {}, total: Array(12).fill(0) });
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = orgNow.y;
   const organizationId = orgId.organizationId;
 
   // Fetch settings on mount
@@ -798,9 +805,11 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
   // Calculate Net Profit based on selected time period
   const netProfitByPeriod = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentDate = now.getDate();
+    // These decide which months are summed for the headline net profit. Read
+    // from the device, an admin abroad sees a month added or dropped at every
+    // month boundary — the figure changes with who is looking at it.
+    const currentMonth = orgMonthIdx;
+    const currentDate = orgNow.d;
     
     // YTD - sum of all months up to current
     const ytd = pnlData.slice(0, currentMonth + 1).reduce((sum, m) => sum + m.netProfit, 0);
@@ -825,8 +834,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
   }, [pnlData, pnlTotals]);
 
   const currentNetProfit = netProfitByPeriod[netProfitPeriod];
-  const currentNetProfitRevenue = netProfitPeriod === 'mtd' ? pnlData[new Date().getMonth()]?.revenue || 0 :
-    netProfitPeriod === 'qtd' ? pnlData.slice(Math.floor(new Date().getMonth() / 3) * 3, new Date().getMonth() + 1).reduce((sum, m) => sum + m.revenue, 0) :
+  const currentNetProfitRevenue = netProfitPeriod === 'mtd' ? pnlData[orgMonthIdx]?.revenue || 0 :
+    netProfitPeriod === 'qtd' ? pnlData.slice(Math.floor(orgMonthIdx / 3) * 3, orgMonthIdx + 1).reduce((sum, m) => sum + m.revenue, 0) :
     pnlTotals.revenue;
   const currentNetProfitMargin = currentNetProfitRevenue > 0 ? (currentNetProfit / currentNetProfitRevenue) * 100 : 0;
 
@@ -871,7 +880,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
               <DollarSign className="w-8 h-8 text-success opacity-50" />
             </div>
             <div className="mt-2">
-              <Badge variant={progressPercent >= (new Date().getMonth() + 1) / 12 * 100 ? 'default' : 'destructive'}>
+              <Badge variant={progressPercent >= (orgMonthIdx + 1) / 12 * 100 ? 'default' : 'destructive'}>
                 {progressPercent.toFixed(1)}% of goal
               </Badge>
             </div>
