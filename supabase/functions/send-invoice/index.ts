@@ -293,18 +293,26 @@ const handler = async (req: Request): Promise<Response> => {
       </table>
     </div>
 
-    <div style="padding:0 32px 24px;display:flex;justify-content:flex-end;">
-      <div style="width:100%;max-width:320px;border:1px solid ${BORDER};border-radius:16px;padding:18px 20px;">
-        <div style="display:flex;justify-content:space-between;gap:16px;font-size:14px;color:${SLATE};margin-bottom:10px;">
-          <span style="color:${MUTED};">Subtotal</span>
-          <span>${formatMoney(data.subtotal)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;gap:16px;font-size:18px;font-weight:800;color:${ACCENT};">
-          <span>Total</span>
-          <span>${formatMoney(data.total)}</span>
-        </div>
-      </div>
+    <div style="padding:0 32px 24px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td align="right">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="320"
+                   style="width:320px;max-width:100%;border:1px solid ${BORDER};border-radius:16px;">
+              <tr>
+                <td align="left" style="padding:18px 8px 10px 20px;font-size:14px;color:${MUTED};">Subtotal</td>
+                <td align="right" style="padding:18px 20px 10px 8px;font-size:14px;color:${SLATE};white-space:nowrap;">${formatMoney(data.subtotal)}</td>
+              </tr>
+              <tr>
+                <td align="left" style="padding:0 8px 18px 20px;font-size:18px;font-weight:800;color:${ACCENT};">Total</td>
+                <td align="right" style="padding:0 20px 18px 8px;font-size:18px;font-weight:800;color:${ACCENT};white-space:nowrap;">${formatMoney(data.total)}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
     </div>
+
 
     <div style="padding:0 32px 32px;">
       <a href="${paymentUrl}" target="_blank" style="display:block;background:${brandColor};color:#ffffff;text-decoration:none;text-align:center;padding:16px 20px;border-radius:14px;font-size:16px;font-weight:700;">Pay ${formatMoney(data.total)}</a>
