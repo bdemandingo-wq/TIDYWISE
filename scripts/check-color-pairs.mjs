@@ -112,17 +112,22 @@ function contrast(a, b) {
     - every entry prints on every run
 */
 const KNOWN = new Set([
+  // Was nine, then six, now three. The light --accent and the two dark
+  // text-info entries came off with this change; --info additionally stopped
+  // sharing a value with --primary, which is what had made it look expensive.
+  //
+  // The three that remain are deliberately held: --primary's foreground flip
+  // repaints 358 button labels, and dark --destructive's fill and text pull in
+  // OPPOSITE directions, so they can only move together.
+  //
   // Was nine. The three light-mode --destructive entries came off when that
   // token went 55% -> 45%: there, white-on-red and red-on-white moved the same
   // way, so lightness alone fixed both sides. The six below do not have that
   // property — each fails in two directions at once and needs its foreground
   // flipped, which is a visible repaint rather than a nudge.
-  'light|--accent-foreground on bg-accent',
   'dark|--primary-foreground on bg-primary',
   'dark|--destructive-foreground on bg-destructive',
   'dark|text-destructive on --card',
-  'dark|text-info on --background',
-  'dark|text-info on --card',
 ]);
 
 /** Tokens that ARE surfaces — they are what text sits on, so they are not text. */
