@@ -10,6 +10,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
+import { isOptedOut, isPhoneOptedOut } from "../_shared/marketing-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,6 +80,47 @@ serve(async (req: Request): Promise<Response> => {
       const companyName = (bs as { company_name?: string } | null)?.company_name ??
         "Our team";
 
+      // ── template lookup ──────────────────────────────────────────────
+      // One join, once per org — hoisted above the per-quote loop.
+      // A missing definition, a missing step, or a query error ALL leave
+      // templateBody null, which resolveTemplate turns into the seeded
+      // default. There is deliberately no path here that skips a customer:
+      // a lookup failure degrades to stock wording, never to silence.
+      let templateBody: string | null = null;
+      {
+        const { data: def, error: defErr } = await supabase
+          .from("automation_definitions")
+          .select("id, enabled")
+          .eq("organization_id", orgId)
+          .eq("automation_key", "quote_stale_reengage")
+          .maybeSingle();
+
+        if (defErr) {
+          console.warn(
+            `[quote-stale-reengage] template lookup failed org=${orgId}, using default:`,
+            defErr,
+          );
+        } else if (def && def.enabled !== false) {
+          const { data: step, error: stepErr } = await supabase
+            .from("automation_steps")
+            .select("sms_body")
+            .eq("automation_id", def.id)
+            .in("channel", ["sms", "both"])
+            .eq("recipient_client", true)
+            .order("position", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (stepErr) {
+            console.warn(
+              `[quote-stale-reengage] step lookup failed org=${orgId}, using default:`,
+              stepErr,
+            );
+          } else {
+            templateBody = step?.sms_body ?? null;
+          }
+        }
+      }
+
       for (const q of staleQuotes) {
         const quote = q as unknown as {
           id: string;
@@ -113,7 +160,42 @@ serve(async (req: Request): Promise<Response> => {
         const customerName = quote.customer.first_name ?? "there";
         const serviceName = quote.service?.name ?? "cleaning service";
         const quoteLink = `${QUOTE_LINK_BASE}/${quote.id}`;
-        const message = `Hi ${customerName} — just checking in on your ${serviceName} quote from ${companyName}. Still interested? View it here: ${quoteLink}. Reply if you have questions!`;
+
+        // ── opt-out check — a quote nudge is classed marketing, so someone
+        // who has opted out must not receive it however the copy is worded.
+        // Argument order is (supabase, organizationId, customerId) — org FIRST.
+        // Both are strings, so reversing them type-checks and then fails CLOSED,
+        // muting the whole automation. If a run reports zero sends, check here.
+        if (quote.customer_id) {
+          if (await isOptedOut(supabase, orgId, quote.customer_id)) {
+            summary.skipped += 1;
+            continue;
+          }
+        } else if (await isPhoneOptedOut(supabase, orgId, quote.customer.phone)) {
+          summary.skipped += 1;
+          continue;
+        }
+
+        // ── resolve ──────────────────────────────────────────────────────
+        const resolved = resolveTemplate("quote_stale_reengage", templateBody, {
+          customer_name: customerName,
+          service_name: serviceName,
+          company_name: companyName,
+          quote_link: quoteLink,
+        });
+        if (resolved.warning) {
+          console.warn(
+            `[quote-stale-reengage] org=${orgId} quote=${quote.id}: ${resolved.warning}`,
+          );
+        }
+
+        // ── STOP line — appended by code, never part of the editable body ──
+        // withStopSentence is idempotent, so an owner who types their own STOP
+        // sentence does not get two.
+        const message =
+          AUTOMATION_DEFAULTS.quote_stale_reengage.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         try {
           const res = await fetch(
@@ -147,6 +229,8 @@ serve(async (req: Request): Promise<Response> => {
             metadata: {
               customer_name: customerName,
               service_name: serviceName,
+              used_default: resolved.usedDefault,
+              template_warning: resolved.warning,
               sent_at: new Date().toISOString(),
             },
           });
