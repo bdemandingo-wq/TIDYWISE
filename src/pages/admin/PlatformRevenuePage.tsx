@@ -60,7 +60,7 @@ function StalenessBanner({ freshness }: { freshness: Freshness | undefined }) {
         <Clock className="w-3.5 h-3.5" />
         Snapshot — data loaded {when}. New Stripe activity appears when the backfill re-runs.
         {freshness.failedResources.length > 0 && (
-          <span className="text-amber-600">
+          <span className="text-warning">
             {' '}· {freshness.failedResources.join(', ')} failed on the last run
           </span>
         )}
@@ -74,9 +74,9 @@ function StalenessBanner({ freshness }: { freshness: Freshness | undefined }) {
       : `Could not determine when this data was last loaded — treat these figures as potentially out of date. (${freshness.reason})`;
 
   return (
-    <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+    <div className="mb-6 rounded-lg border border-warning/40 bg-warning/10 p-4">
       <div className="flex items-start gap-2.5">
-        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
         <div>
           <p className="font-medium text-sm">
             {freshness.state === 'stale' ? 'This data is out of date' : 'Data age unknown'}
@@ -138,7 +138,7 @@ function BusinessPanel({
           </p>
           {/* Stated, not folded. The correction_confidence comment requires this. */}
           {inferred.events > 0 && (
-            <p className="text-xs text-amber-600 mt-1">
+            <p className="text-xs text-warning mt-1">
               + {money(inferred.net_cash_cents)} unclassified ({inferred.events} inferred events)
             </p>
           )}
@@ -232,7 +232,7 @@ function MonthlyTable({ rows, streams, label }: { rows: RevenueRow[]; streams: s
                 {m.all.reversal_cents === 0 ? '—' : money(m.all.reversal_cents)}
               </td>
               <td className="py-2 text-right tabular-nums font-medium">{money(m.headline.net_cash_cents)}</td>
-              <td className="py-2 text-right tabular-nums text-amber-600">
+              <td className="py-2 text-right tabular-nums text-warning">
                 {m.inferred.net_cash_cents === 0 ? '—' : money(m.inferred.net_cash_cents)}
               </td>
               <td className="py-2">

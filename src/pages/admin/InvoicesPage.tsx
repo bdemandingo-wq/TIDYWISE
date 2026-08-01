@@ -509,7 +509,7 @@ export default function InvoicesPage() {
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }} title="View invoice"><Eye className="w-4 h-4" /></Button>
                             {['sent', 'overdue'].includes(invoice.status) && (
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending} title="Mark as paid"><CheckCircle2 className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success/80" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending} title="Mark as paid"><CheckCircle2 className="w-4 h-4" /></Button>
                             )}
                             {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id} title={invoice.status === 'draft' ? 'Send invoice email' : 'Resend invoice email'}>
@@ -573,7 +573,7 @@ export default function InvoicesPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => { setViewingInvoice(invoice); setViewDialogOpen(true); }}><Eye className="w-4 h-4 mr-2" />View</Button>
                       {['sent', 'overdue'].includes(invoice.status) && (
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white border-0" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending}><CheckCircle2 className="w-4 h-4 mr-2" />Mark Paid</Button>
+                        <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground border-0" onClick={() => markPaidMutation.mutate({ id: invoice.id, previousStatus: invoice.status })} disabled={markPaidMutation.isPending}><CheckCircle2 className="w-4 h-4 mr-2" />Mark Paid</Button>
                       )}
                       {['draft', 'sent', 'overdue'].includes(invoice.status) && (
                         <Button variant="outline" size="sm" onClick={() => sendInvoiceEmail(invoice)} disabled={sendingInvoice === invoice.id}>

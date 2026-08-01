@@ -180,7 +180,7 @@ export function PayrollCostSettings() {
         {/* ── Tier 1: changes what cleaners are paid ─────────────────────── */}
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-amber-600" />
+            <Clock className="h-4 w-4 text-warning" />
             <h3 className="text-sm font-semibold">Hours limits</h3>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -238,9 +238,9 @@ export function PayrollCostSettings() {
             </p>
           </div>
 
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3">
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3">
             <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="space-y-1.5 text-sm">
                 <p>
                   <strong>Applies to future check-outs only.</strong> Pay already recorded on

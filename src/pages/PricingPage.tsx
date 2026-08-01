@@ -852,7 +852,7 @@ export default function PricingPage() {
         </section>
 
         <section id="compare-plans" className="mx-auto w-full max-w-5xl px-4 py-12 scroll-mt-20">
-          <h2 className="text-2xl font-bold text-center mb-2">Full feature comparison</h2>
+          <h2 className="pv-display text-3xl text-center mb-2">Full feature comparison</h2>
           <p className="text-sm text-muted-foreground text-center mb-8">
             Everything in every plan. The cards above show only what changes between them.
           </p>
@@ -888,11 +888,34 @@ export default function PricingPage() {
                         {section.group}
                       </th>
                     </tr>
-                    {section.rows.map((row) => (
+                    {section.rows.map((row) => {
+                      /*
+                        A row every plan ticks cannot help anyone choose — it is
+                        reassurance, not information. "Payroll for cleaners" on Pro
+                        and Custom only is a decision point; "Email support"
+                        everywhere is not. So the rows where the tiers actually
+                        differ carry the weight, and the rest recede.
+
+                        Two weights only. Sub-rows are detail under a decisive
+                        parent, so they stay in the quiet treatment rather than
+                        becoming a third tier of their own.
+
+                        Emphasis is never the only signal: the check/dash and its
+                        sr-only label still carry the actual answer, so this reads
+                        the same to a screen reader and to anyone who can't
+                        distinguish the two weights.
+                      */
+                      const decides =
+                        !row.sub && !(row.basic === row.pro && row.pro === row.custom);
+                      return (
                       <tr key={row.label} className="border-b border-border/50">
                         <th
                           scope="row"
-                          className={`py-2.5 pr-3 text-left font-normal ${row.sub ? 'pl-4 text-muted-foreground' : ''}`}
+                          className={`py-2.5 pr-3 text-left ${
+                            decides
+                              ? 'font-medium text-foreground'
+                              : 'font-normal text-muted-foreground'
+                          } ${row.sub ? 'pl-4' : ''}`}
                         >
                           {row.sub && <span aria-hidden="true" className="mr-1">–</span>}
                           {row.label}
@@ -901,7 +924,10 @@ export default function PricingPage() {
                           <td key={tierId} className="px-2 py-2.5 text-center">
                             {row[tierId] ? (
                               <>
-                                <Check aria-hidden="true" className="inline h-4 w-4 text-primary" />
+                                <Check
+                                  aria-hidden="true"
+                                  className={`inline h-4 w-4 ${decides ? 'text-primary' : 'text-primary/40'}`}
+                                />
                                 <span className="sr-only">Included</span>
                               </>
                             ) : (
@@ -914,7 +940,8 @@ export default function PricingPage() {
                           </td>
                         ))}
                       </tr>
-                    ))}
+                      );
+                    })}
                   </Fragment>
                 ))}
               </tbody>
@@ -1081,11 +1108,11 @@ export default function PricingPage() {
                 <div
                   key={p.name}
                   className={`rounded-lg bg-background p-5 border relative flex flex-col ${
-                    p.guarantee ? 'border-emerald-500/50 shadow-sm shadow-emerald-500/10' : ''
+                    p.guarantee ? 'border-success/50 shadow-sm shadow-success/10' : ''
                   }`}
                 >
                   {p.guarantee && (
-                    <Badge className="absolute -top-3 left-4 bg-emerald-600 text-white border-0 uppercase tracking-wider text-[10px]">
+                    <Badge className="absolute -top-3 left-4 bg-success text-success-foreground border-0 uppercase tracking-wider text-[10px]">
                       Guaranteed
                     </Badge>
                   )}
@@ -1098,8 +1125,8 @@ export default function PricingPage() {
                     </span>
                   </p>
                   {p.guarantee && (
-                    <div className="mt-3 pt-3 border-t border-emerald-500/20">
-                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-start gap-1.5">
+                    <div className="mt-3 pt-3 border-t border-success/20">
+                      <p className="text-xs font-medium text-success flex items-start gap-1.5">
                         <Check className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <span>
                           <strong>{p.guarantee}</strong> — or your next month is on us.
