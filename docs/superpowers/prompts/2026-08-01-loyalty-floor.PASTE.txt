@@ -1,0 +1,140 @@
+TWO CHANGES, IN ORDER. Ship STEP 1 on its own first — nothing reads the new
+column, so it cannot break anything. Do NOT ship STEP 2 until orgs have set real
+values in STEP 1's column, or every tier resolves to 0% and the new floor is
+exactly the old frequency-only bound with extra machinery.
+
+Confirm each is DEPLOYED, not just committed.
+
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 1 — give a loyalty tier a machine-readable discount
+═══════════════════════════════════════════════════════════════════════════
+
+WHY: client_tier_settings stores tier benefits as a free-text JSONB array —
+'["10% discount", "Priority booking", "Free add-on"]'. That is marketing copy,
+not a rate. Nothing in the database can answer "what discount is this customer
+entitled to", which is why the price floor cannot be made tier-aware today.
+
+DO:
+
+  ALTER TABLE public.client_tier_settings
+    ADD COLUMN IF NOT EXISTS discount_percent numeric NOT NULL DEFAULT 0
+    CHECK (discount_percent >= 0 AND discount_percent < 100);
+
+  COMMENT ON COLUMN public.client_tier_settings.discount_percent IS
+    'Machine-readable tier discount. The benefits JSONB is marketing copy and is
+     NOT parsed — an org sets this explicitly. 0 means no automatic discount.';
+
+DO NOT backfill it by parsing the benefits strings. "10% discount" was written
+as copy; parsing it would silently make copy authoritative over pricing, and a
+typo in a benefit line would become a real discount. Every tier starts at 0 and
+each org sets its own.
+
+Also add the same column to the bookings table so a booking can record which
+tier applied at the time it was taken:
+
+  ALTER TABLE public.bookings
+    ADD COLUMN IF NOT EXISTS loyalty_tier text;
+
+  COMMENT ON COLUMN public.bookings.loyalty_tier IS
+    'The tier resolve_customer_tier() returned when this booking was created.
+     Historical record — tiers move as spend accrues, so re-resolving later
+     would not reproduce it. Never read for pricing.';
+
+Nothing writes bookings.loyalty_tier yet. That is intentional; the admin form
+change lands separately.
+
+
+═══════════════════════════════════════════════════════════════════════════
+STEP 2 — make the price floor tier-aware AND frequency-aware
+═══════════════════════════════════════════════════════════════════════════
+
+The trigger enforce_booking_minimum_price currently rejects:
+
+    NEW.total_amount < min(service_pricing.minimum_price) * 0.5
+
+THE 0.5 IS BLUNT HEADROOM FOR THE FREQUENCY DISCOUNT, and it has two problems.
+
+PROBLEM A — too loose. A customer claiming a loyalty tier they have not earned
+sends a price 5–15% below what they owe. A 15% discount lands at 85% of the real
+price, nowhere near the 50% line. The floor cannot tell an earned discount from
+a claimed one.
+
+PROBLEM B — ALREADY TOO TIGHT, AND THIS IS A LIVE BUG, NOT A SIDE EFFECT OF THE
+CHANGE. RecurringDiscountConfig lets an org set any frequency discount from 0 to
+99 (src/lib/recurringDiscount.ts). The shipped defaults are monthly 15, biweekly
+25, weekly 30, so nobody has hit it — but an org that sets weekly to 55% has its
+own legitimate bookings REJECTED today, because min * 0.45 is below min * 0.5.
+The composed bound below fixes that as a direct consequence of composing the
+frequency discount explicitly rather than approximating it with a constant.
+Please do not treat that as an unrelated behaviour change: it is the same fault,
+seen from the other side.
+
+WHAT MAKES THE TIGHT BOUND POSSIBLE: bookings already carries everything needed.
+  frequency              — which frequency discount applied (the public form writes it)
+  custom_frequency_days  — custom frequencies carry their own discount_pct
+  customer_id            — input to resolve_customer_tier()
+  discount_amount        — promo codes, applied on top
+  service_id, organization_id — the minimum lookup that already exists
+
+So the frequency does NOT have to be assumed at its worst case.
+
+REPLACE the comparison with the composed bound. Both discounts multiply, in the
+order the client applies them in calculateTotal:
+
+    floor := min(service_pricing.minimum_price)
+             * (1 - frequency_discount_pct / 100)
+             * (1 - tier_discount_pct / 100)
+             * 0.95
+
+    reject when (NEW.total_amount + COALESCE(NEW.discount_amount, 0)) < floor
+
+NOTES ON EACH TERM:
+
+  frequency_discount_pct — resolve from NEW.frequency against the org's
+    business_settings recurring-discount columns, falling back to the hardcoded
+    defaults (one_time 0, monthly 15, biweekly 25, weekly 30, triweekly 20,
+    anyday 15). A custom frequency arrives as "custom:<uuid>" — look up that
+    row's discount_pct. Unknown or unparseable frequency => treat as 0, which
+    makes the floor STRICTER, so an unrecognised value fails safe.
+
+  tier_discount_pct — resolve_customer_tier(NEW.customer_id) gives the tier
+    NAME; join it to client_tier_settings.discount_percent from STEP 1.
+    NEW.customer_id IS NULL => 0. A public booking from a brand-new customer has
+    no history and no tier.
+
+  discount_amount is ADDED BACK before comparing. A promo code is a deliberate,
+    recorded reduction. The floor exists to catch an UNRECORDED one.
+
+  0.95 covers Math.round on the final total and nothing else. Everything else in
+    calculateTotal either adds (extras, pet fee, home condition), is already
+    floored client-side at minimum_price (room reductions), or multiplies upward
+    (surge). The pre-discount total is therefore never below minimum_price,
+    which is exactly why 5% is enough where 50% was needed.
+
+KEEP the three existing skips unchanged — null service_id/total_amount,
+recurring_booking_id IS NOT NULL, and no minimum configured for that service.
+
+WORKED NUMBERS, minimum_price = $100, weekly at the default 30%:
+
+  weekly, no tier             sends 70.00   floor 66.50   passes
+  weekly, Gold 10%            sends 63.00   floor 59.85   passes
+  weekly, Platinum 15%        sends 59.50   floor 56.53   passes
+  no tier, CLAIMS Gold        sends 63.00   floor 66.50   REJECTED
+  no tier, CLAIMS Platinum    sends 59.50   floor 66.50   REJECTED
+  weekly configured at 55%    sends 45.00   floor 42.75   passes  (REJECTED today)
+  one-time, no tier           sends 100.00  floor 95.00   passes
+
+The bound is simultaneously tighter against fraud and more permissive for
+legitimately configured orgs. Too tight blocks real recurring bookings and too
+loose leaves the hole only while the bound is a single constant.
+
+WHAT THIS DELIBERATELY DOES NOT DO: it does not stop a client sending FULL price
+when a discount was due. That costs the customer, not the business, and is
+visible to them on the confirmation. Closing that direction requires the server
+to COMPUTE the price rather than check it. This is a guard, not an authority,
+and it should not be described as one.
+
+AFTER DEPLOYING: confirm the trigger still fires on the public booking path
+(recurring_booking_id is NULL there, so it is not skipped), and confirm a
+one-time booking at exactly minimum_price still passes.

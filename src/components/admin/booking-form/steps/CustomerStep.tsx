@@ -13,6 +13,8 @@ import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
 import { toast } from 'sonner';
 import { fmt } from '@/lib/activeCurrency';
+import { useCustomerTier } from '@/hooks/useCustomerTier';
+import { CustomerTierBadge } from '@/components/admin/CustomerTierBadge';
 
 interface LastBookingInfo {
   address: string | null;
@@ -47,6 +49,8 @@ export function CustomerStep() {
     setTotalAmount,
     setSquareFootage,
   } = useBookingForm();
+
+  const { data: customerTier } = useCustomerTier(selectedCustomerId);
 
   const { organizationId } = useOrgId();
   const [lastBooking, setLastBooking] = useState<LastBookingInfo | null>(null);
@@ -151,6 +155,17 @@ export function CustomerStep() {
                 onEditCustomer={(id) => setEditCustomerId(id)}
                 placeholder="Type to search customers..."
               />
+
+              {/* The tier this customer has EARNED, resolved server-side from
+                  their lifetime spend. Read-only — nothing on this form changes
+                  the price because of it. It is here so whoever is taking the
+                  booking can see who they are talking to. */}
+              {customerTier && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <CustomerTierBadge tier={customerTier} />
+                  <span>Loyalty tier, from lifetime spend</span>
+                </div>
+              )}
 
               {/* Auto-fill from last booking */}
               {selectedCustomerId && lastBooking && (
