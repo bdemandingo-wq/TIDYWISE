@@ -761,6 +761,28 @@ export default function CustomersPage() {
     overscan: 8,
   });
 
+  // Keep the virtualizer's idea of the scroll position from outliving the list.
+  //
+  // When rows are deleted the spacer shrinks, so the browser silently clamps
+  // scrollTop to the new maximum. That clamp does NOT reliably emit a scroll
+  // event, so the virtualizer's cached scrollOffset stays where it was and
+  // getVirtualItems() returns a window past the end of the list — the rendered
+  // rows and the real scroll position disagree, and scrolling appears to stop.
+  //
+  // Clamping it ourselves produces a real scroll event when it matters, which
+  // resyncs the virtualizer. Keyed on the row count, so it runs on any shrink,
+  // not just the bulk-delete path — single deletes and filter changes shrink
+  // the list too.
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollHeight - el.clientHeight);
+    if (el.scrollTop > maxScroll) {
+      el.scrollTop = maxScroll;
+    }
+    rowVirtualizer.measure();
+  }, [filteredCustomers.length, rowVirtualizer]);
+
   const customerCount = customers.filter(c => getEffectiveStatus(c) === 'active').length;
   const leadCount = customers.filter(c => getEffectiveStatus(c) === 'lead').length;
 
@@ -921,7 +943,7 @@ export default function CustomersPage() {
 
           <div
             ref={listRef}
-            className="h-[calc(100vh-16rem)] overflow-auto overscroll-contain"
+            className="h-[calc(100dvh-16rem)] overflow-auto overscroll-contain"
             onTouchStart={onListTouchStart}
             onTouchMove={onListTouchMove}
             onTouchEnd={onListTouchEnd}

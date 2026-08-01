@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { matchPath, useLocation } from 'react-router-dom';
 import { useBrandingColors } from '@/hooks/useBrandingColors';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useBodyPointerEventsRecovery } from '@/hooks/useBodyPointerEventsRecovery';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -25,6 +26,10 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   useBrandingColors();
   const isMobileView = useIsMobile();
 
+  // Insurance against a Radix modal stranding pointer-events:none on <body>,
+  // which makes the whole app unclickable with nothing on screen to explain it.
+  useBodyPointerEventsRecovery();
+
   // Edge-swipe to open the sidebar on touch devices. React synthetic touch
   // handlers on the wrapper miss touches that land on fixed-positioned
   // children (header, bottom nav, sheet overlays), so we attach native
@@ -35,6 +40,8 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
     let startY = 0;
     let fromEdge = false;
     let tracking = false;
+    let maxDy = 0;
+    let maxDx = 0;
 
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
@@ -43,7 +50,28 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       startY = t.clientY;
       fromEdge = t.clientX <= 28;
       tracking = true;
+      maxDy = 0;
+      maxDx = 0;
     };
+
+    // Judge the gesture on its PATH, not just its endpoints. Without this a
+    // vertical scroll that drifts sideways and curves back — which is most
+    // thumb scrolling near the left edge — ended within 60px vertically of its
+    // start and 50px to the right, and opened the sidebar. Reading a list near
+    // the left edge would open it unasked.
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = Math.abs(t.clientY - startY);
+      const dx = t.clientX - startX;
+      if (dy > maxDy) maxDy = dy;
+      if (Math.abs(dx) > Math.abs(maxDx)) maxDx = dx;
+      // Once a gesture has clearly become a vertical scroll, it can never
+      // become a sidebar swipe, however it ends.
+      if (maxDy > 40 && maxDy > Math.abs(maxDx)) tracking = false;
+    };
+
     const onEnd = (e: TouchEvent) => {
       if (!tracking) return;
       tracking = false;
@@ -51,7 +79,8 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       if (!t) return;
       const dx = t.clientX - startX;
       const dy = Math.abs(t.clientY - startY);
-      if (dy > 60) return;
+      // Endpoint check kept, plus the path's worst vertical excursion.
+      if (dy > 60 || maxDy > 60) return;
       if (isMobileView) {
         if (fromEdge && dx > 50) {
           window.dispatchEvent(new CustomEvent('tw:open-mobile-sidebar'));
@@ -65,12 +94,21 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
       else if (dx < -60 && sidebarOpen && startX <= 288) setSidebarOpen(false);
     };
 
+    // onCancel is a named function so it can actually be removed. It used to be
+    // an inline arrow, which the cleanup below never unsubscribed — and since
+    // this effect re-runs whenever sidebarOpen changes, that leaked one
+    // listener per toggle for the life of the page.
+    const onCancel = () => { tracking = false; };
+
     document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
     document.addEventListener('touchend', onEnd, { passive: true });
-    document.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+    document.addEventListener('touchcancel', onCancel, { passive: true });
     return () => {
       document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onCancel);
     };
   }, [isMobileView, sidebarOpen]);
   const isInsideConversation = Boolean(
