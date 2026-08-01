@@ -27,6 +27,10 @@ export function RevenueChart({ bookings }: RevenueChartProps) {
 
     for (let i = 6; i >= 0; i--) {
       const date = subDays(today, i);
+      // `today` above is already resolved in the org's zone and `date` steps
+      // back from it, so this key is org-aligned — it is matched against
+      // getDateInTimezone(...) two lines down.
+      /* eslint-disable-next-line local/no-device-local-dates -- key derived from an org-resolved anchor */
       const dateStr = format(date, 'yyyy-MM-dd');
 
       const dayBookings = bookings.filter(b => {

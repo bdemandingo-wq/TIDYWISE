@@ -55,6 +55,7 @@ function formatDate(iso?: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
+  /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
@@ -122,6 +123,7 @@ export function SubscriptionBanner() {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       y += 28;
+      /* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */
       doc.text(`Issued: ${new Date().toLocaleDateString()}`, left, y);
 
       y += 32;
@@ -159,6 +161,7 @@ export function SubscriptionBanner() {
         y,
       );
 
+      /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
       const filename = `tidywise-receipt-${new Date().toISOString().slice(0, 10)}.pdf`;
       doc.save(filename);
     } catch (err) {

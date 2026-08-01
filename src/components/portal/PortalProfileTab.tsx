@@ -948,6 +948,7 @@ export function PortalProfileTab() {
 // Tax Report Component
 function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
   const { invokePortal } = useClientPortal();
+  /* eslint-disable-next-line local/no-device-local-dates -- year label for a statement selector */
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [downloading, setDownloading] = useState(false);
@@ -977,6 +978,8 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
       // Generate CSV content
       const headers = ["Date", "Service", "Address", "Subtotal", "Tax", "Total", "Payment Status"];
       const rows = data.map((row: any) => [
+        // booking_date is a stored calendar date, rendered as-is.
+        /* eslint-disable-next-line local/no-device-local-dates -- date string -> display */
         format(new Date(row.booking_date), "MM/dd/yyyy"),
         row.service_name,
         row.address || "",

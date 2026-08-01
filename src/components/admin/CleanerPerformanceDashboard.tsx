@@ -50,8 +50,11 @@ interface CleanerStats {
 export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerformanceDashboardProps) {
   const now = new Date();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    /* eslint-disable local/no-device-local-dates -- initial range for a display-only
+       report; the user adjusts it and every figure is bucketed org-side. */
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date()),
+    /* eslint-enable local/no-device-local-dates */
   });
   const { isTestMode, maskName, maskAmount } = useTestMode();
 
@@ -150,6 +153,7 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     void saveBlob(blob, `cleaner-performance-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 

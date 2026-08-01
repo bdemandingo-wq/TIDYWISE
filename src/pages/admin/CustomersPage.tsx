@@ -691,6 +691,7 @@ export default function CustomersPage() {
     }
     toast(`Exporting ${filteredCustomers.length} customers...`);
     const csv = await buildCustomersCsv(filteredCustomers);
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     await triggerCsvDownload(csv, `tidywise-customers-${format(new Date(), 'yyyy-MM-dd')}.csv`);
     if (!Capacitor.isNativePlatform()) toast.success(`Exported ${filteredCustomers.length} customers to CSV`);
   };
@@ -708,6 +709,7 @@ export default function CustomersPage() {
     }
     toast(`Exporting ${selected.length} customers...`);
     const csv = await buildCustomersCsv(selected);
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     await triggerCsvDownload(csv, `tidywise-customers-selected-${format(new Date(), 'yyyy-MM-dd')}.csv`);
     if (!Capacitor.isNativePlatform()) toast.success(`Exported ${selected.length} selected customers to CSV`);
   };

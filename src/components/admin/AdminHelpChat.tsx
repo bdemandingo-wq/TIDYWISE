@@ -345,6 +345,7 @@ export default function AdminHelpChat() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{conv.title}</p>
                         <p className="text-xs text-muted-foreground">
+                          {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                           {new Date(conv.updated_at).toLocaleDateString()}
                         </p>
                       </div>

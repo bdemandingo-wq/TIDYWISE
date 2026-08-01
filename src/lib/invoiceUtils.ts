@@ -44,9 +44,11 @@ export interface InvoiceLike {
 }
 
 function addDaysToDateString(value: string, days: number) {
-  const date = new Date(value);
-  date.setDate(date.getDate() + days);
-  return date.toISOString();
+  // A due date is N days of ELAPSED time from the invoice's creation instant.
+  // setDate() added a device-local calendar day, which is 23 or 25 hours across
+  // a DST transition and shifted the deadline by an hour for the rest of its
+  // life. Plain milliseconds are exact and carry no zone.
+  return new Date(new Date(value).getTime() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export function formatInvoiceNumber(invoiceNumber: number | string) {

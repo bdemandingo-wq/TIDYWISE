@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { hapticImpact } from '@/lib/haptics';
+import { orgDateKey } from '@/lib/orgDateRange';
 
 interface OpenPhoneCall {
   id: string;
@@ -59,10 +60,12 @@ const formatDuration = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const formatCallTime = (dateStr: string | null) => {
+const formatCallTime = (dateStr: string | null, timeZone: string) => {
   if (!dateStr) return '';
   const d = new Date(dateStr);
-  if (isToday(d)) return format(d, 'h:mm a');
+  // A call's timestamp is an instant; whether it happened "today" is the
+  // business's question, not the viewer's.
+  if (orgDateKey(d, timeZone) === orgDateKey(new Date(), timeZone)) return format(d, 'h:mm a');
   if (isThisWeek(d)) return format(d, 'EEE h:mm a');
   return format(d, 'MMM d, h:mm a');
 };
@@ -612,7 +615,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
                   {/* Time & chevron */}
                   <div className="flex items-center gap-1 shrink-0">
                     <span className="text-xs text-muted-foreground">
-                      {formatCallTime(call.started_at)}
+                      {formatCallTime(call.started_at, orgTz)}
                     </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
                   </div>

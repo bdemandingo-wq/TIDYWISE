@@ -119,8 +119,7 @@ export default function ExpensesPage() {
         amount: parseFloat(data.amount),
         vendor: data.vendor || null,
         // data.expense_date is a picker token; expense_date is a DATE column.
-      /* eslint-disable-next-line local/no-device-local-dates -- picker token -> date column */
-      /* eslint-disable-next-line local/no-device-local-dates -- picker token -> date column */
+      /* eslint-disable-next-line local/no-device-local-dates -- picker token -> DATE column */
       expense_date: format(data.expense_date, 'yyyy-MM-dd'),
         organization_id: organization.id,
       });
@@ -149,6 +148,7 @@ export default function ExpensesPage() {
           description: data.description,
           amount: parseFloat(data.amount),
           vendor: data.vendor || null,
+          /* eslint-disable-next-line local/no-device-local-dates -- picker token -> DATE column */
           expense_date: format(data.expense_date, 'yyyy-MM-dd'),
         })
         .eq('id', id)
@@ -235,6 +235,7 @@ export default function ExpensesPage() {
     ]);
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
     const { exportFile } = await import('@/lib/exportFile');
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     await exportFile(`expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');
   };
 

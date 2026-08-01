@@ -42,6 +42,8 @@ import { hapticImpact } from '@/lib/haptics';
 import { MessagesHealthBanner } from '@/components/admin/MessagesHealthBanner';
 import { AISuggestReplyButton } from '@/components/admin/AISuggestReplyButton';
 import { AIInboxSummaryButton } from '@/components/admin/AIInboxSummaryButton';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 // ─── Types ──────────────────────────────────────────
 interface Conversation {
@@ -100,9 +102,10 @@ const getInitials = (name: string | null, phone: string) => {
   return (phone || '').slice(-2) || '?';
 };
 
-const formatConversationTime = (dateStr: string) => {
+const formatConversationTime = (dateStr: string, timeZone: string) => {
   const d = new Date(dateStr);
-  if (isToday(d)) return format(d, 'h:mm a');
+  // Message grouping by the BUSINESS's day, not the reader's.
+  if (orgDateKey(d, timeZone) === orgDateKey(new Date(), timeZone)) return format(d, 'h:mm a');
   if (isThisWeek(d)) return format(d, 'EEE');
   return format(d, 'M/d/yy');
 };
@@ -114,6 +117,8 @@ const formatUnreadCount = (count: number) => {
 
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
+  // Message day-grouping follows the business's calendar.
+  const orgTimezone = useOrgTimezone();
   const { organizationId } = useOrgId();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -1115,7 +1120,7 @@ export default function MessagesPage() {
             </span>
             <div className="flex items-center gap-1.5 shrink-0">
               <span className={cn("text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
-                {formatConversationTime(conv.last_message_at)}
+                {formatConversationTime(conv.last_message_at, orgTimezone)}
               </span>
               {!bulkEditMode && (
                 <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />

@@ -517,6 +517,7 @@ export default function ScoreCompanyPage() {
 
         <div className="flex items-center justify-between gap-4 mb-10">
           <p className="text-xs text-muted-foreground">
+            {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
             {company.last_scored_at && <>Score last updated {new Date(company.last_scored_at).toLocaleDateString()} · </>}
             Powered by TidyWise AI
           </p>

@@ -115,6 +115,7 @@ export default function ServicesPage() {
       // Download
       const csvContent = rows.join('\n');
       const { exportFile } = await import('@/lib/exportFile');
+      /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
       await exportFile(`service-pricing-${new Date().toISOString().slice(0, 10)}.csv`, csvContent, 'text/csv');
       toast.success('Pricing sheet downloaded');
     } catch (err) {

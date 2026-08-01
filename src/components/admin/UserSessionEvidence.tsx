@@ -238,6 +238,7 @@ export function UserSessionEvidence() {
       );
     }
 
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     const fileName = `TidyWise_Usage_Report_${report.email.replace(/[^a-z0-9]/gi, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
     doc.save(fileName);
     toast.success('PDF exported');

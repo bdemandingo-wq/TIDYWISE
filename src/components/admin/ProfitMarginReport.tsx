@@ -23,7 +23,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
 import { fmt } from '@/lib/activeCurrency';
-import { orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
+import { orgDateKey, orgEndOfDay, orgStartOfDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface ProfitMarginReportProps {
@@ -201,7 +201,8 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     const headers = ['Booking #', 'Date', 'Customer', 'Service', 'Revenue', 'Cleaner Pay', 'Profit', 'Margin %'];
     const rows = profitData.map(item => [
       item.bookingNumber,
-      format(item.scheduledAt, 'yyyy-MM-dd'),
+      // scheduledAt is an instant; the row's day belongs to the org.
+      orgDateKey(new Date(item.scheduledAt), orgTimezone),
       item.customerName,
       item.serviceName,
       item.revenue.toFixed(2),
@@ -216,6 +217,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     void saveBlob(blob, `profit-margin-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
 

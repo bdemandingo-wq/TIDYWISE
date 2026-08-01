@@ -66,6 +66,7 @@ export default function SchedulerPage() {
     setExporting(true);
     try {
       const { headers, rows } = getExportRows();
+      /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
       const filename = `bookings-${format(new Date(), 'yyyy-MM-dd')}`;
 
       if (type === 'csv') {

@@ -625,7 +625,9 @@ export default function PlatformAnalyticsPage() {
                               <td className="py-2 pr-3 font-medium">{c.organization_name ?? c.organization_id}</td>
                               <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
                               <td className="py-2 pr-3"><code className="text-xs">{c.code ?? (c.source === 'direct' ? 'DIRECT' : '—')}</code></td>
+                              {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                               <td className="py-2 pr-3 text-muted-foreground">{new Date(c.granted_at).toLocaleDateString()}</td>
+                              {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                               <td className="py-2 pr-3 text-muted-foreground">{new Date(c.expires_at).toLocaleDateString()}</td>
                               <td className="py-2 pr-3 font-medium">{c.days_remaining}d</td>
                             </tr>
@@ -659,6 +661,7 @@ export default function PlatformAnalyticsPage() {
                               <td className="py-2 pr-3 text-muted-foreground">{c.owner_email ?? '—'}</td>
                               <td className="py-2 pr-3"><code className="text-xs">{c.code ?? '—'}</code></td>
                               <td className="py-2 pr-3 text-muted-foreground">
+                                {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                                 {new Date(c.revoked_at ?? c.expires_at).toLocaleDateString()}
                               </td>
                               <td className="py-2 pr-3">

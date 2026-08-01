@@ -217,6 +217,7 @@ export function TeamMembersCard() {
                   <div className="min-w-0">
                     <div className="font-medium truncate">{i.email}</div>
                     <div className="text-xs text-muted-foreground">
+                      {/* eslint-disable-next-line local/no-device-local-dates -- viewer-local display of a stored instant, not a business-day boundary */}
                       {i.role} · expires {new Date(i.expires_at).toLocaleDateString()}
                     </div>
                   </div>
