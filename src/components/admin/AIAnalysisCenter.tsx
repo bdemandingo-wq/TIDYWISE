@@ -22,6 +22,8 @@ import { fmt } from '@/lib/activeCurrency';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { handlePossibleAiCreditError, openAiCreditLimitModal } from '@/components/ai-credits/AiCreditLimitModal';
 import { parseEdgeFunctionError } from '@/lib/errorHandling';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, formatInOrgTz } from '@/lib/orgDateRange';
 
 /** Wraps supabase.functions.invoke and shows the credit-limit modal when a 402 comes back. */
 async function invokeAi(fn: string, body: unknown) {
@@ -38,6 +40,8 @@ async function invokeAi(fn: string, body: unknown) {
 
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId }: { orgId: string | undefined }) {
+  // The busiest-hour histogram is business advice; the hour is the org's.
+  const orgTimezone = useOrgTimezone();
   const { data: callStats } = useRQ({
     queryKey: ['call-stats', orgId],
     queryFn: async () => {
@@ -54,7 +58,10 @@ function CallStatsContent({ orgId }: { orgId: string | undefined }) {
       const callerCounts: Record<string, number> = {};
       calls.forEach(c => {
         if (c.started_at) {
-          const h = new Date(c.started_at).getHours();
+          // started_at is an instant. The "busiest hour" histogram this feeds
+          // is business advice, so the hour must be the BUSINESS's — read from
+          // the device it shifts by the whole offset and names the wrong peak.
+          const h = Number(formatInOrgTz(new Date(c.started_at), orgTimezone, { hour: '2-digit', hour12: false, hourCycle: 'h23' }));
           const label = h < 12 ? `${h || 12}AM` : `${h === 12 ? 12 : h - 12}PM`;
           hourCounts[label] = (hourCounts[label] || 0) + 1;
         }
@@ -175,6 +182,8 @@ interface ChurnCustomer {
 }
 
 export function AIAnalysisCenter() {
+  // Month and week windows below are query bounds against real timestamps.
+  const orgTimezone = useOrgTimezone();
   const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgId = organization?.id;
@@ -189,10 +198,12 @@ export function AIAnalysisCenter() {
 
   // ─── Data queries ───
   const now = new Date();
-  const monthStart = startOfMonth(now).toISOString();
-  const monthEnd = endOfMonth(now).toISOString();
-  const prevMonthStart = startOfMonth(subMonths(now, 1)).toISOString();
-  const prevMonthEnd = endOfMonth(subMonths(now, 1)).toISOString();
+  // Query windows against real timestamps — "this month" and "last month" are
+  // the business's months, not whichever one the admin's device is in.
+  const monthStart = orgStartOfMonth(now, orgTimezone).toISOString();
+  const monthEnd = orgEndOfMonth(now, orgTimezone).toISOString();
+  const prevMonthStart = orgStartOfMonth(subMonths(now, 1), orgTimezone).toISOString();
+  const prevMonthEnd = orgEndOfMonth(subMonths(now, 1), orgTimezone).toISOString();
 
   const { data: revenueData } = useQuery({
     queryKey: ['ai-revenue', orgId],
@@ -298,8 +309,8 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
+  const weekStart = orgStartOfWeek(now, orgTimezone, 1).toISOString();
+  const weekEnd = orgEndOfWeek(now, orgTimezone, 1).toISOString();
 
   const { data: weeklyData = {} as Record<string, number> } = useQuery({
     queryKey: ['ai-weekly', orgId, weekStart],
@@ -903,7 +914,7 @@ export function AIAnalysisCenter() {
           <h3 className="text-base font-semibold mb-4">
             This Week's Bookings
             <span className="text-xs font-normal text-muted-foreground ml-2">
-              {format(startOfWeek(now, { weekStartsOn: 1 }), 'MMM d')} – {format(endOfWeek(now, { weekStartsOn: 1 }), 'MMM d')}
+              {formatInOrgTz(orgStartOfWeek(now, orgTimezone, 1), orgTimezone, { month: 'short', day: 'numeric' })} – {formatInOrgTz(orgEndOfWeek(now, orgTimezone, 1), orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </h3>
           <div className="pv-surface-raised p-5 mb-4">

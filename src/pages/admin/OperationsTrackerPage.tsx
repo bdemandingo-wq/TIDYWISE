@@ -32,6 +32,8 @@ import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfWeek, orgEndOfWeek, orgStartOfMonth, orgEndOfMonth, orgDateKey, calendarDayKey } from '@/lib/orgDateRange';
 // Import functionality has been removed
 
 
@@ -49,6 +51,9 @@ interface OperationsEntry {
 }
 
 export default function OperationsTrackerPage() {
+  // Operations are logged against the BUSINESS's calendar day, and the weekly
+  // and monthly rollups are its week and month.
+  const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -126,20 +131,27 @@ export default function OperationsTrackerPage() {
   // Calculate weekly and monthly stats
   const stats = useMemo(() => {
     const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+    /*
+      track_date is a DATE column — every entry is a plain calendar day. So the
+      window is compared as calendar days too, which removes the parseISO round
+      trip entirely: no instant is constructed, so none can be misplaced.
 
-    const weeklyEntries = entries.filter(e => {
-      const date = parseISO(e.track_date);
-      return isWithinInterval(date, { start: weekStart, end: weekEnd });
-    });
+      What had to change is WHOSE week and month these are. startOfWeek(now) was
+      the admin's, so on a Monday morning in Manila the "this week" totals were
+      still showing the org's previous week — and at a month end the monthly
+      figures rolled over a day early.
+    */
+    const weekStartKey = orgDateKey(orgStartOfWeek(now, orgTimezone, 1), orgTimezone);
+    const weekEndKey = orgDateKey(orgEndOfWeek(now, orgTimezone, 1), orgTimezone);
+    const monthStartKey = orgDateKey(orgStartOfMonth(now, orgTimezone), orgTimezone);
+    const monthEndKey = orgDateKey(orgEndOfMonth(now, orgTimezone), orgTimezone);
 
-    const monthlyEntries = entries.filter(e => {
-      const date = parseISO(e.track_date);
-      return isWithinInterval(date, { start: monthStart, end: monthEnd });
-    });
+    const weeklyEntries = entries.filter(
+      e => e.track_date >= weekStartKey && e.track_date <= weekEndKey,
+    );
+    const monthlyEntries = entries.filter(
+      e => e.track_date >= monthStartKey && e.track_date <= monthEndKey,
+    );
 
     const weeklyTotals = weeklyEntries.reduce((acc, e) => ({
       calls: acc.calls + e.incoming_calls,
@@ -185,7 +197,7 @@ export default function OperationsTrackerPage() {
     ].join('\n');
 
     const { exportFile } = await import('@/lib/exportFile');
-    await exportFile(`operations-tracker-${format(new Date(), 'yyyy-MM-dd')}.csv`, csvContent, 'text/csv');
+    await exportFile(`operations-tracker-${orgDateKey(new Date(), orgTimezone)}.csv`, csvContent, 'text/csv');
   };
 
   // Filter entries by date range
@@ -321,7 +333,9 @@ export default function OperationsTrackerPage() {
               onSelect={(date) => {
                 setSelectedDate(date);
                 if (date) {
-                  const existingEntry = entries.find(e => isSameDay(parseISO(e.track_date), date));
+                  // Both sides are calendar days (track_date is a DATE column, `date` is
+                  // a picker token), so compare them as such.
+                  const existingEntry = entries.find(e => e.track_date === calendarDayKey(date));
                   if (existingEntry) {
                     setEditingEntry(existingEntry);
                   } else {
@@ -375,7 +389,7 @@ export default function OperationsTrackerPage() {
               <div className="mt-4 p-4 border rounded-lg">
                 <h4 className="font-medium mb-2">{format(selectedDate, 'EEEE, MMMM d, yyyy')}</h4>
                 {(() => {
-                  const dayEntry = entries.find(e => isSameDay(parseISO(e.track_date), selectedDate));
+                  const dayEntry = entries.find(e => e.track_date === calendarDayKey(selectedDate));
                   if (dayEntry) {
                     return (
                       <div className="grid grid-cols-3 gap-2 text-sm">
@@ -514,6 +528,7 @@ function OperationsDialog({
   defaultDate?: Date;
   onSave: (data: Partial<OperationsEntry>) => void;
 }) {
+  const orgTimezone = useOrgTimezone();
   const [formData, setFormData] = useState({
     track_date: '',
     incoming_calls: '0',
@@ -540,7 +555,11 @@ function OperationsDialog({
       });
     } else {
       setFormData({
-        track_date: defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        // defaultDate is a picker token; the fallback is "today", which must be
+        // the BUSINESS's today — this writes to a DATE column with a UNIQUE
+        // constraint, so an admin abroad could log a day's operations against
+        // the wrong date and collide with, or duplicate, an existing row.
+        track_date: defaultDate ? calendarDayKey(defaultDate) : orgDateKey(new Date(), orgTimezone),
         incoming_calls: '0',
         closed_deals: '0',
         revenue_booked: '0',

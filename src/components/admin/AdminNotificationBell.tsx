@@ -18,6 +18,7 @@ import { showBrowserNotification } from '@/hooks/usePushNotifications';
 import { useNotificationPreferences, useUpdateNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { isChannelEnabled, typeByKey } from '@/lib/notificationCatalog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { orgDayOfWeek, orgDateKey } from '@/lib/orgDateRange';
 
 interface AdminNotification {
   id: string;
@@ -34,6 +35,9 @@ interface AdminNotification {
 }
 
 export function AdminNotificationBell() {
+  // The weekly reminder is about the BUSINESS's week and is dismissed per
+  // business day, so both come from the org's clock.
+  const orgTimezone = useOrgTimezone();
   const { organizationId } = useOrgId();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
@@ -176,15 +180,27 @@ export function AdminNotificationBell() {
 
       // Add weekly booking reminder notification (Monday) — only if not dismissed
       const today = new Date();
-      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday
+      /*
+        "Is it Monday?" is a question about the BUSINESS's week — the reminder
+        is about the business's upcoming bookings. Read from the device, an
+        admin in Manila got it on the org's Sunday evening and an admin in
+        Hawaii missed Monday entirely.
+
+        The dismissal key was toISOString().split('T') — a UTC date, which
+        rolls over mid-afternoon for the Americas. Dismiss the reminder after
+        that rollover and it returned the same business day under a new key.
+      */
+      const dayOfWeek = orgDayOfWeek(today, orgTimezone); // 0=Sunday, 1=Monday
+      const todayKey = orgDateKey(today, orgTimezone);
       const weeklyReminders: AdminNotification[] = [];
-      const weeklyKey = `weekly-reminder-dismissed-${organizationId}-${today.toISOString().split('T')[0]}`;
+      const weeklyKey = `weekly-reminder-dismissed-${organizationId}-${todayKey}`;
       const wasDismissed = localStorage.getItem(weeklyKey) === 'true';
       
       if (dayOfWeek === 1 && !wasDismissed) { // Monday and not dismissed
         // Check how many upcoming bookings this week
-        const weekEnd = new Date(today);
-        weekEnd.setDate(weekEnd.getDate() + 7);
+        // A DURATION — "bookings in the next seven days" — not a calendar
+        // boundary, so elapsed time is the right measure.
+        const weekEnd = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
         
         const { data: upcomingBookings } = await supabase
           .from('bookings')
@@ -197,7 +213,7 @@ export function AdminNotificationBell() {
         const count = upcomingBookings?.length || 0;
         if (count > 0) {
           weeklyReminders.push({
-            id: `weekly-reminder-${today.toISOString().split('T')[0]}`,
+            id: `weekly-reminder-${todayKey}`,
             type: 'system',
             title: '📅 Weekly Booking Reminders',
             message: `You have ${count} upcoming booking${count > 1 ? 's' : ''} this week. Send reminders to your customers!`,
@@ -393,14 +409,16 @@ export function AdminNotificationBell() {
       }
 
       // Dismiss weekly reminder so it doesn't reappear
-      const today = new Date().toISOString().split('T')[0];
+      // Must match the key built above, which is the ORG's day.
+      const today = orgDateKey(new Date(), orgTimezone);
       localStorage.setItem(`weekly-reminder-dismissed-${organizationId}-${today}`, 'true');
     } else {
       // Clear all notifications if all are already read
       setNotifications([]);
       
       // Also dismiss weekly reminder on clear all
-      const today = new Date().toISOString().split('T')[0];
+      // Must match the key built above, which is the ORG's day.
+      const today = orgDateKey(new Date(), orgTimezone);
       localStorage.setItem(`weekly-reminder-dismissed-${organizationId}-${today}`, 'true');
     }
     setIsOpen(false);
