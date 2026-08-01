@@ -23,6 +23,8 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
 import { fmt } from '@/lib/activeCurrency';
+import { orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface ProfitMarginReportProps {
   bookings: BookingWithDetails[];
@@ -43,6 +45,7 @@ interface BookingProfit {
 
 export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
   const { organizationId } = useOrgId();
+  const orgTimezone = useOrgTimezone();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const { isTestMode, maskName, maskAmount } = useTestMode();
 
@@ -146,8 +149,15 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
         if (b.status !== 'completed') return false;
         if (!dateRange?.from) return true;
 
-        const end = dateRange.to || dateRange.from;
-        return isWithinInterval(b.scheduledAt, { start: dateRange.from, end });
+        // Org-day bounds, and note the END. This was
+        //   isWithinInterval(x, { start: from, end: to || from })
+        // so picking a SINGLE day produced a zero-width interval — start and
+        // end both at that day's midnight — and matched only a booking at
+        // exactly 00:00:00.000. One click on the calendar emptied the report.
+        // Widening to end-of-day fixes that as well as the timezone.
+        const start = orgStartOfDay(dateRange.from, orgTimezone);
+        const end = orgEndOfDay(dateRange.to || dateRange.from, orgTimezone);
+        return isWithinInterval(b.scheduledAt, { start, end });
       })
       .sort((a, b) => b.marginPercent - a.marginPercent);
   }, [bookings, dateRange, teamPaysByBooking]);

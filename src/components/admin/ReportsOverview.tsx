@@ -17,6 +17,8 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
+import { orgStartOfDay, orgEndOfDay, orgStartOfMonth, orgStartOfYear } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useTestMode } from '@/contexts/TestModeContext';
 
 type TimePeriod = '1W' | '4W' | '1Y' | 'MTD' | 'QTD' | 'YTD' | 'ALL';
@@ -27,50 +29,54 @@ interface ReportsOverviewProps {
 }
 
 export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
+  const orgTimezone = useOrgTimezone();
   const [period, setPeriod] = useState<TimePeriod>('ALL');
   const { isTestMode } = useTestMode();
 
   const periods: TimePeriod[] = ['1W', '4W', '1Y', 'MTD', 'QTD', 'YTD', 'ALL'];
 
   const dateRange = useMemo(() => {
+    // Every boundary here is an ORG day edge. These are the preset buttons on
+    // the reports header — 1W, MTD, YTD and so on — so a viewer in another
+    // timezone was silently comparing a different window than the office.
     const now = new Date();
     let start: Date;
-    const end = endOfDay(now);
+    const end = orgEndOfDay(now, orgTimezone);
 
     switch (period) {
       case '1W':
-        start = startOfDay(subWeeks(now, 1));
+        start = orgStartOfDay(subWeeks(now, 1), orgTimezone);
         break;
       case '4W':
-        start = startOfDay(subWeeks(now, 4));
+        start = orgStartOfDay(subWeeks(now, 4), orgTimezone);
         break;
       case '1Y':
-        start = startOfDay(subYears(now, 1));
+        start = orgStartOfDay(subYears(now, 1), orgTimezone);
         break;
       case 'MTD':
-        start = startOfDay(startOfMonth(now));
+        start = orgStartOfMonth(now, orgTimezone);
         break;
       case 'QTD':
-        start = startOfDay(startOfQuarter(now));
+        start = orgStartOfDay(startOfQuarter(now), orgTimezone);
         break;
       case 'YTD':
-        start = startOfDay(startOfYear(now));
+        start = orgStartOfYear(now, orgTimezone);
         break;
       case 'ALL':
-      default:
-        // Find earliest booking or customer date
+      default: {
         const dates = [
           ...bookings.map(b => new Date(b.scheduled_at)),
           ...customers.map(c => new Date(c.created_at))
         ];
-        start = dates.length > 0 
-          ? startOfDay(new Date(Math.min(...dates.map(d => d.getTime())))) 
-          : startOfDay(subYears(now, 2));
+        start = dates.length > 0
+          ? orgStartOfDay(new Date(Math.min(...dates.map(d => d.getTime()))), orgTimezone)
+          : orgStartOfDay(subYears(now, 2), orgTimezone);
         break;
+      }
     }
 
     return { start, end };
-  }, [period, bookings, customers]);
+  }, [period, bookings, customers, orgTimezone]);
 
   const dateRangeLabel = useMemo(() => {
     return `${format(dateRange.start, 'MMM yyyy')} – ${format(dateRange.end, 'MMM yyyy')}`;

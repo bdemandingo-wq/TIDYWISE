@@ -25,6 +25,9 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import {
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday,
+} from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
 
 interface DailyPnL {
@@ -65,15 +68,20 @@ export function PnLCalendar() {
       };
     }
     // For month view, fetch current month's full calendar range (includes overflow days)
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    // ORG-time edges. This file was the documented half-converted case: it
+    // bucketed each day in org time while computing the month's edges in
+    // device time, so at the month boundary one screen disagreed with itself.
+    // The query range is the half that matters most — a booking outside it is
+    // never fetched, so no amount of correct bucketing can recover it.
+    const monthStart = orgStartOfMonth(currentMonth, timezone);
+    const monthEnd = orgEndOfMonth(currentMonth, timezone);
+    const calStart = orgStartOfWeek(monthStart, timezone, 1);
+    const calEnd = orgEndOfWeek(monthEnd, timezone, 1);
     return {
       from: calStart.toISOString(),
       to: calEnd.toISOString(),
     };
-  }, [currentMonth, viewMode]);
+  }, [currentMonth, viewMode, timezone]);
 
   // Self-contained bookings query
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
@@ -229,12 +237,14 @@ export function PnLCalendar() {
 
   // Generate calendar days (Monday start)
   const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    // Must match the query range above exactly, or the grid renders cells for
+    // days whose data was never fetched.
+    const monthStart = orgStartOfMonth(currentMonth, timezone);
+    const monthEnd = orgEndOfMonth(currentMonth, timezone);
+    const calendarStart = orgStartOfWeek(monthStart, timezone, 1);
+    const calendarEnd = orgEndOfWeek(monthEnd, timezone, 1);
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentMonth]);
+  }, [currentMonth, timezone]);
 
   const navigateMonth = (dir: 'prev' | 'next') => {
     setCurrentMonth(prev => dir === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
@@ -390,7 +400,7 @@ export function PnLCalendar() {
                 const dateKey = format(day, 'yyyy-MM-dd');
                 const pnl = dailyPnL.get(dateKey);
                 const inMonth = isSameMonth(day, currentMonth);
-                const today = isToday(day);
+                const today = isOrgToday(day, timezone);
                 const dayValue = getDayValue(pnl);
                 const hasData = pnl != null && pnl.revenue > 0;
 

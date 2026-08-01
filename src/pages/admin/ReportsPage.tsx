@@ -16,8 +16,9 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { format, subMonths, isAfter, startOfYear, endOfMonth, isWithinInterval } from 'date-fns';
+import { orgStartOfYear, orgEndOfMonth, orgStartOfDay, orgEndOfDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -121,9 +122,28 @@ export default function ReportsPage() {
   const [recurringPlans, setRecurringPlans] = useState<number>(0);
   const { isTestMode, maskName } = useTestMode();
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    // Placeholder; corrected below once the org's timezone resolves.
     from: startOfYear(new Date()),
     to: endOfMonth(new Date()),
   });
+  /**
+   * Re-derive the default range once the org's real timezone loads.
+   *
+   * useOrgTimezone returns its America/New_York fallback on the first render,
+   * so the useState initialiser above can only ever see the fallback. Guarded
+   * so a range the user has chosen is never snatched back.
+   */
+  const rangeTouchedRef = useRef(false);
+  const appliedTzRef = useRef<string | null>(null);
+  const orgTimezone = useOrgTimezone();
+  useEffect(() => {
+    if (rangeTouchedRef.current) return;
+    if (appliedTzRef.current === orgTimezone) return;
+    appliedTzRef.current = orgTimezone;
+    const now = new Date();
+    setDateRange({ from: orgStartOfYear(now, orgTimezone), to: orgEndOfMonth(now, orgTimezone) });
+  }, [orgTimezone]);
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -146,7 +166,13 @@ export default function ReportsPage() {
   const filteredBookings = useMemo(() => {
     return bookings.filter(b => {
       const bookingDate = new Date(b.scheduled_at);
-      return isWithinInterval(bookingDate, { start: dateRange.from, end: dateRange.to });
+      // Org-day bounds. The picker hands back DEVICE midnights, so without
+      // this the last day of the range was cut short (or extended) by the
+      // offset — the commonest way a month's total quietly loses a job.
+      return isWithinInterval(bookingDate, {
+        start: orgStartOfDay(dateRange.from, orgTimezone),
+        end: orgEndOfDay(dateRange.to, orgTimezone),
+      });
     });
   }, [bookings, dateRange]);
 
@@ -329,7 +355,7 @@ export default function ReportsPage() {
                     <DatePicker
                       mode="single"
                       selected={dateRange.from}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, from: date }))}
+                      onSelect={(date) => date && (rangeTouchedRef.current = true) && setDateRange(prev => ({ ...prev, from: date }))}
                       className="rounded-md border"
                     />
                   </div>
@@ -338,7 +364,7 @@ export default function ReportsPage() {
                     <DatePicker
                       mode="single"
                       selected={dateRange.to}
-                      onSelect={(date) => date && setDateRange(prev => ({ ...prev, to: date }))}
+                      onSelect={(date) => date && (rangeTouchedRef.current = true) && setDateRange(prev => ({ ...prev, to: date }))}
                       className="rounded-md border"
                     />
                   </div>

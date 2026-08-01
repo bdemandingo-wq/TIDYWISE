@@ -15,6 +15,8 @@ import { Save, TrendingUp, TrendingDown, Target, DollarSign, Calculator, Plus, T
 import { Link } from 'react-router-dom';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { startOfYear, endOfYear, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
+import { orgStartOfYear, orgEndOfMonth } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import type { Json } from '@/integrations/supabase/types';
 import { fmt } from '@/lib/activeCurrency';
 import {
@@ -167,6 +169,7 @@ const migrateMarketingChannels = (data: any, channelNames: { [key: string]: stri
 };
 
 export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
+  const orgTimezone = useOrgTimezone();
   const orgId = useOrgId();
   const { toast } = useToast();
   const [settings, setSettings] = useState<PnLSettings>(defaultSettings);
@@ -315,8 +318,11 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
 
   // Calculate actuals from bookings - use address-based first-time vs recurring detection
   const actuals = useMemo(() => {
-    const yearStart = startOfYear(new Date(currentYear, 0, 1));
-    const yearEnd = endOfYear(new Date(currentYear, 0, 1));
+    // new Date(y, 0, 1) is the DEVICE's midnight on 1 Jan, so for an org in
+    // another zone the year began or ended hours off — a booking in the first
+    // or last hours of the year landed in the wrong one.
+    const yearStart = orgStartOfYear(new Date(Date.UTC(currentYear, 0, 1, 12)), orgTimezone);
+    const yearEnd = orgEndOfMonth(new Date(Date.UTC(currentYear, 11, 1, 12)), orgTimezone);
     
     const yearBookings = bookings.filter(b => {
       const date = new Date(b.scheduled_at);

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { 
   CalendarIcon, 
@@ -62,9 +63,27 @@ export default function FinancePage() {
   const orgTz = useOrgTimezone();
   
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    // Placeholder; corrected below once orgTz resolves.
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  /**
+   * Re-derive the default range once the org's real timezone loads.
+   *
+   * useOrgTimezone returns its America/New_York fallback on the first render,
+   * so the useState initialiser above can only ever see the fallback. Guarded
+   * so a range the user has chosen is never snatched back.
+   */
+  const rangeTouchedRef = useRef(false);
+  const appliedTzRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (rangeTouchedRef.current) return;
+    if (appliedTzRef.current === orgTz) return;
+    appliedTzRef.current = orgTz;
+    const now = new Date();
+    setDateRange({ from: orgStartOfMonth(now, orgTz), to: orgEndOfMonth(now, orgTz) });
+  }, [orgTz]);
+
   const { maskName, isTestMode } = useTestMode();
   const queryClient = useQueryClient();
   const [isSyncing, setIsSyncing] = useState(false);
@@ -443,6 +462,7 @@ export default function FinancePage() {
               selected={{ from: dateRange.from, to: dateRange.to }}
               onSelect={(range) => {
                 if (range?.from && range?.to) {
+                  rangeTouchedRef.current = true;
                   setDateRange({ from: range.from, to: range.to });
                 }
               }}

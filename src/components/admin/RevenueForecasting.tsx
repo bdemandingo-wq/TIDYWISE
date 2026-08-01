@@ -30,6 +30,8 @@ import {
   isWithinInterval,
   differenceInMonths
 } from 'date-fns';
+import { orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 interface RevenueForecastingProps {
   bookings: BookingWithDetails[];
@@ -52,16 +54,23 @@ interface SeasonalFactor {
 
 export function RevenueForecasting({ bookings, recurringBookings = [] }: RevenueForecastingProps) {
   const { isTestMode } = useTestMode();
+  const orgTimezone = useOrgTimezone();
   const [forecastMonths, setForecastMonths] = useState(6);
 
   // Calculate historical monthly data
   const historicalData = useMemo(() => {
-    const startDate = subMonths(startOfMonth(new Date()), 12);
-    const endDate = endOfMonth(new Date());
+    // Month edges in ORG time. eachMonthOfInterval still walks the calendar,
+    // but each bucket's bounds are resolved against the business's midnight —
+    // otherwise a booking in the first or last hours of a month was counted in
+    // the neighbouring one, which silently reshapes the trend the forecast is
+    // extrapolating from.
+    const startDate = orgStartOfMonth(subMonths(new Date(), 12), orgTimezone);
+    const endDate = orgEndOfMonth(new Date(), orgTimezone);
     const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
-    return months.map(monthStart => {
-      const monthEnd = endOfMonth(monthStart);
+    return months.map(rawMonth => {
+      const monthStart = orgStartOfMonth(rawMonth, orgTimezone);
+      const monthEnd = orgEndOfMonth(rawMonth, orgTimezone);
       const monthBookings = bookings.filter(b => 
         b.status !== 'cancelled' &&
         isWithinInterval(new Date(b.scheduled_at), { start: monthStart, end: monthEnd })
@@ -78,7 +87,7 @@ export function RevenueForecasting({ bookings, recurringBookings = [] }: Revenue
           : 0
       };
     });
-  }, [bookings]);
+  }, [bookings, orgTimezone]);
 
   // Calculate seasonal factors
   const seasonalFactors = useMemo((): SeasonalFactor[] => {
