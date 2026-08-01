@@ -175,8 +175,18 @@ export function usePushNotifications(staffId?: string) {
 
     await attachNativeListeners();
 
-    let registrationHandle: { remove: () => Promise<void> } | null = null;
-    let registrationErrorHandle: { remove: () => Promise<void> } | null = null;
+    /*
+      Held on an object rather than in two `let`s. The assignments happen inside
+      a nested async IIFE within the Promise executor, which TypeScript's
+      control-flow analysis cannot see — so it narrowed both bindings to `null`
+      and reported `.remove` on type `never`. The listeners were being attached
+      and removed correctly the whole time; only the types disagreed. Property
+      writes are not narrowed the same way, so this keeps the declared union.
+    */
+    const handles: {
+      registration: { remove: () => Promise<void> } | null;
+      error: { remove: () => Promise<void> } | null;
+    } = { registration: null, error: null };
 
     try {
       const nativeToken = await new Promise<string>((resolve, reject) => {
@@ -186,12 +196,12 @@ export function usePushNotifications(staffId?: string) {
 
         (async () => {
           try {
-            registrationHandle = await PushNotifications.addListener('registration', (tokenData: { value: string }) => {
+            handles.registration = await PushNotifications.addListener('registration', (tokenData: { value: string }) => {
               window.clearTimeout(timeoutId);
               resolve(tokenData.value);
             });
 
-            registrationErrorHandle = await PushNotifications.addListener('registrationError', (error: any) => {
+            handles.error = await PushNotifications.addListener('registrationError', (error: any) => {
               window.clearTimeout(timeoutId);
               reject(new Error(error?.error || 'Failed to register for push notifications'));
             });
@@ -252,8 +262,8 @@ export function usePushNotifications(staffId?: string) {
       return false;
     } finally {
       await Promise.allSettled([
-        registrationHandle?.remove() ?? Promise.resolve(),
-        registrationErrorHandle?.remove() ?? Promise.resolve(),
+        handles.registration?.remove() ?? Promise.resolve(),
+        handles.error?.remove() ?? Promise.resolve(),
       ]);
     }
   };

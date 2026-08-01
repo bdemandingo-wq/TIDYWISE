@@ -88,7 +88,8 @@ export function CustomerChurnIndicator({ customerId, compact = false }: Customer
             </Tooltip>
           )}
 
-          {intelligence.upsell_potential_score >= 60 && (
+          {/* null >= 60 is already false at runtime, so ?? 0 changes nothing */}
+          {(intelligence.upsell_potential_score ?? 0) >= 60 && (
             <Tooltip>
               <TooltipTrigger>
                 <Badge variant="outline" className="gap-1 text-xs border-green-300 text-green-600">

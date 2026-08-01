@@ -46,6 +46,13 @@ import { orgDateKey } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 // ─── Types ──────────────────────────────────────────
+/*
+  These mirror sms_conversations / sms_messages. The nullable fields below are
+  nullable IN THE DATABASE — the interface previously claimed otherwise, which
+  is why assigning a query result to it failed under strictNullChecks. Widened
+  to match the columns rather than casting the rows to fit the interface: the
+  interface was the thing that was wrong.
+*/
 interface Conversation {
   id: string;
   customer_id: string | null;
@@ -53,8 +60,8 @@ interface Conversation {
   customer_name: string | null;
   last_message_at: string;
   unread_count: number;
-  conversation_type?: string;
-  last_message_preview?: string;
+  conversation_type?: string | null;
+  last_message_preview?: string | null;
 }
 
 interface Message {
@@ -62,8 +69,17 @@ interface Message {
   direction: 'inbound' | 'outbound';
   content: string;
   sent_at: string;
-  status: string;
+  status: string | null;
   media_urls: string[] | null;
+}
+
+/**
+ * sms_conversations rows -> Conversation. unread_count is nullable in the
+ * database and a null there MEANS zero, so it is normalised once here rather
+ * than with `?? 0` at each of the eight places that read it.
+ */
+function toConversation(row: any): Conversation {
+  return { ...row, unread_count: row.unread_count ?? 0 };
 }
 
 interface Contact {
@@ -463,7 +479,7 @@ export default function MessagesPage() {
             convs.forEach(c => { c.last_message_preview = previewMap.get(c.id) || undefined; });
           }
         }
-        setConversations(convs);
+        setConversations(convs.map(toConversation));
       }
     } finally {
       setLoading(false);
@@ -567,13 +583,13 @@ export default function MessagesPage() {
     const formattedPhone = phoneToUse.replace(/\D/g, '');
     const phoneWithCountry = formattedPhone.startsWith('1') ? `+${formattedPhone}` : `+1${formattedPhone}`;
     const { data: existing } = await supabase.from('sms_conversations').select('*').eq('organization_id', organizationId).eq('customer_phone', phoneWithCountry).maybeSingle();
-    if (existing) { setSelectedConversation(existing); resetNewConversationState(); return; }
+    if (existing) { setSelectedConversation(toConversation(existing)); resetNewConversationState(); return; }
     const { data, error } = await supabase.from('sms_conversations').insert({
       organization_id: organizationId, customer_phone: phoneWithCountry, customer_name: nameToUse || null, conversation_type: typeToUse
     }).select().single();
     if (error) { toast.error('Failed to create conversation'); return; }
-    setConversations([data, ...conversations]);
-    setSelectedConversation(data);
+    setConversations([toConversation(data), ...conversations]);
+    setSelectedConversation(toConversation(data));
     resetNewConversationState();
   };
 

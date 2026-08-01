@@ -59,6 +59,9 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
       if (!booking?.organization_id) {
         throw new Error('Booking has no organization');
       }
+      // Captured so the narrowing survives into the queries below rather than
+      // being asserted away — the guard above is the real guarantee.
+      const bookingOrgId = booking.organization_id;
 
       const checklistSelect = `
         id,
@@ -126,7 +129,7 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
             checklist_items(id, title, requires_photo, sort_order)
           `)
           .eq('is_active', true)
-          .eq('organization_id', booking.organization_id);
+          .eq('organization_id', bookingOrgId);
 
         // First try to find a service-specific template by exact service_id
         if (booking?.service_id) {
@@ -143,7 +146,7 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
               .not('service_id', 'is', null);
             
             const nameMatch = allTemplates?.find(
-              (t: any) => t.service?.name?.toLowerCase() === booking.service.name.toLowerCase()
+              (t: any) => t.service?.name?.toLowerCase() === booking.service?.name?.toLowerCase()
             );
             if (nameMatch) return nameMatch;
           }

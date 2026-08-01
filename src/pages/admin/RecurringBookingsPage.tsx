@@ -284,6 +284,11 @@ export default function RecurringBookingsPage() {
   const existingDatesByCustomer = new Map<string, Set<string>>();
   for (const b of allOrgBookings) {
     const key = `${b.customer_id}__${b.service_id}`;
+    // A booking with no customer cannot join a per-CUSTOMER bucket. Before
+    // strictNullChecks this keyed them all under a single null, so unrelated
+    // customerless bookings shared a bucket and could seed each other's
+    // recurring series. The composite `key` above is a template literal and is
+    // unaffected.
     const custKey = b.customer_id;
     const bDate = new Date(b.scheduled_at);
     if (!latestBookingMap.has(key) || bDate > latestBookingMap.get(key)!) {
@@ -294,6 +299,7 @@ export default function RecurringBookingsPage() {
     }
     existingDatesMap.get(key)!.add(formatDateKey(bDate, orgTimezone));
     // Customer-only maps (for multi-service recurring series)
+    if (!custKey) continue;
     if (!latestByCustomer.has(custKey) || bDate > latestByCustomer.get(custKey)!) {
       latestByCustomer.set(custKey, bDate);
     }
