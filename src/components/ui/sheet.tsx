@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useKeyboardAnchor } from '@/hooks/useKeyboardAnchor';
 
 const Sheet = SheetPrimitive.Root;
 
@@ -52,10 +53,31 @@ interface SheetContentProps
     VariantProps<typeof sheetVariants> {}
 
 const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Content>, SheetContentProps>(
-  ({ side = "right", className, children, ...props }, ref) => (
+  ({ side = "right", className, children, style, ...props }, ref) => {
+    /*
+      The same anchor as the dialogs, and the reason those four bottom sheets
+      were held rather than patched separately: a bottom sheet sits on
+      `inset-x-0 bottom-0`, so the keyboard covers it outright instead of
+      merely overlapping it. It carries no centring transform, so unlike the
+      dialogs there is no translate to cancel — hence centeredX is not passed.
+
+      Applied to every side. A left or right sheet is `inset-y-0 h-full`, and
+      pinning its bottom edge above the keyboard is right there too: the lower
+      part of a full-height panel is exactly what the keyboard hides.
+    */
+    const innerRef = React.useRef<HTMLDivElement>(null);
+    React.useImperativeHandle(ref, () => innerRef.current as HTMLDivElement);
+    const keyboard = useKeyboardAnchor(innerRef);
+
+    return (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content
+        ref={innerRef}
+        className={cn(sheetVariants({ side }), className)}
+        style={{ ...keyboard.style, ...style }}
+        {...props}
+      >
         {children}
         <SheetPrimitive.Close className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] rounded-full p-1.5 text-foreground bg-muted/60 hover:bg-muted opacity-90 ring-offset-background transition-opacity data-[state=open]:bg-secondary hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
           <X className="h-4 w-4" />
@@ -63,7 +85,8 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>
-  ),
+    );
+  },
 );
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
