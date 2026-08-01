@@ -2144,6 +2144,7 @@ export type Database = {
           latitude: number | null
           location_id: string | null
           longitude: number | null
+          loyalty_tier: string | null
           notes: string | null
           organization_id: string | null
           original_scheduled_at: string | null
@@ -2218,6 +2219,7 @@ export type Database = {
           latitude?: number | null
           location_id?: string | null
           longitude?: number | null
+          loyalty_tier?: string | null
           notes?: string | null
           organization_id?: string | null
           original_scheduled_at?: string | null
@@ -2292,6 +2294,7 @@ export type Database = {
           latitude?: number | null
           location_id?: string | null
           longitude?: number | null
+          loyalty_tier?: string | null
           notes?: string | null
           organization_id?: string | null
           original_scheduled_at?: string | null
@@ -3605,6 +3608,7 @@ export type Database = {
           benefits: Json | null
           color: string | null
           created_at: string
+          discount_percent: number
           id: string
           max_spending: number | null
           min_spending: number
@@ -3617,6 +3621,7 @@ export type Database = {
           benefits?: Json | null
           color?: string | null
           created_at?: string
+          discount_percent?: number
           id?: string
           max_spending?: number | null
           min_spending?: number
@@ -3629,6 +3634,7 @@ export type Database = {
           benefits?: Json | null
           color?: string | null
           created_at?: string
+          discount_percent?: number
           id?: string
           max_spending?: number | null
           min_spending?: number
