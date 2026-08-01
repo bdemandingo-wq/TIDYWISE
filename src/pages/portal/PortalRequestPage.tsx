@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { cn } from "@/lib/utils";
 import { selectedDateTimeToUTCISO } from "@/lib/timezoneUtils";
+import { useOrgTiers } from "@/hooks/useOrgTiers";
 
 interface Service {
   id: string;
@@ -81,7 +82,23 @@ function formatLocationLine(loc: Location) {
 export default function PortalRequestPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, customer, loading, sessionToken, invokePortal } = useClientPortal();
+  const { user, customer, loading, sessionToken, invokePortal, loyalty } = useClientPortal();
+
+  /*
+    The customer's tier is RESOLVED, not asked for. resolve_customer_tier()
+    derives it from lifetime spend server-side, so which tier they are in was
+    never the variable — this field used to ask them to type it, which invited a
+    guess at a name the portal already knew.
+
+    What actually varies is WHICH BENEFIT of that tier they want to redeem. A
+    Platinum tier listing "5% off every cleaning", "1 free cleaning" and "late
+    cancellation no charge" is three different asks, and only the customer knows
+    which one this booking is for.
+  */
+  const { tiers: orgTiers } = useOrgTiers();
+  const currentTier = loyalty?.tier ?? null;
+  const tierBenefits: string[] =
+    (currentTier && orgTiers?.find((t) => t.tier_name === currentTier)?.benefits) || [];
   const [services, setServices] = useState<Service[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -89,7 +106,7 @@ export default function PortalRequestPage() {
   const [selectedService, setSelectedService] = useState<string>(searchParams.get("service") || "");
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [notes, setNotes] = useState(searchParams.get("notes") || "");
-  const [loyaltyTier, setLoyaltyTier] = useState("");
+  const [loyaltyBenefit, setLoyaltyBenefit] = useState("");
   const [isTurnover, setIsTurnover] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [orgTimezone, setOrgTimezone] = useState<string>("America/New_York");
@@ -230,8 +247,9 @@ export default function PortalRequestPage() {
       // submit_client_booking_request, which would have meant a migration and a
       // new overload for what is ultimately a line of text for a human to read.
       // Same shape as turnoverLine directly above.
-      const loyaltyTierLine = loyaltyTier.trim()
-        ? `Loyalty tier requested: ${loyaltyTier.trim()}`
+      // The tier is stated because it is known, not because they claimed it.
+      const loyaltyTierLine = loyaltyBenefit
+        ? `Loyalty benefit requested (${currentTier}): ${loyaltyBenefit}`
         : null;
       const combinedNotes = [turnoverLine, loyaltyTierLine, notes.trim()].filter(Boolean).join("\n") || null;
       const selectedLocationRecord = locations.find((location) => location.id === selectedLocation);
@@ -592,25 +610,47 @@ export default function PortalRequestPage() {
               </div>
             )}
 
-            {/* Loyalty tier — free text on purpose. The business decides what
-                tiers exist and whether to honour a request, so a dropdown would
-                imply a validated list the portal has no way to know. It rides
-                into the notes field on submit; no schema change. */}
-            <div className="space-y-2">
-              <Label htmlFor="loyalty-tier">Loyalty tier (Optional)</Label>
-              <Input
-                id="loyalty-tier"
-                value={loyaltyTier}
-                onChange={(e) => setLoyaltyTier(e.target.value)}
-                placeholder="e.g. Gold"
-                maxLength={60}
-              />
-              <p className="text-xs text-muted-foreground">
-                If you think a loyalty tier applies to this booking, tell us here and
-                we&apos;ll check it. Please keep track of your own tier — we can&apos;t
-                confirm it automatically.
-              </p>
-            </div>
+            {/*
+              Hidden entirely unless there is something to choose. Two separate
+              reasons, and both are "no picker" rather than "empty picker":
+
+                - no tier yet: their lifetime spend is below this org's lowest
+                  threshold. Showing a disabled or empty control would advertise
+                  a benefit they have not earned.
+                - tier with no benefits configured: the org has tiers but has not
+                  listed what they get. An empty dropdown reads as broken.
+
+              Still rides into the notes on submit — no schema change, and the
+              business still decides whether to honour it.
+            */}
+            {currentTier && tierBenefits.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="loyalty-benefit">
+                  Redeem a {currentTier} benefit (Optional)
+                </Label>
+                <Select
+                  value={loyaltyBenefit || "none"}
+                  onValueChange={(v) => setLoyaltyBenefit(v === "none" ? "" : v)}
+                >
+                  <SelectTrigger id="loyalty-benefit">
+                    <SelectValue placeholder="No benefit this time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No benefit this time</SelectItem>
+                    {tierBenefits.map((benefit) => (
+                      <SelectItem key={benefit} value={benefit}>
+                        {benefit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  You&apos;re {currentTier}. Pick the benefit you&apos;d like applied to
+                  this booking and we&apos;ll check it. Please keep track of your own
+                  tier — we can&apos;t confirm it automatically.
+                </p>
+              </div>
+            )}
 
             {/* Notes */}
             <div className="space-y-2">
