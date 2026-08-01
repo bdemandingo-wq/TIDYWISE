@@ -76,6 +76,33 @@ const defaultColors = [
   '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#f97316'
 ];
 
+/**
+ * Compact money for chart axes and bar labels.
+ *
+ * Both used to be wrong, and differently. The axis was `$${v/1000}k` with no
+ * rounding, producing "$1.234k" and "$0.5k". The bar label was
+ * `${fmt(v/1000)}k` — fmt() is the CURRENCY formatter, so a $999 bar was
+ * labelled "$1.00k", reading as $1,000, while its own tooltip said "$999.00".
+ * One bar, two numbers, neither matching the axis.
+ *
+ * Now one function for both, so they cannot disagree again. Values under
+ * $1,000 are shown whole rather than as a fraction of a thousand.
+ */
+const axisMoney = (v: number): string => {
+  if (!Number.isFinite(v)) return '';
+  // Sign in front of the currency symbol, not after it — "$-1.5k" is not how
+  // anyone writes money. Revenue shouldn't go negative here, but a refund-heavy
+  // month can, and the axis has to render it either way.
+  const sign = v < 0 ? '-' : '';
+  const abs = Math.abs(v);
+  if (abs >= 1000) {
+    const k = abs / 1000;
+    // One decimal below 10k ($1.2k), none above ($12k) — keeps the axis narrow.
+    return `${sign}$${k < 10 ? k.toFixed(1) : Math.round(k)}k`;
+  }
+  return `${sign}$${Math.round(abs)}`;
+};
+
 export default function ReportsPage() {
   const { organizationId } = useOrgId();
   const orgTz = useOrgTimezone();
@@ -406,11 +433,18 @@ export default function ReportsPage() {
             <div className="bg-card rounded-xl border border-border shadow-sm p-4 h-[380px]">
               <h3 className="font-semibold mb-4">Monthly Revenue</h3>
               <div className="h-[300px]">
+                {monthlyData.every((m) => !m.revenue) ? (
+                  /* Matches the donut's empty state. Without this the chart drew
+                     bare axes, which reads as broken rather than as "no data". */
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    No revenue in this period
+                  </div>
+                ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `$${v/1000}k`} />
+                    <YAxis axisLine={false} tickLine={false} tickFormatter={axisMoney} />
                     <Tooltip
                       contentStyle={{
                         backgroundColor: 'hsl(var(--popover))',
@@ -419,9 +453,20 @@ export default function ReportsPage() {
                       }}
                       formatter={(value: number) => [`${fmt(value)}`, 'Revenue']}
                     />
-                    <Bar dataKey="revenue" fill="hsl(221, 83%, 53%)" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => v > 0 ? `${fmt((v/1000))}k` : '', fontSize: 11, fill: 'hsl(var(--foreground))' }} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--primary))"
+                      radius={[4, 4, 0, 0]}
+                      label={{
+                        position: 'top',
+                        formatter: (v: number) => (v > 0 ? axisMoney(v) : ''),
+                        fontSize: 11,
+                        fill: 'hsl(var(--foreground))',
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
+                )}
               </div>
             </div>
 

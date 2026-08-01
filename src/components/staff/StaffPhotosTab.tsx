@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SignedImage } from '@/components/ui/signed-image';
 import { supabase } from '@/lib/supabase';
+import { uploadBookingMedia, getUploadErrorMessage, isVideoFile } from '@/lib/bookingMediaUpload';
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -55,10 +56,6 @@ const ALLOWED_PHOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 const ALLOWED_VIDEO = ['video/mp4', 'video/quicktime', 'video/x-m4v'];
 const PICKER_INPUT_CLASS = 'absolute left-0 top-0 h-px w-px opacity-0 pointer-events-none';
 
-function isVideoFile(file: File) {
-  return file.type.startsWith('video/') || file.name.toLowerCase().endsWith('.mov');
-}
-
 function openPicker(input: HTMLInputElement | null) {
   if (!input) return;
 
@@ -74,33 +71,6 @@ function openPicker(input: HTMLInputElement | null) {
   }
 
   pickerInput.click();
-}
-
-function getUploadErrorMessage(error: unknown, isVideo: boolean) {
-  const message = error instanceof Error ? error.message : String(error);
-  const lowerMessage = message.toLowerCase();
-
-  if (lowerMessage.includes('security') || lowerMessage.includes('policy') || lowerMessage.includes('row-level') || lowerMessage.includes('rls') || lowerMessage.includes('violates')) {
-    return 'Photo upload not enabled yet. Contact your admin.';
-  }
-
-  if (lowerMessage.includes('payload') || lowerMessage.includes('too large') || lowerMessage.includes('size')) {
-    return isVideo
-      ? 'Video must be under 100MB. Try trimming it or recording a shorter clip.'
-      : 'Photo must be under 10MB. Please try again.';
-  }
-
-  if (lowerMessage.includes('network') || lowerMessage.includes('fetch') || lowerMessage.includes('timeout')) {
-    return isVideo
-      ? 'Video upload timed out. Try on WiFi for large videos.'
-      : 'Upload failed. Check your connection and try again.';
-  }
-
-  if (lowerMessage.includes('booking') || lowerMessage.includes('uuid')) {
-    return 'Could not identify the selected booking. Refresh and try again.';
-  }
-
-  return message.length > 140 ? 'Upload failed. Please try again.' : message;
 }
 
 export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps) {
@@ -276,52 +246,19 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
 
       const file = uploads[index].file;
       const isVideo = isVideoFile(file);
-      const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
-      let uploadedPath: string | null = null;
-
       try {
-        const { data: bookingData, error: bookingError } = await supabase
-          .from('bookings')
-          .select('id, organization_id')
-          .eq('id', selectedBookingId)
-          .maybeSingle();
-
-        if (bookingError) throw bookingError;
-
-        const resolvedOrgId = bookingData?.organization_id || organizationId;
-        if (!bookingData?.id || !resolvedOrgId) {
-          throw new Error('Selected booking was not found.');
-        }
-
-        const filePath = `${resolvedOrgId}/${selectedBookingId}/${staffId}/${photoType}/${Date.now()}_${index}.${ext}`;
-
         setUploads((prev) => prev.map((upload, itemIndex) => (
           itemIndex === index ? { ...upload, progress: 30 } : upload
         )));
 
-        const { error: storageError } = await supabase.storage
-          .from('booking-photos')
-          .upload(filePath, file, { upsert: false });
-
-        if (storageError) throw storageError;
-        uploadedPath = filePath;
-
-        setUploads((prev) => prev.map((upload, itemIndex) => (
-          itemIndex === index ? { ...upload, progress: 70 } : upload
-        )));
-
-        const { error: dbError } = await supabase
-          .from('booking_photos')
-          .insert({
-            booking_id: selectedBookingId,
-            photo_url: filePath,
-            photo_type: photoType,
-            media_type: isVideo ? 'video' : 'photo',
-            staff_id: staffId,
-            organization_id: resolvedOrgId,
-          });
-
-        if (dbError) throw dbError;
+        await uploadBookingMedia({
+          file,
+          bookingId: selectedBookingId,
+          staffId,
+          photoType,
+          organizationIdFallback: organizationId,
+          index,
+        });
 
         successCount += 1;
         setUploads((prev) => prev.map((upload, itemIndex) => (
@@ -330,9 +267,6 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
       } catch (error) {
         console.error('Staff media upload failed:', error);
 
-        if (uploadedPath) {
-          await supabase.storage.from('booking-photos').remove([uploadedPath]);
-        }
 
         const uploadError = getUploadErrorMessage(error, isVideo);
         setUploads((prev) => prev.map((upload, itemIndex) => (

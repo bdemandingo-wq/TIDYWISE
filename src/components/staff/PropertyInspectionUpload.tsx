@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
+import { uploadBookingMedia } from '@/lib/bookingMediaUpload';
 import { toast } from 'sonner';
 import { useNativeCamera } from '@/hooks/useNativeCamera';
 
@@ -110,32 +111,47 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
 
       const step = 100 / items.length;
 
+      // Per-item, not all-or-nothing. A cleaner standing in a property who
+      // loses four good photos because the third insert timed out has to
+      // re-shoot the lot; keeping what succeeded and naming what didn't is the
+      // kinder failure. uploadBookingMedia still rolls back the storage object
+      // for whichever item failed, so nothing is orphaned either way.
+      const failed: number[] = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const ext = item.file.name.split('.').pop() || 'jpg';
-        const filePath = `${resolvedOrgId}/${bookingId}/${staffId}/inspection/${Date.now()}-${i}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('booking-photos')
-          .upload(filePath, item.file, { upsert: false });
-
-        if (uploadError) throw uploadError;
-
-        const { error: dbError } = await supabase
-          .from('booking_photos')
-          .insert({
-            booking_id: bookingId,
-            photo_url: filePath,
-            photo_type: 'inspection',
-            media_type: 'photo',
-            staff_id: staffId,
-            organization_id: resolvedOrgId,
-            inspection_note: item.note || null,
-            issue_category: item.category,
+        try {
+          await uploadBookingMedia({
+            file: item.file,
+            bookingId,
+            staffId,
+            photoType: 'inspection',
+            organizationIdFallback: organizationId,
+            index: i,
+            extra: {
+              inspection_note: item.note || null,
+              issue_category: item.category,
+            },
           });
-
-        if (dbError) throw dbError;
+        } catch (err) {
+          console.error(`Inspection photo ${i + 1} failed:`, err);
+          failed.push(i + 1);
+        }
         setUploadProgress(Math.round((i + 1) * step));
+      }
+
+      const uploadedCount = items.length - failed.length;
+      if (uploadedCount === 0) {
+        throw new Error(
+          items.length === 1
+            ? 'The photo could not be uploaded. Please try again.'
+            : 'None of the photos could be uploaded. Please try again.',
+        );
+      }
+      if (failed.length > 0) {
+        toast.warning(
+          `${uploadedCount} of ${items.length} photos uploaded. Photo${failed.length > 1 ? 's' : ''} ${failed.join(', ')} failed — you can add ${failed.length > 1 ? 'those' : 'that one'} again.`,
+          { duration: 8000 },
+        );
       }
 
       // Notify admin that an inspection report was submitted
@@ -144,9 +160,9 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
           organization_id: resolvedOrgId,
           type: 'staff_activity',
           title: '🔍 Inspection report submitted',
-          message: `Staff submitted ${items.length} inspection photo${items.length === 1 ? '' : 's'} for booking #${bookingId.slice(0, 8)}`,
+          message: `Staff submitted ${uploadedCount} inspection photo${uploadedCount === 1 ? '' : 's'} for booking #${bookingId.slice(0, 8)}`,
           link: `/admin/bookings/${bookingId}/photos`,
-          metadata: { booking_id: bookingId, staff_id: staffId, count: items.length },
+          metadata: { booking_id: bookingId, staff_id: staffId, count: uploadedCount },
         });
       } catch (notifyErr) {
         console.warn('Admin notification insert failed:', notifyErr);

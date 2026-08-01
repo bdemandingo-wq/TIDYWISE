@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/lib/supabase';
+import { uploadBookingMedia, getUploadErrorMessage } from '@/lib/bookingMediaUpload';
 import { toast } from 'sonner';
 import { useNativeCamera } from '@/hooks/useNativeCamera';
 
@@ -23,11 +24,6 @@ const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/x-m4v'];
 const PICKER_INPUT_CLASS = 'absolute left-0 top-0 h-px w-px opacity-0 pointer-events-none';
 
 type MediaMode = 'photo' | 'video';
-
-type BookingLookup = {
-  id: string;
-  organization_id: string | null;
-};
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -73,37 +69,6 @@ function getValidationError(file: File, mediaMode: MediaMode): string | null {
   }
 
   return null;
-}
-
-function getUploadErrorMessage(error: unknown, mediaMode: MediaMode): string {
-  const errMsg = error instanceof Error ? error.message : String(error);
-  const lowerMsg = errMsg.toLowerCase();
-
-  if (lowerMsg.includes('security') || lowerMsg.includes('policy') || lowerMsg.includes('row-level') || lowerMsg.includes('rls') || lowerMsg.includes('not allowed') || lowerMsg.includes('violates')) {
-    return 'Upload permission denied. Please contact your admin to check your account access.';
-  }
-
-  if (lowerMsg.includes('bucket') || lowerMsg.includes('not found')) {
-    return 'Media storage is not set up yet. Please contact your admin.';
-  }
-
-  if (lowerMsg.includes('payload') || lowerMsg.includes('too large') || lowerMsg.includes('size')) {
-    return mediaMode === 'video'
-      ? 'Video must be under 100MB. Try trimming it.'
-      : 'Photo must be under 10MB.';
-  }
-
-  if (lowerMsg.includes('network') || lowerMsg.includes('fetch') || lowerMsg.includes('failed to fetch') || lowerMsg.includes('timeout')) {
-    return mediaMode === 'video'
-      ? 'Video upload timed out. Try on WiFi for large videos.'
-      : 'Upload failed. Check your connection and try again.';
-  }
-
-  if (lowerMsg.includes('booking') || lowerMsg.includes('uuid')) {
-    return 'Could not identify this job. Refresh the page and try again.';
-  }
-
-  return errMsg.length > 120 ? 'Upload failed. Please try again.' : `Failed to upload: ${errMsg}`;
 }
 
 export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhotoUploaded }: BookingPhotoUploadProps) {
@@ -216,49 +181,16 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       });
     }, mediaMode === 'video' ? 500 : 200);
 
-    let uploadedPath: string | null = null;
-
     try {
-      const { data: bookingData, error: bookingLookupError } = await supabase
-        .from('bookings')
-        .select('id, organization_id')
-        .eq('id', bookingId)
-        .maybeSingle<BookingLookup>();
-
-      if (bookingLookupError) throw bookingLookupError;
-      if (!bookingData?.id) {
-        throw new Error('Selected booking was not found.');
-      }
-
-      const resolvedOrgId = bookingData.organization_id || organizationId;
-      if (!resolvedOrgId) {
-        throw new Error('Selected booking is missing an organization.');
-      }
-
-      const fileExt = selectedFile.name.split('.').pop() || (mediaMode === 'video' ? 'mp4' : 'jpg');
-      const filePath = `${resolvedOrgId}/${bookingId}/${staffId}/${photoType}/${Date.now()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('booking-photos')
-        .upload(filePath, selectedFile, { upsert: false });
-
-      if (uploadError) throw uploadError;
-      uploadedPath = filePath;
-
-      setUploadProgress(95);
-
-      const { error: dbError } = await supabase
-        .from('booking_photos')
-        .insert({
-          booking_id: bookingId,
-          photo_url: filePath,
-          photo_type: photoType,
-          media_type: mediaMode,
-          staff_id: staffId,
-          organization_id: resolvedOrgId,
-        });
-
-      if (dbError) throw dbError;
+      // The booking lookup and org resolution moved into uploadBookingMedia —
+      // doing it here as well was two round-trips for the same row.
+      const { filePath } = await uploadBookingMedia({
+        file: selectedFile,
+        bookingId,
+        staffId,
+        photoType,
+        organizationIdFallback: organizationId,
+      });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -273,11 +205,8 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
       setUploadProgress(0);
       console.error('Upload error:', error);
 
-      if (uploadedPath) {
-        await supabase.storage.from('booking-photos').remove([uploadedPath]);
-      }
 
-      toast.error(getUploadErrorMessage(error, mediaMode), { duration: 6000 });
+      toast.error(getUploadErrorMessage(error, mediaMode === 'video'), { duration: 6000 });
     } finally {
       setUploading(false);
     }
