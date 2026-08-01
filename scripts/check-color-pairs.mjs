@@ -112,10 +112,12 @@ function contrast(a, b) {
     - every entry prints on every run
 */
 const KNOWN = new Set([
+  // Was nine. The three light-mode --destructive entries came off when that
+  // token went 55% -> 45%: there, white-on-red and red-on-white moved the same
+  // way, so lightness alone fixed both sides. The six below do not have that
+  // property — each fails in two directions at once and needs its foreground
+  // flipped, which is a visible repaint rather than a nudge.
   'light|--accent-foreground on bg-accent',
-  'light|--destructive-foreground on bg-destructive',
-  'light|text-destructive on --background',
-  'light|text-destructive on --card',
   'dark|--primary-foreground on bg-primary',
   'dark|--destructive-foreground on bg-destructive',
   'dark|text-destructive on --card',
