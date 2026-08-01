@@ -7652,6 +7652,7 @@ export type Database = {
           margin_percent_good_threshold: number
           organization_id: string
           payroll_week_start_day: string
+          processing_fee_flat: number
           processing_fee_mode: string
           processing_fee_percent: number
           updated_at: string
@@ -7670,6 +7671,7 @@ export type Database = {
           margin_percent_good_threshold?: number
           organization_id: string
           payroll_week_start_day?: string
+          processing_fee_flat?: number
           processing_fee_mode?: string
           processing_fee_percent?: number
           updated_at?: string
@@ -7688,6 +7690,7 @@ export type Database = {
           margin_percent_good_threshold?: number
           organization_id?: string
           payroll_week_start_day?: string
+          processing_fee_flat?: number
           processing_fee_mode?: string
           processing_fee_percent?: number
           updated_at?: string
