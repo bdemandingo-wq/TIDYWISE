@@ -1,5 +1,5 @@
 {
-  "appId": "com.jointidywise.app",
+  "appId": "com.TidyWiseApp.app",
   "appName": "TidyWise",
   "webDir": "dist",
   "bundledWebRuntime": false,
