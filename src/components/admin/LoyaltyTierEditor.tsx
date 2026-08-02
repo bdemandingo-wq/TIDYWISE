@@ -20,12 +20,19 @@ interface TierSetting {
   benefits: string[];
   color: string | null;
   tier_order: number;
+  /**
+   * The number the price check enforces, NOT the marketing line. `benefits`
+   * holds "10% off every cleaning" as a sentence for the customer to read;
+   * this is the rate a booking's total is measured against.
+   */
+  discount_percent: number;
 }
 
 // Local editing state for a tier
 interface TierEditState {
   minSpending: string;
   maxSpending: string;
+  discountPercent: string;
 }
 
 // There is deliberately NO local default ladder here any more.
@@ -75,6 +82,7 @@ export function LoyaltyTierEditor() {
       return (data || []).map(tier => ({
         ...tier,
         benefits: Array.isArray(tier.benefits) ? tier.benefits : [],
+        discount_percent: Number(tier.discount_percent ?? 0),
       })) as TierSetting[];
     },
     enabled: !!organizationId,
@@ -119,6 +127,7 @@ export function LoyaltyTierEditor() {
         min_spending: number;
         max_spending: number | null;
         benefits: unknown;
+        discount_percent?: number;
         color: string | null;
       }) => ({
         organization_id: organizationId,
@@ -127,6 +136,7 @@ export function LoyaltyTierEditor() {
         min_spending: t.min_spending,
         max_spending: t.max_spending,
         benefits: Array.isArray(t.benefits) ? t.benefits : [],
+        discount_percent: Number((t as { discount_percent?: number }).discount_percent ?? 0),
         color: t.color,
       }));
 
@@ -183,13 +193,14 @@ export function LoyaltyTierEditor() {
       [tier.id]: {
         minSpending: tier.min_spending.toString(),
         maxSpending: tier.max_spending?.toString() ?? '',
+        discountPercent: (tier.discount_percent ?? 0).toString(),
       }
     }));
     setEditingTier(tier.id);
   }, []);
 
   // Handle local input changes (no saving)
-  const handleLocalChange = useCallback((tierId: string, field: 'minSpending' | 'maxSpending', value: string) => {
+  const handleLocalChange = useCallback((tierId: string, field: keyof TierEditState, value: string) => {
     setEditState(prev => ({
       ...prev,
       [tierId]: {
@@ -213,6 +224,19 @@ export function LoyaltyTierEditor() {
     const min = state.minSpending.trim() === '' ? NaN : Number(state.minSpending);
     const max = state.maxSpending.trim() === '' ? null : Number(state.maxSpending);
 
+    /*
+      The column carries CHECK (discount_percent >= 0 AND discount_percent < 100).
+      Validated here so a typo comes back as a sentence rather than a Postgres
+      23514, which surfaces as "new row violates check constraint" and tells the
+      owner nothing about which field or what range.
+    */
+    const discountRaw = state.discountPercent.trim();
+    const discount = discountRaw === '' ? 0 : Number(discountRaw);
+    if (!Number.isFinite(discount) || discount < 0 || discount >= 100) {
+      toast.error('Discount must be a number from 0 to 99.');
+      return;
+    }
+
     const ranges: TierRange[] = tiers.map(t => ({
       id: t.id,
       tier_name: t.tier_name,
@@ -235,7 +259,7 @@ export function LoyaltyTierEditor() {
     if (warning) toast.warning(warning);
 
     updateTier.mutate(
-      { tierId: tier.id, updates: { min_spending: min, max_spending: max } },
+      { tierId: tier.id, updates: { min_spending: min, max_spending: max, discount_percent: discount } },
       { onSuccess: () => setEditingTier(null) },
     );
   }, [editState, tiers, updateTier]);
@@ -411,6 +435,36 @@ export function LoyaltyTierEditor() {
                         className="mt-1"
                       />
                     </div>
+                  </div>
+
+                  {/*
+                    The ENFORCED rate, kept apart from the benefits list. Those
+                    two are easily confused and mean different things: a benefit
+                    is a sentence the customer reads, this is the number a price
+                    check measures against. An org can legitimately have "10% off
+                    every cleaning" in the benefits and 0 here — that is not a
+                    bug, it means the discount is applied by hand.
+                  */}
+                  <div>
+                    <label className="text-xs text-muted-foreground" htmlFor={`discount-${tier.id}`}>
+                      Enforced discount (%) — the number the price check uses
+                    </label>
+                    <Input
+                      id={`discount-${tier.id}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*\.?[0-9]*"
+                      value={localState.discountPercent}
+                      onChange={(e) => handleLocalChange(tier.id, 'discountPercent', e.target.value)}
+                      placeholder="0"
+                      className="mt-1"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      0 to 99. Separate from the benefits list above — that is the
+                      wording customers read, this is the rate. <strong>Nothing applies
+                      it yet:</strong> the booking price check that will enforce it is not
+                      shipped. Setting it now is safe and changes no prices.
+                    </p>
                   </div>
 
                   {/* Explicit save: both thresholds are validated together
