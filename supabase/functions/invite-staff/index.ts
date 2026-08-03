@@ -219,17 +219,6 @@ serve(async (req) => {
           });
         }
 
-        // Update the user's password if they have a user_id
-        if (existingStaff.user_id) {
-          const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-            existingStaff.user_id,
-            { password }
-          );
-          if (passwordError) {
-            console.error("Error updating password:", passwordError);
-          }
-        }
-
         await logToSystem('info', 'Staff member reactivated', { staffId: existingStaff.id, email }, adminUserId, organizationId);
 
         return new Response(
@@ -245,9 +234,16 @@ serve(async (req) => {
           }
         );
       } else {
-        // Staff is already active
-        return new Response(JSON.stringify({ error: "A staff member with this email already exists." }), {
-          status: 400,
+        // Treat retries as success. The original request may have completed even
+        // if the browser timed out before receiving its response.
+        return new Response(JSON.stringify({
+          success: true,
+          staff: existingStaff,
+          alreadyExists: true,
+          existingAccount: true,
+          message: "This staff member is already active in your organization.",
+        }), {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -273,25 +269,14 @@ serve(async (req) => {
 
     let userId: string;
     let wasNewUserCreated = false;
+    let linkedExistingAccount = false;
 
     if (existingAuthUser) {
-      // User exists in auth - just update their password and use their ID
+      // One cleaner can work for multiple organizations with one login.
+      // Never let a second organization replace that cleaner's global password.
       console.log("User already exists in auth, linking to staff record:", existingAuthUser.id);
-      
-      const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
-        existingAuthUser.id,
-        { password, user_metadata: { full_name: name.trim() } }
-      );
-      
-      if (passwordError) {
-        await logToSystem('error', 'Failed to update existing user password', { email, error: passwordError.message }, adminUserId, organizationId);
-        return new Response(JSON.stringify({ error: "Failed to set up user account. Please try again." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
       userId = existingAuthUser.id;
+      linkedExistingAccount = true;
     } else {
       let linkedExistingUser = false;
       // Create new auth user with admin-provided password
@@ -313,20 +298,10 @@ serve(async (req) => {
           // Race / lookup miss: the user does exist — link to them instead of failing.
           const found = await findAuthUserByEmail();
           if (found) {
-            const { error: pwError } = await supabaseAdmin.auth.admin.updateUserById(found.id, {
-              password,
-              user_metadata: { full_name: name.trim() },
-            });
-            if (pwError) {
-              await logToSystem('error', 'Failed to update existing user password (fallback)', { email, error: pwError.message }, adminUserId, organizationId);
-              return new Response(JSON.stringify({ error: "Failed to set up user account. Please try again." }), {
-                status: 400,
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
             authData = { user: found } as typeof authData;
             createUserError = null;
             linkedExistingUser = true;
+            linkedExistingAccount = true;
           } else {
             await logToSystem('error', 'Failed to create auth user', { email, error: createUserError.message }, adminUserId, organizationId);
             return new Response(JSON.stringify({ error: "This email is already registered to another account and could not be linked. Please use a different email." }), {
@@ -450,6 +425,23 @@ serve(async (req) => {
           <p style="color: #555; margin-top: 24px;">— ${esc(orgName)}</p>
         </div>`;
 
+      // Existing users keep their current password; only newly created users
+      // should receive the temporary password entered by this organization.
+      const credentialRows = linkedExistingAccount
+        ? `<tr><td colspan="2" style="padding: 8px;">Use your existing TidyWise email and password to sign in.</td></tr>`
+        : `<tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
+             <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>`;
+      const emailHtml = html.replace(
+        `<tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
+             <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>`,
+        credentialRows,
+      ).replace(
+        `<strong>Please change your password</strong> after signing in for the first time.`,
+        linkedExistingAccount
+          ? `<strong>Your existing password has not changed.</strong>`
+          : `<strong>Please change your password</strong> after signing in for the first time.`,
+      );
+
       // Try Resend directly with platform key (works regardless of org email setup).
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (resendKey) {
@@ -461,7 +453,7 @@ serve(async (req) => {
             to: [email.toLowerCase().trim()],
             reply_to: "support@tidywisecleaning.com",
             subject: `Welcome to ${orgName} — your staff login`,
-            html,
+            html: emailHtml,
           }),
         });
         await logToSystem('info', 'Staff welcome email sent', { staffId: staffData.id, email }, adminUserId, organizationId);
@@ -477,6 +469,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         staff: staffData,
+        existingAccount: linkedExistingAccount,
         message: "Staff member created successfully!",
       }),
       {
