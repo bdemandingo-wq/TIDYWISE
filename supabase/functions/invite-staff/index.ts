@@ -293,6 +293,7 @@ serve(async (req) => {
       
       userId = existingAuthUser.id;
     } else {
+      let linkedExistingUser = false;
       // Create new auth user with admin-provided password
       let { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
         email: normalizedEmail,
@@ -325,6 +326,7 @@ serve(async (req) => {
             }
             authData = { user: found } as typeof authData;
             createUserError = null;
+            linkedExistingUser = true;
           } else {
             await logToSystem('error', 'Failed to create auth user', { email, error: createUserError.message }, adminUserId, organizationId);
             return new Response(JSON.stringify({ error: "This email is already registered to another account and could not be linked. Please use a different email." }), {
