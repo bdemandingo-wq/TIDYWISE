@@ -177,7 +177,14 @@ const handler = async (req: Request): Promise<Response> => {
     const customers = await stripe.customers.list({ email, limit: 100 });
     
     // Find customer that belongs to THIS organization
-    let customer = customers.data.find((c: Stripe.Customer) => c.metadata?.organization_id === organizationId);
+    // An email can have multiple Stripe customers in the same org (duplicates created
+    // by different save-card paths). Prefer one that actually has a default card.
+    const orgCustomers = customers.data.filter(
+      (c: Stripe.Customer) => c.metadata?.organization_id === organizationId,
+    );
+    let customer =
+      orgCustomers.find((c: Stripe.Customer) => !!c.invoice_settings?.default_payment_method) ||
+      orgCustomers[0];
 
     // Legacy adoption path
     if (!customer) {
