@@ -247,21 +247,30 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Resolve payment method
+    // Resolve payment method — check every org customer for this email, since the
+    // card may be attached to a duplicate customer record.
     let paymentMethodId: string | undefined;
 
-    if (customer.invoice_settings?.default_payment_method) {
-      paymentMethodId = customer.invoice_settings.default_payment_method as string;
-    } else {
+    const candidates = [customer, ...orgCustomers.filter((c) => c.id !== customer.id)];
+
+    for (const cand of candidates) {
+      if (cand.invoice_settings?.default_payment_method) {
+        customer = cand;
+        paymentMethodId = cand.invoice_settings.default_payment_method as string;
+        break;
+      }
       const paymentMethods = await stripe.paymentMethods.list({
-        customer: customer.id,
+        customer: cand.id,
         type: 'card',
         limit: 1,
       });
       if (paymentMethods.data.length > 0) {
+        customer = cand;
         paymentMethodId = paymentMethods.data[0].id;
+        break;
       }
     }
+
 
     if (!paymentMethodId) {
       await logChargeAudit({
