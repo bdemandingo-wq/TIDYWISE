@@ -343,8 +343,12 @@ serve(async (req) => {
 
       userId = authData!.user.id;
 
-      createdAuthUserId = userId;
-      wasNewUserCreated = true;
+      // Only mark for rollback-delete if we actually created the account here.
+      if (!linkedExistingUser) {
+        createdAuthUserId = userId;
+        wasNewUserCreated = true;
+      }
+
     }
 
     // Create staff record
