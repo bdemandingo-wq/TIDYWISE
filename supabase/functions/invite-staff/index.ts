@@ -253,9 +253,23 @@ serve(async (req) => {
       }
     }
 
-    // Check if auth user already exists (they might exist without a staff record in this org)
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAuthUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase().trim());
+    // Check if auth user already exists (they might exist without a staff record in this org).
+    // listUsers() is paginated (default 50/page) — a bare call misses users in large projects,
+    // which caused createUser to fail with 422 email_exists and a generic error.
+    const normalizedEmail = email.toLowerCase().trim();
+    const findAuthUserByEmail = async () => {
+      for (let page = 1; page <= 100; page++) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) throw error;
+        const match = data?.users?.find(u => u.email?.toLowerCase() === normalizedEmail);
+        if (match) return match;
+        if (!data?.users || data.users.length < 1000) return null;
+      }
+      return null;
+    };
+
+    const existingAuthUser = await findAuthUserByEmail();
+
 
     let userId: string;
     let wasNewUserCreated = false;
