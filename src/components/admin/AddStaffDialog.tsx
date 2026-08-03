@@ -105,18 +105,26 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
         throw new Error(data.error);
       }
 
-      // Show credentials
-      setCredentials({
-        email: formData.email,
-        password: formData.password,
-      });
-      setShowCredentials(true);
-      
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      
+
+      if (data.alreadyExists) {
+        toast.success('This staff member is already active in your organization.');
+        handleCredentialsDone();
+      } else if (data.existingAccount) {
+        toast.success('Staff member added. They can use their existing TidyWise login.');
+        handleCredentialsDone();
+      } else {
+        // Only show a temporary password when this request created the login.
+        setCredentials({
+          email: formData.email,
+          password: formData.password,
+        });
+        setShowCredentials(true);
+      }
+
       if (data.reactivated) {
         toast.success('Staff member reactivated successfully!');
-      } else {
+      } else if (!data.alreadyExists && !data.existingAccount) {
         toast.success('Staff member created successfully!');
       }
       
