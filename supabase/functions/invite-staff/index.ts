@@ -294,32 +294,55 @@ serve(async (req) => {
       userId = existingAuthUser.id;
     } else {
       // Create new auth user with admin-provided password
-      const { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
-        email: email.toLowerCase().trim(),
+      let { data: authData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email: normalizedEmail,
         password,
         email_confirm: true,
         user_metadata: { full_name: name.trim() },
       });
 
       if (createUserError) {
-        await logToSystem('error', 'Failed to create auth user', { email, error: createUserError.message }, adminUserId, organizationId);
-        
-        // Parse common auth errors
-        const errorMsg = createUserError.message.toLowerCase();
-        if (errorMsg.includes('already registered') || errorMsg.includes('already exists')) {
-          return new Response(JSON.stringify({ error: "This email is already registered. Please use a different email." }), {
+        const errorMsg = (createUserError.message || "").toLowerCase();
+        const emailExists =
+          errorMsg.includes("already registered") ||
+          errorMsg.includes("already exists") ||
+          (createUserError as { code?: string }).code === "email_exists";
+
+        if (emailExists) {
+          // Race / lookup miss: the user does exist — link to them instead of failing.
+          const found = await findAuthUserByEmail();
+          if (found) {
+            const { error: pwError } = await supabaseAdmin.auth.admin.updateUserById(found.id, {
+              password,
+              user_metadata: { full_name: name.trim() },
+            });
+            if (pwError) {
+              await logToSystem('error', 'Failed to update existing user password (fallback)', { email, error: pwError.message }, adminUserId, organizationId);
+              return new Response(JSON.stringify({ error: "Failed to set up user account. Please try again." }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+            authData = { user: found } as typeof authData;
+            createUserError = null;
+          } else {
+            await logToSystem('error', 'Failed to create auth user', { email, error: createUserError.message }, adminUserId, organizationId);
+            return new Response(JSON.stringify({ error: "This email is already registered to another account and could not be linked. Please use a different email." }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        } else {
+          await logToSystem('error', 'Failed to create auth user', { email, error: createUserError.message }, adminUserId, organizationId);
+          return new Response(JSON.stringify({ error: `Failed to create user account: ${createUserError.message}` }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        
-        return new Response(JSON.stringify({ error: "Failed to create user account. Please try again." }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
       }
-      
-      userId = authData.user.id;
+
+      userId = authData!.user.id;
+
       createdAuthUserId = userId;
       wasNewUserCreated = true;
     }
