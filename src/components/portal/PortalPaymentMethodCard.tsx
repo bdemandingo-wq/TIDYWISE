@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { CreditCard, Check } from 'lucide-react';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { toast } from 'sonner';
+import { useClientPortal } from '@/contexts/ClientPortalContext';
 
 interface Props {
   email: string;
@@ -29,13 +30,12 @@ interface Props {
  * scheduled leaves the business unable to charge for work already committed;
  * that is the org's decision, not the client's.
  *
- * Uses publicBooking: true, which is the unauthenticated branch of
- * create-setup-intent. It does not widen anything — the same call is already
- * reachable from the public booking page — but see
- * docs/bugs/2026-08-04-create-setup-intent-unauthenticated.md for the real fix,
- * which needs the portal session token verified server-side.
+ * Authenticates with the portal session token: create-setup-intent and
+ * get-payment-method-details verify it server-side and take the customer and
+ * organisation from the verified claims, never from the body.
  */
 export function PortalPaymentMethodCard({ email, customerName, organizationId }: Props) {
+  const { sessionToken } = useClientPortal();
   const [showForm, setShowForm] = useState(false);
   const [justSaved, setJustSaved] = useState<{ brand: string; last4: string } | null>(null);
 
@@ -67,7 +67,7 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
             email={email}
             customerName={customerName}
             organizationId={organizationId}
-            publicBooking
+            portalSessionToken={sessionToken}
             showHoldOption={false}
             onCardSaved={(cardInfo) => {
               // Title-case the brand: Stripe returns "visa", not "Visa".
