@@ -625,13 +625,32 @@ export default function StaffPortal() {
     },
     onError: (error: Error) => {
       setClaimingBookingId(null);
+      console.error(error);
+
+      // Kept as a special case because it does more than reword: the job is
+      // gone, so the available list has to be refetched.
       if (error.message === 'Job was already claimed by someone else') {
         toast.error('This job was already claimed by another cleaner');
         queryClient.invalidateQueries({ queryKey: ['staff-bookings', 'unassigned'] });
-      } else {
-        toast.error('Failed to claim job');
+        return;
       }
-      console.error(error);
+
+      // Everything else used to collapse to 'Failed to claim job', which threw
+      // away the only actionable thing the cleaner could be told. The guards in
+      // mutationFn already write for them — "Set your working hours before
+      // claiming jobs" is the one every cleaner added to a second business
+      // hits, because working_hours hangs off the per-org staff row and a new
+      // one has none. Show the guard's own words rather than a second-hand
+      // summary of them.
+      //
+      // A PostgrestError carries `code`; that is a database failure, not a
+      // sentence written for a cleaner. "new row violates row-level security
+      // policy for table bookings" helps nobody standing in a driveway, so
+      // those keep the generic message and live in the console instead.
+      const isDatabaseError = typeof (error as { code?: unknown }).code === 'string';
+      toast.error(
+        isDatabaseError || !error.message ? 'Failed to claim job' : error.message
+      );
     },
   });
 
