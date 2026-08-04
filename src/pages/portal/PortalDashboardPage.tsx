@@ -53,6 +53,7 @@ import { supabase } from "@/lib/supabase";
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
+import { PortalPaymentMethodCard } from '@/components/portal/PortalPaymentMethodCard';
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
 import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
 import { useOrgTiers } from "@/hooks/useOrgTiers";
@@ -876,6 +877,7 @@ export default function PortalDashboardPage() {
                     Reports{inspectionReports.length > 0 && <span className="ml-1.5 text-[hsl(var(--pv-warn))]">{inspectionReports.length}</span>}
                   </TabsTrigger>
                   <TabsTrigger value="profile" className="snap-start shrink-0 whitespace-nowrap">Profile</TabsTrigger>
+                  <TabsTrigger value="payment" className="snap-start shrink-0 whitespace-nowrap">Payment</TabsTrigger>
                   <TabsTrigger value="settings" className="snap-start shrink-0 whitespace-nowrap">Settings</TabsTrigger>
                 </TabsList>
               </div>
@@ -1150,6 +1152,16 @@ export default function PortalDashboardPage() {
               </TabsContent>
 
               <TabsContent value="profile" className="mt-5"><PortalProfileTab /></TabsContent>
+              <TabsContent value="payment" className="mt-5">
+                {/* organization_id lives on the portal user, not the customer record. */}
+                {customer?.email && user?.organization_id ? (
+                  <PortalPaymentMethodCard
+                    email={customer.email}
+                    customerName={`${customer.first_name ?? ''} ${customer.last_name ?? ''}`.trim()}
+                    organizationId={user.organization_id}
+                  />
+                ) : null}
+              </TabsContent>
               <TabsContent value="settings" className="mt-5"><PortalSettingsTab /></TabsContent>
             </Tabs>
           </div>

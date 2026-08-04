@@ -3,6 +3,7 @@ import { getStripePromise, getCachedStripeReact, setCachedStripeReact } from '@/
 import { Button } from '@/components/ui/button';
 import { Loader2, CreditCard, Lock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -152,7 +153,11 @@ function CardFormInner({
       }
     } catch (error: any) {
       console.error('Failed to save card:', error);
-      const errorMessage = error.message || 'Failed to save card';
+      // supabase-js reports every non-2xx as "Edge Function returned a non-2xx
+      // status code". The reason a card was refused — the org's Stripe not
+      // being connected, a declined setup — is in the response body, and it is
+      // the only thing that tells the person holding the card what to do next.
+      const errorMessage = await readEdgeFunctionError(error, 'Failed to save card');
       toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       onError?.(errorMessage);
     } finally {
@@ -270,7 +275,11 @@ export function StripeCardForm(props: CardFormProps) {
         if (cancelled) return;
 
         if (setupError || !setupData?.clientSecret) {
-          throw new Error(setupError?.message || 'Failed to initialize payment form');
+          throw new Error(
+            setupError
+              ? await readEdgeFunctionError(setupError, 'Failed to initialize payment form')
+              : 'Failed to initialize payment form',
+          );
         }
 
         // Resolve the correct Stripe publishable key for this org.
