@@ -109,7 +109,172 @@ serve(async (req) => {
     }
 
     const resetLink = linkData.properties?.action_link;
-    console.log("Generated reset link for staff:", staffMember.email);
+    // Never log the link itself — it is a live, unauthenticated credential.
+    console.log("Generated reset link for staff id:", staffId);
+
+    // A recovery link authenticates the AUTH USER, not this staff row. One
+    // person can hold staff rows in several organizations under one login,
+    // so handing the raw link to an admin at org A would also hand them
+    // access to org B's staff portal. Count the target user's active staff
+    // rows and withhold the link when it spans more than one business.
+    const { data: allStaffRows, error: multiOrgError } = await supabaseAdmin
+      .from("staff")
+      .select("id")
+      .eq("user_id", staffMember.user_id)
+      .eq("is_active", true);
+
+    if (multiOrgError) {
+      console.error("[RESEND-STAFF-PASSWORD-LINK] Failed to count staff rows:", multiOrgError);
+      return new Response(JSON.stringify({ error: "Unable to process request. Please try again." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const isMultiOrg = (allStaffRows?.length ?? 0) > 1;
+
+    // Who requested this, and from which business — used in the cleaner's notice.
+    let adminIdentity = "an administrator";
+    if (authResult.userId) {
+      const { data: adminUser } = await supabaseAdmin.auth.admin.getUserById(authResult.userId);
+      const metaName = (adminUser?.user?.user_metadata as Record<string, unknown> | null)?.full_name;
+      adminIdentity =
+        (typeof metaName === "string" && metaName.trim()) ||
+        adminUser?.user?.email ||
+        adminIdentity;
+    }
+
+    const { data: bizSettings } = await supabaseAdmin
+      .from("business_settings")
+      .select("company_name")
+      .eq("organization_id", staffMember.organization_id)
+      .maybeSingle();
+    const businessName = bizSettings?.company_name || "your cleaning business";
+
+    const resendKey = Deno.env.get("RESEND_API_KEY");
+
+    const escapeHtml = (v: string) =>
+      v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+    const noticeIntro = `
+      <p>Hi ${escapeHtml(staffMember.name || "there")},</p>
+      <p>A password setup link was generated for your staff account by
+      <strong>${escapeHtml(adminIdentity)}</strong> at
+      <strong>${escapeHtml(businessName)}</strong>.</p>`;
+
+    const noticeFooter = `
+      <p>If you were not expecting this, please contact
+      ${escapeHtml(businessName)} right away.</p>
+      <p style="color:#64748b;font-size:12px;">TidyWise</p>`;
+
+    const emailHtml = isMultiOrg
+      ? `${noticeIntro}
+        <p>Your account is linked to more than one business, so the link was sent
+        directly to you instead of being shared with the administrator.</p>
+        <p><a href="${resetLink}" style="background:#0f172a;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;display:inline-block;">Set your password</a></p>
+        ${noticeFooter}`
+      : `${noticeIntro}
+        <p>The administrator will share the setup link with you directly. This
+        message is only to let you know a link was created.</p>
+        ${noticeFooter}`;
+
+    // SECURITY DEPENDENCY: emailing staff.email is only safe because UPDATE on
+    // staff.email is NOT granted to `authenticated` (commit 903f7e9b). If that
+    // revoke is ever reverted, an org admin could repoint a cleaner's staff row
+    // at an address they control and have this recovery link delivered to
+    // themselves — silently re-opening a cross-organization account takeover.
+    // Do not restore the column grant without also revisiting this function.
+    const sendEmail = async (subject: string) => {
+      if (!resendKey) return false;
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "TidyWise <noreply@tidywisecleaning.com>",
+          to: [staffMember.email],
+          reply_to: "support@tidywisecleaning.com",
+          subject,
+          html: emailHtml,
+        }),
+      });
+      if (!res.ok) {
+        console.error("[RESEND-STAFF-PASSWORD-LINK] Resend failed:", res.status, await res.text());
+        return false;
+      }
+      return true;
+    };
+
+    const maskEmail = (addr: string) => {
+      const [local, domain] = addr.split("@");
+      if (!domain) return "•••";
+      if (local.length <= 2) return `${local[0] ?? "•"}•••@${domain}`;
+      return `${local[0]}•••${local[local.length - 1]}@${domain}`;
+    };
+
+    if (isMultiOrg) {
+      const sent = await sendEmail(`Your ${businessName} staff password setup link`);
+      if (!sent) {
+        logAudit({
+          action: "STAFF_PASSWORD_LINK_DELIVERY_FAILED",
+          organizationId: authResult.organizationId || "unknown",
+          userId: authResult.userId || "unknown",
+          resourceType: "staff",
+          resourceId: staffId,
+          success: false,
+          error: resendKey ? "Email provider rejected the send" : "RESEND_API_KEY not configured",
+        });
+        return new Response(
+          JSON.stringify({
+            error:
+              "This staff member works for more than one business, so the link must be emailed to them — but the email could not be delivered. Please contact support.",
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      logAudit({
+        action: "STAFF_PASSWORD_LINK_GENERATED",
+        organizationId: authResult.organizationId || "unknown",
+        userId: authResult.userId || "unknown",
+        resourceType: "staff",
+        resourceId: staffId,
+        success: true,
+        details: { delivery: "emailed_to_cleaner", multiOrg: true, requestedBy: adminIdentity },
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          emailed: true,
+          maskedEmail: maskEmail(staffMember.email),
+          staffName: staffMember.name,
+          message: "Password reset link emailed to the staff member",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Single-org: unchanged response shape. The cleaner still gets a notice
+    // (without the link) so an unexpected link is visible to them.
+    const noticeSent = await sendEmail(`A password setup link was created for your ${businessName} account`);
+    if (!noticeSent) {
+      console.warn("[RESEND-STAFF-PASSWORD-LINK] Notice email not delivered (non-fatal)");
+    }
+
+    logAudit({
+      action: "STAFF_PASSWORD_LINK_GENERATED",
+      organizationId: authResult.organizationId || "unknown",
+      userId: authResult.userId || "unknown",
+      resourceType: "staff",
+      resourceId: staffId,
+      success: true,
+      details: {
+        delivery: "returned_to_admin",
+        multiOrg: false,
+        requestedBy: adminIdentity,
+        noticeEmailed: noticeSent,
+      },
+    });
 
     return new Response(
       JSON.stringify({
