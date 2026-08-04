@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, BadgePercent, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useOrgId } from "@/hooks/useOrgId";
 
 export interface PlanInfo {
   id: "basic" | "pro" | "custom";
@@ -100,6 +101,7 @@ export function UpgradePlanDialog({
           plan: targetPlan.id,
           interval: "monthly",
           mode: "upgrade",
+          organization_id: organizationId,
           discount_code: appliedCode ?? undefined,
         },
       });
@@ -230,13 +232,19 @@ export function DowngradePlanDialog({
   onCompleted,
 }: DowngradeDialogProps) {
   const [confirming, setConfirming] = useState(false);
+  const { organizationId } = useOrgId();
 
   async function confirm() {
     if (!targetPlan) return;
     setConfirming(true);
     try {
       const { data, error } = await supabase.functions.invoke("change-subscription-plan", {
-        body: { plan: targetPlan.id, interval: "monthly", mode: "downgrade" },
+        body: {
+          plan: targetPlan.id,
+          interval: "monthly",
+          mode: "downgrade",
+          organization_id: organizationId,
+        },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);

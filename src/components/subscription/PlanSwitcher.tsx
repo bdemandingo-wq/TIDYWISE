@@ -138,7 +138,7 @@ export function PlanSwitcher() {
     try {
       const { data, error } = await supabase.functions.invoke(
         "change-subscription-plan",
-        { body: { mode: "cancel_downgrade" } },
+        { body: { mode: "cancel_downgrade", organization_id: organizationId } },
       );
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
