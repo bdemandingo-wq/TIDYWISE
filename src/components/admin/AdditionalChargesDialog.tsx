@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from 'sonner';
 import { showChargeFailureToastSonner, extractFailureReason } from '@/lib/chargeErrorToast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -157,7 +158,9 @@ export function AdditionalChargesDialog({
           }
         });
 
-        if (chargeError) throw new Error(chargeError.message);
+        // chargeError.message is supabase-js's generic non-2xx text; the
+        // decline reason lives in the response body.
+        if (chargeError) throw new Error(await readEdgeFunctionError(chargeError, 'Payment failed'));
         if (!chargeResult?.success) {
           // Render rich, actionable failure toast and throw a marker error so the
           // mutation onError handler does NOT show a duplicate generic toast.

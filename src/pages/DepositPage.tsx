@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, DollarSign, CreditCard } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 import { fmt } from '@/lib/activeCurrency';
@@ -98,7 +99,9 @@ export default function DepositPage() {
         setError(data?.error || 'Failed to process deposit');
       }
     } catch (err) {
-      setError('Failed to process deposit');
+      // The function's own reason — "deposit already paid", "link expired",
+      // "Stripe not connected" — instead of supabase-js's generic non-2xx text.
+      setError(await readEdgeFunctionError(err, 'Failed to process deposit'));
     } finally {
       setProcessing(false);
     }

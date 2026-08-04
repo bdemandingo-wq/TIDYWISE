@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { showChargeFailureToastSonner, extractFailureReason } from "@/lib/chargeErrorToast";
 import { supabase } from "@/lib/supabase";
+import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useOrgRole } from "@/hooks/useOrgRole";
 import { SEOHead } from "@/components/SEOHead";
@@ -135,7 +136,7 @@ export default function PaymentIntegrationPage() {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "get_status", organization_id: organization.id },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to check Stripe connection"));
       setConnectionStatus(data);
     } catch (err) {
       console.error("Error fetching status:", err);
@@ -166,7 +167,7 @@ export default function PaymentIntegrationPage() {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "exchange_code", organization_id: organization.id, code, state },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to connect Stripe"));
       if (data?.error) throw new Error(data.error);
 
       setOauthMessage(null);
@@ -192,7 +193,7 @@ export default function PaymentIntegrationPage() {
       const { data, error } = await supabase.functions.invoke("stripe-connect-oauth", {
         body: { action: "get_oauth_url", organization_id: organization.id, email: user?.email || "" },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to start Stripe onboarding"));
       if (data?.url) {
         window.location.href = data.url;
       } else {
@@ -258,7 +259,7 @@ export default function PaymentIntegrationPage() {
           publishable_key: manualPublishableKey.trim() || null,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to save Stripe API keys"));
       if (data?.error) throw new Error(data.error);
 
       setConnectionStatus({
@@ -299,7 +300,7 @@ export default function PaymentIntegrationPage() {
         // a UI guarantee TypeScript cannot see.
         body: { action: "disconnect", organization_id: organization?.id },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to disconnect Stripe"));
       setConnectionStatus({ connected: false });
       toast.success("Stripe disconnected successfully");
     } catch (err) {
@@ -322,7 +323,7 @@ export default function PaymentIntegrationPage() {
           description: chargeDesc.trim() || null,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await readEdgeFunctionError(error, "Failed to create payment intent"));
       if (data?.error) {
         showChargeFailureToastSonner({
           failureReason: extractFailureReason(data),

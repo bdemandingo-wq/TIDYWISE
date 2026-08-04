@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { saveBlob } from '@/lib/fileActions';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
@@ -382,7 +383,9 @@ export default function PayrollPage() {
           notes,
         },
       });
-      if (error) throw error;
+      // Resolved here, inside the async mutationFn, so the sync onError
+      // callback below needs no change — by the time it runs, message is real.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Failed to process payout'));
       if (data?.error) throw new Error(data.error);
       return { ...data, payment_method };
     },

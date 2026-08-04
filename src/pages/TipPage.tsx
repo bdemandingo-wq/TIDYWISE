@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Heart, CheckCircle, DollarSign } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
 import { fmt } from '@/lib/activeCurrency';
@@ -104,7 +105,7 @@ export default function TipPage() {
         setError(data?.error || 'Failed to process tip');
       }
     } catch (err) {
-      setError('Failed to process tip');
+      setError(await readEdgeFunctionError(err, 'Failed to process tip'));
     } finally {
       setProcessing(false);
     }

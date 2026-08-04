@@ -120,6 +120,7 @@ import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
 import { formatFullAddress } from '@/lib/formatAddress';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
   pending: { bg: 'bg-warning/10', text: 'text-warning', dot: 'bg-warning' },
@@ -598,7 +599,10 @@ export default function BookingsPage() {
       console.error('Failed to place hold:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to place hold",
+        // Not error.message — supabase-js reports every non-2xx as "Edge
+        // Function returned a non-2xx status code". The real reason (card
+        // declined, no card on file, Stripe not connected) is in the body.
+        description: await readEdgeFunctionError(error, "Failed to place hold"),
         variant: "destructive"
       });
     } finally {
@@ -754,7 +758,7 @@ export default function BookingsPage() {
       console.error('Failed to capture payment:', error);
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to capture payment", 
+        description: await readEdgeFunctionError(error, "Failed to capture payment"), 
         variant: "destructive" 
       });
     } finally {
@@ -1014,23 +1018,17 @@ export default function BookingsPage() {
     } catch (error: any) {
       console.error('Failed to charge card:', error);
 
-      // Extract error message from edge function response body if available
-      let errorMessage: string | null = null;
-      try {
-        const body = error?.context?.body;
-        if (typeof body === "string" && body.trim()) {
-          const parsed = JSON.parse(body);
-          if (parsed?.error) {
-            errorMessage = parsed.error;
-          }
-        }
-      } catch {
-        // ignore parse failure
-      }
-      if (!errorMessage && error?.message) errorMessage = error.message;
+      // This previously read error.context.body as a string, which is the OLD
+      // supabase-js shape. FunctionsClient now throws
+      // `new FunctionsHttpError(response)`, so context IS the Response and
+      // .body is a ReadableStream — the string check could never pass, and
+      // every declined card fell through to error.message, i.e. the merchant
+      // was told "Edge Function returned a non-2xx status code" instead of why
+      // the card was declined. readEdgeFunctionError handles both shapes.
+      const errorMessage = await readEdgeFunctionError(error, "Failed to charge card");
 
       showChargeFailureToastLegacy({
-        failureReason: errorMessage || "Failed to charge card",
+        failureReason: errorMessage,
         customer: booking.customer,
         organizationId: organization?.id ?? null,
         amount: booking.total_amount,

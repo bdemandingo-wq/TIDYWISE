@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from 'sonner';
 import { invokeSmsFunction } from '@/lib/smsErrorHandler';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
@@ -307,7 +308,7 @@ export function PaymentStep() {
       await loadCardInfo(customerEmail);
     } catch (err: any) {
       console.error('Failed to remove card:', err);
-      toast.error(err.message || 'Failed to remove card');
+      toast.error(await readEdgeFunctionError(err, 'Failed to remove card'));
     } finally {
       setRemovingCard(false);
     }

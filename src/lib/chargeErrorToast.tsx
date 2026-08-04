@@ -2,6 +2,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { toast as legacyToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
+import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
 
 /**
  * Charge-failure UX helper.
@@ -135,7 +136,10 @@ async function sendCardLinkSms(ctx: ChargeFailureContext): Promise<void> {
   } catch (err: any) {
     sonnerToast.error("Failed to send card link", {
       id: sending,
-      description: err?.message || "Try again from the customer profile.",
+      // send-card-link-sms returns real reasons — "Rate limit exceeded: max 5
+      // card-link SMS per minute" among them — all of which reached the
+      // operator as "Edge Function returned a non-2xx status code" before.
+      description: await readEdgeFunctionError(err, "Try again from the customer profile."),
     });
   }
 }
