@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
 import { formatFullAddress } from "../_shared/format-address.ts";
+import { resolveTemplate, type AutomationKey } from "../_shared/automation-templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,10 +161,28 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if appointment_reminder automation is enabled for this org
     const { data: automationSetting } = await supabase
       .from("organization_automations")
-      .select("is_enabled")
+      .select("is_enabled, settings")
       .eq("organization_id", organizationId)
       .eq("automation_type", "appointment_reminder")
       .maybeSingle();
+
+    // Owner-edited message copy. A missing row, null settings, or no templates
+    // key all mean "this org never customised" — resolve to {} silently and the
+    // resolver falls back to the seeded defaults (today's hardcoded wording).
+    const customTemplates =
+      ((automationSetting?.settings as { templates?: Record<string, string> } | null)
+        ?.templates) ?? {};
+
+    const buildMessage = (
+      key: AutomationKey,
+      data: Record<string, string>,
+    ): string => {
+      const r = resolveTemplate(key, customTemplates[key], data);
+      if (r.warning) {
+        console.warn(`[send-booking-reminder] org=${organizationId} key=${key}: ${r.warning}`);
+      }
+      return r.text;
+    };
 
     if (automationSetting && !automationSetting.is_enabled) {
       console.log("[send-booking-reminder] Automation disabled for org:", organizationId);
@@ -403,9 +422,15 @@ const handler = async (req: Request): Promise<Response> => {
       if (!address) address = payload?.address || "";
 
       const isConfirmation = payload?.messageType === "confirmation";
-      const message = isConfirmation
-        ? `Hi ${customerName}! Your ${serviceName} appointment with ${companyName} is confirmed for ${formattedDate} at ${formattedTime}.${address ? ` Address: ${address}.` : ""} Reply to this message with any questions!`
-        : `Hi ${customerName}! This is a reminder about your ${serviceName} appointment with ${companyName} on ${formattedDate} at ${formattedTime}.${address ? ` Address: ${address}` : ""} Reply with any questions!`;
+      const manualKey: AutomationKey = isConfirmation ? "booking_confirmation" : "reminder_advance";
+      const message = buildMessage(manualKey, {
+        customer_name: customerName,
+        service_name: serviceName,
+        company_name: companyName,
+        date: formattedDate,
+        time: formattedTime,
+        address_line: address ? `Address: ${address}.` : "",
+      });
 
       const result = await sendAndLog(
         payload.customerPhone,
@@ -497,23 +522,22 @@ const handler = async (req: Request): Promise<Response> => {
         if (interval.send_to_client && booking.customer?.phone) {
           const customerName = `${booking.customer.first_name || ""} ${booking.customer.last_name || ""}`.trim() || "there";
 
-          let clientMsg: string;
-          if (interval.hours_before >= 48) {
-            clientMsg =
-              `Hi ${customerName}! Friendly reminder — your ${serviceName} appointment with ${companyName} is coming up on ${formattedDate} at ${formattedTime}.` +
-              `${address ? ` Address: ${address}.` : ""}` +
-              ` Reply with any questions!`;
-          } else if (interval.hours_before <= 2) {
-            clientMsg =
-              `Hi ${customerName}! Your ${serviceName} with ${companyName} is starting soon — today at ${formattedTime}.` +
-              `${address ? ` Address: ${address}.` : ""}` +
-              ` See you shortly!`;
-          } else {
-            clientMsg =
-              `Hi ${customerName}! Your ${serviceName} appointment with ${companyName} is confirmed for ${formattedDate} at ${formattedTime}.` +
-              `${address ? ` Address: ${address}.` : ""}` +
-              ` Reply to this message with any questions!`;
-          }
+          // The interval chooses the KEY now, not the text.
+          const clientKey: AutomationKey =
+            interval.hours_before >= 48
+              ? "reminder_advance"
+              : interval.hours_before <= 2
+                ? "reminder_soon"
+                : "booking_confirmation";
+
+          const clientMsg = buildMessage(clientKey, {
+            customer_name: customerName,
+            service_name: serviceName,
+            company_name: companyName,
+            date: formattedDate,
+            time: formattedTime,
+            address_line: address ? `Address: ${address}.` : "",
+          });
 
           const clientResult = await sendAndLog(
             booking.customer.phone,
