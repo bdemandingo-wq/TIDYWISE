@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  resolveSubject,
+  type AutomationKey,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -47,7 +52,7 @@ serve(async (req) => {
       // be automatic at all, and its default-ON seed, are separate decisions.)
       const { data: automation } = await supabase
         .from("organization_automations")
-        .select("is_enabled")
+        .select("is_enabled, settings")
         .eq("organization_id", org.id)
         .eq("automation_type", "winback_60day")
         .maybeSingle();
@@ -119,19 +124,42 @@ serve(async (req) => {
           if (existing) { results.skipped++; continue; }
 
           // Send the email
+          // All three steps live on the one winback_60day row, keyed by step,
+          // so an owner rewording step 2 cannot disturb steps 1 and 3.
+          const wbKey = `winback_step_${step}` as AutomationKey;
+          const wbSettings = (automation?.settings ?? {}) as {
+            templates?: Record<string, string>;
+            template_subjects?: Record<string, string>;
+          };
+          const wbTokens = {
+            customer_name: `${customer.first_name} ${customer.last_name}`.trim(),
+            company_name: companyName,
+            offer_percent: String(offerPercent),
+          };
+          const wbResolved = resolveTemplate(wbKey, wbSettings.templates?.[wbKey] ?? null, wbTokens);
+          if (wbResolved.warning) {
+            console.warn(`[run-winback-drip] org=${org.id} ${wbKey}: ${wbResolved.warning}`);
+          }
+          const resolvedSubject = resolveSubject(
+            wbKey,
+            wbSettings.template_subjects?.[wbKey] ?? null,
+            wbTokens,
+          );
+
           const html = buildWinbackEmail({
             customerName: `${customer.first_name} ${customer.last_name}`,
             companyName,
             offerPercent,
             bookingUrl: `${baseUrl}/book`,
             step,
+            bodyText: wbResolved.text,
           });
 
           const { sendOrgEmail } = await import("../_shared/send-org-email.ts");
           const sendResult = await sendOrgEmail({
             organizationId: org.id,
             to: customer.email,
-            subject,
+            subject: resolvedSubject,
             html,
           });
 
@@ -202,13 +230,17 @@ async function getWinbackCandidatesDirect(
   return results;
 }
 
-function buildWinbackEmail({ customerName, companyName, offerPercent, bookingUrl, step }: {
+function buildWinbackEmail({ customerName, companyName, offerPercent, bookingUrl, step, bodyText }: {
   customerName: string; companyName: string; offerPercent: number; bookingUrl: string; step: number;
+  /** Already resolved by the caller (org copy or shipped default). */
+  bodyText?: string;
 }) {
+  // Kept only as a last-resort fallback for callers that pass no bodyText.
+  // The live path always supplies it via resolveTemplate.
   const messages: Record<number, string> = {
     1: `It's been a month since we last cleaned your home, and we've been thinking about you! We'd love to welcome you back.`,
     2: `It's been two months and your home deserves the care it got before. We're still here and ready to help!`,
-    3: `It's been three months since your last clean. This is our final check-in — we'd love one more chance to earn your business.`,
+    3: `It's been three months since your last clean. This is our final check-in - we'd love one more chance to earn your business.`,
   };
 
   return `<!DOCTYPE html>
@@ -222,7 +254,7 @@ function buildWinbackEmail({ customerName, companyName, offerPercent, bookingUrl
   <tr><td style="padding:40px 30px;text-align:center;">
     <div style="font-size:48px;margin-bottom:16px;">🏠</div>
     <h2 style="color:#1e5bb0;margin:0 0 16px;">Hi ${customerName}!</h2>
-    <p style="font-size:16px;color:#555;margin:0 0 24px;">${messages[step]}</p>
+    <p style="font-size:16px;color:#555;margin:0 0 24px;">${bodyText || messages[step]}</p>
     <div style="background:#f0f7ff;border-radius:8px;padding:20px;margin-bottom:24px;">
       <p style="font-size:14px;color:#777;margin:0 0 8px;">Special offer just for you</p>
       <p style="font-size:36px;font-weight:bold;color:#1e5bb0;margin:0;">${offerPercent}% OFF</p>

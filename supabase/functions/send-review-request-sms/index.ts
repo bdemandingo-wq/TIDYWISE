@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCallerOrg } from "../_shared/require-caller-org.ts";
@@ -145,15 +150,64 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Build the SMS message from template or use default
-    const defaultTemplate = `Hi {customer_name}, thank you for choosing {company_name}! We'd love to hear about your experience. Please take a moment to leave us a review: {review_link}`;
-    const template = businessSettings?.review_sms_template || defaultTemplate;
-    
-    const message = template
-      .replace(/{customer_name}/g, customerName)
-      .replace(/{company_name}/g, companyName)
-      .replace(/{cleaner_name}/g, cleanerName)
-      .replace(/{service_name}/g, serviceName)
-      .replace(/{review_link}/g, reviewPageUrl);
+    // ── template resolution ────────────────────────────────────────────
+    // Two editing paths used to disagree: the new Messages tab writes to
+    // organization_automations.settings.templates.review_request, while this
+    // sender alone honoured the older business_settings.review_sms_template.
+    // The new store wins; a legacy body with no new entry is migrated across on
+    // first read so the two converge instead of fighting. A migration failure is
+    // logged and ignored — the message still sends with the legacy wording.
+    const { data: autoRow, error: autoErr } = await supabase
+      .from('organization_automations')
+      .select('id, settings')
+      .eq('organization_id', organizationId)
+      .eq('automation_type', 'review_request')
+      .maybeSingle();
+    if (autoErr) {
+      console.warn('[send-review-request-sms] template lookup failed, using default:', autoErr);
+    }
+    const settings = (autoRow?.settings ?? {}) as { templates?: Record<string, string> };
+    let customBody: string | null = settings.templates?.review_request ?? null;
+
+    const legacyBody: string | null = businessSettings?.review_sms_template || null;
+    if (!customBody && legacyBody) {
+      customBody = legacyBody;
+      const nextSettings = {
+        ...(autoRow?.settings ?? {}),
+        templates: { ...(settings.templates ?? {}), review_request: legacyBody },
+      };
+      const migrate = autoRow
+        ? await supabase.from('organization_automations')
+            .update({ settings: nextSettings })
+            .eq('id', autoRow.id)
+        : await supabase.from('organization_automations')
+            .insert([{
+              organization_id: organizationId,
+              automation_type: 'review_request',
+              // Off by default: copying wording across must not switch an
+              // automation on for an org that never enabled it.
+              is_enabled: false,
+              settings: nextSettings,
+            }]);
+      if (migrate.error) {
+        console.warn('[send-review-request-sms] legacy template migration failed:', migrate.error);
+      }
+    }
+
+    const resolved = resolveTemplate('review_request', customBody, {
+      customer_name: customerName,
+      company_name: companyName,
+      cleaner_name: cleanerName,
+      service_name: serviceName,
+      review_link: reviewPageUrl,
+    });
+    if (resolved.warning) {
+      console.warn(`[send-review-request-sms] org=${organizationId}: ${resolved.warning}`);
+    }
+    const message =
+      AUTOMATION_DEFAULTS.review_request.message_class === 'marketing'
+        ? withStopSentence(resolved.text)
+        : resolved.text;
 
     // Format phone number
     let formattedPhone = customerPhone.replace(/\D/g, '');

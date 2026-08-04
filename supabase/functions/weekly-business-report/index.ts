@@ -1,3 +1,7 @@
+import {
+  resolveTemplate,
+  resolveSubject,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -174,6 +178,37 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (!adminEmail) continue;
 
+      // Owner-editable intro line and subject. The metrics below them are
+      // generated and are not editable.
+      const { data: wsAutomation, error: wsAutoErr } = await supabase
+        .from('organization_automations')
+        .select('settings')
+        .eq('organization_id', org.id)
+        .eq('automation_type', 'weekly_summary')
+        .maybeSingle();
+      if (wsAutoErr) {
+        console.warn(`[weekly-business-report] template lookup failed org=${org.id}, using defaults:`, wsAutoErr);
+      }
+      const wsSettings = (wsAutomation?.settings ?? {}) as {
+        templates?: Record<string, string>;
+        template_subjects?: Record<string, string>;
+      };
+      const weekRange = `${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}`;
+      const wsTokens = { company_name: companyName, week_range: weekRange };
+      const wsResolved = resolveTemplate(
+        'weekly_summary',
+        wsSettings.templates?.weekly_summary ?? null,
+        wsTokens,
+      );
+      if (wsResolved.warning) {
+        console.warn(`[weekly-business-report] org=${org.id}: ${wsResolved.warning}`);
+      }
+      const wsSubject = resolveSubject(
+        'weekly_summary',
+        wsSettings.template_subjects?.weekly_summary ?? null,
+        wsTokens,
+      );
+
       // Generate AI insights if ANTHROPIC_API_KEY is available
       let aiInsights = '';
       if (ANTHROPIC_API_KEY) {
@@ -218,10 +253,11 @@ Give practical advice for a cleaning business owner.`;
           <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0;">
             <h1 style="margin: 0;">📈 Weekly Business Report</h1>
             <p style="margin: 10px 0 0; opacity: 0.9;">${companyName}</p>
-            <p style="margin: 5px 0 0; opacity: 0.7; font-size: 14px;">${weekStart.toLocaleDateString()} - ${now.toLocaleDateString()}</p>
+            <p style="margin: 5px 0 0; opacity: 0.7; font-size: 14px;">${weekRange}</p>
           </div>
           
           <div style="background: white; padding: 25px; border-radius: 0 0 12px 12px;">
+            <p style="color: #374151; margin: 0 0 20px; font-size: 15px;">${wsResolved.text}</p>
             <h2 style="color: #374151; margin-top: 0;">Key Metrics</h2>
             
             <table style="width: 100%; margin-bottom: 20px;">
@@ -293,7 +329,7 @@ Give practical advice for a cleaning business owner.`;
           await resend.emails.send({
             from: senderFrom,
             to: [adminEmail],
-            subject: `📈 Weekly Report: $${thisWeekRevenue.toFixed(0)} revenue, ${thisWeekCompleted} jobs`,
+            subject: wsSubject,
             html: reportHtml,
           });
           console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);

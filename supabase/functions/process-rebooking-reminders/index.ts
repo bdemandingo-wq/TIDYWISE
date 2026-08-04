@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -52,10 +57,19 @@ const handler = async (req: Request): Promise<Response> => {
       const orgIds = [...new Set(batch.map(i => i.organization_id))];
       const { data: automationSettings } = await supabase
         .from("organization_automations")
-        .select("organization_id, is_enabled")
+        .select("organization_id, is_enabled, settings")
         .in("organization_id", orgIds)
         .eq("automation_type", "rebooking_reminder");
       const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+      // Custom copy, if the owner reworded it. A row with no template entry is
+      // the normal case and resolves to the shipped default.
+      const templateMap = new Map(
+        (automationSettings || []).map(a => [
+          a.organization_id,
+          ((a.settings as { templates?: Record<string, string> } | null)?.templates
+            ?.rebooking_reminder) ?? null,
+        ]),
+      );
 
     for (const item of batch) {
       try {
@@ -161,7 +175,22 @@ const handler = async (req: Request): Promise<Response> => {
         const customerName = `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "there";
 
         // 6. Build Hormozi-style million dollar offer message
-        const message = `Hi ${customerName}! 🏠 ${companyName} here. We loved making your home sparkle! Here's our EXCLUSIVE returning client offer: Book your next cleaning in the next 48 hours and get priority scheduling + our premium deep-clean checklist at NO extra charge. Your home deserves the best — and so do you! Book now: ${bookingLink}`;
+        const resolved = resolveTemplate(
+          "rebooking_reminder",
+          templateMap.get(item.organization_id) ?? null,
+          { customer_name: customerName, company_name: companyName, booking_link: bookingLink },
+        );
+        if (resolved.warning) {
+          console.warn(
+            `[process-rebooking-reminders] org=${item.organization_id}: ${resolved.warning}`,
+          );
+        }
+        // Marketing: the opt-out line is appended here, never part of the
+        // editable body, so an owner cannot remove it.
+        const message =
+          AUTOMATION_DEFAULTS.rebooking_reminder.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         // 7. Send via OpenPhone
         let phoneNumberId = smsSettings.openphone_phone_number_id;
