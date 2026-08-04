@@ -275,7 +275,10 @@ export function resolveTemplate(
     return rawName;
   });
 
-  const finalText = text.trim();
+  // Collapse the gap an empty token leaves behind. `{address_line}` is blank
+  // for bookings with no address, and "at 9am.  Reply" reads as a mistake.
+  const finalText = text.replace(/[ \t]{2,}/g, ' ').trim();
+
   if (!finalText) {
     // Belt and braces: a template of nothing but tokens, all of which resolved
     // empty. Never send blank.
