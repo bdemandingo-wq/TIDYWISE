@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireOrgAdmin } from "../_shared/requireOrgAdmin.ts";
@@ -106,8 +111,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const defaultMessage = `Hi {first_name}! We noticed you started booking with ${companyName} but didn't finish. We'd love to help you complete your reservation! Reply to this message or visit our booking page. Reply STOP to opt out.`;
-    const messageTemplate = message || defaultMessage;
+    // Precedence: an explicit `message` in the request (a one-off blast an
+    // admin typed), then the org's saved copy, then the shipped default.
+    const { data: abAutomation, error: abAutoErr } = await supabase
+      .from('organization_automations')
+      .select('settings')
+      .eq('organization_id', organizationId)
+      .eq('automation_type', 'abandoned_booking_recovery')
+      .maybeSingle();
+    if (abAutoErr) {
+      console.warn('[followup-abandoned-booking] template lookup failed, using default:', abAutoErr);
+    }
+    const savedTemplate =
+      ((abAutomation?.settings as { templates?: Record<string, string> } | null)
+        ?.templates?.abandoned_booking_recovery) ?? null;
+    const messageTemplate = message || savedTemplate || null;
 
     let sentCount = 0;
     let failedCount = 0;
@@ -131,9 +149,19 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        const personalizedMessage = messageTemplate
-          .replace(/{first_name}/g, booking.first_name || 'there')
-          .replace(/{company_name}/g, companyName);
+        const resolvedAb = resolveTemplate('abandoned_booking_recovery', messageTemplate, {
+          first_name: booking.first_name || 'there',
+          company_name: companyName,
+        });
+        if (resolvedAb.warning) {
+          console.warn(`[followup-abandoned-booking] org=${organizationId}: ${resolvedAb.warning}`);
+        }
+        // Marketing: the STOP line is appended here rather than baked into the
+        // body, so an owner rewording it cannot drop the opt-out.
+        const personalizedMessage =
+          AUTOMATION_DEFAULTS.abandoned_booking_recovery.message_class === 'marketing'
+            ? withStopSentence(resolvedAb.text)
+            : resolvedAb.text;
 
 
         let toPhone = booking.phone.replace(/\D/g, '');

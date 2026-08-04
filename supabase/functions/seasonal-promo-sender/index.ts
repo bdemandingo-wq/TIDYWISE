@@ -6,6 +6,11 @@
 //
 // Hard cap: 200 SMS per org per holiday firing to keep OpenPhone happy.
 
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -119,7 +124,7 @@ serve(async (req: Request): Promise<Response> => {
 
   const { data: enabledOrgs, error: orgsErr } = await supabase
     .from("organization_automations")
-    .select("organization_id")
+    .select("organization_id, settings")
     .eq("automation_type", "seasonal_promo")
     .eq("is_enabled", true);
   if (orgsErr) {
@@ -135,6 +140,11 @@ serve(async (req: Request): Promise<Response> => {
 
   for (const row of enabledOrgs ?? []) {
     const orgId = row.organization_id as string;
+    // Owner-reworded copy, or null for the shipped default. Read from the row
+    // we already loaded — no extra query per org.
+    const customTemplate =
+      ((row as { settings?: { templates?: Record<string, string> } | null }).settings
+        ?.templates?.seasonal_promo) ?? null;
     summary.orgs += 1;
     try {
       const { data: orgRow, error: orgErr } = await supabase
@@ -209,7 +219,21 @@ serve(async (req: Request): Promise<Response> => {
           continue;
         }
 
-        const message = `${companyName}: ${holiday.name} is around the corner! Book your cleaning before ${holiday.name} — reply to this message or visit ${bookingLink} to schedule. Reply STOP to opt out.`;
+        // The default no longer carries its own "Reply STOP" sentence: this
+        // key is marketing, so the sender appends it. withStopSentence is
+        // idempotent, so an owner who writes their own does not get two.
+        const resolved = resolveTemplate("seasonal_promo", customTemplate, {
+          company_name: companyName,
+          holiday_name: holiday.name,
+          booking_link: bookingLink,
+        });
+        if (resolved.warning) {
+          console.warn(`[seasonal-promo-sender] org=${orgId}: ${resolved.warning}`);
+        }
+        const message =
+          AUTOMATION_DEFAULTS.seasonal_promo.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         try {
           const res = await fetch(

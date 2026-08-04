@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { findCustomerIdByPhone } from "../_shared/marketing-guard.ts";
@@ -569,7 +574,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Automation toggle (seeded on by default).
         const { data: mcAutomation } = await supabase
           .from('organization_automations')
-          .select('is_enabled')
+          .select('is_enabled, settings')
           .eq('organization_id', mcOrgId)
           .eq('automation_type', 'missed_call_textback')
           .maybeSingle();
@@ -620,9 +625,22 @@ const handler = async (req: Request): Promise<Response> => {
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
 
-        // Fixed message (no AI / persona / escalation).
+        // No AI, no persona, no escalation — just the org's wording, which they
+        // can reword in Automation Center > Messages.
         const companyName = (mcBiz as any)?.company_name || 'our team';
-        const textbackMessage = `Hi, this is ${companyName} — sorry we missed your call! Reply to this text and we'll help you get scheduled or answer any questions.`;
+        const mcTemplate =
+          ((mcAutomation?.settings as { templates?: Record<string, string> } | null)
+            ?.templates?.missed_call_textback) ?? null;
+        const mcResolved = resolveTemplate('missed_call_textback', mcTemplate, {
+          company_name: companyName,
+        });
+        if (mcResolved.warning) {
+          console.warn(`[openphone-webhook] missed-call template org=${mcOrgId}: ${mcResolved.warning}`);
+        }
+        const textbackMessage =
+          AUTOMATION_DEFAULTS.missed_call_textback.message_class === 'marketing'
+            ? withStopSentence(mcResolved.text)
+            : mcResolved.text;
 
         // Send via OpenPhone using the org's own number.
         let sendPhoneId = mcPhoneNumberId;

@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -52,10 +57,17 @@ serve(async (req: Request) => {
       const orgIds = [...new Set(batch.map(i => i.organization_id))];
       const { data: automationSettings } = await supabase
         .from("organization_automations")
-        .select("organization_id, is_enabled")
+        .select("organization_id, is_enabled, settings")
         .in("organization_id", orgIds)
         .eq("automation_type", "recurring_upsell");
       const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+      const templateMap = new Map(
+        (automationSettings || []).map(a => [
+          a.organization_id,
+          ((a.settings as { templates?: Record<string, string> } | null)?.templates
+            ?.recurring_upsell) ?? null,
+        ]),
+      );
 
       // MARKETING CONSENT: this is a promotional upsell, so drop opted-out
       // customers before the send loop. filterOptedIn is org-scoped and fails
@@ -178,7 +190,18 @@ serve(async (req: Request) => {
         const companyName = businessSettings?.company_name || "Your cleaning service";
 
         // Build message
-        const message = `Hi! This is ${companyName}. Most of our recurring clients never have to worry about cleaning again and also get priority scheduling and lower pricing than one-time bookings.\n\nWant us to lock in a regular cleaning every 2 or 4 weeks so your home stays taken care of automatically?`;
+        const resolved = resolveTemplate(
+          "recurring_upsell",
+          templateMap.get(item.organization_id) ?? null,
+          { customer_name: `${customer.first_name || ""}`.trim() || "there", company_name: companyName },
+        );
+        if (resolved.warning) {
+          console.warn(`[process-recurring-offers] org=${item.organization_id}: ${resolved.warning}`);
+        }
+        const message =
+          AUTOMATION_DEFAULTS.recurring_upsell.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         // 6. Send via OpenPhone
         let phoneNumberId = smsSettings.openphone_phone_number_id;

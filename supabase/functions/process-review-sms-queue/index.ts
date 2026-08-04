@@ -1,3 +1,8 @@
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -51,10 +56,17 @@ const handler = async (req: Request): Promise<Response> => {
       const orgIds = [...new Set(pendingItems.map(i => i.organization_id))];
       const { data: automationSettings } = await supabase
         .from("organization_automations")
-        .select("organization_id, is_enabled")
+        .select("organization_id, is_enabled, settings")
         .in("organization_id", orgIds)
         .eq("automation_type", "review_request");
       const automationMap = new Map((automationSettings || []).map(a => [a.organization_id, a.is_enabled]));
+      const templateMap = new Map(
+        (automationSettings || []).map(a => [
+          a.organization_id,
+          ((a.settings as { templates?: Record<string, string> } | null)?.templates
+            ?.review_request) ?? null,
+        ]),
+      );
 
       // MARKETING CONSENT: review requests are marketing, so drop opted-out
       // customers before the send loop. filterOptedIn is org-scoped and fails
@@ -176,7 +188,23 @@ const handler = async (req: Request): Promise<Response> => {
 
         // Build SMS message
         const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "there";
-        const message = `Hi ${customerName}! This is ${businessSettings?.company_name || 'Your cleaning service'}. If you enjoyed your cleaning today, we'd really appreciate a quick review here: ${reviewPageUrl}. Thank you for supporting our small business!`;
+        // The queued sender has no cleaner or service to hand, so those two
+        // tokens resolve to empty here. Neither is required, so a template that
+        // uses them still sends — just without that clause.
+        const resolved = resolveTemplate("review_request", templateMap.get(item.organization_id) ?? null, {
+          customer_name: customerName,
+          company_name: businessSettings?.company_name || "Your cleaning service",
+          review_link: reviewPageUrl,
+          service_name: "",
+          cleaner_name: "",
+        });
+        if (resolved.warning) {
+          console.warn(`[process-review-sms-queue] org=${item.organization_id}: ${resolved.warning}`);
+        }
+        const message =
+          AUTOMATION_DEFAULTS.review_request.message_class === "marketing"
+            ? withStopSentence(resolved.text)
+            : resolved.text;
 
         // Format phone
         let formattedPhone = customer.phone.replace(/\D/g, "");
