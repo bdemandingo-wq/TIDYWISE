@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Trash2, Mail } from 'lucide-react';
+import { Loader2, Trash2, Mail, Copy, Check, AlertTriangle } from 'lucide-react';
+import { readEdgeFunctionError, readEdgeFunctionErrorBody } from '@/lib/edgeFunctionError';
 
 type Role = 'owner' | 'manager';
 
@@ -28,6 +29,10 @@ export function TeamMembersCard() {
   const [role, setRole] = useState<Role>('manager');
 
   const [busy, setBusy] = useState(false);
+  // Set when the invite row was created but delivery failed — carries the
+  // still-valid accept link so it can be passed on by hand.
+  const [failedEmailLink, setFailedEmailLink] = useState<{ email: string; url: string; reason: string | null } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const orgId = organization?.id;
 
@@ -67,13 +72,44 @@ export function TeamMembersCard() {
       const { data, error } = await supabase.functions.invoke('send-team-invite', {
         body: { organization_id: orgId, email, role },
       });
-      if (error) throw error;
+
+      if (error) {
+        // Read the body BEFORE deciding this is a dead end. When the invite row
+        // was created but the email could not be delivered, the function returns
+        // 502 with the working accept_url alongside the error — throwing here
+        // discarded a link that was ready to use. readEdgeFunctionErrorBody
+        // clones the Response, so readEdgeFunctionError below can still read it.
+        const body = await readEdgeFunctionErrorBody(error);
+        const acceptUrl = typeof body?.accept_url === 'string' ? body.accept_url : null;
+        if (acceptUrl) {
+          return { emailFailed: true, acceptUrl, reason: typeof body?.error === 'string' ? body.error : null };
+        }
+
+        // Everything else: surface what the function said. supabase-js reports
+        // every non-2xx as "Edge Function returned a non-2xx status code", which
+        // hid the real reason — insufficient_permission, invalid_email and the
+        // rest all looked identical.
+        throw new Error(await readEdgeFunctionError(error, 'Failed to send invite'));
+      }
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['org-invites', orgId] });
+
+      if (data?.emailFailed) {
+        // The invite is valid and pending — only delivery failed. Hand over the
+        // link so it can be sent by any other means.
+        setFailedEmailLink({ email, url: data.acceptUrl, reason: data.reason });
+        setEmail('');
+        toast.warning('Invite created, but the email could not be sent — copy the link below.', {
+          duration: 8000,
+        });
+        return;
+      }
+
+      setFailedEmailLink(null);
       toast.success(`Invite sent to ${email}`);
       setEmail('');
-      qc.invalidateQueries({ queryKey: ['org-invites', orgId] });
     },
     onError: (e: Error) => toast.error(e.message || 'Failed to send invite'),
   });
@@ -154,6 +190,40 @@ export function TeamMembersCard() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground">{roleDesc[role]}</p>
+
+            {/* The invite exists and is pending — only the email bounced. The
+                link is valid for 14 days, so hand it over rather than making
+                someone re-send into the same broken mail path. */}
+            {failedEmailLink && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  Invite for {failedEmailLink.email} was created, but the email didn't send
+                </p>
+                {failedEmailLink.reason && (
+                  <p className="text-xs text-muted-foreground">{failedEmailLink.reason}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  The invite is valid for 14 days. Send them this link directly.
+                </p>
+                <p className="font-mono text-xs break-all bg-background p-2 rounded border">
+                  {failedEmailLink.url}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(failedEmailLink.url);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 2000);
+                  }}
+                >
+                  {linkCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {linkCopied ? 'Copied!' : 'Copy invite link'}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
