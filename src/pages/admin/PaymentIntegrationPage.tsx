@@ -43,22 +43,9 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { SEOHead } from "@/components/SEOHead";
 import { format } from "date-fns";
 import { Capacitor } from "@capacitor/core";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 import { fmt } from '@/lib/activeCurrency';
 
-/** Opens an external URL — uses Capacitor Browser plugin on native, window.open on web */
-const openExternalUrl = async (url: string) => {
-  try {
-    if (Capacitor.isNativePlatform()) {
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url, presentationStyle: "popover" });
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  } catch {
-    // Fallback: assign location if everything else fails
-    window.location.href = url;
-  }
-};
 
 interface ConnectionStatus {
   connected: boolean;

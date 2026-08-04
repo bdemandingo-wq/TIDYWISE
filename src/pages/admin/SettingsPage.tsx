@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgDataExportCard } from '@/components/admin/OrgDataExportCard';
+import { AppUpdateCard } from '@/components/admin/AppUpdateCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -830,6 +831,9 @@ export default function SettingsPage() {
 
           {/* Owner-only; renders nothing for managers. */}
           <OrgDataExportCard />
+
+          {/* Native only; renders nothing on web, where a refresh is the update. */}
+          <AppUpdateCard />
         </TabsContent>
 
         {/* Booking Form Sharing */}
