@@ -9,7 +9,6 @@ import {
   format,
   startOfMonth,
   endOfMonth,
-  eachDayOfInterval,
   isSameMonth,
   isToday,
   addMonths,
@@ -26,7 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
-  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday, orgDateKey, orgYMD,
+  orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday, orgDateKey, orgYMD, orgAddDays,
   orgStartOfYear, orgSetTimeOnDay,
 } from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
@@ -258,8 +257,27 @@ export function PnLCalendar() {
     const monthEnd = orgEndOfMonth(currentMonth, timezone);
     const calendarStart = orgStartOfWeek(monthStart, timezone, 1);
     const calendarEnd = orgEndOfWeek(monthEnd, timezone, 1);
-    /* eslint-disable-next-line local/no-device-local-dates -- grid geometry */
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+    // Stepped in the ORG's days, not the device's.
+    //
+    // This was eachDayOfInterval(), which walks device-local midnights. Every
+    // cell instant was then read back with orgDateKey/orgYMD in the org's zone,
+    // so for a viewer far enough east the two disagreed by a full day: on a
+    // UTC+8 device viewing a UTC-4 org, device midnight on Jul 1 is
+    // 2026-06-30T16:00Z, which is still Jun 30 in New York. The whole grid
+    // shifted back one day — July 1 greyed as out-of-month, August 1 shown as
+    // in-month, and every cell's figures were the previous day's, because the
+    // dailyPnL lookup key came from that same shifted instant.
+    //
+    // orgAddDays resolves each step to org-local midnight, so the instant a
+    // cell carries is the day it claims to be.
+    const days: Date[] = [];
+    for (let d = calendarStart; d <= calendarEnd; d = orgAddDays(d, 1, timezone)) {
+      days.push(d);
+      // Guard against a malformed range spinning forever.
+      if (days.length > 45) break;
+    }
+    return days;
   }, [currentMonth, timezone]);
 
   const navigateMonth = (dir: 'prev' | 'next') => {
@@ -423,7 +441,13 @@ export function PnLCalendar() {
                 // lookup was not.
                 const dateKey = orgDateKey(day, timezone);
                 const pnl = dailyPnL.get(dateKey);
-                const inMonth = orgYMD(day, timezone).m === orgYMD(currentMonth, timezone).m;
+                // Year as well as month: comparing only .m made July 2025 and
+                // July 2026 indistinguishable. Harmless in a six-week grid, but
+                // the check is meant to say "this cell belongs to the displayed
+                // month", and a month number alone does not say that.
+                const cellYMD = orgYMD(day, timezone);
+                const viewYMD = orgYMD(currentMonth, timezone);
+                const inMonth = cellYMD.y === viewYMD.y && cellYMD.m === viewYMD.m;
                 const today = isOrgToday(day, timezone);
                 const dayValue = getDayValue(pnl);
                 const hasData = pnl != null && pnl.revenue > 0;
@@ -443,7 +467,7 @@ export function PnLCalendar() {
                       today && 'text-primary font-bold',
                       !inMonth && 'text-muted-foreground'
                     )}>
-                      {today ? 'Today' : format(day, 'd')}
+                      {today ? 'Today' : cellYMD.d}
                     </span>
                     {isLoading && inMonth ? (
                       <Skeleton className="h-3 w-10 mt-0.5" />
