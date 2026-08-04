@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { OrgDataExportCard } from '@/components/admin/OrgDataExportCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -826,6 +827,9 @@ export default function SettingsPage() {
           </Card>
 
           <CopilotSettingsCard />
+
+          {/* Owner-only; renders nothing for managers. */}
+          <OrgDataExportCard />
         </TabsContent>
 
         {/* Booking Form Sharing */}
