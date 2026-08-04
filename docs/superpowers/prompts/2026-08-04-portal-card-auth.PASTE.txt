@@ -1,0 +1,195 @@
+In the jointidywise project, fix the card-saving path so it works for client
+portal users AND for public bookings, close the unauthenticated card-attach
+hole, and record a card change where an admin can see it. Four parts, all in
+supabase/functions. Deploy every function you touch and confirm DEPLOYED, not
+just committed.
+
+Read all four parts before starting — parts 1 and 2 touch the same two files.
+
+────────────────────────────────────────────────────────────────────────
+PART 1 — get-payment-method-details rejects the two callers that need it
+────────────────────────────────────────────────────────────────────────
+
+THIS IS THE URGENT ONE. It is not a new feature; it is a customer-facing path
+that is broken today.
+
+src/components/stripe/StripeCardForm.tsx confirms a SetupIntent client-side and
+then calls get-payment-method-details to read back the brand and last4. That
+function calls requireOrgAdmin(req, organizationId), which has no publicBooking
+bypass — the flag only ever existed on create-setup-intent.
+
+Verified against production: calling it with the anon key returns
+
+    HTTP 401
+    {"success":false,"error":"Session expired. Please log in again.",
+     "errorCode":"session_expired"}
+
+So on the PUBLIC BOOKING page the sequence is:
+
+  1. create-setup-intent with publicBooking:true       -> works
+  2. Stripe Elements confirms the card                 -> works, card IS attached
+  3. get-payment-method-details                        -> 401
+  4. StripeCardForm throws, onCardSaved never fires    -> customer sees an error
+
+The customer's card is saved and they are told it failed — with "Session
+expired. Please log in again." on a page they were never logged into. Worse,
+PublicBookingPage gates its "You can now complete your booking" state on
+onCardSaved, so they cannot proceed at all. Each retry attaches another card to
+the same Stripe customer.
+
+The client portal's new Payment tab hits the identical wall.
+
+FIX: give get-payment-method-details the same three-way auth that part 2 gives
+create-setup-intent. It must accept:
+
+  a) an org admin JWT — unchanged, today's behaviour;
+  b) a portal session token — see part 2 for how;
+  c) publicBooking:true — anonymous, for the public booking page.
+
+For (c) it must still verify the payment method actually belongs to a customer
+in that organizationId before returning anything. Returning brand/last4 for an
+arbitrary pm_ id to an anonymous caller would be a new leak. Look the payment
+method up on the org's Stripe client (getOrgStripeClient already does the
+per-org resolution) and confirm its customer's metadata carries that
+organization_id — the same check create-setup-intent already performs when it
+matches customers by email and org.
+
+────────────────────────────────────────────────────────────────────────
+PART 2 — create-setup-intent: add a portal-session branch
+────────────────────────────────────────────────────────────────────────
+
+create-setup-intent currently has two branches. When the body says
+publicBooking:true it skips authentication entirely and takes email,
+customerName and organizationId from the caller.
+
+Add a third branch, checked BEFORE the publicBooking one:
+
+    import { verifyPortalSession } from "../_shared/portal-session.ts";
+
+    const session = await verifyPortalSession(req, supabase);
+
+That helper HMAC-verifies the HS256 token minted by client-portal-login,
+checks expiry, and confirms the user still exists. Its claims are:
+
+    { portal_user_id, customer_id, organization_id, iat, exp }
+
+When a valid portal session is present:
+  - take organization_id from session.organization_id, NOT the body;
+  - look the customer's email up from session.customer_id, NOT the body;
+  - ignore publicBooking entirely.
+
+A portal user must never be able to name a different customer or organisation
+than the one their token was issued for. Same rule in part 1.
+
+Do this for get-payment-method-details too, so both functions accept the same
+three caller kinds.
+
+────────────────────────────────────────────────────────────────────────
+PART 3 — constrain the anonymous branch (the chargeback hole)
+────────────────────────────────────────────────────────────────────────
+
+create-setup-intent is verify_jwt=false, so anyone can call it. With
+publicBooking:true and no authentication, anyone can mint a SetupIntent for ANY
+email in ANY organisation and attach a card to that Stripe customer.
+
+A SetupIntent secret only permits attaching a payment method, so nothing leaks.
+The damage is downstream. Both charge paths resolve the card FROM STRIPE at
+charge time:
+
+  charge-customer-card/index.ts:145   customer.invoice_settings.default_payment_method
+  charge-card-directly/index.ts:186,257   same, with a paymentMethods.list fallback
+
+So an attacker who attaches their own card can become a customer's DEFAULT
+payment method. The next time the organisation charges that customer, it
+charges the attacker's card — and the attacker disputes it. The dispute is
+filed against the CONNECTED ACCOUNT, so the cleaning business pays the dispute
+fee and loses the amount, for work it genuinely performed for someone else.
+Disputes are already a recurring cost on this platform.
+
+FIX: keep the anonymous branch — the public booking page genuinely needs it for
+a first-time customer — but constrain it. In the publicBooking branch, reject
+the request when the supplied email already belongs to an established customer
+of that organisation, specifically when EITHER:
+
+  - a client_portal_users row exists for that customer in that org, or
+  - the Stripe customer for that email+org already has a default payment method.
+
+A brand-new customer booking for the first time is the legitimate case and must
+keep working. Attaching to a customer who already has a portal login or a card
+on file is the attack, and that customer has an authenticated route: the portal
+Payment tab, which after part 2 goes through the session branch.
+
+Return a clear error for the rejected case — something the booking page can
+show, e.g. "This email already has an account. Please sign in to your client
+portal to update your card." Do NOT fail silently.
+
+────────────────────────────────────────────────────────────────────────
+PART 4 — record a card change where the admin can see it
+────────────────────────────────────────────────────────────────────────
+
+Nothing app-side records that a client changed their card. Cards live in Stripe
+and every read is live, which is correct — but it means an admin has no way to
+know it happened.
+
+admin_system_notifications already carries this kind of event and needs NO
+migration: it has organization_id, type, title, message, link, metadata jsonb,
+is_read and dedupe_key. client-portal-api's request_email_change action
+(around line 452) is the model to copy.
+
+The portal frontend cannot write this itself: admin_system_notifications has no
+INSERT policy for anon, and a portal user is anon to Postgres because it
+authenticates by portal session rather than a Supabase JWT with an
+org_memberships row. So the insert has to happen server-side.
+
+Write it from get-payment-method-details, in the PORTAL SESSION branch only —
+that is the point at which a card has definitely been confirmed and we know who
+did it. Do NOT write it on the public-booking or admin branches: a first-time
+booking is not a "change", and an admin updating a card already knows.
+
+    type:        "card_updated"
+    title:       "Payment card updated"
+    message:     "<customer name> updated the card on file (<brand> ending <last4>)"
+    link:        `/dashboard/customers?customer=${session.customer_id}`
+    metadata:    { customer_id, brand, last4, source: "client_portal" }
+    dedupe_key:  `card_updated:${customer_id}:${last4}:${YYYY-MM-DD}`
+
+The dedupe key includes the date so a genuine change next month still records,
+while a double-submit today does not. As with request_email_change, treat a
+23505 unique violation as success. Never fail the card save because the
+notification insert failed — log it and return success, because the card is
+already attached at that point and telling the customer otherwise is the exact
+bug part 1 fixes.
+
+The admin side already renders these: EmailChangeRequestsPanel reads
+admin_system_notifications by type. A card_updated panel is frontend work and
+is NOT part of this prompt.
+
+────────────────────────────────────────────────────────────────────────
+DO NOT CHANGE
+────────────────────────────────────────────────────────────────────────
+  - The admin JWT branch of either function. Existing admin flows —
+    EditCustomerDialog, the admin booking form's PaymentStep — must behave
+    exactly as they do now.
+  - The per-org Stripe resolution. Both functions go through
+    getOrgStripeClient / get_org_stripe_secret and must keep doing so; never
+    fall back to the platform STRIPE_SECRET_KEY for a customer's card.
+  - The response shapes. StripeCardForm reads data.last4 and data.brand from
+    get-payment-method-details, and data.clientSecret and data.publishableKey
+    from create-setup-intent.
+  - verify_jwt settings in config.toml. Both must stay false; they are called
+    by unauthenticated and portal callers, and each authorises internally.
+
+────────────────────────────────────────────────────────────────────────
+VERIFY BEFORE REPORTING BACK
+────────────────────────────────────────────────────────────────────────
+  1. Public booking, brand-new email: the card saves AND onCardSaved fires, so
+     the page advances past the card step. This is the regression that matters
+     most — it is broken in production right now.
+  2. Public booking, email that already has a portal login or a card on file:
+     rejected with the clear message from part 3, not a generic error.
+  3. Client portal Payment tab: saves successfully, and an admin_system_
+     notifications row of type card_updated appears for that organisation.
+  4. Admin flows unchanged: EditCustomerDialog can still add a card.
+  5. Calling get-payment-method-details with only the anon key and no
+     publicBooking flag still fails. It should not become open.
+  6. Report the deployed version of every function you changed.
