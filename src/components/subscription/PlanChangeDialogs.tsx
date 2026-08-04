@@ -59,6 +59,8 @@ export function UpgradePlanDialog({
   const [discountCode, setDiscountCode] = useState("");
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const { organizationId } = useOrgId();
+
 
   useEffect(() => {
     if (!open || !targetPlan) return;
