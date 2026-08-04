@@ -26,7 +26,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import {
   orgStartOfMonth, orgEndOfMonth, orgStartOfWeek, orgEndOfWeek, isOrgToday, orgDateKey, orgYMD, orgAddDays,
-  orgStartOfYear, orgSetTimeOnDay,
+  orgStartOfYear, orgSetTimeOnDay, formatInOrgTz,
 } from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
 
@@ -61,11 +61,29 @@ export function PnLCalendar() {
 
   /*
     Month KEYS: which month is on screen, and the values of the month selector.
-    Grid labels, not instants — "2026-08" identifies a column, and the data
-    behind each column is bucketed in the org's zone elsewhere in this file.
+
+    Both halves resolve in the ORG's zone. This was device-local format(), and
+    the selector's onValueChange parsed the key back with
+    `new Date(v + '-01')` — a date-only ISO string, which JS parses as UTC
+    midnight. For an org west of UTC that instant is the LAST day of the
+    previous month there, so selecting July produced a currentMonth that was
+    June 30 in the org's zone and the whole grid greyed out.
+
+    Fixing only the parse would have left it half broken: the `value` prop and
+    the option list were both formatted device-locally, so near a month
+    boundary the dropdown could read August while the grid rendered July.
   */
-  // eslint-disable-next-line local/no-device-local-dates
-  const monthKeyOf = (d: Date) => format(d, 'yyyy-MM');
+  const monthKeyOf = (d: Date) => {
+    const { y, m } = orgYMD(d, timezone);
+    return `${y}-${String(m).padStart(2, '0')}`;
+  };
+
+  /** Inverse of monthKeyOf. Noon on the 1st in the org's zone — midday keeps
+   *  the instant clear of any DST transition at either end of the day. */
+  const monthKeyToInstant = (key: string) => {
+    const [y, m] = key.split('-').map(Number);
+    return orgSetTimeOnDay(y, m, 1, 12, 0, timezone);
+  };
 
   // Determine the query date range based on view mode
   const queryRange = useMemo(() => {
@@ -289,8 +307,8 @@ export function PnLCalendar() {
     setViewMode('month');
   };
 
-  /* eslint-disable-next-line local/no-device-local-dates -- which year is displayed */
-  const currentYear = currentMonth.getFullYear();
+  // The org's year, not the device's — at a New Year boundary these differ.
+  const currentYear = orgYMD(currentMonth, timezone).y;
 
   // Monthly total for header
   const monthTotal = useMemo(() => {
@@ -362,17 +380,22 @@ export function PnLCalendar() {
 
             <Select
               value={monthKeyOf(currentMonth)}
-              onValueChange={(v) => setCurrentMonth(new Date(v + '-01'))}
+              onValueChange={(v) => setCurrentMonth(monthKeyToInstant(v))}
             >
               <SelectTrigger className="w-[120px] min-h-[44px] text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {Array.from({ length: 12 }, (_, i) => {
-                  const d = new Date(currentYear, i, 1);
+                  // Built straight from (year, month) rather than round-tripping
+                  // through a device-local Date — `new Date(y, i, 1)` is device
+                  // midnight, which for a far-east viewer is the previous month
+                  // in the org's zone, so monthKeyOf would have labelled it one
+                  // month early.
+                  const key = `${currentYear}-${String(i + 1).padStart(2, '0')}`;
                   return (
-                    <SelectItem key={i} value={monthKeyOf(d)}>
-                      {format(d, 'MMM yyyy')}
+                    <SelectItem key={i} value={key}>
+                      {formatInOrgTz(monthKeyToInstant(key), timezone, { month: 'short', year: 'numeric' })}
                     </SelectItem>
                   );
                 })}
@@ -388,7 +411,7 @@ export function PnLCalendar() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="text-center">
-              <span className="text-sm font-medium">{format(currentMonth, 'MMMM yyyy')}</span>
+              <span className="text-sm font-medium">{formatInOrgTz(currentMonth, timezone, { month: 'long', year: 'numeric' })}</span>
               {!isTestMode && !isLoading && (
                 <span className={cn(
                   "ml-2 text-sm font-bold",
@@ -492,9 +515,15 @@ export function PnLCalendar() {
           /* Year view */
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             {Array.from({ length: 12 }, (_, i) => {
-              const monthDate = new Date(currentYear, i, 1);
-              /* eslint-disable-next-line local/no-device-local-dates -- chart bucket label */
-    const monthKey = format(monthDate, 'yyyy-MM');
+              // Org-local, for the same reason as the month selector above:
+              // clicking a month here calls setCurrentMonth(monthDate), and a
+              // device-local midnight is the PREVIOUS month in the org's zone
+              // for a far-east viewer — so tapping "Jul" landed the grid on
+              // June. The key is built from (year, month) directly rather than
+              // formatted off a Date, so it cannot drift from monthlyTotals,
+              // which is keyed org-locally off dailyPnL.
+              const monthKey = `${currentYear}-${String(i + 1).padStart(2, '0')}`;
+              const monthDate = orgSetTimeOnDay(currentYear, i + 1, 1, 12, 0, timezone);
               const value = monthlyTotals.get(monthKey) || 0;
               const hasData = value !== 0;
 
@@ -512,7 +541,7 @@ export function PnLCalendar() {
                     !hasData && 'border-border hover:bg-muted/50'
                   )}
                 >
-                  <span className="text-sm font-medium">{format(monthDate, 'MMM')}</span>
+                  <span className="text-sm font-medium">{formatInOrgTz(monthDate, timezone, { month: 'short' })}</span>
                   {isLoading ? (
                     <Skeleton className="h-4 w-12 mt-1" />
                   ) : !isTestMode ? (
