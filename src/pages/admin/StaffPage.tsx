@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { AddStaffDialog } from '@/components/admin/AddStaffDialog';
 import { EditStaffDialog } from '@/components/admin/EditStaffDialog';
 import { supabase } from '@/lib/supabase';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -97,7 +98,15 @@ export default function StaffPage() {
   const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const [resendLinkDialogOpen, setResendLinkDialogOpen] = useState(false);
-  const [resendLinkData, setResendLinkData] = useState<{ name: string; email: string; link: string } | null>(null);
+  // `link` is absent for a cleaner who works for more than one business. The
+  // function emails the link to them directly in that case rather than handing
+  // it to an admin, because a recovery link authenticates the whole account —
+  // including the other business's staff portal. See resend-staff-password-link.
+  const [resendLinkData, setResendLinkData] = useState<
+    { name: string; email: string; link: string; maskedEmail?: undefined }
+    | { name: string; email?: undefined; link?: undefined; maskedEmail: string }
+    | null
+  >(null);
   const [isResendingLink, setIsResendingLink] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isDeletingPermanently, setIsDeletingPermanently] = useState(false);
@@ -233,7 +242,10 @@ export default function StaffPage() {
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to generate password link');
+        // Not response.error.message — supabase-js reports every non-2xx as
+        // "Edge Function returned a non-2xx status code" and discards what the
+        // function actually said.
+        throw new Error(await readEdgeFunctionError(response.error, 'Failed to generate password link'));
       }
 
       const data = response.data;
@@ -242,13 +254,27 @@ export default function StaffPage() {
         throw new Error(data.error);
       }
 
-      setResendLinkData({
-        name: data.staffName,
-        email: data.staffEmail,
-        link: data.resetLink,
-      });
-      setResendLinkDialogOpen(true);
-      toast.success('Password reset link generated');
+      // A cleaner who works for more than one business never has their link
+      // returned here — the function emails it to them instead, because a
+      // recovery link opens the whole account, not just this business's portal.
+      if (data.emailed) {
+        // Fallback text rather than an empty modal if maskedEmail is ever
+        // absent — the admin still needs to know delivery happened.
+        setResendLinkData({
+          name: data.staffName,
+          maskedEmail: data.maskedEmail || 'their email address',
+        });
+        setResendLinkDialogOpen(true);
+        toast.success('Setup link emailed to the staff member');
+      } else {
+        setResendLinkData({
+          name: data.staffName,
+          email: data.staffEmail,
+          link: data.resetLink,
+        });
+        setResendLinkDialogOpen(true);
+        toast.success('Password reset link generated');
+      }
     } catch (error) {
       console.error('Error generating password link:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate password link');
@@ -258,7 +284,9 @@ export default function StaffPage() {
   };
 
   const copyLink = () => {
-    if (resendLinkData) {
+    // No link on the emailed path — the button is not rendered there, but guard
+    // anyway so a future edit cannot copy "undefined" to someone's clipboard.
+    if (resendLinkData?.link) {
       navigator.clipboard.writeText(resendLinkData.link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -611,7 +639,29 @@ export default function StaffPage() {
           <DialogHeader>
             <DialogTitle>Password Setup Link</DialogTitle>
           </DialogHeader>
-          {resendLinkData && (
+          {/* Emailed path — this person works for more than one business, so the
+              link went straight to them and is deliberately not shown here. */}
+          {resendLinkData?.maskedEmail && (
+            <div className="space-y-4 py-4">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                <p className="text-sm font-medium flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Setup link sent to {resendLinkData.maskedEmail}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {resendLinkData.name} works for more than one business, so the link was
+                emailed to them directly rather than shown here — it would sign in to all
+                of their businesses, not just yours. Ask them to check their inbox.
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                The link will expire after use. You can generate a new one if needed.
+              </p>
+            </div>
+          )}
+
+          {/* Single-business path — unchanged. */}
+          {resendLinkData?.link && (
             <div className="space-y-4 py-4">
               <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
                 <p className="text-sm font-medium flex items-center gap-2">
