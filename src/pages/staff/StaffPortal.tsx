@@ -28,6 +28,7 @@ import { orgStartOfDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useMyStaffOrgs } from '@/hooks/useMyStaffOrgs';
+import { useOrgExtrasCatalogue } from '@/hooks/useOrgExtrasCatalogue';
 import { resolveActiveStaffOrg } from '@/lib/staffOrgResolution';
 import { OrgSwitcherList } from '@/components/OrgSwitcherList';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -155,6 +156,9 @@ export default function StaffPortal() {
   // case is not the context's org. Passing activeOrgId explicitly keeps the
   // times right without writing the staff portal's choice back to the context.
   const orgTimezone = useOrgTimezone(activeOrgId);
+  // Slug -> label map for booking add-ons. Per-org: the same slug means
+  // different work at different businesses.
+  const { data: orgExtras = [] } = useOrgExtrasCatalogue(activeOrgId);
 
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
   const switcherItems = staffOrgs.map((o) => ({ id: o.organizationId, name: o.name }));
@@ -340,7 +344,7 @@ export default function StaffPortal() {
       const { data: directBookings, error: directError } = await supabase
         .from('bookings')
         .select(`
-          id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+          id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code, extras,
           total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
           cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
           cleaner_checkin_at, cleaner_checkout_at, notes,
@@ -361,7 +365,7 @@ export default function StaffPortal() {
           pay_share,
           is_primary,
           booking:bookings(
-            id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+            id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code, extras,
             total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
             cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
             cleaner_checkin_at, cleaner_checkout_at, notes,
@@ -496,7 +500,7 @@ export default function StaffPortal() {
       const { data, error } = await supabase
         .from('bookings')
         .select(`
-          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code,
+          id, booking_number, scheduled_at, duration, status, address, city, state, zip_code, extras,
           total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
           cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
           cleaner_checkin_at, cleaner_checkout_at,
@@ -1275,6 +1279,7 @@ export default function StaffPortal() {
                     key={booking.id}
                     booking={booking}
                     organizationId={activeOrgId}
+                    orgExtras={orgExtras}
                     staffInfo={{
                       id: staffInfo?.id,
                       hourly_rate: staffInfo?.hourly_rate || null,
@@ -1329,6 +1334,7 @@ export default function StaffPortal() {
                     key={booking.id}
                     booking={booking}
                     organizationId={activeOrgId}
+                    orgExtras={orgExtras}
                     staffInfo={{
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,

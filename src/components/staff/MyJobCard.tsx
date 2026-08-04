@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { extrasToLabels, type ExtraOption } from '@/lib/bookingExtras';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info, Sparkles } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { formatInTimezone } from '@/lib/timezoneUtils';
@@ -44,6 +45,8 @@ interface Booking extends WageBooking {
   state: string | null;
   zip_code: string | null;
   notes?: string | null;
+  /** Add-on slugs; labels resolve per-org. See lib/bookingExtras. */
+  extras?: unknown;
   customer: {
     first_name: string;
     last_name: string;
@@ -63,6 +66,8 @@ interface Props {
    *  OrganizationContext: a cleaner staffed at two businesses can have a context
    *  org that is not the one whose jobs are on screen. */
   organizationId: string | null;
+  /** Slug -> label map for add-ons, from the org's own price list. */
+  orgExtras?: ExtraOption[];
   // Batched by the parent (StaffPortal) to avoid a per-card N+1 on load.
   photoReqs: { required: boolean; min: number };
   photoCount: number;
@@ -72,8 +77,9 @@ interface Props {
   isUpdating?: boolean;
 }
 
-export function MyJobCard({ booking, staffInfo, organizationId, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
+export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
   const orgTimezone = useOrgTimezone(organizationId);
+  const extraLabels = extrasToLabels(booking.extras, orgExtras);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(initialOnTheWaySent);
@@ -380,6 +386,23 @@ export function MyJobCard({ booking, staffInfo, organizationId, photoReqs, prope
                 <p className="text-xs font-medium text-warning mb-1">Special Instructions</p>
                 <p className="text-sm text-warning whitespace-pre-wrap">{booking.notes}</p>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add-ons the customer ordered. Written to bookings.extras by both
+            booking forms and, until now, never shown to the person doing the
+            work — a customer could pay for laundry and appliances and the
+            cleaner would arrive with no idea either was ordered. */}
+        {extraLabels.length > 0 && (
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1.5">
+            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" />Add-ons ordered
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {extraLabels.map((label) => (
+                <Badge key={label} variant="secondary" className="text-xs">{label}</Badge>
+              ))}
             </div>
           </div>
         )}

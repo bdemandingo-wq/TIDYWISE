@@ -224,8 +224,26 @@ export function usePublicOrgPricing(orgSlug: string | undefined): PublicOrgData 
 
           setServices(sortServices(mappedServices));
 
-          const firstPricing = (data.servicePricing || [])[0];
-          const pricingExtras = firstPricing?.extras;
+          // Sorted, not "whatever arrived first". Eleven organisations have
+          // more than one service_pricing row carrying extras and those rows
+          // disagree — at one org today, two rows map different slugs to
+          // "Inside Oven". public-booking-data selects this table with no
+          // ORDER BY, so index 0 was arbitrary and the labels a customer saw
+          // could differ between page loads.
+          //
+          // created_at ASC then id ASC: created_at is not unique, and the
+          // cleaner portal's useOrgExtrasCatalogue applies the identical rule
+          // so both surfaces resolve a slug to the same label. Ordering the
+          // edge function's own query is the other half and is Lovable's.
+          const sortedPricing = [...(data.servicePricing || [])].sort((a, b) => {
+            const at = a?.created_at ?? '';
+            const bt = b?.created_at ?? '';
+            if (at !== bt) return at < bt ? -1 : 1;
+            return String(a?.id ?? '') < String(b?.id ?? '') ? -1 : 1;
+          });
+          const pricingExtras = sortedPricing.find(
+            (p) => Array.isArray(p?.extras) && p.extras.length > 0,
+          )?.extras;
 
           if (Array.isArray(pricingExtras) && pricingExtras.length > 0) {
             setExtras(pricingExtras as unknown as PublicExtra[]);

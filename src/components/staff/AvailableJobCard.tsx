@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { extrasToLabels, type ExtraOption } from '@/lib/bookingExtras';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -12,7 +13,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2, FileText } from 'lucide-react';
+import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Loader2, FileText, Sparkles } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
@@ -31,6 +32,8 @@ interface Booking extends WageBooking {
   bedrooms?: string | null;
   bathrooms?: string | null;
   notes?: string | null;
+  /** Add-on slugs; labels resolve per-org. See lib/bookingExtras. */
+  extras?: unknown;
   customer: {
     first_name: string;
     last_name: string;
@@ -46,13 +49,16 @@ interface Props {
   staffInfo: StaffInfo;
   /** See MyJobCard — the staff row's org, not the context's. */
   organizationId: string | null;
+  /** Slug -> label map for add-ons, from the org's own price list. */
+  orgExtras?: ExtraOption[];
   onAssign: (bookingId: string) => void;
   isAssigning: boolean;
   claimingBookingId?: string | null;
 }
 
-export function AvailableJobCard({ booking, staffInfo, organizationId, onAssign, isAssigning, claimingBookingId }: Props) {
+export function AvailableJobCard({ booking, staffInfo, organizationId, orgExtras, onAssign, isAssigning, claimingBookingId }: Props) {
   const orgTimezone = useOrgTimezone(organizationId);
+  const extraLabels = extrasToLabels(booking.extras, orgExtras);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;
 
@@ -151,6 +157,21 @@ export function AvailableJobCard({ booking, staffInfo, organizationId, onAssign,
                 {booking.city ? `, ${booking.city}` : ''}
                 {booking.state ? `, ${booking.state}` : ''}
               </span>
+            </div>
+          )}
+          {/* Add-ons, shown BEFORE claiming — a cleaner deciding whether to
+              take a job should know it includes laundry and appliances first,
+              not on arrival. */}
+          {extraLabels.length > 0 && (
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1.5">
+              <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />Add-ons ordered
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {extraLabels.map((label) => (
+                  <Badge key={label} variant="secondary" className="text-xs">{label}</Badge>
+                ))}
+              </div>
             </div>
           )}
           {/* Notes section */}
