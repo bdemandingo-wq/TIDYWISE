@@ -116,15 +116,42 @@ serve(async (req) => {
     // Look up the staff member. Everything downstream (org, phone) is
     // resolved from THIS row only — the request body is never consulted
     // again past this point.
-    const { data: staffMember, error: staffError } = await supabaseAdmin
+    //
+    // One person can hold staff rows in several organizations (a cleaner
+    // working for two businesses under one login), so this must NOT use
+    // maybeSingle() — that errors PGRST116 on 2+ rows and used to fall
+    // through into the generic "success" response with nothing sent.
+    //
+    // We deliberately pick the OLDEST active row (created_at ASC, id ASC
+    // as a unique tiebreaker). This is a security requirement: any org
+    // admin can invite an arbitrary email as staff and set a phone they
+    // control, so preferring "whichever org has SMS configured" would let
+    // an attacker capture a victim's recovery SMS. The oldest row cannot
+    // be attacker-selected. Matches get_my_staff_profile()'s default.
+    //
+    // Filter on the normalized email (invite-staff stores lowercase), and
+    // with .eq() not .ilike() — "_" is legal in emails and is a wildcard
+    // in ILIKE, which could match a different person's row.
+    const { data: staffRows, error: staffError } = await supabaseAdmin
       .from("staff")
       .select("id, name, user_id, organization_id, phone")
-      .eq("email", email)
-      .maybeSingle();
+      .eq("email", normalizedEmail)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(1);
 
     if (staffError) {
+      // A real DB failure must never be disguised as the privacy response.
       console.error("[send-staff-password-reset] Error looking up staff:", staffError);
+      return new Response(
+        JSON.stringify({ error: "Unable to process password reset. Please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
+
+    // Zero rows is NOT an error — that's the genuine "no account" case.
+    const staffMember = staffRows?.[0] ?? null;
 
     const organizationId = staffMember?.organization_id;
     const staffPhone = staffMember?.phone;
