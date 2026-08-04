@@ -117,20 +117,57 @@ serve(async (req) => {
     const subscription = subs.data[0];
     const itemId = subscription.items.data[0].id;
 
-    // Block lifetime / grandfathered orgs from changing plan
-    const { data: membership } = await supabase
-      .from("org_memberships")
-      .select("organization_id, organizations(plan_type, grandfathered_lifetime, stripe_schedule_id)")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Resolve WHICH organization this plan change applies to. A user can
+    // belong to several orgs, so we never "guess" with maybeSingle() — that
+    // returns null on multi-row and would silently skip the lifetime guard.
+    const requestedOrgId = (body as { organization_id?: string }).organization_id;
 
-    const org = (membership as any)?.organizations;
+    const { data: memberships, error: memErr } = await supabase
+      .from("org_memberships")
+      .select("organization_id, role, organizations(plan_type, grandfathered_lifetime, stripe_schedule_id)")
+      .eq("user_id", user.id);
+
+    if (memErr) {
+      return new Response(
+        JSON.stringify({ error: "Could not verify your organization access." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const rows = (memberships ?? []) as any[];
+    let membership: any = null;
+    if (requestedOrgId) {
+      membership = rows.find((m) => m.organization_id === requestedOrgId) ?? null;
+      if (!membership) {
+        return new Response(
+          JSON.stringify({ error: "You are not a member of that organization." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    } else if (rows.length === 1) {
+      membership = rows[0];
+    }
+
+    // Fail closed: if we can't tell which org's subscription is changing,
+    // block rather than proceed without the lifetime guard.
+    if (!membership) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Could not determine which business this plan change is for. Please reopen the billing page and try again.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const org = membership.organizations;
     if (org?.plan_type === "lifetime" || org?.grandfathered_lifetime) {
       return new Response(
         JSON.stringify({ error: "Lifetime plans cannot be changed." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
+
 
     // Resolve discount (optional)
     let promotionCodeId: string | undefined;
