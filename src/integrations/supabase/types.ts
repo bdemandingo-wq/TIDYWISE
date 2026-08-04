@@ -11214,7 +11214,7 @@ export type Database = {
         }[]
       }
       get_my_staff_profile: {
-        Args: never
+        Args: { p_organization_id?: string }
         Returns: {
           avatar_url: string
           base_wage: number
