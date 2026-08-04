@@ -44,13 +44,15 @@ interface Booking extends WageBooking {
 interface Props {
   booking: Booking;
   staffInfo: StaffInfo;
+  /** See MyJobCard — the staff row's org, not the context's. */
+  organizationId: string | null;
   onAssign: (bookingId: string) => void;
   isAssigning: boolean;
   claimingBookingId?: string | null;
 }
 
-export function AvailableJobCard({ booking, staffInfo, onAssign, isAssigning, claimingBookingId }: Props) {
-  const orgTimezone = useOrgTimezone();
+export function AvailableJobCard({ booking, staffInfo, organizationId, onAssign, isAssigning, claimingBookingId }: Props) {
+  const orgTimezone = useOrgTimezone(organizationId);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;
 

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Calendar, MapPin, Clock, User, Phone, Navigation, DollarSign, ClipboardCheck, Car, Loader2, FileText, Users, KeyRound, PawPrint, ParkingCircle, Info } from 'lucide-react';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { orgDateKey } from '@/lib/orgDateRange';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
@@ -58,6 +59,10 @@ interface Booking extends WageBooking {
 interface Props {
   booking: Booking;
   staffInfo: StaffInfo & { id?: string };
+  /** The business this job belongs to. Passed explicitly rather than read from
+   *  OrganizationContext: a cleaner staffed at two businesses can have a context
+   *  org that is not the one whose jobs are on screen. */
+  organizationId: string | null;
   // Batched by the parent (StaffPortal) to avoid a per-card N+1 on load.
   photoReqs: { required: boolean; min: number };
   photoCount: number;
@@ -67,8 +72,8 @@ interface Props {
   isUpdating?: boolean;
 }
 
-export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
-  const orgTimezone = useOrgTimezone();
+export function MyJobCard({ booking, staffInfo, organizationId, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
+  const orgTimezone = useOrgTimezone(organizationId);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);
   const [onTheWaySent, setOnTheWaySent] = useState(initialOnTheWaySent);
@@ -208,7 +213,19 @@ export function MyJobCard({ booking, staffInfo, photoReqs, propertyNote, photoCo
       }
     } catch (error) {
       console.error('Error sending on the way SMS:', error);
-      toast.error('Failed to send notification');
+      // Read the function's own reason. supabase-js turns every non-2xx into
+      // "Edge Function returned a non-2xx status code", and the previous
+      // hardcoded string discarded the real one just as thoroughly — a cleaner
+      // standing outside a house was told "Failed to send notification"
+      // whether the org had no SMS configured, the customer had no mobile
+      // number, or OpenPhone rejected the send.
+      toast.error(await readEdgeFunctionError(error, 'Failed to send notification'));
+      // Same rule as the 2xx-with-failure branch above: the text failed, but the
+      // cleaner IS on the way. Before this, a non-2xx left them stuck on "On my
+      // way" while a 2xx failure let them through — the harder failure was the
+      // one that blocked them. Whether the send failed with a 200 or a 500 is
+      // not something the cleaner did, and it must not gate starting the job.
+      setOnTheWaySent(true);
     } finally {
       setIsSendingOnTheWay(false);
     }

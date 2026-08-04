@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { readEdgeFunctionError } from "@/lib/edgeFunctionError";
 
 export async function hasStaffOrAdminRole(userId: string): Promise<boolean> {
   const { data, error } = await supabase
@@ -38,9 +39,17 @@ export async function requestStaffPasswordReset(email: string, redirectUrl: stri
   });
 
   if (response.error) {
-    throw new Error(response.error.message || "Failed to send reset email");
+    // NOT response.error.message — supabase-js collapses every non-2xx into a
+    // FunctionsHttpError reading "Edge Function returned a non-2xx status code",
+    // and this function has real things to say: "Invalid redirect URL",
+    // "No phone number on file.", "SMS is not configured for this organization."
+    // Throwing the wrapper told a cleaner nothing and hid the actual cause.
+    throw new Error(await readEdgeFunctionError(response.error, "Failed to send reset email"));
   }
 
+  // Only reachable on a 2xx. `invoke` sets data to null on any non-2xx, so the
+  // old `if (data?.error)` check below this could never fire on a failure — the
+  // error path is entirely the branch above.
   const data = response.data as any;
   if (data?.error) throw new Error(data.error);
 

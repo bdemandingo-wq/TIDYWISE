@@ -26,6 +26,12 @@ import { StaffLocationPrompt } from '@/components/staff/StaffLocationPrompt';
 import { TimeOffRequests } from '@/components/staff/TimeOffRequests';
 import { orgStartOfDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useMyStaffOrgs } from '@/hooks/useMyStaffOrgs';
+import { resolveActiveStaffOrg } from '@/lib/staffOrgResolution';
+import { OrgSwitcherList } from '@/components/OrgSwitcherList';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useIsMutating } from '@tanstack/react-query';
 
 
 // Lazy-load heavy tab components to speed up initial render
@@ -94,9 +100,25 @@ interface StaffInfo {
   organization_id: string | null;
 }
 
+/**
+ * The switcher ships with the admin sidebar's palette. This portal runs on the
+ * portal-v2 (--pv-*) tokens, where `sidebar-*` renders as near-invisible text
+ * on a light glass surface, so the classes are remapped rather than inherited.
+ */
+const SWITCHER_CLASSES = {
+  wrapper: 'space-y-0.5',
+  heading: 'px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1',
+  row: 'group w-full flex items-center gap-2 pr-1 rounded-lg transition-colors',
+  rowActive: 'bg-accent text-accent-foreground',
+  rowInactive: 'text-foreground/70 hover:text-foreground hover:bg-accent',
+  avatar:
+    'w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0',
+  name: 'text-sm font-medium truncate',
+  subtitle: 'text-[10px] text-muted-foreground',
+  check: 'w-4 h-4 text-primary flex-shrink-0',
+};
+
 export default function StaffPortal() {
-  // A cleaner's "today" is the business's day, not their phone's.
-  const orgTimezone = useOrgTimezone();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -105,7 +127,47 @@ export default function StaffPortal() {
     await queryClient.invalidateQueries();
   });
 
-  // Get staff record for current user.
+  // ── Which business is this cleaner working in right now? ─────────────────
+  //
+  // One person, one login, potentially two employers. The org comes from
+  // OrganizationContext so the choice is shared with the rest of the app and
+  // persists across reloads — but it is validated against the orgs they
+  // actually hold a staff row in before it is trusted.
+  //
+  // Those two sets are not the same. OrganizationContext resolves from
+  // org_memberships and deliberately prefers an owner/admin membership, so it
+  // can legitimately be pointing at a business where this user is an owner and
+  // not a cleaner. Passing that org id straight to get_my_staff_profile returns
+  // zero rows and the portal renders its chrome with every section empty and
+  // nothing on screen explaining why.
+  const { organization, switchOrganization } = useOrganization();
+  const { staffOrgs, isLoading: loadingStaffOrgs, error: staffOrgsError, hasMultiple } =
+    useMyStaffOrgs();
+
+  // Precedence lives in resolveActiveStaffOrg so it can be tested on its own —
+  // the failure it prevents (an empty portal with nothing explaining why) does
+  // not show up in a rendered snapshot.
+  const { activeStaffOrg, usingFallbackOrg } = resolveActiveStaffOrg(staffOrgs, organization?.id);
+  const activeOrgId = activeStaffOrg?.organizationId ?? null;
+
+  // A cleaner's "today" is the business's day, not their phone's — and it is
+  // the day of the business whose job list is on screen, which in the fallback
+  // case is not the context's org. Passing activeOrgId explicitly keeps the
+  // times right without writing the staff portal's choice back to the context.
+  const orgTimezone = useOrgTimezone(activeOrgId);
+
+  const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const switcherItems = staffOrgs.map((o) => ({ id: o.organizationId, name: o.name }));
+  const switcherClasses = SWITCHER_CLASSES;
+  // switchOrganization() clears the query cache. That cannot lose a write —
+  // mutationCache.clear() drops mutations without cancelling them, and the
+  // clock-in (GpsCheckin) and photo upload paths are plain async outside
+  // react-query, so all three run to completion — but it does unmount the job
+  // list underneath whatever the cleaner just tapped. Cheap to simply not offer
+  // the switch mid-write.
+  const isWriting = useIsMutating() > 0;
+
+  // Get staff record for current user, scoped to the business they are in.
   //
   // A react-query query, not useState + useEffect: CleanerProfile invalidates
   // ['staff-profile'] after a save, and with the old useState that key matched
@@ -113,11 +175,15 @@ export default function StaffPortal() {
   // kept showing the values loaded at mount — the form looked saved while the
   // surrounding UI (e.g. "Location verified: lat, lng") stayed stale until they
   // left and re-entered the portal.
-  const { data: staffInfo = null } = useQuery({
-    queryKey: ['staff-profile', user?.id],
+  //
+  // activeOrgId is part of the key because it is an argument to the RPC: the
+  // two orgs return different staff rows and must not share a cache entry.
+  // CleanerProfile's bare ['staff-profile'] invalidation still matches by prefix.
+  const { data: staffInfo = null, isLoading: loadingProfile } = useQuery({
+    queryKey: ['staff-profile', user?.id, activeOrgId],
     queryFn: async (): Promise<StaffInfo | null> => {
       const { data, error } = await (supabase as any)
-        .rpc('get_my_staff_profile')
+        .rpc('get_my_staff_profile', { p_organization_id: activeOrgId })
         .maybeSingle();
       if (error) {
         console.error('Error fetching staff record:', error);
@@ -128,7 +194,10 @@ export default function StaffPortal() {
       // isn't also staff) — callers must keep tolerating null.
       return (data as StaffInfo | null) ?? null;
     },
-    enabled: !!user,
+    // Waits for the staff-org list, otherwise the first render fires the RPC
+    // with a null org and resolves the wrong business for a dual-org cleaner
+    // before correcting itself.
+    enabled: !!user && !loadingStaffOrgs,
   });
 
   // Availability check depends on the resolved staff id, so it hangs off the
@@ -197,7 +266,16 @@ export default function StaffPortal() {
     if (!staffInfo?.id) return;
 
     const channel = supabase
-      .channel('staff-bookings-realtime')
+      // Suffixed with the org: on a switch this effect re-runs (staffInfo.id
+      // changes with the business) and removeChannel is async, so a fixed name
+      // means the outgoing and incoming subscriptions collide on the same
+      // channel while the old one is still tearing down.
+      //
+      // NOTE: this subscription still has no server-side filter — it fires on
+      // every bookings INSERT and leans entirely on RLS to decide what the
+      // payload contains. The name only separates the two channels; it does not
+      // scope the stream. Worth a `filter: organization_id=eq.<id>` separately.
+      .channel(`staff-bookings-realtime-${staffInfo?.organization_id ?? 'none'}`)
       .on(
         'postgres_changes',
         {
@@ -250,7 +328,7 @@ export default function StaffPortal() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [staffInfo?.id, queryClient]);
+  }, [staffInfo?.id, staffInfo?.organization_id, queryClient]);
 
   // Fetch assigned bookings (including team assignments)
   const { data: assignedBookings = [], isLoading: loadingAssigned } = useQuery({
@@ -861,6 +939,68 @@ export default function StaffPortal() {
     return null;
   }
 
+  // ── Three explicit states, so "no staff row" can never read as "no work" ──
+  //
+  // Previously there was no guard here at all: a user with no staff row in the
+  // active org got the full header and every section silently self-hiding
+  // behind `staffInfo?.id && …`. That looks identical to a cleaner with an
+  // empty schedule. It is reachable today by ~45 accounts that hold a global
+  // staff/admin role without a staff row, and by any owner-of-one /
+  // cleaner-at-another whose saved org is the one they only own.
+
+  // 1. Still resolving. Covers the refetch gap during a switch, which would
+  //    otherwise flash the empty portal between the two businesses.
+  if (loadingStaffOrgs || loadingProfile) {
+    return (
+      <div className="portal-v2 min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'hsl(var(--pv-brand))' }} />
+      </div>
+    );
+  }
+
+  // 2. The list itself failed. Not the same as "you work for nobody", and it
+  //    must not be rendered as such (CLAUDE.md rule 5).
+  if (staffOrgsError) {
+    return (
+      <div className="portal-v2 min-h-screen flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <AlertCircle className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-danger))' }} />
+          <p className="pv-display text-xl">Couldn't load your businesses</p>
+          <p className="pv-meta mt-1">
+            Check your connection and try again. If this keeps happening, contact your administrator.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4 min-h-[44px]"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['my-staff-orgs'] })}
+          >
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Genuinely not a cleaner anywhere. Say so, instead of an empty portal.
+  if (staffOrgs.length === 0) {
+    return (
+      <div className="portal-v2 min-h-screen flex items-center justify-center px-6">
+        <div className="text-center max-w-sm">
+          <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
+          <p className="pv-display text-xl">No cleaner profile yet</p>
+          <p className="pv-meta mt-1">
+            Your account isn't set up as a cleaner for any business. Ask your administrator to add
+            you as staff, then sign in again.
+          </p>
+          <Button variant="outline" className="mt-4 min-h-[44px] gap-2" onClick={handleSignOut}>
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <SEOHead title="Staff Portal | TidyWise" description="Manage your jobs, availability, and earnings." noIndex />
@@ -885,8 +1025,56 @@ export default function StaffPortal() {
             <h1 className="pv-display text-[22px] sm:text-[30px] truncate mt-0.5">
               {staffInfo?.name ? `Hi, ${staffInfo.name.split(' ')[0]}` : 'Welcome'}
             </h1>
+            {/* Which employer's jobs are on screen. Only shown when the answer
+                isn't obvious — a single-business cleaner doesn't need telling. */}
+            {hasMultiple && activeStaffOrg && (
+              <p className="pv-meta truncate mt-0.5">{activeStaffOrg.name}</p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {hasMultiple && activeStaffOrg && (
+              <Popover open={orgMenuOpen} onOpenChange={setOrgMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 min-h-[44px] px-2.5 sm:px-3"
+                    aria-label={`Switch business. Currently ${activeStaffOrg.name}`}
+                  >
+                    <span
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                      style={{
+                        background: 'hsl(var(--pv-brand-soft))',
+                        color: 'hsl(var(--pv-brand-ink))',
+                      }}
+                    >
+                      {activeStaffOrg.name.substring(0, 2).toUpperCase()}
+                    </span>
+                    <span className="hidden sm:inline max-w-[10ch] truncate">
+                      {activeStaffOrg.name}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 p-2">
+                  <OrgSwitcherList
+                    heading="Your businesses"
+                    items={switcherItems}
+                    activeId={activeOrgId}
+                    disabled={isWriting}
+                    onSelect={(orgId) => {
+                      setOrgMenuOpen(false);
+                      switchOrganization(orgId);
+                    }}
+                    classes={switcherClasses}
+                  />
+                  {isWriting && (
+                    <p className="px-3 pt-1 pb-0.5 text-[11px] text-muted-foreground">
+                      Finishing up — try again in a moment.
+                    </p>
+                  )}
+                </PopoverContent>
+              </Popover>
+            )}
             {staffInfo && (
               <>
               <NotificationBell 
@@ -916,6 +1104,30 @@ export default function StaffPortal() {
 
       {/* Main Content */}
       <main className="portal-v2-scroll container mx-auto px-3 sm:px-6 py-5 sm:py-6">
+        {/* The active business came from elsewhere in the app (the admin
+            sidebar, or a saved choice) and this user has no cleaner profile
+            there. Rather than an unexplained empty portal, fall back to their
+            first business and say plainly which one is on screen and why. */}
+        {usingFallbackOrg && activeStaffOrg && (
+          <div
+            className="mb-4 flex items-start gap-2.5 rounded-lg px-3.5 py-3"
+            style={{
+              background: 'hsl(var(--pv-brand-soft))',
+              border: '1px solid hsl(var(--pv-border))',
+            }}
+          >
+            <AlertCircle
+              className="w-4 h-4 mt-0.5 shrink-0"
+              style={{ color: 'hsl(var(--pv-brand-ink))' }}
+            />
+            <p className="pv-meta">
+              You don't have a cleaner profile at{' '}
+              <strong>{organization?.name ?? 'the selected business'}</strong>. Showing your jobs at{' '}
+              <strong>{activeStaffOrg.name}</strong> instead.
+            </p>
+          </div>
+        )}
+
         {/* Onboarding Progress Tracker */}
         {staffInfo?.id && staffInfo?.organization_id && (
           <OnboardingProgress
@@ -1043,6 +1255,7 @@ export default function StaffPortal() {
                   <MyJobCard
                     key={booking.id}
                     booking={booking}
+                    organizationId={activeOrgId}
                     staffInfo={{
                       id: staffInfo?.id,
                       hourly_rate: staffInfo?.hourly_rate || null,
@@ -1096,6 +1309,7 @@ export default function StaffPortal() {
                   <AvailableJobCard
                     key={booking.id}
                     booking={booking}
+                    organizationId={activeOrgId}
                     staffInfo={{
                       hourly_rate: staffInfo?.hourly_rate || null,
                       base_wage: staffInfo?.base_wage || null,
@@ -1164,7 +1378,7 @@ export default function StaffPortal() {
           <TabsContent value="calendar" className="space-y-4">
             <Suspense fallback={<TabFallback />}>
               {staffInfo?.id ? (
-                <CleanerCalendar staffId={staffInfo.id} />
+                <CleanerCalendar staffId={staffInfo.id} organizationId={activeOrgId} />
               ) : (
                 <TabFallback />
               )}

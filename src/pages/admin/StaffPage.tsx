@@ -661,8 +661,10 @@ export default function StaffPage() {
               {selectedStaff?.name}'s Schedule
             </DialogTitle>
           </DialogHeader>
+          {/* The admin's own org — this staff list is already scoped to it, so
+              this is the same value useOrgTimezone() resolved before. */}
           {selectedStaff && (
-            <CleanerCalendar staffId={selectedStaff.id} />
+            <CleanerCalendar staffId={selectedStaff.id} organizationId={organizationId} />
           )}
           <DialogFooter>
             <Button onClick={() => setScheduleDialogOpen(false)}>Close</Button>

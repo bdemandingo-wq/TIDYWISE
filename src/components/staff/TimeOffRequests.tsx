@@ -37,7 +37,7 @@ const statusStyle: Record<Row['status'], string> = {
 
 export function TimeOffRequests({ staffId, organizationId }: Props) {
   // Time-off dates are the business's calendar days.
-  const orgTimezone = useOrgTimezone();
+  const orgTimezone = useOrgTimezone(organizationId);
   const qc = useQueryClient();
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');

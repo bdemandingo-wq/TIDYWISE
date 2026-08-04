@@ -31,7 +31,6 @@ import {
   Globe,
   Camera,
   Plus,
-  Check,
   Bell,
   Navigation as NavigationIcon,
   Gauge,
@@ -39,6 +38,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { OrgSwitcherList } from '@/components/OrgSwitcherList';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -574,60 +574,36 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         
         {isProfileOpen && (isOpen || isMobile) && (
           <div className="mt-2 py-2 space-y-1 animate-fade-in">
-            {/* Business list */}
-            {allOrganizations.length > 1 && (
-              <div className="pb-2 mb-2 border-b border-sidebar-border space-y-0.5">
-                <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 mb-1">Your Businesses</p>
-                {allOrganizations.map((orgItem) => {
-                  const isActive = orgItem.organization.id === organization?.id;
-                  const initials = orgItem.organization.name.substring(0, 2).toUpperCase();
-                  const roleLabel = orgItem.role === 'owner' ? 'Owner' : orgItem.role === 'admin' ? 'Admin' : 'Member';
-                  return (
-                    <div
-                      key={orgItem.organization.id}
-                      className={cn(
-                        "group w-full flex items-center gap-2 pr-1 rounded-lg transition-colors",
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-foreground"
-                          : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                      )}
-                    >
-                      <button
-                        onClick={() => {
-                          if (!isActive) {
-                            switchOrganization(orgItem.organization.id);
-                          }
-                        }}
-                        className="flex-1 flex items-center gap-3 pl-3 py-2 rounded-lg min-h-[44px] pointer-events-auto touch-manipulation text-left"
-                      >
-                        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
-                          {initials}
-                        </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <p className="text-sm font-medium truncate">{orgItem.organization.name}</p>
-                          <p className="text-[10px] text-sidebar-foreground/50">{roleLabel}</p>
-                        </div>
-                        {isActive && (
-                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                        )}
-                      </button>
-                      {!isActive && orgItem.role === 'owner' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOrgToDelete({ id: orgItem.organization.id, name: orgItem.organization.name });
-                          }}
-                          aria-label={`Delete ${orgItem.organization.name}`}
-                          className="p-2 rounded-md text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {/* Business list — shared with the staff portal so the two cannot
+                drift. The default classes reproduce this sidebar's original
+                markup exactly; the delete button stays here because it is
+                owner-only and admin-only. */}
+            <OrgSwitcherList
+              items={allOrganizations.map((orgItem) => ({
+                id: orgItem.organization.id,
+                name: orgItem.organization.name,
+                subtitle:
+                  orgItem.role === 'owner' ? 'Owner' : orgItem.role === 'admin' ? 'Admin' : 'Member',
+              }))}
+              activeId={organization?.id ?? null}
+              onSelect={switchOrganization}
+              itemAction={(item) => {
+                const orgItem = allOrganizations.find((o) => o.organization.id === item.id);
+                if (!orgItem || orgItem.role !== 'owner' || item.id === organization?.id) return null;
+                return (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOrgToDelete({ id: item.id, name: item.name });
+                    }}
+                    aria-label={`Delete ${item.name}`}
+                    className="p-2 rounded-md text-sidebar-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                );
+              }}
+            />
 
             {/* Add New Business */}
             <button 

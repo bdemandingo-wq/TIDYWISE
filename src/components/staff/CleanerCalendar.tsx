@@ -41,12 +41,14 @@ interface Booking {
 
 interface Props {
   staffId: string;
+  /** See MyJobCard — the staff row's org, not the context's. */
+  organizationId: string | null;
 }
 
-export function CleanerCalendar({ staffId }: Props) {
+export function CleanerCalendar({ staffId, organizationId }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const orgTimezone = useOrgTimezone();
+  const orgTimezone = useOrgTimezone(organizationId);
 
   // Fetch all bookings for the month
   const { data: bookings = [], isLoading } = useQuery({
