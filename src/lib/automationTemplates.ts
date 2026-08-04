@@ -16,7 +16,25 @@
  * The tests in automationTemplates.test.ts pin the behaviour both copies owe.
  */
 
-export type AutomationKey = 'quote_stale_reengage';
+export type AutomationKey =
+  | 'quote_stale_reengage'
+  | 'booking_confirmation'
+  | 'reminder_advance'
+  | 'reminder_soon';
+
+/**
+ * Which `organization_automations.automation_type` row carries the custom body
+ * for each key. Several keys can share a row — the three booking-reminder
+ * messages all live on `appointment_reminder` because that is the single
+ * automation an owner toggles on and off.
+ */
+export const AUTOMATION_ROW_TYPE: Record<AutomationKey, string> = {
+  quote_stale_reengage: 'quote_stale_reengage',
+  booking_confirmation: 'appointment_reminder',
+  reminder_advance: 'appointment_reminder',
+  reminder_soon: 'appointment_reminder',
+};
+
 
 /** Marketing messages get an opt-out line appended by the sender. Not editable. */
 export type MessageClass = 'marketing' | 'transactional';
