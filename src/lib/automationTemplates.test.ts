@@ -109,3 +109,45 @@ test('the pilot is classed marketing — this is what adds the STOP line', () =>
 test('the default body carries no STOP line — the sender appends it', () => {
   assert.doesNotMatch(AUTOMATION_DEFAULTS[KEY].sms_body, /\bSTOP\b/);
 });
+
+// ─── booking reminder keys ───────────────────────────────────────────────
+const RDATA = {
+  customer_name: 'Bo',
+  service_name: 'deep clean',
+  company_name: 'Golden Room',
+  date: 'Thursday',
+  time: '9:00 AM',
+  address_line: 'Address: 12 Elm St.',
+};
+
+for (const key of ['booking_confirmation', 'reminder_advance', 'reminder_soon'] as const) {
+  test(`${key}: a mistyped placeholder is rejected at save time`, () => {
+    const err = validateTemplate(key, 'Hi {custmerName}! See you at {time}');
+    assert.match(err ?? "", /\{custmername\}/i);
+    assert.match(err ?? '', /\{customer_name\}/);
+  });
+
+  test(`${key}: a mistyped placeholder that got saved anyway never ships braces`, () => {
+    const r = resolveTemplate(key, 'Hi {custmerName}! See you at {time}', RDATA);
+    assert.equal(r.text, 'Hi custmerName! See you at 9:00 AM');
+    assert.doesNotMatch(r.text, /[{}]/);
+    assert.match(r.warning ?? '', /unknown token/);
+  });
+
+  test(`${key}: a message with no time falls back to the default`, () => {
+    const r = resolveTemplate(key, 'Hi {customer_name}, see you soon', RDATA);
+    assert.equal(r.usedDefault, true);
+    assert.match(r.text, /9:00 AM/);
+  });
+
+  test(`${key}: a blank address leaves no double space`, () => {
+    const r = resolveTemplate(key, null, { ...RDATA, address_line: '' });
+    assert.doesNotMatch(r.text, /  /);
+    assert.ok(r.text.length > 0);
+  });
+
+  test(`${key}: transactional, so the sender adds no STOP line`, () => {
+    assert.equal(AUTOMATION_DEFAULTS[key].message_class, 'transactional');
+    assert.doesNotMatch(AUTOMATION_DEFAULTS[key].sms_body, /\bSTOP\b/);
+  });
+}

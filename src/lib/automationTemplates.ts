@@ -16,7 +16,25 @@
  * The tests in automationTemplates.test.ts pin the behaviour both copies owe.
  */
 
-export type AutomationKey = 'quote_stale_reengage';
+export type AutomationKey =
+  | 'quote_stale_reengage'
+  | 'booking_confirmation'
+  | 'reminder_advance'
+  | 'reminder_soon';
+
+/**
+ * Which `organization_automations.automation_type` row carries the custom body
+ * for each key. Several keys can share a row — the three booking-reminder
+ * messages all live on `appointment_reminder` because that is the single
+ * automation an owner toggles on and off.
+ */
+export const AUTOMATION_ROW_TYPE: Record<AutomationKey, string> = {
+  quote_stale_reengage: 'quote_stale_reengage',
+  booking_confirmation: 'appointment_reminder',
+  reminder_advance: 'appointment_reminder',
+  reminder_soon: 'appointment_reminder',
+};
+
 
 /** Marketing messages get an opt-out line appended by the sender. Not editable. */
 export type MessageClass = 'marketing' | 'transactional';
@@ -47,7 +65,48 @@ export const AUTOMATION_VOCABULARY: Record<AutomationKey, TokenSpec[]> = {
     { token: 'company_name', description: 'Your business name' },
     { token: 'quote_link', description: 'Link to their quote', required: true },
   ],
+
+  /*
+   * The three booking-reminder messages share one vocabulary because they are
+   * the same message at three distances from the appointment.
+   *
+   * `{address_line}` carries the word "Address" itself, not just the street.
+   * The hardcoded originals only printed the address clause when they HAD an
+   * address; a bare `{address}` token would render "Address: ." for the
+   * bookings with none. The sender therefore supplies either
+   * "Address: 12 Elm St." or an empty string, and the resolver collapses the
+   * gap it leaves behind.
+   *
+   * `{time}` is required on all three — a reminder that does not say when is
+   * not a reminder. `{date}` is NOT required, because the two-hour message
+   * legitimately says "today" instead.
+   */
+  booking_confirmation: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_advance: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_soon: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
 };
+
 
 export interface AutomationDefault {
   sms_body: string;
@@ -74,7 +133,35 @@ export const AUTOMATION_DEFAULTS: Record<AutomationKey, AutomationDefault> = {
     sms_body:
       'Hi {customer_name} — just checking in on your {service_name} quote from {company_name}. Still interested? View it here: {quote_link}. Reply if you have questions!',
   },
+
+  /*
+   * Copied verbatim from send-booking-reminder. An org that never edits must
+   * receive byte-identical text to what it received before this feature
+   * existed, so do not "improve" the wording here.
+   *
+   * All three are transactional: the customer booked a job and is being told
+   * about that job. No opt-out line is appended.
+   */
+  booking_confirmation: {
+    label: 'Booking confirmation',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} appointment with {company_name} is confirmed for {date} at {time}. {address_line} Reply to this message with any questions!',
+  },
+  reminder_advance: {
+    label: 'Reminder — 48 hours or more before',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Friendly reminder — your {service_name} appointment with {company_name} is coming up on {date} at {time}. {address_line} Reply with any questions!',
+  },
+  reminder_soon: {
+    label: 'Reminder — 2 hours or less before',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} with {company_name} is starting soon — today at {time}. {address_line} See you shortly!',
+  },
 };
+
 
 /** `{single}` braces — the syntax all three SMS engines already use. */
 const TOKEN_PATTERN = /\{([a-z0-9_]+)\}/gi;
@@ -188,7 +275,10 @@ export function resolveTemplate(
     return rawName;
   });
 
-  const finalText = text.trim();
+  // Collapse the gap an empty token leaves behind. `{address_line}` is blank
+  // for bookings with no address, and "at 9am.  Reply" reads as a mistake.
+  const finalText = text.replace(/[ \t]{2,}/g, ' ').trim();
+
   if (!finalText) {
     // Belt and braces: a template of nothing but tokens, all of which resolved
     // empty. Never send blank.

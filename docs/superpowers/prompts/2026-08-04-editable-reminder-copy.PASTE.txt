@@ -1,0 +1,122 @@
+In the jointidywise project, make send-booking-reminder use the org's custom
+message copy instead of hardcoded template literals. Deploy it and confirm
+DEPLOYED, not just committed.
+
+BACKGROUND
+The frontend half already shipped: Automation Center → Messages lets an owner
+reword three SMS messages. The bodies are stored in
+`organization_automations.settings.templates`, keyed by automation key, on the
+row where `automation_type = 'appointment_reminder'`. No schema change is
+needed — `settings` is an existing jsonb column, empty on 960 of 961 rows.
+
+The resolver that makes this safe already exists at
+`supabase/functions/_shared/automation-templates.ts` (built for
+`quote_stale_reengage`). It must stay a VERBATIM copy of
+`src/lib/automationTemplates.ts`, which now has three more keys. If the two
+drift, an owner can save a token the sender cannot resolve.
+
+STEP 1 — sync the shared module
+
+Copy these changes from `src/lib/automationTemplates.ts` into
+`supabase/functions/_shared/automation-templates.ts` exactly:
+
+  - `AutomationKey` gains 'booking_confirmation' | 'reminder_advance' |
+    'reminder_soon'.
+  - New export `AUTOMATION_ROW_TYPE` mapping each key to its
+    `organization_automations.automation_type` row (the three new keys all map
+    to 'appointment_reminder').
+  - `AUTOMATION_VOCABULARY` gains the three keys. Each has customer_name,
+    service_name, company_name, date, time (REQUIRED), address_line.
+  - `AUTOMATION_DEFAULTS` gains the three keys, all `message_class:
+    'transactional'`, with the bodies exactly as they appear in the src copy.
+  - In `resolveTemplate`, the final trim becomes:
+        const finalText = text.replace(/[ \t]{2,}/g, ' ').trim();
+    This collapses the gap an empty `{address_line}` leaves behind.
+
+Do not reword the defaults. They are byte-identical to what the function sends
+today, which is what guarantees nothing changes for the 960 orgs that never
+customise.
+
+STEP 2 — read the custom bodies
+
+Near the top of the request handler, once per run (not per booking):
+
+    const { data: automationRow } = await supabase
+      .from('organization_automations')
+      .select('settings')
+      .eq('organization_id', organizationId)
+      .eq('automation_type', 'appointment_reminder')
+      .maybeSingle();
+
+    const customTemplates =
+      (automationRow?.settings as { templates?: Record<string, string> } | null)
+        ?.templates ?? {};
+
+A missing row, a null `settings`, or a missing `templates` key are all normal —
+they mean "this org never customised" and must resolve to `{}` silently.
+
+STEP 3 — replace the four hardcoded literals
+
+There are four in the file today. Every one becomes a `resolveTemplate` call.
+`address_line` carries the word "Address" itself so the message reads correctly
+when there is no address:
+
+    const addressLine = address ? `Address: ${address}.` : '';
+
+3a. `index.ts` around line 407, the manual-send branch. Both the confirmation
+and the non-confirmation string currently exist there. Use:
+
+    const key = isConfirmation ? 'booking_confirmation' : 'reminder_advance';
+    const r = resolveTemplate(key, customTemplates[key], {
+      customer_name: customerName,
+      service_name: serviceName,
+      company_name: companyName,
+      date: formattedDate,
+      time: formattedTime,
+      address_line: addressLine,
+    });
+    const message = r.text;
+    if (r.warning) {
+      console.warn(`[send-booking-reminder] org=${organizationId} key=${key}: ${r.warning}`);
+    }
+
+3b. The automated client reminders at :503-511, the three-way if/else on
+`interval.hours_before`. Keep the branching — it chooses the KEY now, not the
+text:
+
+    const key = interval.hours_before >= 48
+      ? 'reminder_advance'
+      : interval.hours_before <= 2
+        ? 'reminder_soon'
+        : 'booking_confirmation';
+
+then the same `resolveTemplate` call, with `clientMsg = r.text`.
+
+Leave the CLEANER-facing messages completely alone. They are internal and not
+part of this feature.
+
+STEP 4 — logging
+
+Every `r.warning` gets logged with the organization id and the key, at
+console.warn. That is the only way to find an org with a bad saved body. Never
+skip a send because of a warning — the resolver has already substituted
+something safe.
+
+WHY THIS IS SAFE
+  - Unknown token, e.g. a saved `{custmerName}`: braces stripped, message sends
+    as "Hi custmerName!", warning logged. Never literal braces to a customer.
+  - Missing the required `{time}`: the custom body is discarded and today's
+    default sends instead, warning logged.
+  - No custom body at all: today's default, no warning.
+  - A body that resolves to nothing: the default. The resolver cannot return an
+    empty string.
+
+VERIFY BEFORE REPORTING BACK
+  1. Run the tests that pin this behaviour: they live at
+     src/lib/automationTemplates.test.ts and must still pass unchanged, since
+     both copies owe the same contract.
+  2. Diff the two automation-templates.ts files and confirm the vocabulary and
+     defaults are identical.
+  3. Confirm an org with no `settings.templates` produces byte-identical SMS
+     text to before the change.
+  4. Report the deployed function version.
