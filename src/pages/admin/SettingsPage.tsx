@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgDataExportCard } from '@/components/admin/OrgDataExportCard';
 import { AppUpdateCard } from '@/components/admin/AppUpdateCard';
+import { FeedbackTab } from '@/components/admin/FeedbackTab';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -657,6 +658,7 @@ export default function SettingsPage() {
             <TabsTrigger className="shrink-0" value="mobile-nav">Mobile Nav</TabsTrigger>
             <TabsTrigger className="shrink-0" value="import">Import Data</TabsTrigger>
             <TabsTrigger className="shrink-0" value="security">Security</TabsTrigger>
+            <TabsTrigger className="shrink-0" value="feedback">Feedback</TabsTrigger>
             <TabsTrigger
               className="shrink-0"
               value="subscription"
@@ -1288,6 +1290,11 @@ export default function SettingsPage() {
 
           {/* Account Deletion - Required for App Store compliance */}
           <AccountDeletionCard />
+        </TabsContent>
+
+        {/* Feedback Tab */}
+        <TabsContent value="feedback" className="space-y-6">
+          <FeedbackTab />
         </TabsContent>
 
         {/* Team Tab */}
