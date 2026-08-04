@@ -54,6 +54,7 @@ import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { PortalSettingsTab } from "@/components/portal/PortalSettingsTab";
 import { PortalProfileTab } from "@/components/portal/PortalProfileTab";
 import { PortalPaymentMethodCard } from '@/components/portal/PortalPaymentMethodCard';
+import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { PortalPhotoJournalTab } from "@/components/portal/PortalPhotoJournalTab";
 import { LoyaltyTierBanner } from "@/components/portal/LoyaltyTierBanner";
 import { useOrgTiers } from "@/hooks/useOrgTiers";
@@ -776,7 +777,7 @@ export default function PortalDashboardPage() {
             <Sheet>
               <SheetTrigger asChild>
                 <button
-                  className="relative h-10 w-10 rounded-full inline-flex items-center justify-center hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+                  className="relative h-11 w-11 min-h-[44px] min-w-[44px] rounded-full inline-flex items-center justify-center hover:bg-[hsl(var(--pv-sunken))] transition-colors"
                   aria-label="Notifications"
                 >
                   <Bell className="h-[18px] w-[18px] text-[hsl(var(--pv-ink-2))]" />
@@ -821,10 +822,27 @@ export default function PortalDashboardPage() {
                 </div>
               </SheetContent>
             </Sheet>
+            {/* Same next-themes mechanism the admin side uses — ThemeProvider
+                already wraps every route in App.tsx, so this is the existing
+                toggle, not a second implementation. */}
+            <ThemeToggle />
+            {/* Sign out lives in the header, not only inside the Settings
+                sheet. It was reachable only by opening that sheet and scrolling
+                past two full tab components — on a shared device a client
+                effectively could not get out. 44px tap target, same floor as
+                the rest of the app. */}
+            <button
+              onClick={handleSignOut}
+              aria-label="Sign out"
+              title="Sign out"
+              className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full inline-flex items-center justify-center hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+            >
+              <LogOut className="h-[18px] w-[18px] text-[hsl(var(--pv-ink-2))]" />
+            </button>
             <Sheet>
               <SheetTrigger asChild>
                 <button
-                  className="h-10 w-10 rounded-full inline-flex items-center justify-center hover:bg-[hsl(var(--pv-sunken))] transition-colors"
+                  className="h-11 w-11 min-h-[44px] min-w-[44px] rounded-full inline-flex items-center justify-center hover:bg-[hsl(var(--pv-sunken))] transition-colors"
                   aria-label="Settings"
                 >
                   <Settings className="h-[18px] w-[18px] text-[hsl(var(--pv-ink-2))]" />
@@ -835,12 +853,15 @@ export default function PortalDashboardPage() {
                   <SheetTitle>Settings</SheetTitle>
                 </SheetHeader>
                 <div className="mt-4 space-y-6">
-                  <PortalProfileTab />
-                  <PortalSettingsTab />
+                  {/* Kept here too — someone already in Settings should not
+                      have to close the sheet to sign out. The header button is
+                      the discoverable one. */}
                   <Button variant="outline" className="w-full gap-2 h-11 rounded-full text-sm" onClick={handleSignOut}>
                     <LogOut className="h-4 w-4" />
                     Sign out
                   </Button>
+                  <PortalProfileTab />
+                  <PortalSettingsTab />
                 </div>
               </SheetContent>
             </Sheet>
