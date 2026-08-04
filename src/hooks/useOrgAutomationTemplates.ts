@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import {
   AUTOMATION_ROW_TYPE,
@@ -77,19 +78,19 @@ export function useOrgAutomationTemplates() {
       if (existing) {
         const { error } = await supabase
           .from('organization_automations')
-          .update({ settings: nextSettings })
+          .update({ settings: nextSettings as unknown as Json })
           .eq('id', existing.id)
           .eq('organization_id', organizationId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('organization_automations')
-          .insert({
+          .insert([{
             organization_id: organizationId,
             automation_type: automationType,
             is_enabled: true,
-            settings: nextSettings,
-          });
+            settings: nextSettings as unknown as Json,
+          }]);
         if (error) throw error;
       }
     },
