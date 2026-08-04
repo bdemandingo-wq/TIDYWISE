@@ -11,59 +11,46 @@ import { initSentry, Sentry } from "@/lib/sentry";
 initSentry();
 
 // Auto-recover from stale-deploy chunk load failures.
-// When index.html is cached but references hashed JS files that no longer
-// exist on the CDN (typical right after a deploy), dynamic imports throw
-// "Failed to fetch dynamically imported module". A one-time hard reload
-// fetches the fresh index.html and resolves it. Guarded by sessionStorage
-// to prevent infinite reload loops.
-const CHUNK_RELOAD_KEY = '__tw_chunk_reload_attempted__';
+//
+// An open tab holds the old index.html; a deploy replaces the hashed chunks it
+// references, so the next lazy import 404s. One hard reload fetches the fresh
+// index.html. All of the deciding — web-only, online-only, once PER CHUNK —
+// lives in lib/chunkReload so this file, the ErrorBoundary and the Vite hook
+// below cannot drift apart. There were three separate copies of the matching
+// regexes before, each with its own guard.
+import {
+  maybeReloadForStaleChunk,
+  clearChunkReloadGuard,
+} from "@/lib/chunkReload";
 
-function isChunkLoadError(reason: unknown): boolean {
-  if (!reason) return false;
-  const msg = (reason instanceof Error ? reason.message : String(reason)) || '';
-  const name = reason instanceof Error ? reason.name : '';
-  return (
-    name === 'ChunkLoadError' ||
-    /Importing a module script failed/i.test(msg) ||
-    /Failed to fetch dynamically imported module/i.test(msg) ||
-    /Loading chunk [\d]+ failed/i.test(msg) ||
-    /Loading CSS chunk/i.test(msg) ||
-    /error loading dynamically imported module/i.test(msg)
-  );
-}
-
-function tryRecoverFromChunkError(reason: unknown): boolean {
-  if (!isChunkLoadError(reason)) return false;
-  try {
-    if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
-      sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
-      window.location.reload();
-      return true;
-    }
-  } catch {
-    // sessionStorage unavailable — fall through
-  }
-  return false;
-}
-
-window.addEventListener('error', (event) => {
-  if (tryRecoverFromChunkError(event.error || event.message)) {
+// Vite's own signal, and the one that actually fires for a failed lazy import.
+// React catches the import rejection itself and routes it through Suspense to
+// an error boundary, so the generic 'error' / 'unhandledrejection' listeners
+// below never see it — which is why a stale chunk could still reach the crash
+// panel despite them. This fires before React is involved at all.
+window.addEventListener("vite:preloadError", (event) => {
+  const e = event as Event & { payload?: unknown };
+  if (maybeReloadForStaleChunk(e.payload ?? e)) {
     event.preventDefault();
   }
 });
 
-window.addEventListener('unhandledrejection', (event) => {
-  if (tryRecoverFromChunkError(event.reason)) {
+window.addEventListener("error", (event) => {
+  if (maybeReloadForStaleChunk(event.error || event.message)) {
     event.preventDefault();
   }
 });
 
-// Clear the reload guard once the app successfully bootstraps so future
-// deploys can recover again.
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    try { sessionStorage.removeItem(CHUNK_RELOAD_KEY); } catch { /* noop */ }
-  }, 5000);
+window.addEventListener("unhandledrejection", (event) => {
+  if (maybeReloadForStaleChunk(event.reason)) {
+    event.preventDefault();
+  }
+});
+
+// Clear the guard once the app has actually bootstrapped, so a later deploy in
+// the same tab can recover again.
+window.addEventListener("load", () => {
+  setTimeout(clearChunkReloadGuard, 5000);
 });
 
 // Set up deep link listener for native OAuth callbacks (Guideline 4.0)

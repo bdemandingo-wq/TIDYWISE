@@ -3,6 +3,11 @@ import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
+import {
+  isChunkLoadError,
+  maybeReloadForStaleChunk,
+  clearChunkReloadGuard,
+} from '@/lib/chunkReload';
 
 interface Props {
   children: ReactNode;
@@ -17,24 +22,6 @@ interface State {
   errorInfo: React.ErrorInfo | null;
 }
 
-/**
- * Detects errors thrown when a code-split chunk referenced by a stale
- * index.html no longer exists on the CDN (typical right after a deploy).
- * Browsers report this with a few different messages — we match the common ones.
- */
-function isChunkLoadError(error: unknown): boolean {
-  if (!error) return false;
-  const msg = (error instanceof Error ? error.message : String(error)) || '';
-  const name = error instanceof Error ? error.name : '';
-  return (
-    name === 'ChunkLoadError' ||
-    /Importing a module script failed/i.test(msg) ||
-    /Failed to fetch dynamically imported module/i.test(msg) ||
-    /Loading chunk [\d]+ failed/i.test(msg) ||
-    /Loading CSS chunk/i.test(msg) ||
-    /error loading dynamically imported module/i.test(msg)
-  );
-}
 
 /**
  * Global Error Boundary - wraps features to catch render errors
@@ -62,14 +49,10 @@ export class ErrorBoundary extends Component<Props, State> {
     // / "Failed to fetch dynamically imported module". A one-time hard reload
     // pulls the fresh index.html and resolves it. We guard with sessionStorage
     // to avoid infinite reload loops if the issue is something else.
-    if (isChunkLoadError(error)) {
-      const RELOAD_KEY = '__tw_chunk_reload_attempted__';
-      if (typeof window !== 'undefined' && !sessionStorage.getItem(RELOAD_KEY)) {
-        sessionStorage.setItem(RELOAD_KEY, '1');
-        window.location.reload();
-        return;
-      }
-    }
+    // Web only, online only, once per chunk — see lib/chunkReload. On native
+    // the assets are bundled, so a missing chunk is a damaged build rather than
+    // a deploy race and must reach the panel instead of being reloaded away.
+    if (maybeReloadForStaleChunk(error)) return;
     
     // Log to system_logs table
     try {
@@ -112,7 +95,8 @@ export class ErrorBoundary extends Component<Props, State> {
     // reference is still in the bundler graph. Force a hard reload instead.
     if (this.state.error && isChunkLoadError(this.state.error)) {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('__tw_chunk_reload_attempted__');
+        // An explicit retry always gets a fresh attempt, for every chunk.
+        clearChunkReloadGuard();
         window.location.reload();
         return;
       }
