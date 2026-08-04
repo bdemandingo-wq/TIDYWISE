@@ -3,6 +3,7 @@ import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ClientPortalUsersManager } from '@/components/admin/ClientPortalUsersManager';
 import { ClientBookingRequestsManager } from '@/components/admin/ClientBookingRequestsManager';
+import { EmailChangeRequestsPanel } from '@/components/admin/EmailChangeRequestsPanel';
 import { LoyaltyProgramSettings } from '@/components/admin/LoyaltyProgramSettings';
 import { Users, Calendar, Gift } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -19,13 +20,23 @@ export default function ClientPortalPage() {
     queryKey: ['pending-booking-requests-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
-      const { count, error } = await supabase
-        .from('client_booking_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', organization.id)
-        .eq('status', 'pending');
-      if (error) return 0;
-      return count || 0;
+      // Both kinds of pending request count toward the badge — an unhandled
+      // email change is as much "needs you" as an unscheduled booking.
+      const [bookings, emailChanges] = await Promise.all([
+        supabase
+          .from('client_booking_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organization.id)
+          .eq('status', 'pending'),
+        supabase
+          .from('admin_system_notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', organization.id)
+          .eq('type', 'email_change_request')
+          .eq('is_read', false),
+      ]);
+      if (bookings.error) return 0;
+      return (bookings.count || 0) + (emailChanges.error ? 0 : emailChanges.count || 0);
     },
     enabled: !!organization?.id,
   });
@@ -59,7 +70,11 @@ export default function ClientPortalPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="requests" className="mt-6">
+        <TabsContent value="requests" className="mt-6 space-y-6">
+          {/* Above the booking queue on purpose: a booking request is work to
+              schedule, an email change is a person locked out of their own
+              sign-in until someone acts. Renders nothing when there are none. */}
+          <EmailChangeRequestsPanel />
           <ClientBookingRequestsManager />
         </TabsContent>
 
