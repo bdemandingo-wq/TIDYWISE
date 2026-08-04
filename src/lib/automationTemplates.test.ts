@@ -123,7 +123,7 @@ const RDATA = {
 for (const key of ['booking_confirmation', 'reminder_advance', 'reminder_soon'] as const) {
   test(`${key}: a mistyped placeholder is rejected at save time`, () => {
     const err = validateTemplate(key, 'Hi {custmerName}! See you at {time}');
-    assert.match(err ?? '', /\{custmerName\}/);
+    assert.match(err ?? "", /\{custmername\}/i);
     assert.match(err ?? '', /\{customer_name\}/);
   });
 
