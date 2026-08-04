@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrgId } from "@/hooks/useOrgId";
 import { toast } from "@/hooks/use-toast";
 import { FunctionsHttpError } from "@supabase/supabase-js";
+import { openExternalUrl } from "@/lib/openExternalUrl";
 
 interface Props extends Omit<ButtonProps, "onClick"> {
   label?: string;
@@ -40,7 +41,9 @@ export function BuyAiCreditsButton({
         throw new Error(details || "Failed to start checkout");
       }
       if (!data?.url) throw new Error("Checkout URL missing from response");
-      window.open(data.url, "_blank");
+      // window.open is silently ignored in an iOS WKWebView — no window, no
+      // error — so on device this button spun and then did nothing at all.
+      await openExternalUrl(data.url);
     } catch (e) {
       toast({
         title: "Couldn't start checkout",
