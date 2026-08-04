@@ -65,7 +65,48 @@ export const AUTOMATION_VOCABULARY: Record<AutomationKey, TokenSpec[]> = {
     { token: 'company_name', description: 'Your business name' },
     { token: 'quote_link', description: 'Link to their quote', required: true },
   ],
+
+  /*
+   * The three booking-reminder messages share one vocabulary because they are
+   * the same message at three distances from the appointment.
+   *
+   * `{address_line}` carries the word "Address" itself, not just the street.
+   * The hardcoded originals only printed the address clause when they HAD an
+   * address; a bare `{address}` token would render "Address: ." for the
+   * bookings with none. The sender therefore supplies either
+   * "Address: 12 Elm St." or an empty string, and the resolver collapses the
+   * gap it leaves behind.
+   *
+   * `{time}` is required on all three — a reminder that does not say when is
+   * not a reminder. `{date}` is NOT required, because the two-hour message
+   * legitimately says "today" instead.
+   */
+  booking_confirmation: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_advance: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_soon: [
+    { token: 'customer_name', description: "The customer's name" },
+    { token: 'service_name', description: 'The service they booked' },
+    { token: 'company_name', description: 'Your business name' },
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
 };
+
 
 export interface AutomationDefault {
   sms_body: string;
