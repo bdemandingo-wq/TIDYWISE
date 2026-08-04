@@ -1,8 +1,13 @@
 # `create-setup-intent` attaches a card to any customer with no authentication
 
 **Found:** 2026-08-04, while scoping client-portal card updates.
-**Status:** open. Deliberately not fixed — the fix is in `supabase/`, and the
-Lovable credit is being held. Log for when credits reset.
+**Status:** FIXED 2026-08-04. `create-setup-intent` now has three branches
+(portal session first, constrained anonymous, admin JWT); the anonymous branch
+rejects emails that already have a portal login or a default card.
+`get-payment-method-details` accepts portal + public callers but verifies the
+payment method's Stripe customer carries the matching `organization_id`, and
+portal card changes write a `card_updated` row to `admin_system_notifications`.
+
 **Severity:** enables a chargeback against the organisation.
 
 ## What

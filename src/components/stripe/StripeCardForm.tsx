@@ -23,6 +23,8 @@ interface CardFormProps {
   showHoldOption?: boolean;
   defaultHoldAmount?: number;
   publicBooking?: boolean;
+  /** Portal session token; when present the edge functions authorise via the verified session. */
+  portalSessionToken?: string | null;
 }
 
 const CARD_ELEMENT_OPTIONS = {
@@ -60,6 +62,7 @@ function CardFormInner({
   showHoldOption = true,
   defaultHoldAmount = 50,
   publicBooking = false,
+  portalSessionToken = null,
 }: CardFormProps & {
   stripeReact: StripeReact;
   prefetchedClientSecret: string;
@@ -103,7 +106,9 @@ function CardFormInner({
           body: {
             paymentMethodId: setupIntent.payment_method,
             organizationId,
+            publicBooking,
           },
+          headers: portalSessionToken ? { 'x-portal-session': portalSessionToken } : undefined,
         });
 
         if (cardError) {
@@ -236,7 +241,7 @@ function CardFormInner({
  * This guarantees that Elements and confirmCardSetup both use the exact same Stripe instance.
  */
 export function StripeCardForm(props: CardFormProps) {
-  const { email, customerName, organizationId, publicBooking = false } = props;
+  const { email, customerName, organizationId, publicBooking = false, portalSessionToken = null } = props;
 
   const [stripeReact, setStripeReact] = useState<StripeReact | null>(getCachedStripeReact);
   // Both stripePromise and clientSecret are resolved together before Elements mounts.
@@ -270,6 +275,7 @@ export function StripeCardForm(props: CardFormProps) {
       try {
         const { data: setupData, error: setupError } = await supabase.functions.invoke('create-setup-intent', {
           body: { email, customerName, organizationId, publicBooking },
+          headers: portalSessionToken ? { 'x-portal-session': portalSessionToken } : undefined,
         });
 
         if (cancelled) return;
@@ -296,7 +302,7 @@ export function StripeCardForm(props: CardFormProps) {
 
     prefetch();
     return () => { cancelled = true; };
-  }, [organizationId, email, customerName, publicBooking]);
+  }, [organizationId, email, customerName, publicBooking, portalSessionToken]);
 
   // Loading states
   if (!stripeReact || !stripePromise || !clientSecret) {
