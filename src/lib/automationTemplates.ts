@@ -133,7 +133,35 @@ export const AUTOMATION_DEFAULTS: Record<AutomationKey, AutomationDefault> = {
     sms_body:
       'Hi {customer_name} — just checking in on your {service_name} quote from {company_name}. Still interested? View it here: {quote_link}. Reply if you have questions!',
   },
+
+  /*
+   * Copied verbatim from send-booking-reminder. An org that never edits must
+   * receive byte-identical text to what it received before this feature
+   * existed, so do not "improve" the wording here.
+   *
+   * All three are transactional: the customer booked a job and is being told
+   * about that job. No opt-out line is appended.
+   */
+  booking_confirmation: {
+    label: 'Booking confirmation',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} appointment with {company_name} is confirmed for {date} at {time}. {address_line} Reply to this message with any questions!',
+  },
+  reminder_advance: {
+    label: 'Reminder — 48 hours or more before',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Friendly reminder — your {service_name} appointment with {company_name} is coming up on {date} at {time}. {address_line} Reply with any questions!',
+  },
+  reminder_soon: {
+    label: 'Reminder — 2 hours or less before',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} with {company_name} is starting soon — today at {time}. {address_line} See you shortly!',
+  },
 };
+
 
 /** `{single}` braces — the syntax all three SMS engines already use. */
 const TOKEN_PATTERN = /\{([a-z0-9_]+)\}/gi;
