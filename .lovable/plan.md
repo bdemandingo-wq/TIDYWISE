@@ -1,56 +1,81 @@
-# Mobile QA Batch Plan
+# Editable automation message copy
 
-23 fixes grouped into 8 work streams. I'll implement in this order; each group is independently shippable.
+## The short answer on your instinct
 
-## 1. Booking form + list (items 1–4)
-- `BookingStepper.tsx` — button state machine: single primary Save with spinner-in-place; separate Draft button; disable both while saving; verify draft path actually calls the `is_draft=true` insert branch and invalidates the Drafts query key.
-- `BookingsPage.tsx` / status chip renderer — when `status === 'cancelled'`, render only the CANCELLED chip; suppress cleaning/payment chips.
-- Booking action sheet (mobile) — add destructive "Delete Booking" row with AlertDialog confirm, calls existing delete mutation.
-- `SchedulerCalendar` mobile day cell — if `bookings.length >= 2`, tapping opens a bottom-sheet list of that day's bookings; selecting one opens the existing action sheet.
+Your `organization_automations.settings` idea is right in shape but wrong in placement — because half of this already exists and works.
 
-## 2. AI chat / Ask TidyWise (items 5–8, 16 partial)
-- Chat input container: switch to `dvh`-based flex layout with `env(safe-area-inset-bottom)` + `visualViewport` listener so the composer sticks above the iOS keyboard.
-- Send handler: guard with `isSending` ref + disable submit button and suggested-prompt buttons while `status !== 'idle'`.
-- Error mapping: intercept 402 `daily_limit_reached` and generic non-2xx → show branded "Out of AI credits" toast with action button opening `BuyAiCreditsButton` flow. Fallback: friendly generic message, never raw "Edge Function returned…".
-- Credits meter: after each successful/failed AI call, `queryClient.invalidateQueries(['ai-credit-status'])`; also lower `staleTime` and subscribe to a lightweight event bus fired by the chat hook.
+`src/lib/automationTemplates.ts` + `supabase/functions/_shared/automation-templates.ts` were built for `quote_stale_reengage`: a per-key vocabulary of allowed placeholders, save-time validation, and a send-time resolver that can never emit a blank or a literal `{brace}`. It reads the custom body out of `organization_automations.settings`. That is exactly the design you just described, already shipped and already tested (`automationTemplates.test.ts`).
 
-## 3. Live Tracking settings (items 9–10)
-- Wire the 3 toggles to `business_settings` columns (`live_tracking_include_eta_sms`, `notify_client_on_arrival`, `notify_admin_on_arrival`) — add migration if missing, update mutation, and gate the corresponding edge-function paths (`send-on-the-way-sms`, `send-arrival-sms`) on those flags.
-- Completed Routes: fix query — currently filtering by `status='completed'` on wrong table or missing `organization_id`; verify against `bookings` + `cleaner_location_tracking` and show today's completed jobs in org timezone.
+So this is not "build the cheap path". It is "add three more keys to the path that already exists". No new tables, no schema change at all.
 
-## 4. Sidebar badges (item 11)
-- `useSidebarBadgesFull` — Scheduler badge should count only actionable pending items (not all today's bookings). Recheck the query filter; suppress badge when count is 0.
+## Question 1 — the failure mode for a mistyped placeholder
 
-## 5. Customer → Book prefill (item 12)
-- Customer profile "Book" button navigates to `/dashboard/bookings?new=1&customerId=…`; `AddBookingDialog` reads that param and seeds the form with name/phone/email/address.
+`Hi {custmerName}!` never reaches a customer. Three gates:
 
-## 6. Invoices (items 13–15)
-- Line item component: `Number(qty) * Number(price)` with proper `parseFloat`, guard NaN → 0; recompute totals on each keystroke.
-- Send button: same loading-state pattern as booking Save (single button, spinner replaces label).
-- Recipients: add tag-style additional-emails input to Send dialog; pass `additionalRecipients: string[]` to `send-invoice` edge fn and include as `cc`.
+1. **Save time.** The editor calls `validateTemplate(key, body)`. `{custmerName}` is not in that key's vocabulary, so save is rejected with a message naming the offending token and listing the valid ones. The admin fixes it while they are sitting there.
+2. **Send time, unknown token.** If a bad row exists anyway (written before validation, or by a script), the resolver strips the braces and sends the bare word — `Hi custmerName!` — and logs a warning. Ugly, not broken, and never literal braces.
+3. **Send time, missing required token.** Each key marks its load-bearing tokens required. A reminder without `{date}`/`{time}` has no purpose, so the resolver discards the custom body entirely and sends today's hardcoded default, logging why.
 
-## 7. Error handling + Leads (items 16, 17)
-- Introduce/extend `parseEdgeFunctionErrorDetailed` mapping for `daily_limit_reached`, `leads_status_check`, and generic `non-2xx`; wire all `toast.error(err.message)` sites in AI + leads + invoices to use the parser. Audit remaining sites via `rg "non-2xx|error.message"` and swap.
-- Check `leads_status_check` DB constraint; identify which status value is being sent that's not in the enum, either add missing value via migration or fix the client-side value.
-- Leads mobile card "…" menu: add Delete with confirmation, matches desktop menu items.
+Case 4, known token with no data: resolves to empty string, because the sender already substitutes `there` for a missing name and `cleaning` for a missing service. A blank there means the sender genuinely had nothing.
 
-## 8. Mobile styling + modal footer + automation + analytics (items 18–23)
-- Services page tab bar: wrap in `overflow-x-auto scrollbar-none` with `whitespace-nowrap` triggers; ensure `-mx-4 px-4` bleed.
-- Global input styling: audit `src/components/ui/input.tsx` / `textarea.tsx` dark-mode tokens; ensure `bg-background text-foreground border-input` and remove any hardcoded overrides in Add Staff modal.
-- Sticky modal footer rule: create `<DialogFooter className="sticky bottom-0 …">` pattern; apply to Add Staff modal + audit other affected modals.
-- Automation Center mobile: root-cause the empty state — likely a conditional query gated on desktop-only filter state. Fix so `useAutomations()` returns the same rows on mobile.
-- Suggestions "Configure SMS": change route to `/dashboard/settings?section=sms` (or existing anchor) and ensure Settings page scrolls to that section.
-- User Activity Tracking page: responsive header (stack on `<md`), badges use `flex-wrap` and `text-xs`, tighten padding, ensure contrast via semantic tokens.
+Net: an admin cannot save a broken message, and no path in the resolver returns silence or braces.
+
+## SMS segment count
+
+Yes, and it should be a warning, not a block.
+
+- GSM-7 is 160 chars, 153 per segment once it splits; a single non-GSM character (curly quote, emoji, en dash) drops the whole message to UCS-2 at 70/67.
+- The editor shows `142 / 1 segment` live, turns amber at 2, and names the cause when encoding flips — "an emoji pushed this to 2 segments" is actionable, "2 segments" is not.
+- Counted against the resolved preview with sample data, not the raw template, since `{customer_name}` is 15 characters and "Bo" is 2.
+- The marketing opt-out line the sender appends is included in the count. It is invisible in the editor but the org pays for it.
+
+## Which automations first
+
+Three, from the `send-booking-reminder` cluster:
+
+| Key | Today's hardcoded source |
+|---|---|
+| `booking_confirmation` | `:407` and the `else` branch at `:503` |
+| `reminder_advance` | `>= 48h` branch |
+| `reminder_soon` | `<= 2h` branch |
+
+Why these: they are the highest-volume customer-facing messages, they are the ones orgs actually ask to reword, they share one vocabulary (`customer_name`, `service_name`, `company_name`, `date`, `time`, `address`), and they are all transactional — no opt-out interaction to reason about. One edge function, one prompt, one deploy.
+
+Explicitly not in scope now: cleaner-facing reminders (internal, nobody asks), and the campaign/win-back/seasonal senders (marketing, opt-out and cap logic makes them a separate conversation). The 961 `organization_automations` rows are untouched — a row only gains a `settings` body when an admin edits one.
+
+## The existing editor
+
+`AutomationEditorDialog` writes to `automation_definitions` / `automation_triggers` / `automation_steps`, all of which have zero rows. It is a GHL-style multi-step graph builder for an engine that does not exist yet.
+
+Leave it. Do not repoint it — the data models are not the same shape, and bending a step-graph editor into a single-textarea form produces a worse version of both. Build a plain `AutomationMessageEditor` beside it, add a **Messages** tab to the Automation Center, and put the message editing there. The old dialog stays reachable but stops being the thing an admin lands on for "change my reminder text".
+
+If you want the dead builder removed, that is a separate cleanup — say so and I will do it as its own change.
+
+## Preview
+
+Reuse the pattern, not the functions. `preview-org-email` renders branded HTML; SMS is plain text and the resolver runs client-side, so preview needs no round trip — `resolveTemplate` in the browser against sample data renders instantly as the admin types, which is better than a button.
+
+Send-test does need the backend: a **Send test to my phone** button reusing the org's OpenPhone identity, capped by the existing `abuse_throttle`, always to the signed-in admin's own number and never to a customer-supplied one.
+
+## Technical detail
+
+Frontend (mine):
+- Extend `AutomationKey` and both `AUTOMATION_VOCABULARY` / `AUTOMATION_DEFAULTS` copies with the three keys, defaults copied verbatim from the edge function so nothing changes until an admin edits.
+- `src/lib/smsSegments.ts` — encoding detection and segment count.
+- `src/components/admin/automation/AutomationMessageEditor.tsx` — textarea, token chips, live resolved preview, segment counter, inline validation.
+- `src/hooks/useOrgAutomationTemplates.ts` — read/write `organization_automations.settings.templates[key]`, org-scoped.
+- New **Messages** tab in `AutomationCenterPage.tsx`; add the three entries to the Feature Guide.
+- Tests extending `automationTemplates.test.ts` to cover the new keys, plus segment-count tests.
+
+Backend (Lovable's — paste-ready prompt delivered separately, not edited here):
+- `_shared/automation-templates.ts` gains the same three keys, kept verbatim in sync.
+- `send-booking-reminder` fetches `organization_automations.settings` once per run and passes each body through `resolveTemplate`; the hardcoded literals become the defaults rather than being deleted.
+- Warnings logged with org id and key so a bad row is findable.
 
 ## Verification
-- Playwright at 390×844 viewport: booking flow (save + draft), AI chat with keyboard focus, invoice totals, services tabs scroll, staff modal save reachability.
-- Read console/network for the AI 402 path and confirm the branded toast fires.
-- Cross-check no desktop regressions via a 1440 viewport screenshot pass on the touched pages.
 
-## Assumptions I'll make unless told otherwise
-- `business_settings` is the right home for the 3 live-tracking flags (matches existing pattern).
-- The AI credits purchase flow is `BuyAiCreditsButton` and I'll reuse it in the toast action.
-- Draft bookings failure is a query/invalidation issue rather than a missing column — I'll confirm on read.
-- For the leads constraint, I'll adjust the client to send a valid enum value; if the intent is a new status, I'll add it to the check constraint via migration.
-
-If you want me to split delivery (e.g. ship groups 1–4 first, then the rest), say so; otherwise I'll proceed top-to-bottom.
+- Save a template with `{custmerName}` — rejected, token named.
+- Force a row containing `{custmerName}` directly, then run the sender — customer receives `Hi custmerName!`, warning logged, no braces.
+- Force a reminder body with no `{time}` — sender uses the default, warning logged.
+- An org that never edits receives byte-identical text to today.
+- Two orgs, custom bodies each — no cross-org bleed.
