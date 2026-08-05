@@ -8,8 +8,10 @@ import {
   Loader2, Users, Building2, CreditCard, TrendingUp, 
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase, Bell, Search, Gift
+  CalendarCheck, Phone, Briefcase, Bell, Search, Gift, DollarSign
 } from 'lucide-react';
+import { PlatformRevenueView } from '@/pages/admin/PlatformRevenuePage';
+
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { format, formatDistanceToNow, subDays } from 'date-fns';
