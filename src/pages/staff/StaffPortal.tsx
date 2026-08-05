@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MyJobCard } from '@/components/staff/MyJobCard';
 import { AvailableJobCard } from '@/components/staff/AvailableJobCard';
 import { NotificationBell } from '@/components/staff/NotificationBell';
+import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { OnboardingProgress } from '@/components/staff/OnboardingProgress';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -1116,6 +1117,12 @@ export default function StaffPortal() {
                 </Badge>
               </>
             )}
+            {/* Same next-themes mechanism the admin side uses — ThemeProvider
+                already wraps every route in App.tsx, so the portal was always
+                inside the provider and only lacked a control. Outside the
+                staffInfo guard so it is available even when no staff row
+                resolves. */}
+            <ThemeToggle className="h-11 w-11 min-h-[44px] min-w-[44px]" />
             <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-2 min-h-[44px] px-2.5 sm:px-3">
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>

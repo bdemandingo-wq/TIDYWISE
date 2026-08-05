@@ -825,7 +825,7 @@ export default function PortalDashboardPage() {
             {/* Same next-themes mechanism the admin side uses — ThemeProvider
                 already wraps every route in App.tsx, so this is the existing
                 toggle, not a second implementation. */}
-            <ThemeToggle />
+            <ThemeToggle className="h-11 w-11 min-h-[44px] min-w-[44px]" />
             {/* Sign out lives in the header, not only inside the Settings
                 sheet. It was reachable only by opening that sheet and scrolling
                 past two full tab components — on a shared device a client
