@@ -267,7 +267,7 @@ export default function CleaningBusinessSoftware() {
               <Button variant="ghost" onClick={() => navigate("/login")}>Log In</Button>
               <Button onClick={handleStartFree}>Get started</Button>
             </div>
-            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button aria-label="Toggle menu" className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>

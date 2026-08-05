@@ -99,6 +99,7 @@ export default function CompareJobber() {
               <Button onClick={handleStartFreeTrial}>Get started</Button>
             </div>
             <button 
+              aria-label="Toggle menu"
               className="md:hidden p-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >

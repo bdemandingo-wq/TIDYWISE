@@ -65,7 +65,7 @@ export default function DemoPage() {
               <Button variant="ghost" onClick={() => navigate("/login")} className="text-sm">Log In</Button>
               <Button onClick={() => navigate("/signup")} className="text-sm">Get started</Button>
             </div>
-            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button aria-label="Toggle menu" className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>

@@ -282,33 +282,150 @@ export async function createBookingFromPayload(opts: {
       // Non-blocking
     }
 
-    // Send SMS notification to admin phone via OpenPhone
-    try {
-      const { data: smsSettings } = await supabase
-        .from('organization_sms_settings')
-        .select('openphone_api_key, openphone_phone_number_id, sms_enabled')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
+    // Notify the admin on TWO always-on channels: SMS (OpenPhone) and email.
+    //
+    // Both fire unconditionally rather than email-as-SMS-fallback. Detecting an
+    // SMS failure reliably is not possible — OpenPhone can accept a request and
+    // silently drop the message (no A2P registration, SMS disabled downstream),
+    // and a prepaid-credit 402 stops delivery for every booking until someone
+    // notices. Two independent channels remove the single point of failure.
+    //
+    // Runs AFTER the response is handed back: the customer waits on the booking,
+    // not on an SMTP handshake. Nothing in here can fail the booking.
+    const notifications = runBookingNotifications({
+      supabase,
+      payload,
+      organizationId,
+      booking,
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+    }).catch((err) => {
+      console.error("[booking-notify] Unhandled notification error:", err);
+    });
 
-      const { data: bizSettings } = await supabase
-        .from('business_settings')
-        .select('company_phone, company_name, timezone')
-        .eq('organization_id', organizationId)
-        .maybeSingle();
+    // deno-lint-ignore no-explicit-any
+    const edgeRuntime = (globalThis as any).EdgeRuntime;
+    if (typeof edgeRuntime?.waitUntil === "function") {
+      edgeRuntime.waitUntil(notifications);
+    }
 
-      const apiKeyRaw = (smsSettings?.openphone_api_key || '').trim().replace(/^Bearer\s+/i, '');
-      const phoneNumberId = (smsSettings?.openphone_phone_number_id || '').trim();
-      const smsEnabled = smsSettings?.sms_enabled !== false;
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        booking_id: booking.id,
+        booking_number: booking.booking_number,
+        customer_id: customerId,
+        message: "Booking created successfully"
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+}
 
-      if (apiKeyRaw && phoneNumberId && bizSettings?.company_phone && smsEnabled) {
+/**
+ * Queryable record of what each notification channel actually did.
+ *
+ * console.log is invisible from inside the app, which is precisely why an
+ * OpenPhone billing failure went unnoticed until the provider emailed about it.
+ * These rows are readable from the admin surface:
+ *
+ *   select created_at, level, message, details
+ *   from public.system_logs
+ *   where source = 'booking-notify'
+ *   order by created_at desc;
+ */
+async function logNotification(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  entry: {
+    organizationId: string;
+    channel: "sms" | "email";
+    outcome: "sent" | "failed" | "skipped";
+    bookingId: string;
+    bookingNumber: string | number | null;
+    detail?: string;
+    // deno-lint-ignore no-explicit-any
+    extra?: Record<string, any>;
+  },
+) {
+  const level = entry.outcome === "failed" ? "error" : entry.outcome === "skipped" ? "warn" : "info";
+  try {
+    await supabase.from("system_logs").insert({
+      level,
+      source: "booking-notify",
+      message: `Booking BK-${entry.bookingNumber ?? "?"} ${entry.channel} ${entry.outcome}`,
+      organization_id: entry.organizationId,
+      details: {
+        channel: entry.channel,
+        outcome: entry.outcome,
+        booking_id: entry.bookingId,
+        booking_number: entry.bookingNumber,
+        detail: entry.detail ?? null,
+        ...(entry.extra ?? {}),
+      },
+    });
+  } catch (e) {
+    // Logging must never break notification delivery, which must never break
+    // the booking. Console is the last resort of the last resort.
+    console.error("[booking-notify] Failed to write system_logs row:", e);
+  }
+}
+
+async function runBookingNotifications(opts: {
+  // deno-lint-ignore no-explicit-any
+  supabase: any;
+  payload: BookingPayload;
+  organizationId: string;
+  // deno-lint-ignore no-explicit-any
+  booking: any;
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+}): Promise<void> {
+  const { supabase, payload, organizationId, booking, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = opts;
+
+  const { data: bizSettings } = await supabase
+    .from('business_settings')
+    .select('company_phone, company_name, timezone')
+    .eq('organization_id', organizationId)
+    .maybeSingle();
+
+  const orgTimezone = bizSettings?.timezone || "America/New_York";
+  const bookingDate = new Date(payload.scheduled_at);
+  const dateStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, weekday: 'short', month: 'short', day: 'numeric' }).format(bookingDate);
+  const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, hour: 'numeric', minute: '2-digit', hour12: true }).format(bookingDate);
+
+  const fullAddress = [payload.address, payload.city, payload.state, payload.zip_code]
+    .filter(Boolean)
+    .join(', ');
+
+  // Both channels run concurrently; neither can reject.
+  await Promise.all([
+    // ---------- SMS via OpenPhone ----------
+    (async () => {
+      try {
+        const { data: smsSettings } = await supabase
+          .from('organization_sms_settings')
+          .select('openphone_api_key, openphone_phone_number_id, sms_enabled')
+          .eq('organization_id', organizationId)
+          .maybeSingle();
+
+        const apiKeyRaw = (smsSettings?.openphone_api_key || '').trim().replace(/^Bearer\s+/i, '');
+        const phoneNumberId = (smsSettings?.openphone_phone_number_id || '').trim();
+        const smsEnabled = smsSettings?.sms_enabled !== false;
+
+        if (!(apiKeyRaw && phoneNumberId && bizSettings?.company_phone && smsEnabled)) {
+          const reason = `hasKey=${!!apiKeyRaw} hasPhoneId=${!!phoneNumberId} hasCompanyPhone=${!!bizSettings?.company_phone} smsEnabled=${smsEnabled}`;
+          console.log(`[booking-notify] Admin SMS skipped org=${organizationId} ${reason}`);
+          await logNotification(supabase, {
+            organizationId, channel: "sms", outcome: "skipped",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            detail: `SMS not configured (${reason})`,
+          });
+          return;
+        }
+
         let adminPhone = bizSettings.company_phone.replace(/\D/g, '');
         if (adminPhone.length === 10) adminPhone = '1' + adminPhone;
         if (!adminPhone.startsWith('+')) adminPhone = '+' + adminPhone;
-
-        const orgTimezone = bizSettings?.timezone || "America/New_York";
-        const bookingDate = new Date(payload.scheduled_at);
-        const dateStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, weekday: 'short', month: 'short', day: 'numeric' }).format(bookingDate);
-        const timeStr = new Intl.DateTimeFormat('en-US', { timeZone: orgTimezone, hour: 'numeric', minute: '2-digit', hour12: true }).format(bookingDate);
 
         const smsBody = `📋 New Online Booking #BK-${booking.booking_number}\n` +
           `Customer: ${payload.first_name} ${payload.last_name}\n` +
@@ -340,49 +457,107 @@ export async function createBookingFromPayload(opts: {
 
         const respBody = await opResp.text();
         if (opResp.ok) {
-          console.log(
-            `[external-booking-webhook] Admin SMS sent ok org=${organizationId} to=${adminPhone} status=${opResp.status}`,
-          );
+          console.log(`[booking-notify] Admin SMS sent ok org=${organizationId} status=${opResp.status}`);
+          await logNotification(supabase, {
+            organizationId, channel: "sms", outcome: "sent",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            extra: { status: opResp.status },
+          });
         } else {
           console.error(
-            `[external-booking-webhook] Admin SMS FAILED org=${organizationId} to=${adminPhone} status=${opResp.status} body=${respBody.slice(0, 300)}`,
+            `[booking-notify] Admin SMS FAILED org=${organizationId} status=${opResp.status} body=${respBody.slice(0, 300)}`,
           );
+          // A 402 here is the prepaid-credit outage: now visible in-app.
+          await logNotification(supabase, {
+            organizationId, channel: "sms", outcome: "failed",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            detail: respBody.slice(0, 500),
+            extra: { status: opResp.status },
+          });
         }
-      } else {
-        console.log(
-          `[external-booking-webhook] Admin SMS skipped org=${organizationId} hasKey=${!!apiKeyRaw} hasPhoneId=${!!phoneNumberId} hasCompanyPhone=${!!bizSettings?.company_phone} smsEnabled=${smsEnabled}`,
-        );
+      } catch (smsErr) {
+        const msg = smsErr instanceof Error ? smsErr.message : String(smsErr);
+        console.error("[booking-notify] SMS threw:", msg);
+        await logNotification(supabase, {
+          organizationId, channel: "sms", outcome: "failed",
+          bookingId: booking.id, bookingNumber: booking.booking_number,
+          detail: msg.slice(0, 500),
+        });
       }
-    } catch (smsErr) {
-      console.error("[external-booking-webhook] Failed to send SMS notification:", smsErr);
-      // Non-blocking
-    }
+    })(),
 
-    // Optionally send admin email notification
-    try {
-      await fetch(`${SUPABASE_URL}/functions/v1/send-admin-booking-notification`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          bookingId: booking.id,
-          organizationId,
-        }),
-      });
-    } catch (notifyError) {
-      console.error("[external-booking-webhook] Failed to send admin notification:", notifyError);
-    }
+    // ---------- Email via the org's existing sender ----------
+    (async () => {
+      try {
+        // Skip quietly when the org has no sender identity. Not an error: plenty
+        // of orgs run SMS-only, and a hard failure here would be noise, not signal.
+        const { data: emailSettings } = await supabase
+          .from('organization_email_settings')
+          .select('from_email, from_name')
+          .eq('organization_id', organizationId)
+          .maybeSingle();
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        booking_id: booking.id,
-        booking_number: booking.booking_number,
-        customer_id: customerId,
-        message: "Booking created successfully"
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+        if (!emailSettings?.from_email || !emailSettings?.from_name) {
+          console.log(`[booking-notify] Admin email skipped org=${organizationId} (no sender identity configured)`);
+          await logNotification(supabase, {
+            organizationId, channel: "email", outcome: "skipped",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            detail: "No business email configured in Settings → Emails",
+          });
+          return;
+        }
+
+        // Reuse the existing sender path (send-admin-booking-notification →
+        // sendOrgEmail → Gmail SMTP with Resend fallback). No new email route.
+        //
+        // The previous call here posted { bookingId, organizationId }, which is
+        // not the contract that function accepts — customerName/serviceName/
+        // totalAmount arrived undefined and the send died on totalAmount.toFixed.
+        // That is why no booking email has ever landed.
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-admin-booking-notification`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            organizationId,
+            customerName: `${payload.first_name} ${payload.last_name}`.trim(),
+            customerEmail: payload.email,
+            serviceName: payload.service_name || 'Cleaning Service',
+            scheduledAt: payload.scheduled_at,
+            totalAmount: payload.total_amount ?? 0,
+            address: fullAddress || undefined,
+          }),
+        });
+
+        const body = await resp.text();
+        if (resp.ok) {
+          console.log(`[booking-notify] Admin email sent org=${organizationId}`);
+          await logNotification(supabase, {
+            organizationId, channel: "email", outcome: "sent",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            extra: { to: emailSettings.from_email, status: resp.status },
+          });
+        } else {
+          console.error(`[booking-notify] Admin email FAILED org=${organizationId} status=${resp.status} body=${body.slice(0, 300)}`);
+          await logNotification(supabase, {
+            organizationId, channel: "email", outcome: "failed",
+            bookingId: booking.id, bookingNumber: booking.booking_number,
+            detail: body.slice(0, 500),
+            extra: { to: emailSettings.from_email, status: resp.status },
+          });
+        }
+      } catch (emailErr) {
+        const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+        console.error("[booking-notify] Email threw:", msg);
+        await logNotification(supabase, {
+          organizationId, channel: "email", outcome: "failed",
+          bookingId: booking.id, bookingNumber: booking.booking_number,
+          detail: msg.slice(0, 500),
+        });
+      }
+    })(),
+  ]);
 }
+
