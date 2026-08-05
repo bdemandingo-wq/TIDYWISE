@@ -1,0 +1,90 @@
+In the jointidywise project, add a `get_card` action to
+supabase/functions/client-portal-api/index.ts so a signed-in client can see the
+card currently on file. Deploy it and confirm DEPLOYED, not just committed.
+
+WHY THIS IS NEEDED
+The portal's Payment tab can add or replace a card, but cannot show what is
+already there, so it deliberately says nothing about existing cards. That gap
+exists because get-customer-card is admin-only — it calls
+requireOrgAdmin(req, organizationId) — and client-portal-api has no card action.
+The customers table stores no card fields; every read is live from Stripe.
+
+WHAT TO ADD
+One new case in the existing `switch (action)` block, alongside get_locations,
+get_user_data and the rest. The function already calls
+`verifyPortalSession(req, supabase)` at the top and has `customer_id` and
+`organization_id` from the verified claims — use those. Never read either from
+the request body.
+
+    case "get_card": {
+      // 1. Resolve the customer's email from customer_id (the session's, not
+      //    the body's).
+      // 2. Get the org's Stripe client.
+      // 3. Find the Stripe customer for that email whose metadata carries this
+      //    organization_id.
+      // 4. Return the default payment method's brand and last4.
+    }
+
+IMPORTS TO ADD
+client-portal-api currently imports only serve, createClient and
+verifyPortalSession — it has never talked to Stripe. Add the same two that
+get-payment-method-details uses:
+
+    import Stripe from "https://esm.sh/stripe@18.5.0";
+    import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
+
+Use getOrgStripeClient(organization_id) for the client. Do NOT fall back to the
+platform STRIPE_SECRET_KEY — client cards live on the org's connected account,
+and the platform key is for TidyWise's own subscription billing.
+
+WHICH CARD TO RETURN
+Match how the charge paths pick one, so what the client sees is what they will
+actually be charged on:
+
+  - Prefer customer.invoice_settings.default_payment_method
+    (charge-customer-card/index.ts:145 and charge-card-directly:186,257 both
+    resolve it this way).
+  - Fall back to the first result of stripe.paymentMethods.list({ customer,
+    type: "card" }) when no default is set, which is the same fallback those
+    functions use.
+
+Finding the Stripe customer: list by email and select the one whose metadata
+carries this organization_id — the same org-scoped match create-setup-intent
+already performs. A customer with the same email at a different organisation
+must never be matched.
+
+RESPONSE SHAPE
+Use the file's existing ok() helper. Three outcomes, and they must be
+distinguishable:
+
+  - A card is on file:      ok({ hasCard: true, brand: "visa", last4: "2737" })
+  - No card, no error:      ok({ hasCard: false })
+  - Something failed:       err("<message>", 500)
+
+Return the brand exactly as Stripe gives it, lowercase — the frontend
+title-cases it.
+
+"No Stripe customer for this email in this org" and "customer exists but has no
+payment method" are both `{ hasCard: false }`, not errors. A brand-new client
+who has never given a card is the normal case.
+
+Do NOT return the payment method id, the fingerprint, the expiry, or the
+billing details. Brand and last4 are all the UI needs, and anything more is
+card data on a page that does not require it.
+
+DO NOT CHANGE
+  - verifyPortalSession or how the session is read. get_card must be inside the
+    same verified block as every other action.
+  - Any existing action's behaviour or response shape.
+  - config.toml. client-portal-api stays as it is.
+  - get-customer-card. It remains admin-only; this is not a replacement for it.
+
+VERIFY BEFORE REPORTING BACK
+  1. A portal user WITH a card gets { hasCard: true } and the brand/last4 match
+     what the admin sees for that same customer in the CRM.
+  2. A portal user with NO card gets { hasCard: false } and no error.
+  3. Calling get_card without a valid x-portal-session header is rejected, the
+     same as every other action.
+  4. A customer whose email also exists at another organisation returns THAT
+     org's card, never the other one.
+  5. Report the deployed function version.

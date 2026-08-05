@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Check } from 'lucide-react';
+import { CreditCard, Check, Loader2 } from 'lucide-react';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { toast } from 'sonner';
 import { useClientPortal } from '@/contexts/ClientPortalContext';
@@ -12,32 +13,69 @@ interface Props {
   organizationId: string;
 }
 
+interface CardOnFile {
+  hasCard: boolean;
+  brand?: string;
+  last4?: string;
+}
+
+/** Stripe returns "visa"; people read "Visa". */
+const titleCaseBrand = (brand: string | null | undefined) =>
+  brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : 'Card';
+
 /**
- * Lets a client add or replace the card their cleaning business charges.
+ * Lets a client see, add or replace the card their cleaning business charges.
  *
- * Deliberately does NOT show the card currently on file, and says nothing that
- * implies we know whether one exists. `get-customer-card` is admin-only
- * (verifyAdminAuth with requireAdmin), client-portal-api has no card action,
- * and the customers table stores no card fields — so from inside the portal
- * there is no way to read that state. Copy that guessed would be worse than
- * copy that doesn't claim: telling someone "no card on file" when they have one
- * invites them to add a second.
- *
- * Once a card IS saved in this session we can be specific, because
- * onCardSaved hands back the brand and last4 of the card that just landed.
+ * The card on file comes from client-portal-api's get_card action, which
+ * verifies the portal session and reads Stripe live. It resolves the same
+ * payment method the charge paths use — invoice_settings.default_payment_method
+ * first, then the first listed card — so what a client sees here is what they
+ * would actually be charged on.
  *
  * Replace only — no remove. Deleting the last card while a booking is
  * scheduled leaves the business unable to charge for work already committed;
  * that is the org's decision, not the client's.
+ *
+ * If get_card fails for ANY reason — offline, Stripe down, or the action not
+ * deployed yet — this falls back to saying nothing about existing cards rather
+ * than claiming there are none. Showing "Add card" to someone who already has
+ * one invites a duplicate; not knowing is the safer failure.
  *
  * Authenticates with the portal session token: create-setup-intent and
  * get-payment-method-details verify it server-side and take the customer and
  * organisation from the verified claims, never from the body.
  */
 export function PortalPaymentMethodCard({ email, customerName, organizationId }: Props) {
-  const { sessionToken } = useClientPortal();
+  const { sessionToken, invokePortal } = useClientPortal();
   const [showForm, setShowForm] = useState(false);
   const [justSaved, setJustSaved] = useState<{ brand: string; last4: string } | null>(null);
+
+  const { data: card, isLoading, isError, refetch } = useQuery<CardOnFile>({
+    queryKey: ['portal-card-on-file', organizationId],
+    enabled: !!sessionToken && !!organizationId,
+    staleTime: 60 * 1000,
+    // One retry. A client watching a spinner is worse than a panel that simply
+    // does not mention the card they already have.
+    retry: 1,
+    queryFn: async () => {
+      // invokePortal merges the x-portal-session header itself.
+      const { data, error } = await invokePortal<CardOnFile>('client-portal-api', {
+        body: { action: 'get_card' },
+      });
+      if (error) throw error;
+      return data ?? { hasCard: false };
+    },
+  });
+
+  // A card saved in this session outranks whatever the query loaded.
+  const current = justSaved
+    ? justSaved
+    : card?.hasCard && card.last4
+      ? { brand: titleCaseBrand(card.brand), last4: card.last4 }
+      : null;
+
+  // Only ever claim "no card" when get_card actually said so.
+  const knowsThereIsNoCard = !isError && !isLoading && card?.hasCard === false && !justSaved;
 
   return (
     <Card>
@@ -46,18 +84,40 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
           <CreditCard className="w-5 h-5" />
           Payment method
         </CardTitle>
-        <CardDescription>Add or replace the card used for your cleanings.</CardDescription>
+        <CardDescription>
+          {knowsThereIsNoCard
+            ? 'Add the card used for your cleanings.'
+            : 'Add or replace the card used for your cleanings.'}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Your cleaner charges this card after each visit.
         </p>
 
-        {justSaved && (
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3">
-            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+        {isLoading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Checking your card…
+          </div>
+        )}
+
+        {current && (
+          <div
+            className={
+              justSaved
+                ? 'flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3'
+                : 'flex items-center gap-2 rounded-lg border p-3'
+            }
+          >
+            {justSaved ? (
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <CreditCard className="w-4 h-4 text-muted-foreground shrink-0" />
+            )}
             <p className="text-sm font-medium">
-              Saved — {justSaved.brand} ending {justSaved.last4}
+              {justSaved ? 'Saved — ' : ''}
+              {current.brand} ending {current.last4}
             </p>
           </div>
         )}
@@ -70,20 +130,19 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
             portalSessionToken={sessionToken}
             showHoldOption={false}
             onCardSaved={(cardInfo) => {
-              // Title-case the brand: Stripe returns "visa", not "Visa".
-              const brand = cardInfo.brand
-                ? cardInfo.brand.charAt(0).toUpperCase() + cardInfo.brand.slice(1)
-                : 'Card';
+              const brand = titleCaseBrand(cardInfo.brand);
               setJustSaved({ brand, last4: cardInfo.last4 });
               setShowForm(false);
               toast.success(`Saved — ${brand} ending ${cardInfo.last4}`);
+              // Re-read so later renders reflect Stripe, not local state.
+              void refetch();
             }}
             onError={(message) => toast.error(message)}
           />
         ) : (
           <Button onClick={() => setShowForm(true)} className="gap-2 min-h-[44px]">
             <CreditCard className="w-4 h-4" />
-            {justSaved ? 'Replace card' : 'Add or replace card'}
+            {current ? 'Replace card' : knowsThereIsNoCard ? 'Add card' : 'Add or replace card'}
           </Button>
         )}
       </CardContent>
