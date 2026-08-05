@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SEOHead } from '@/components/SEOHead';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Clock, Download, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Clock, Download, Loader2 } from 'lucide-react';
 import { fmt } from '@/lib/activeCurrency';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -287,6 +287,8 @@ function MonthlyBars({ series }: { series: MonthPoint[] }) {
  */
 function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCreditsNet: number }) {
   const { data: payers, isLoading, error } = useBillingPlanPayers();
+  const [showTrials, setShowTrials] = useState(false);
+
 
   const all = payers ?? [];
   // Not `> 0`: a payer refunded below zero is still a payer, and hiding them in
@@ -384,14 +386,44 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
                   ))}
 
                   {trials.length > 0 && (
-                    <tr className="text-muted-foreground">
-                      <td className="py-2 pr-3" colSpan={3}>
-                        {trials.length} {trials.length === 1 ? 'business' : 'businesses'} on trial —
-                        nothing paid yet
-                      </td>
-                      <td className="py-2 text-right tabular-nums">{money(0)}</td>
-                    </tr>
+                    <>
+                      <tr className="text-muted-foreground">
+                        <td className="py-2 pr-3" colSpan={3}>
+                          <button
+                            type="button"
+                            onClick={() => setShowTrials((v) => !v)}
+                            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+                            aria-expanded={showTrials}
+                          >
+                            {showTrials
+                              ? <ChevronDown className="w-3.5 h-3.5" />
+                              : <ChevronRight className="w-3.5 h-3.5" />}
+                            {trials.length} {trials.length === 1 ? 'business' : 'businesses'} on
+                            trial — nothing paid yet
+                          </button>
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{money(0)}</td>
+                      </tr>
+
+                      {showTrials && trials.map((p) => (
+                        <tr
+                          key={`trial-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}
+                          className="text-muted-foreground"
+                        >
+                          <td className="py-2 pr-3 pl-6">
+                            <span className="font-medium text-foreground">{label(p)}</span>
+                            {p.customer_email && p.organization_name && (
+                              <span className="block text-[11px]">{p.customer_email}</span>
+                            )}
+                          </td>
+                          <td className="py-2 whitespace-nowrap">On trial</td>
+                          <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
+                          <td className="py-2 text-right tabular-nums">{money(0)}</td>
+                        </tr>
+                      ))}
+                    </>
                   )}
+
                 </tbody>
                 <tfoot className="border-t">
                   <tr>
@@ -425,7 +457,13 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
   );
 }
 
-export default function PlatformRevenuePage() {
+/**
+ * `embedded` renders the same figures without the page chrome, so the Platform
+ * Analytics "Revenue" tab shows exactly this data rather than a second, drifting
+ * copy of it.
+ */
+export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }) {
+
   const { data: rows, isLoading, error } = useBillingRevenue();
   const { data: freshness } = useBackfillFreshness();
   const { data: payers } = useBillingPlanPayers();
@@ -517,16 +555,16 @@ export default function PlatformRevenuePage() {
     </Button>
   );
 
-  return (
-    <AdminLayout
-      title="CRM Revenue"
-      subtitle="What businesses pay for TidyWise, from the billing ledger"
-      actions={exportButton}
-    >
-      <div className="portal-v2 portal-v2-scroll">
-        <SEOHead title="CRM Revenue | TidyWise" description="CRM revenue" noIndex />
+  const body = (
+      <div className={embedded ? '' : 'portal-v2 portal-v2-scroll'}>
+        {!embedded && (
+          <SEOHead title="CRM Revenue | TidyWise" description="CRM revenue" noIndex />
+        )}
+
+        {embedded && <div className="flex justify-end mb-4">{exportButton}</div>}
 
         <StalenessBanner freshness={freshness} />
+
 
         {error && (
           <Card className="mb-6 border-destructive/40">
@@ -583,6 +621,22 @@ export default function PlatformRevenuePage() {
           </div>
         )}
       </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <AdminLayout
+      title="CRM Revenue"
+      subtitle="What businesses pay for TidyWise, from the billing ledger"
+      actions={exportButton}
+    >
+      {body}
     </AdminLayout>
   );
 }
+
+export default function PlatformRevenuePage() {
+  return <PlatformRevenueView />;
+}
+
