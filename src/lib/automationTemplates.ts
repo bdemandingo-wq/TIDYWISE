@@ -437,8 +437,26 @@ export function nonGsmCharacters(body: string): string[] {
   return found;
 }
 
-/** `{single}` braces — the syntax all three SMS engines already use. */
-const TOKEN_PATTERN = /\{([a-z0-9_]+)\}/gi;
+/**
+ * ANYTHING brace-wrapped, not just well-formed token names.
+ *
+ * This was `/\{([a-z0-9_]+)\}/gi`, which has no dot — so a GoHighLevel paste
+ * like `{contact.first_name}` was not recognised as a token at all. tokensIn
+ * returned nothing for it, validateTemplate found no unknown tokens and allowed
+ * the save, resolveTemplate logged no warning, and the literal text went out in
+ * a customer's SMS. Regal Rest Cleaning shipped exactly that in their live
+ * review request; ADD Bhutan wrapped a raw Google review URL in braces the same
+ * way. Neither was a validation failure — both were invisible to it.
+ *
+ * A token this pattern does not recognise is a token nothing can reject, so it
+ * matches greedily and lets the vocabulary check decide. Surveyed across every
+ * stored template on the platform, there is no legitimate use of braces in
+ * ordinary copy, so widening cannot produce a false positive on real wording.
+ *
+ * `+` rather than `*`: a literal `{}` is not a mistyped token and reporting
+ * "{} isn't a thing we can fill in" would only confuse.
+ */
+const TOKEN_PATTERN = /\{([^}]+)\}/g;
 
 /** Every token appearing in a body, lowercased, in order of first appearance. */
 export function tokensIn(body: string): string[] {

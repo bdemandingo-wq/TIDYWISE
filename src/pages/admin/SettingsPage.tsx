@@ -37,6 +37,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { SignedImage } from '@/components/ui/signed-image';
 import { toast } from 'sonner';
+import { validateTemplate } from '@/lib/automationTemplates';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
 import { QuietHoursCard } from '@/components/admin/settings/QuietHoursCard';
@@ -380,6 +381,27 @@ export default function SettingsPage() {
   };
 
   const saveSettings = async () => {
+    /*
+      The review SMS was the one message editor on the platform with no
+      validation at all — a bare textarea writing straight to state. It is also
+      the more discoverable of the two editors, which is how both broken
+      templates on the platform got saved: Regal Rest's {contact.first_name}
+      from GoHighLevel and ADD Bhutan's raw review URL wrapped in braces.
+
+      Reuses validateTemplate rather than adding a second validator, so the
+      vocabulary and the error wording stay in one place. Empty is allowed and
+      skipped — it means "use the default wording", the same rule
+      AutomationEditorDialog applies. Without that, saving any unrelated setting
+      on this page would be blocked for every org that never set a template.
+    */
+    if (settings.review_sms_template?.trim()) {
+      const problem = validateTemplate('review_request', settings.review_sms_template);
+      if (problem) {
+        toast.error(`Review request message: ${problem}`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const settingsData = {

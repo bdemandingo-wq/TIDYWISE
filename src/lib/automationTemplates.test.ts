@@ -39,6 +39,29 @@ test('4. unknown token has its braces stripped, message still sends', () => {
   assert.match(r.warning ?? '', /unknown token/);
 });
 
+test('4b. a namespaced token from another platform is caught, not ignored', () => {
+  // The regression this file exists for. TOKEN_PATTERN was /\{([a-z0-9_]+)\}/gi
+  // — no dot — so a GoHighLevel paste was not recognised as a token at all:
+  // validateTemplate found nothing to reject and allowed the save, and the
+  // literal {contact.first_name} shipped in a live customer SMS at Regal Rest.
+  // A token the pattern cannot see is a token nothing can reject.
+  assert.match(
+    validateTemplate(KEY, 'Hi {contact.first_name}, see {quote_link}') ?? '',
+    /contact\.first_name/,
+  );
+
+  // ADD Bhutan's variant: a raw URL wrapped in braces instead of {review_link}.
+  assert.match(
+    validateTemplate(KEY, 'Review us {https://g.page/r/abc/review} — {quote_link}') ?? '',
+    /https:\/\/g\.page/,
+  );
+
+  // And at send time it degrades the same way any unknown token does.
+  const r = resolveTemplate(KEY, 'Hi {contact.first_name}, see {quote_link}', DATA);
+  assert.doesNotMatch(r.text, /[{}]/);
+  assert.match(r.warning ?? '', /unknown token/);
+});
+
 test('5. missing the required token uses the default instead', () => {
   const r = resolveTemplate(KEY, 'Hi {customer_name}, still interested?', DATA);
   assert.equal(r.usedDefault, true);
