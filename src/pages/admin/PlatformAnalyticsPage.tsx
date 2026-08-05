@@ -533,8 +533,13 @@ export default function PlatformAnalyticsPage() {
               </Select>
             </div>
             <div className="hidden md:block md:mx-0 min-w-0 overflow-x-auto overscroll-x-contain scrollbar-none md:flex-1">
-            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-10 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-11 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
+              <TabsTrigger value="revenue" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
+                <DollarSign className="w-4 h-4" />
+                <span>Revenue</span>
+              </TabsTrigger>
               <TabsTrigger value="subscribers" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
+
                 <CreditCard className="w-4 h-4" />
                 <span>Subscribers ({analytics?.subscribers?.total || 0})</span>
               </TabsTrigger>
