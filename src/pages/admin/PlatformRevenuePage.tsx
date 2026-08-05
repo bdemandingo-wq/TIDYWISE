@@ -384,14 +384,44 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
                   ))}
 
                   {trials.length > 0 && (
-                    <tr className="text-muted-foreground">
-                      <td className="py-2 pr-3" colSpan={3}>
-                        {trials.length} {trials.length === 1 ? 'business' : 'businesses'} on trial —
-                        nothing paid yet
-                      </td>
-                      <td className="py-2 text-right tabular-nums">{money(0)}</td>
-                    </tr>
+                    <>
+                      <tr className="text-muted-foreground">
+                        <td className="py-2 pr-3" colSpan={3}>
+                          <button
+                            type="button"
+                            onClick={() => setShowTrials((v) => !v)}
+                            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+                            aria-expanded={showTrials}
+                          >
+                            {showTrials
+                              ? <ChevronDown className="w-3.5 h-3.5" />
+                              : <ChevronRight className="w-3.5 h-3.5" />}
+                            {trials.length} {trials.length === 1 ? 'business' : 'businesses'} on
+                            trial — nothing paid yet
+                          </button>
+                        </td>
+                        <td className="py-2 text-right tabular-nums">{money(0)}</td>
+                      </tr>
+
+                      {showTrials && trials.map((p) => (
+                        <tr
+                          key={`trial-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}
+                          className="text-muted-foreground"
+                        >
+                          <td className="py-2 pr-3 pl-6">
+                            <span className="font-medium text-foreground">{label(p)}</span>
+                            {p.customer_email && p.organization_name && (
+                              <span className="block text-[11px]">{p.customer_email}</span>
+                            )}
+                          </td>
+                          <td className="py-2 whitespace-nowrap">On trial</td>
+                          <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
+                          <td className="py-2 text-right tabular-nums">{money(0)}</td>
+                        </tr>
+                      ))}
+                    </>
                   )}
+
                 </tbody>
                 <tfoot className="border-t">
                   <tr>
