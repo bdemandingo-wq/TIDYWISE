@@ -300,6 +300,7 @@ const App = () => (
                          <Route path="/set-password" element={<SetPasswordPage />} />
                          <Route path="/accept-invite" element={<AcceptInvitePage />} />
                          <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}
@@ -414,6 +415,7 @@ const App = () => (
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
                     <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
                     {/* Public Routes - Lazy Loaded */}
