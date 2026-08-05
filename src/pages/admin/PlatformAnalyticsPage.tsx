@@ -517,7 +517,9 @@ export default function PlatformAnalyticsPage() {
                   <SelectValue placeholder="Choose report" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="revenue">Revenue</SelectItem>
                   <SelectItem value="subscribers">Subscribers ({analytics?.subscribers?.total || 0})</SelectItem>
+
                   <SelectItem value="signups">Signups ({analytics?.signups.total || 0})</SelectItem>
                   <SelectItem value="organizations">Orgs ({analytics?.organizations.total || 0})</SelectItem>
                   <SelectItem value="comped">Comped ({analytics?.compedAccess?.activeCount || 0})</SelectItem>
