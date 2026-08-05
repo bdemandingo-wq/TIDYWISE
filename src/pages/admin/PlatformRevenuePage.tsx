@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SEOHead } from '@/components/SEOHead';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, Clock, Download, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Clock, Download, Loader2 } from 'lucide-react';
 import { fmt } from '@/lib/activeCurrency';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
