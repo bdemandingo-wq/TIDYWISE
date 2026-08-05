@@ -7,7 +7,7 @@ import { useNotificationPreferences } from '@/hooks/useNotificationPreferences';
 import { useCleanerPayoutSetupRequired } from '@/hooks/useCleanerPayoutSetupRequired';
 import { useDismissedBadges } from '@/hooks/useDismissedBadges';
 import { NOTIFICATION_TYPES, isChannelEnabled } from '@/lib/notificationCatalog';
-import { orgDateKey } from '@/lib/orgDateRange';
+import { orgDateKey, orgStartOfWeek } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 /**
@@ -88,23 +88,66 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Bookings
-  const { data: bookings = { pending: 0, unassigned: 0, payment: 0 } } = useQuery({
-    queryKey: ['sb-bookings', orgId],
+  const { data: bookings = { pending: 0, unassigned: 0, payment: 0, chargeFailed: 0 } } = useQuery({
+    queryKey: ['sb-bookings', orgId, orgTimezone],
     enabled,
     refetchInterval,
     queryFn: async () => {
-      if (!orgId) return { pending: 0, unassigned: 0, payment: 0 };
+      if (!orgId) return { pending: 0, unassigned: 0, payment: 0, chargeFailed: 0 };
       const now = new Date().toISOString();
-      const [pending, unassigned, failed] = await Promise.all([
+
+      // Monday, deliberately hardcoded. The only org-configured week start on
+      // the platform is payroll_settings.payroll_week_start_day, which is a
+      // PAYROLL setting — and reading it here would mean someone moving payroll
+      // to Sunday for wage reasons silently reframes an unrelated notification.
+      // (That table is also empty for every org today, so it would resolve to
+      // Monday regardless.) Computed in the ORG's zone, so the week does not
+      // turn over at the viewer's midnight.
+      const weekStart = orgStartOfWeek(new Date(), orgTimezone, 1).toISOString();
+
+      const [pending, unassigned, uncollected, failedRows] = await Promise.all([
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'pending').gte('scheduled_at', now),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).is('staff_id', null).neq('status', 'cancelled').gte('scheduled_at', now),
-        // Cancelled work is never going to be paid, so it can never be cleared
-        // — it was a permanent floor under this badge that no action could
-        // move. TIDYWISE sat at 7 here, of which 6 were cancelled jobs worth
-        // $1,006 and exactly 1 was a real unpaid booking.
-        (supabase as any).from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('payment_status', 'pending').neq('status', 'cancelled').lt('scheduled_at', now),
+        // Money still collectable: a job that HAPPENED this week and has not
+        // been marked paid. `completed` does the work of three filters — it
+        // excludes future bookings (not owed yet) and cancelled ones (never
+        // going to be paid, and previously a permanent floor under this badge:
+        // TIDYWISE sat at 7 here, of which 6 were cancelled).
+        //
+        // payment_status 'pending' means "never collected", not "Stripe has not
+        // settled": the enum has no `failed` value, and zero completed bookings
+        // carry a payment_intent_id while still pending. Do NOT add
+        // `payment_intent_id is null` as hardening — a failed charge can leave
+        // an intent behind, so it would hide exactly the rows worth chasing.
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'completed').eq('payment_status', 'pending').gte('scheduled_at', weekStart),
+        // Charge attempts that failed. Ordered and bounded per the paging rule;
+        // a genuine org will have a handful, and 500 is far past that.
+        (supabase as any).from('charge_audit_log').select('booking_id').eq('organization_id', orgId).eq('match_status', 'fail').not('booking_id', 'is', null).order('created_at', { ascending: false }).limit(500),
       ]);
-      return { pending: pending.count || 0, unassigned: unassigned.count || 0, payment: failed.count || 0 };
+
+      // A failed charge only needs action while the money is still outstanding.
+      // Counting every failure ever would rebuild the problem this badge just
+      // shed — TIDYWISE has 7 such bookings and all 7 were later collected, so
+      // an all-time count would sit at 7 forever with nothing to click.
+      const failedIds = [...new Set(((failedRows.data || []) as { booking_id: string }[]).map(r => r.booking_id))];
+      let chargeFailed = 0;
+      if (failedIds.length > 0) {
+        const { count } = await supabase
+          .from('bookings')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .in('id', failedIds)
+          .eq('payment_status', 'pending')
+          .neq('status', 'cancelled');
+        chargeFailed = count || 0;
+      }
+
+      return {
+        pending: pending.count || 0,
+        unassigned: unassigned.count || 0,
+        payment: uncollected.count || 0,
+        chargeFailed,
+      };
     },
   });
 
@@ -314,7 +357,16 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     // Labelled by what it actually queries: payment_status 'pending' on a job
     // whose date has passed. It said "failed payment", which is a different
     // and more alarming thing than an invoice nobody has settled yet.
-    push(bookingReasons, { key: 'payment', label: 'unpaid job', count: g(bookings.payment, 'bookings.payment'), filter: 'payment=pending' });
+    // Both payment sub-counts sit under the one 'bookings.payment' preference.
+    // They are the same concern — money on a booking that needs chasing — and
+    // splitting them would mean a new notificationCatalog key and a new row in
+    // the preferences UI for a distinction the operator does not make.
+    //
+    // The pluraliser in BadgeWithReasons appends a bare 's', so these labels
+    // have to read correctly with one appended. That is why this says
+    // "uncollected job" rather than "uncollected this week".
+    push(bookingReasons, { key: 'payment', label: 'uncollected job', count: g(bookings.payment, 'bookings.payment'), filter: 'payment=pending' });
+    push(bookingReasons, { key: 'chargeFailed', label: 'failed card charge', count: g(bookings.chargeFailed, 'bookings.payment'), filter: 'payment=pending' });
 
     // Scheduler intentionally has no badge — unassigned jobs surface on the
     // Bookings item, and duplicating the count here produced a "phantom"
