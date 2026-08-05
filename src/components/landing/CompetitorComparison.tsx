@@ -57,9 +57,15 @@ const pricingPlans = [
   {
     name: "TIDYWISE",
     tagline: "Built for cleaning businesses",
-    price: "$0",
+    // Was "$0/month" with "Plans from $49/mo" directly beneath it. As the
+    // headline in a price comparison that read as "TidyWise is free", and the
+    // subtitle contradicted it two lines down — which cost credibility on the
+    // one claim here that is already true: $49 against $197 IS the 75% lower
+    // price the section header promises. The subtitle now carries the real
+    // differentiator instead of repeating the number above it.
+    price: "$49",
     priceNote: "/month",
-    subtitle: "Plans from $49/mo",
+    subtitle: "Unlimited users · cancel anytime",
     highlight: true,
   },
   {

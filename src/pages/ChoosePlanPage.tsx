@@ -9,13 +9,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Check, Loader2, Lock, LogOut, Sparkles } from 'lucide-react';
+import { Check, Crown, Loader2, Lock, LogOut, Sparkles } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
+import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
 
 type Interval = 'monthly' | 'yearly';
 
+/**
+ * Everything this page can start a checkout for.
+ *
+ * Lifetime is deliberately outside `Tier`: it has no monthly or yearly price,
+ * ignores the billing-interval toggle, and goes to a different edge function.
+ * Widening `Tier` to carry optional prices would push a null check into every
+ * subscription card to accommodate one product that isn't a subscription.
+ */
+type PlanId = 'basic' | 'pro' | 'custom' | 'lifetime';
+
+const LIFETIME_PRICE = 300;
+
 interface Tier {
-  id: 'basic' | 'pro' | 'custom';
+  id: Exclude<PlanId, 'lifetime'>;
   name: string;
   tagline: string;
   monthlyPrice: number;
@@ -68,6 +81,14 @@ const TIERS: Tier[] = [
       'Priority support',
     ],
   },
+];
+
+/** Pro's list, minus the recurring framing — what the one payment actually buys. */
+const LIFETIME_FEATURES = [
+  'Everything in Pro, forever',
+  'Every feature we ship in future',
+  'No recurring bill, ever',
+  'Founding member — 50 spots total',
 ];
 
 function priceFor(tier: Tier, interval: Interval): { display: string; sub: string } {
@@ -131,6 +152,11 @@ export default function ChoosePlanPage() {
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const [billingInterval, setBillingInterval] = useState<Interval>('monthly');
   const [checkoutBusy, setCheckoutBusy] = useState<string | null>(null);
+  // Same live counter the landing and pricing pages use, so the offer appears
+  // and disappears in one place rather than three. Hidden while loading: a card
+  // that flashes in and then vanishes as sold-out is worse than arriving late.
+  const lifetime = useLifetimeCounter();
+  const showLifetime = !lifetime.loading && !lifetime.soldOut;
   // "Have a code?" redemption — same RPC/pattern as RedeemAccessCodeCard.
   const [showRedeem, setShowRedeem] = useState(false);
   const [redeemValue, setRedeemValue] = useState('');
@@ -167,7 +193,7 @@ export default function ChoosePlanPage() {
     if (hasFullAccess) navigate('/dashboard', { replace: true });
   }, [authLoading, subLoading, user, hasFullAccess, navigate]);
 
-  async function startCheckout(planId: Tier['id']) {
+  async function startCheckout(planId: PlanId) {
     if (isRedirectingRef.current || checkoutBusy) return;
     isRedirectingRef.current = true;
     setCheckoutBusy(planId);
@@ -193,9 +219,15 @@ export default function ChoosePlanPage() {
     }, 20000);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-subscription', {
-        body: { plan: planId, interval: billingInterval },
-      });
+      // One code path, one branch. Lifetime is a single payment, so it goes to
+      // buy-lifetime — which claims a spot atomically and rejects the sale if
+      // the last one went while this page was open. The billing interval is
+      // meaningless for it and is not sent.
+      const { data, error } = planId === 'lifetime'
+        ? await supabase.functions.invoke('buy-lifetime', { body: {} })
+        : await supabase.functions.invoke('create-subscription', {
+            body: { plan: planId, interval: billingInterval },
+          });
       if (error) {
         let realMessage: string | undefined;
         try {
@@ -316,7 +348,7 @@ export default function ChoosePlanPage() {
         </div>
 
         {/* Tiers */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className={cn('grid gap-6', showLifetime ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-3')}>
           {TIERS.map((tier) => {
             const price = priceFor(tier, billingInterval);
             const busy = checkoutBusy === tier.id;
@@ -370,6 +402,57 @@ export default function ChoosePlanPage() {
               </Card>
             );
           })}
+
+          {/* The founding offer. It was reachable from /pricing and by a
+              ?plan=lifetime deep link, and buy-lifetime has always worked — but
+              this page never listed it, so anyone who clicked the offer, signed
+              up, and landed here was shown three subscriptions and no way to buy
+              the thing they came for. */}
+          {showLifetime && (
+            <Card className="relative flex flex-col border-amber-500/50 bg-amber-50/30 dark:bg-amber-950/20">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 text-white text-xs font-semibold px-3 py-1 whitespace-nowrap tabular-nums">
+                {lifetime.spotsLeft} of {lifetime.total} left
+              </div>
+              <CardContent className="flex flex-col flex-1 pt-6 space-y-4">
+                <div>
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Crown className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    Lifetime
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Pay once. Every Pro feature, including everything we ship later.
+                  </p>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold">${LIFETIME_PRICE}</span>
+                  {/* No interval — the toggle above does not apply to this card. */}
+                  <span className="text-sm text-muted-foreground">one-time</span>
+                </div>
+                <ul className="space-y-2 flex-1">
+                  {LIFETIME_FEATURES.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <Check className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  className="w-full gap-2 bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600"
+                  disabled={!!checkoutBusy || redeemBusy}
+                  onClick={() => startCheckout('lifetime')}
+                >
+                  {checkoutBusy === 'lifetime' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Opening checkout…
+                    </>
+                  ) : (
+                    <>Claim my spot</>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* "Have a code?" redemption — comped access / promo codes */}

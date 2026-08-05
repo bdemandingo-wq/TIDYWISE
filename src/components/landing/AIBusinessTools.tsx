@@ -25,7 +25,17 @@ export function AIBusinessTools() {
   // Calculator state
   const [cleansPerWeek, setCleansPerWeek] = useState(10);
   const [avgCleanPrice, setAvgCleanPrice] = useState(150);
-  const [numCleaners, setNumCleaners] = useState(3);
+  /**
+   * The visitor's own assumption, not our claim.
+   *
+   * This was a hardcoded 0.35 presented as "+35% growth", with no study, cohort
+   * or internal data behind it — and the "$25,200 extra yearly" figure beside it
+   * was the same constant multiplied out, so one unsourced number was rendered
+   * twice and read as two. A quantified earnings promise to business owners is
+   * not something to invent, so the rate is now an input: they set it, we do the
+   * arithmetic. Defaults to a deliberately modest 10%.
+   */
+  const [growthRate, setGrowthRate] = useState(10);
   const [showResults, setShowResults] = useState(false);
   
   // Health score state
@@ -39,10 +49,9 @@ export function AIBusinessTools() {
   
   // Calculator results
   const currentMonthlyRevenue = cleansPerWeek * 4 * avgCleanPrice;
-  const projectedIncrease = Math.round(currentMonthlyRevenue * 0.35);
+  const projectedIncrease = Math.round(currentMonthlyRevenue * (growthRate / 100));
   const projectedMonthlyRevenue = currentMonthlyRevenue + projectedIncrease;
   const projectedYearlyGrowth = projectedIncrease * 12;
-  const timesSaved = numCleaners * 5; // 5 hours per cleaner per week on admin
   
   // Health score calculation
   const healthFactors = [
@@ -145,15 +154,15 @@ export function AIBusinessTools() {
                     
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium">Number of cleaners</Label>
-                        <span className="text-2xl font-bold text-primary">{numCleaners}</span>
+                        <Label className="text-sm font-medium">If you grew by</Label>
+                        <span className="text-2xl font-bold text-primary tabular-nums">{growthRate}%</span>
                       </div>
                       <Slider
-                        value={[numCleaners]}
-                        onValueChange={([v]) => setNumCleaners(v)}
-                        min={1}
+                        value={[growthRate]}
+                        onValueChange={([v]) => setGrowthRate(v)}
+                        min={0}
                         max={50}
-                        step={1}
+                        step={5}
                         className="py-2"
                       />
                     </div>
@@ -168,31 +177,30 @@ export function AIBusinessTools() {
                 </div>
               ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* "with TIDYWISE" is gone from the label: the visitor set the
+                      rate, so this is their scenario and we are only doing the
+                      arithmetic. The hours-saved and repeat-customer tiles are
+                      gone entirely — both were computed from nothing. */}
                   <div className="text-center">
-                    <p className="text-muted-foreground mb-2">Your projected monthly revenue with TIDYWISE</p>
+                    <p className="text-muted-foreground mb-2">
+                      At {growthRate}% growth, your monthly revenue would be
+                    </p>
                     <p className="text-5xl sm:text-6xl font-bold text-primary">
                       ${projectedMonthlyRevenue.toLocaleString()}
                     </p>
                     <p className="text-success font-medium mt-2">
-                      +${projectedIncrease.toLocaleString()}/month (+35% growth)
+                      +${projectedIncrease.toLocaleString()} a month on today's $
+                      {currentMonthlyRevenue.toLocaleString()}
                     </p>
                   </div>
-                  
-                  <div className="grid sm:grid-cols-3 gap-4 pt-4">
-                    <div className="bg-secondary/50 rounded-xl p-4 text-center">
+
+                  <div className="flex justify-center pt-4">
+                    <div className="bg-secondary/50 rounded-xl p-4 text-center w-full sm:w-auto sm:min-w-[260px]">
                       <DollarSign className="h-8 w-8 text-success mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-foreground">${projectedYearlyGrowth.toLocaleString()}</p>
-                      <p className="text-sm text-muted-foreground">Extra yearly revenue</p>
-                    </div>
-                    <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                      <Calendar className="h-8 w-8 text-primary mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-foreground">{timesSaved}+ hrs</p>
-                      <p className="text-sm text-muted-foreground">Saved weekly on admin</p>
-                    </div>
-                    <div className="bg-secondary/50 rounded-xl p-4 text-center">
-                      <Users className="h-8 w-8 text-primary mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-foreground">40%</p>
-                      <p className="text-sm text-muted-foreground">More repeat customers</p>
+                      <p className="text-2xl font-bold text-foreground">
+                        ${projectedYearlyGrowth.toLocaleString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Extra over a year</p>
                     </div>
                   </div>
                   
