@@ -621,6 +621,22 @@ export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }
           </div>
         )}
       </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <AdminLayout
+      title="CRM Revenue"
+      subtitle="What businesses pay for TidyWise, from the billing ledger"
+      actions={exportButton}
+    >
+      {body}
     </AdminLayout>
   );
 }
+
+export default function PlatformRevenuePage() {
+  return <PlatformRevenueView />;
+}
+
