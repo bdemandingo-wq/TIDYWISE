@@ -144,6 +144,7 @@ export default function DynamicBlogPost() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead 
+        ogType="article"
         title={post.meta_title || `${post.title} | TIDYWISE Blog`}
         description={post.meta_description || post.excerpt}
         canonical={`/blog/post/${post.slug}`}

@@ -223,7 +223,7 @@ export default function LandingPage() {
         title="Cleaning Business CRM & Scheduling Software | TidyWise"
         description="Smart scheduling, automated payroll, CRM, GPS tracking & online booking for cleaning businesses. Plans from $49/mo — get started today."
         canonical="/"
-        ogImage="/images/og/og-home.png"
+        ogImage="https://www.jointidywise.com/images/og/og-home.png"
         schemaJson={[
           organizationSchema(),
           localBusinessSchema(),
