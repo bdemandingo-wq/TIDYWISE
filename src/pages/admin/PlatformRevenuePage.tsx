@@ -555,16 +555,16 @@ export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }
     </Button>
   );
 
-  return (
-    <AdminLayout
-      title="CRM Revenue"
-      subtitle="What businesses pay for TidyWise, from the billing ledger"
-      actions={exportButton}
-    >
-      <div className="portal-v2 portal-v2-scroll">
-        <SEOHead title="CRM Revenue | TidyWise" description="CRM revenue" noIndex />
+  const body = (
+      <div className={embedded ? '' : 'portal-v2 portal-v2-scroll'}>
+        {!embedded && (
+          <SEOHead title="CRM Revenue | TidyWise" description="CRM revenue" noIndex />
+        )}
+
+        {embedded && <div className="flex justify-end mb-4">{exportButton}</div>}
 
         <StalenessBanner freshness={freshness} />
+
 
         {error && (
           <Card className="mb-6 border-destructive/40">
