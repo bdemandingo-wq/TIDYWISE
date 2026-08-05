@@ -27,6 +27,8 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { getOrgStripeClient } from "../_shared/get-org-stripe-settings.ts";
 import { verifyPortalSession } from "../_shared/portal-session.ts";
 
 const corsHeaders = {
@@ -418,6 +420,65 @@ serve(async (req) => {
         if (error) return err(error.message, 500);
         return ok(data ?? []);
       }
+
+      case "get_card": {
+        // Read-only view of the card on file. Identity comes from the VERIFIED
+        // SESSION; nothing here is read from the request body. Cards live on
+        // the ORG's connected Stripe account — never the platform key.
+        try {
+          const { data: cust, error: custErr } = await supabase
+            .from("customers")
+            .select("email")
+            .eq("id", customer_id)
+            .eq("organization_id", organization_id)
+            .maybeSingle();
+          if (custErr) return err("Failed to load customer", 500);
+          if (!cust?.email) return ok({ hasCard: false });
+
+          const stripeResult = await getOrgStripeClient(organization_id);
+          if (!stripeResult.success || !stripeResult.stripe) {
+            return err(stripeResult.error || "Stripe not configured", 500);
+          }
+          const stripe = stripeResult.stripe;
+
+          const customers = await stripe.customers.list({
+            email: cust.email,
+            limit: 100,
+          });
+          // Org-scoped match: same email at another org must never match.
+          const orgCustomer = customers.data.find(
+            (c: Stripe.Customer) => c.metadata?.organization_id === organization_id,
+          );
+          if (!orgCustomer) return ok({ hasCard: false });
+
+          let paymentMethod: Stripe.PaymentMethod | null = null;
+          const defaultPm = orgCustomer.invoice_settings?.default_payment_method;
+          if (defaultPm) {
+            const pmId = typeof defaultPm === "string" ? defaultPm : defaultPm.id;
+            paymentMethod = await stripe.paymentMethods.retrieve(pmId);
+          } else {
+            const list = await stripe.paymentMethods.list({
+              customer: orgCustomer.id,
+              type: "card",
+              limit: 1,
+            });
+            paymentMethod = list.data[0] ?? null;
+          }
+
+          if (!paymentMethod?.card) return ok({ hasCard: false });
+
+          return ok({
+            hasCard: true,
+            brand: paymentMethod.card.brand,
+            last4: paymentMethod.card.last4,
+          });
+        } catch (e) {
+          console.error("[client-portal-api] get_card failed:", e);
+          return err("Failed to load card details", 500);
+        }
+      }
+
+
 
       case "request_email_change": {
         // NOTIFY ONLY. Never modifies customers.email or client_portal_users.
