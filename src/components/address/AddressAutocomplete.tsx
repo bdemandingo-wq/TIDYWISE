@@ -81,20 +81,35 @@ export function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
   const [loadingSuggest, setLoadingSuggest] = useState(false);
-  const [skipNextFetch, setSkipNextFetch] = useState(false);
+  /**
+   * Set by the input's onChange and consumed by the search effect below.
+   *
+   * The effect keys on `value`, which the parent also writes: a saved address
+   * hydrating on mount, a suggestion being picked, a form resetting. Every one
+   * of those looks identical to typing from inside the effect, and every
+   * `suggest` call is a billed Google Places request — the edge function is a
+   * direct proxy to places.googleapis.com with no cache. So the trigger has to
+   * be the change *source*, not the value, and typing is the only source that
+   * runs through here.
+   */
+  const userTypedRef = useRef(false);
   const sessionTokenRef = useRef<string>(crypto.randomUUID());
   const debounceRef = useRef<number | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (skipNextFetch) {
-      setSkipNextFetch(false);
-      return;
-    }
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     const q = value.trim();
-    if (q.length < MIN_QUERY_LENGTH) {
+
+    // Read and clear in one go. Consuming the flag is what makes a programmatic
+    // value change safe: whatever set `value` after the last keystroke — the
+    // parent, or pickSuggestion below — falls through without a request.
+    const typed = userTypedRef.current;
+    userTypedRef.current = false;
+
+    if (!typed || q.length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
+      setShowSuggest(false);
       return;
     }
     debounceRef.current = window.setTimeout(async () => {
@@ -121,7 +136,6 @@ export function AddressAutocomplete({
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   useEffect(() => {
@@ -136,7 +150,6 @@ export function AddressAutocomplete({
 
   const pickSuggestion = async (s: Suggestion) => {
     setShowSuggest(false);
-    setSkipNextFetch(true);
     onChange(s.mainText || s.text);
     try {
       const { data, error } = await supabase.functions.invoke('address-autocomplete', {
@@ -148,7 +161,6 @@ export function AddressAutocomplete({
       });
       if (error) throw error;
       if (data?.street) {
-        setSkipNextFetch(true);
         onChange(data.street);
       }
       onResolved({
@@ -175,7 +187,10 @@ export function AddressAutocomplete({
         <Input
           id={id}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            userTypedRef.current = true;
+            onChange(e.target.value);
+          }}
           onFocus={() => suggestions.length > 0 && setShowSuggest(true)}
           placeholder={placeholder}
           autoComplete="off"
