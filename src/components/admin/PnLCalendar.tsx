@@ -123,7 +123,14 @@ export function PnLCalendar() {
         .eq('organization_id', organizationId)
         .gte('scheduled_at', queryRange.from)
         .lte('scheduled_at', queryRange.to)
-        .neq('status', 'cancelled');
+        .neq('status', 'cancelled')
+        // Drafts are not work that happened, so they are not P&L. This query is
+        // self-contained rather than going through useBookings, and so had no
+        // draft clause at all while every Reports surface excluded them — the
+        // two disagreed by whatever drafts existed in the month. Same predicate
+        // as useBookings, including the null case: is_draft is nullable, and
+        // `.eq(false)` alone silently drops every row that predates the column.
+        .or('is_draft.is.null,is_draft.eq.false');
       if (error) throw error;
       return data || [];
     },

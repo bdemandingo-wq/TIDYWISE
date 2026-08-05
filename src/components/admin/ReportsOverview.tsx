@@ -11,13 +11,21 @@ import {
   eachDayOfInterval,
   eachWeekOfInterval,
   eachMonthOfInterval,
-  isSameDay,
-  isSameWeek,
-  isSameMonth,
   startOfDay,
   endOfDay
 } from 'date-fns';
-import { orgEndOfDay, orgStartOfDay, orgStartOfMonth, orgStartOfQuarter, orgStartOfYear } from '@/lib/orgDateRange';
+import {
+  isSameOrgDay,
+  orgDateKey,
+  orgEndOfDay,
+  orgStartOfDay,
+  orgStartOfMonth,
+  orgStartOfQuarter,
+  orgStartOfWeek,
+  orgStartOfYear,
+  orgYMD,
+} from '@/lib/orgDateRange';
+import { sumBookingRevenue } from '@/lib/bookingRevenue';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useTestMode } from '@/contexts/TestModeContext';
 
@@ -107,25 +115,44 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
     
     let intervals: Date[];
     let matchFn: (bookingDate: Date, intervalDate: Date) => boolean;
-    let formatStr: string;
-    
+    let labelFn: (intervalDate: Date) => string;
+
+    // Which bucket a booking counts toward is decided in the ORG's zone, not
+    // the device's. The previous isSameDay/isSameWeek/isSameMonth compared two
+    // instants on the viewer's calendar, and the old suppression below excused
+    // it as "only deciding which column a point lands in" — but for the month
+    // branch, which column a point lands in IS the month it is attributed to.
+    // Viewed from Asia/Manila (UTC+8) against an America/New_York org (UTC-4),
+    // a job scheduled after noon on the last day of a month fell into the next
+    // one: July 2026 for TIDYWISE read $10,797 here against $11,255 on the
+    // Reports page, from two bookings worth $458 landing in August.
+    /* eslint-disable local/no-device-local-dates -- eachXOfInterval only
+       enumerates the columns across an already org-resolved window. Both the
+       bucket a point falls in and the bucket's label are resolved in the org's
+       zone immediately below. */
     if (daysDiff <= 14) {
-      /* eslint-disable local/no-device-local-dates -- bucket geometry inside an
-         already org-resolved window (see orgStartOfDay above); these only decide
-         which column a point lands in. */
       intervals = eachDayOfInterval({ start, end });
-      matchFn = (bookingDate, intervalDate) => isSameDay(bookingDate, intervalDate);
-      formatStr = 'yyyy-MM-dd';
+      matchFn = (bookingDate, intervalDate) => isSameOrgDay(bookingDate, intervalDate, orgTimezone);
+      labelFn = (intervalDate) => orgDateKey(intervalDate, orgTimezone);
     } else if (daysDiff <= 90) {
       intervals = eachWeekOfInterval({ start, end });
-      matchFn = (bookingDate, intervalDate) => isSameWeek(bookingDate, intervalDate);
-      formatStr = 'yyyy-MM-dd';
+      matchFn = (bookingDate, intervalDate) =>
+        orgDateKey(orgStartOfWeek(bookingDate, orgTimezone), orgTimezone) ===
+        orgDateKey(orgStartOfWeek(intervalDate, orgTimezone), orgTimezone);
+      labelFn = (intervalDate) => orgDateKey(orgStartOfWeek(intervalDate, orgTimezone), orgTimezone);
     } else {
       intervals = eachMonthOfInterval({ start, end });
-      matchFn = (bookingDate, intervalDate) => isSameMonth(bookingDate, intervalDate);
-      /* eslint-enable local/no-device-local-dates */
-      formatStr = 'yyyy-MM';
+      matchFn = (bookingDate, intervalDate) => {
+        const b = orgYMD(bookingDate, orgTimezone);
+        const i = orgYMD(intervalDate, orgTimezone);
+        return b.y === i.y && b.m === i.m;
+      };
+      labelFn = (intervalDate) => {
+        const { y, m } = orgYMD(intervalDate, orgTimezone);
+        return `${y}-${String(m).padStart(2, '0')}`;
+      };
     }
+    /* eslint-enable local/no-device-local-dates */
 
     const grossVolume = intervals.map(date => {
       const intervalBookings = filteredBookings.filter(b => 
@@ -133,8 +160,8 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       );
       
       return {
-        date: format(date, formatStr),
-        value: intervalBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0)
+        date: labelFn(date),
+        value: sumBookingRevenue(intervalBookings)
       };
     });
 
@@ -149,7 +176,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       );
       
       return {
-        date: format(date, formatStr),
+        date: labelFn(date),
         value: intervalCustomers.length
       };
     });
@@ -160,7 +187,7 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       );
       
       return {
-        date: format(date, formatStr),
+        date: labelFn(date),
         value: intervalBookings.length
       };
     });
@@ -171,19 +198,22 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
       );
       
       const uniqueCustomers = new Set(intervalBookings.map(b => b.customer?.id).filter(Boolean));
-      const totalRevenue = intervalBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+      const totalRevenue = sumBookingRevenue(intervalBookings);
       
       return {
-        date: format(date, formatStr),
+        date: labelFn(date),
         value: uniqueCustomers.size > 0 ? Math.round((totalRevenue / uniqueCustomers.size) * 100) / 100 : 0
       };
     });
 
     return { grossVolume, netVolume, newCustomers, successfulPayments, spendPerCustomer };
-  }, [filteredBookings, filteredCustomers, dateRange]);
+    // orgTimezone belongs here now that bucketing resolves in it: useOrgTimezone
+    // returns a fallback on first render and the real zone once settings load,
+    // so without it the chart would keep the buckets computed from the fallback.
+  }, [filteredBookings, filteredCustomers, dateRange, orgTimezone]);
 
   const totals = useMemo(() => {
-    const grossVolume = filteredBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    const grossVolume = sumBookingRevenue(filteredBookings);
     const netVolume = Math.round(grossVolume * 0.97 * 100) / 100; // ~3% Stripe fees
     const newCustomersCount = filteredCustomers.length;
     const successfulPayments = filteredBookings.filter(b => b.payment_status === 'paid').length;

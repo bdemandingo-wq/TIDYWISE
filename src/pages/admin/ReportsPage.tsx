@@ -3,6 +3,7 @@ import { ServiceDurationAccuracy } from '@/components/admin/ServiceDurationAccur
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { StatCard } from '@/components/admin/StatCard';
 import { useBookings, useServices, useStaff } from '@/hooks/useBookings';
+import { bookingRevenue, sumBookingRevenue } from '@/lib/bookingRevenue';
 import { DollarSign, TrendingUp, Users, Calendar, Loader2, Repeat, UserCheck, XCircle, Percent } from 'lucide-react';
 import {
   PieChart,
@@ -205,14 +206,14 @@ export default function ReportsPage() {
         color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444',
       };
       existing.count += 1;
-      existing.revenue += Number(booking.total_amount || 0);
+      existing.revenue += bookingRevenue(booking);
       serviceMap.set(serviceId, existing);
 
       // Count recurring cleans - bookings from recurring customers
       const customerId = booking.customer?.id;
       if (customerId && recurringCustomerIds.has(customerId)) {
         recurringCleansCount += 1;
-        recurringCleansRevenue += Number(booking.total_amount || 0);
+        recurringCleansRevenue += bookingRevenue(booking);
       }
     });
 
@@ -227,7 +228,7 @@ export default function ReportsPage() {
         color: booking.service?.name ? defaultColors[index % defaultColors.length] : '#ef4444',
       };
       existing.count += 1;
-      existing.revenue += Number(booking.total_amount || 0);
+      existing.revenue += bookingRevenue(booking);
       serviceAllTimeMap.set(serviceId, existing);
     });
 
@@ -287,7 +288,7 @@ export default function ReportsPage() {
       if (monthBookings.length > 0 || i < 3) {
         monthlyData.push({
           month: months[monthIndex],
-          revenue: monthBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
+          revenue: sumBookingRevenue(monthBookings),
           bookings: monthBookings.length,
         });
       }
@@ -295,7 +296,7 @@ export default function ReportsPage() {
 
     const completedInRange = filteredBookings.filter((b: any) => b.status === 'completed');
     const cancelledInRange = filteredBookings.filter((b: any) => b.status === 'cancelled');
-    const totalRevenue = completedInRange.reduce((sum, b) => sum + Number(b.total_amount || 0), 0);
+    const totalRevenue = sumBookingRevenue(completedInRange);
     const completedBookings = completedInRange;
     const avgBookingValue = completedBookings.length > 0 ? totalRevenue / completedBookings.length : 0;
     const totalBookings = filteredBookings.length;
