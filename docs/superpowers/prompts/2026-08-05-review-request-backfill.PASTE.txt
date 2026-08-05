@@ -1,0 +1,155 @@
+In the jointidywise project, run a one-time data migration that copies every
+customised review-request SMS template out of the legacy
+business_settings.review_sms_template column and into
+organization_automations.settings.templates.review_request, where the sender
+that actually fires can read it. Commit it as a migration file and confirm it
+RAN against the live database, not just that the file exists.
+
+────────────────────────────────────────────────────────────────────────
+WHY THIS IS NEEDED — six organisations are sending the wrong message today
+────────────────────────────────────────────────────────────────────────
+
+There are two senders for the review-request SMS and they read different
+places:
+
+  process-review-sms-queue  (cron job 169, every 5 minutes, ACTIVE)
+      This is the automatic one, and it is what the Automation Center toggle
+      gates. It builds its template map from
+      organization_automations.settings.templates.review_request ONLY and
+      passes it to resolveTemplate(). There is NO legacy fallback in this
+      path. A null body resolves to AUTOMATION_DEFAULTS.review_request —
+      the shipped default.
+
+  send-review-request-sms  (manual, fired from the booking row)
+      Reads the new store first, falls back to
+      business_settings.review_sms_template, and lazily migrates the legacy
+      body into the new store on first read.
+
+The lazy migration exists only in the MANUAL sender. The automatic sender
+only ever reads; it never writes anything back. So an organisation that
+relies on the automation — which is the whole point of the automation — never
+triggers the migration, and its wording never converges.
+
+Verified against the live database:
+
+  - ZERO organisations on the entire platform have a review_request entry in
+    organization_automations.settings.templates. The lazy migration has never
+    fired for anyone.
+  - 90 organisations have something in business_settings.review_sms_template.
+  - Of those, 83 hold the SettingsPage default string verbatim and 7 are
+    genuinely customised.
+  - 6 of those 7 have the review_request automation ENABLED right now. They
+    are sending the shipped default while the Settings page renders their own
+    wording back to them. They have no way to notice.
+
+────────────────────────────────────────────────────────────────────────
+WHAT TO RUN
+────────────────────────────────────────────────────────────────────────
+
+Two statements. UPDATE first, then INSERT — an organisation either already
+has a review_request row or it does not, and the two cases need different
+handling.
+
+The literal below is the SettingsPage default (src/pages/admin/SettingsPage.tsx,
+the review_sms_template entry in defaultSettings). Rows equal to it are NOT
+customised and must be skipped — copying it across would replace one default
+with a different default and produce 83 pointless writes. Note the doubled
+apostrophe in "We''d" — that is SQL escaping, the real string has one.
+
+-- ── 1. Organisations that already have a review_request row ──────────────
+update organization_automations a
+set settings = coalesce(a.settings, '{}'::jsonb)
+             || jsonb_build_object(
+                  'templates',
+                  coalesce(a.settings -> 'templates', '{}'::jsonb)
+                  || jsonb_build_object('review_request', btrim(b.review_sms_template))
+                ),
+    updated_at = now()
+from business_settings b
+where b.organization_id = a.organization_id
+  and a.automation_type = 'review_request'
+  and nullif(btrim(b.review_sms_template), '') is not null
+  and btrim(b.review_sms_template) <> 'Hi {customer_name}, thank you for choosing {company_name}! We''d love to hear about your experience. Please take a moment to leave us a review: {review_link}'
+  -- THE GUARD: never overwrite something already in the new store.
+  and nullif(btrim(a.settings -> 'templates' ->> 'review_request'), '') is null;
+
+-- ── 2. Organisations with no review_request row at all ───────────────────
+insert into organization_automations (organization_id, automation_type, is_enabled, settings)
+select b.organization_id,
+       'review_request',
+       false,
+       jsonb_build_object(
+         'templates',
+         jsonb_build_object('review_request', btrim(b.review_sms_template))
+       )
+from business_settings b
+where nullif(btrim(b.review_sms_template), '') is not null
+  and btrim(b.review_sms_template) <> 'Hi {customer_name}, thank you for choosing {company_name}! We''d love to hear about your experience. Please take a moment to leave us a review: {review_link}'
+  and not exists (
+    select 1 from organization_automations a
+    where a.organization_id = b.organization_id
+      and a.automation_type = 'review_request'
+  );
+
+────────────────────────────────────────────────────────────────────────
+THREE THINGS THAT MUST NOT DRIFT
+────────────────────────────────────────────────────────────────────────
+
+1. THE GUARD. The UPDATE's last condition is what makes this safe to run more
+   than once. If an owner has already saved wording in the Messages tab, that
+   is newer and more deliberate than whatever is sitting in the legacy column,
+   and it must win. Without that line a re-run silently reverts their edit.
+   Do not "simplify" it away.
+
+2. is_enabled = false ON INSERT. Copying wording across must never switch an
+   automation on for an organisation that has not enabled it. This mirrors the
+   existing lazy migration in send-review-request-sms, which inserts disabled
+   for exactly this reason. The UPDATE must not touch is_enabled at all.
+
+3. THE JSONB MERGE SHAPE. Use the `||` concatenation form shown above, not
+   jsonb_set. jsonb_set only creates the FINAL element of a path — it cannot
+   create the intermediate `templates` object — so on any row whose settings
+   has no `templates` key it would silently do nothing. The `||` form
+   preserves every other key in settings and every other key in templates.
+
+────────────────────────────────────────────────────────────────────────
+VERIFY BEFORE REPORTING BACK — run this and paste the output
+────────────────────────────────────────────────────────────────────────
+
+select o.name as org,
+       a.is_enabled,
+       (a.settings -> 'templates' ->> 'review_request') is not distinct from btrim(b.review_sms_template) as landed,
+       left(a.settings -> 'templates' ->> 'review_request', 50) as now_in_new_store,
+       left(btrim(b.review_sms_template), 50) as legacy_source
+from business_settings b
+join organizations o on o.id = b.organization_id
+left join organization_automations a
+  on a.organization_id = b.organization_id
+ and a.automation_type = 'review_request'
+where nullif(btrim(b.review_sms_template), '') is not null
+  and btrim(b.review_sms_template) <> 'Hi {customer_name}, thank you for choosing {company_name}! We''d love to hear about your experience. Please take a moment to leave us a review: {review_link}'
+order by a.is_enabled desc nulls last, o.name;
+
+EXPECTED: exactly 7 rows. `landed` must be true on every one. 6 of the 7 must
+show is_enabled = true — those are the organisations that were actively
+sending the wrong message, and they will send their own wording on the next
+cron run.
+
+If any row shows landed = false, or if the row count is not 7, stop and report
+rather than re-running — a mismatch means the default literal above no longer
+matches what SettingsPage writes, and a second run will not fix that.
+
+────────────────────────────────────────────────────────────────────────
+DO NOT CHANGE
+────────────────────────────────────────────────────────────────────────
+  - business_settings.review_sms_template. Leave the legacy column populated.
+    Retiring the Settings → Reviews editor is FRONTEND work that comes AFTER
+    this lands, and doing it in either order but this one would strand those
+    organisations' wording in a column nothing reads.
+  - send-review-request-sms. Its lazy migration stays; it is harmless once the
+    new store is populated, and its guard already prevents a double write.
+  - process-review-sms-queue. It needs no change — it will simply start
+    finding a template where it previously found null.
+  - AUTOMATION_DEFAULTS in _shared/automation-templates.ts. The shipped default
+    stays as the fallback for organisations that never customised anything.
+  - Any organisation's is_enabled state.
