@@ -287,6 +287,8 @@ function MonthlyBars({ series }: { series: MonthPoint[] }) {
  */
 function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCreditsNet: number }) {
   const { data: payers, isLoading, error } = useBillingPlanPayers();
+  const [showTrials, setShowTrials] = useState(false);
+
 
   const all = payers ?? [];
   // Not `> 0`: a payer refunded below zero is still a payer, and hiding them in
