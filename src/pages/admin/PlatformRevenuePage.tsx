@@ -457,7 +457,13 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
   );
 }
 
-export default function PlatformRevenuePage() {
+/**
+ * `embedded` renders the same figures without the page chrome, so the Platform
+ * Analytics "Revenue" tab shows exactly this data rather than a second, drifting
+ * copy of it.
+ */
+export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }) {
+
   const { data: rows, isLoading, error } = useBillingRevenue();
   const { data: freshness } = useBackfillFreshness();
   const { data: payers } = useBillingPlanPayers();
