@@ -4,6 +4,7 @@ import path from "path";
 import { execSync } from "node:child_process";
 import { componentTagger } from "lovable-tagger";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // Runs the sitemap generator after the production build completes so
 // public/sitemap.xml stays in sync with the routes declared in src/App.tsx.
@@ -68,6 +69,7 @@ export default defineConfig(({ mode }) => ({
       includePublic: true,
       logStats: true,
     }),
+    mcpPlugin(),
     sitemapPlugin(),
     prerenderPlugin(),
   ].filter(Boolean),

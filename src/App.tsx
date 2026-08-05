@@ -48,6 +48,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
 const SetPasswordPage = lazy(() => import("./pages/SetPasswordPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
+const OAuthConsentPage = lazy(() => import("./pages/OAuthConsentPage"));
 
 // Lazy-loaded page skeleton for loading states
 const PageLoader = () => (
@@ -299,6 +300,7 @@ const App = () => (
                          <Route path="/set-password" element={<SetPasswordPage />} />
                          <Route path="/accept-invite" element={<AcceptInvitePage />} />
                          <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
                          <Route path="/logout" element={<LogoutPage />} />
                         
                       {/* Public Routes - Critical Path */}
@@ -413,6 +415,7 @@ const App = () => (
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
                     <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
                     {/* Public Routes - Lazy Loaded */}

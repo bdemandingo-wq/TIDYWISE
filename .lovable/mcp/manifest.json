@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://slwfkaqczvwvvvavkgpr.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "jointidywise",
+      "version": "0.1.0",
+      "title": "Jointidywise"
+    },
+    "tools": [
+      {
+        "name": "list_organizations",
+        "title": "List my businesses",
+        "description": "List the TidyWise organizations (businesses) the signed-in user belongs to, with their role in each.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_bookings",
+        "title": "List bookings",
+        "description": "List cleaning bookings for one of the signed-in user's organizations, optionally filtered by date range and status.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "organization_id": {
+              "type": "string",
+              "description": "Organization to read. Defaults to the user's owner organization."
+            },
+            "from": {
+              "type": "string",
+              "description": "Only bookings scheduled on or after this ISO date/time."
+            },
+            "to": {
+              "type": "string",
+              "description": "Only bookings scheduled on or before this ISO date/time."
+            },
+            "status": {
+              "type": "string",
+              "description": "Filter by booking status, e.g. confirmed or completed."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum rows to return (default 25, max 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_customers",
+        "title": "List customers",
+        "description": "Search or list customers for one of the signed-in user's organizations by name, email, or phone.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "organization_id": {
+              "type": "string",
+              "description": "Organization to read. Defaults to the user's owner organization."
+            },
+            "search": {
+              "type": "string",
+              "description": "Match against first name, last name, or email."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum rows to return (default 25, max 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_invoices",
+        "title": "List invoices",
+        "description": "List invoices for one of the signed-in user's organizations, optionally filtered by status such as draft, sent, paid, or overdue.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "organization_id": {
+              "type": "string",
+              "description": "Organization to read. Defaults to the user's owner organization."
+            },
+            "status": {
+              "type": "string",
+              "description": "Filter by invoice status."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum rows to return (default 25, max 100)."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_customer",
+        "title": "Create customer",
+        "description": "Create a new customer record in one of the signed-in user's organizations. Use list_customers first to avoid duplicates.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "first_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Customer first name."
+            },
+            "last_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Customer last name."
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Customer email address."
+            },
+            "phone": {
+              "type": "string",
+              "description": "Customer phone number."
+            },
+            "address": {
+              "type": "string",
+              "description": "Street address."
+            },
+            "city": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "zip_code": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string",
+              "description": "Internal notes about this customer."
+            },
+            "organization_id": {
+              "type": "string",
+              "description": "Organization to write to. Defaults to the user's owner organization."
+            }
+          },
+          "required": [
+            "first_name",
+            "last_name",
+            "email"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
