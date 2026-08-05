@@ -365,13 +365,29 @@ export default function BookingsPage() {
     return matchesSearch && matchesStatus && matchesDate && matchesTab;
   });
 
-  // Stats - pending payment based on payment_status, scheduled based on status.
-  // `confirmed` = booked and confirmed but not yet done; `completed` = job finished.
-  // Both are COUNTS of bookings, not money — the completed tile used to carry a
-  // DollarSign, which is what made it read as a revenue figure.
+  // Stats. `confirmed` = booked but not yet done; `completed` = job finished.
+  // Those two and `total` are COUNTS, not money — the completed tile used to
+  // carry a DollarSign, which is what made it read as a revenue figure.
+  //
+  // All three are lifetime figures over every booking the org has ever had:
+  // `bookings` is unfiltered, so they ignore the search, status and date
+  // controls below them. They now say "all time" on the card rather than
+  // implying they describe the current view.
+  //
+  // `owed` is the one money figure, and it is a genuine receivable: a job that
+  // happened and has not been paid for. It replaces a "Pending Payment" count
+  // of every booking ever carrying payment_status 'pending' — 64 rows for
+  // TIDYWISE, of which 57 were future work nobody owed yet and 6 were
+  // cancelled jobs that will never be paid. The real figure was one job at
+  // $130. Requiring status 'completed' excludes future work and cancellations
+  // in a single condition, so no separate cancelled filter is needed.
+  const owedBookings = bookings.filter(
+    b => b.status === 'completed' && b.payment_status === 'pending'
+  );
   const stats = {
     total: bookings.length,
-    pending: bookings.filter(b => b.payment_status === 'pending').length,
+    owed: owedBookings.reduce((sum, b) => sum + Number(b.total_amount || 0), 0),
+    owedCount: owedBookings.length,
     confirmed: bookings.filter(b => b.status === 'confirmed').length,
     completed: bookings.filter(b => b.status === 'completed').length,
   };
@@ -1706,6 +1722,7 @@ export default function BookingsPage() {
                   <span className="text-sm font-medium text-muted-foreground">Total</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">{stats.total}</p>
+                <p className="text-xs text-muted-foreground mt-1">all time</p>
               </div>
             </div>
             
@@ -1716,9 +1733,12 @@ export default function BookingsPage() {
                   <div className="p-2 bg-warning/10 rounded-xl">
                     <Clock className="w-5 h-5 text-warning" />
                   </div>
-                  <span className="text-sm font-medium text-muted-foreground">Pending Payment</span>
+                  <span className="text-sm font-medium text-muted-foreground">Owed to you</span>
                 </div>
-                <p className="text-3xl font-bold text-foreground">{stats.pending}</p>
+                <p className="text-3xl font-bold text-foreground">{fmt(stats.owed)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.owedCount === 1 ? '1 completed job' : `${stats.owedCount} completed jobs`}
+                </p>
               </div>
             </div>
             
@@ -1732,6 +1752,7 @@ export default function BookingsPage() {
                   <span className="text-sm font-medium text-muted-foreground">Scheduled</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">{stats.confirmed}</p>
+                <p className="text-xs text-muted-foreground mt-1">all time</p>
               </div>
             </div>
             
@@ -1745,6 +1766,7 @@ export default function BookingsPage() {
                   <span className="text-sm font-medium text-muted-foreground">Completed</span>
                 </div>
                 <p className="text-3xl font-bold text-foreground">{stats.completed}</p>
+                <p className="text-xs text-muted-foreground mt-1">all time</p>
               </div>
             </div>
           </div>
