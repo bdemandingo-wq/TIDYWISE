@@ -592,7 +592,14 @@ export default function PlatformAnalyticsPage() {
           </Link>
         </div>
 
+          <TabsContent value="revenue">
+            {/* Same component the standalone CRM Revenue page renders, so the two
+                surfaces can never drift apart. */}
+            <PlatformRevenueView embedded />
+          </TabsContent>
+
           <TabsContent value="churn">
+
             <div className="space-y-6">
               <ChurnRetentionTab />
               <CancellationFeedbackPanel />
