@@ -48,6 +48,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
 const SetPasswordPage = lazy(() => import("./pages/SetPasswordPage"));
 const ContactPage = lazy(() => import("./pages/ContactPage"));
+const OAuthConsentPage = lazy(() => import("./pages/OAuthConsentPage"));
 
 // Lazy-loaded page skeleton for loading states
 const PageLoader = () => (
