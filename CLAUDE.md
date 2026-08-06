@@ -1,6 +1,23 @@
 # TidyWise SaaS (jointidywise)
 
-Multi-tenant cleaning-business SaaS. React + TypeScript + Vite + Tailwind/shadcn on the front end, Supabase (Postgres + 200+ Deno edge functions) on the back, Capacitor wrapping the same `dist/` build into a native iOS app. Live at jointidywise.com; the iOS app is `com.jointidywise.app`.
+Multi-tenant cleaning-business SaaS. React + TypeScript + Vite + Tailwind/shadcn on the front end, Supabase (Postgres + 200+ Deno edge functions) on the back, Capacitor wrapping the same `dist/` build into a native iOS app. Live at jointidywise.com; the iOS app is `com.TidyWiseApp.app` — note the bundle
+id does NOT follow the domain, and `com.jointidywise.app` (what this file said
+until 2026-08-06) is not a thing. Confirmed against
+`PRODUCT_BUNDLE_IDENTIFIER` in `ios/App/App.xcodeproj/project.pbxproj`, both
+configurations.
+
+The iOS project uses **Swift Package Manager, not CocoaPods** — there is no
+`Podfile.lock` and no `App.xcworkspace`. Archiving from the terminal therefore
+takes `-project App.xcodeproj`, never `-workspace App.xcworkspace`:
+
+```sh
+cd ios/App
+xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+  -destination 'generic/platform=iOS' \
+  -archivePath ~/Desktop/TidyWise-<build>.xcarchive archive
+```
+
+Signing is `CODE_SIGN_STYLE = Automatic` with `DEVELOPMENT_TEAM = JV99ZGTGR3`.
 
 This project was built in **Lovable**, and Lovable still writes to it. That fact drives most of the rules below.
 
