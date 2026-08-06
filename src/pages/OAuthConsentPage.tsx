@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SEOHead } from '@/components/SEOHead';
 
 /**
  * OAuth 2.1 consent screen for MCP clients (Claude, ChatGPT, Cursor…).
@@ -101,6 +102,17 @@ export default function OAuthConsentPage() {
 
   return (
     <main className="min-h-dvh flex items-center justify-center bg-background px-4 py-10">
+      {/* index.html defaults every route to "index, follow", so a page without
+          SEOHead is crawlable by omission. This one is a step inside an OAuth
+          handshake and only works with a live authorization_id, so it must say
+          otherwise explicitly. The sitemap generator excludes /.lovable too —
+          both are needed: the sitemap stops it being advertised, noindex stops
+          it being kept if a crawler arrives another way. */}
+      <SEOHead
+        title="Authorize access | TidyWise"
+        description="Authorize an application to access your TidyWise account."
+        noIndex
+      />
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm">
         {error && (
           <p className="mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
