@@ -88,8 +88,10 @@ select coalesce(organization_name, customer_email) as who, net_cash_cents
 from billing_plan_payers
 order by net_cash_cents desc;
 
-EXPECTED: no Clean Collective row at all, and 11 rows with net_cash_cents > 0
-where there were 12.
+EXPECTED: no Clean Collective row at all, and 6 rows with net_cash_cents > 0
+where there were 7. (Not 11/12 — migration 20260805062431 had already removed
+Clean Castillo and the website-build payments and reattributed reversals,
+which also moved Prime Cleaning Maids to zero.)
 
 If total_earned is not exactly 954.00, stop and report rather than adjusting
 further — a different figure means something else changed in the ledger since
