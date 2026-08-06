@@ -58,6 +58,27 @@ const OWN_ORGANIZATION_IDS = new Set<string>([
   'e95b92d0-7099-408e-a773-e4407b34f8b4', // TIDYWISE
 ]);
 
+/**
+ * The plans, in price order, keyed by `organizations.plan_type`.
+ *
+ * Grouped on plan_type and NEVER plan_tier. plan_tier is stale for paying
+ * customers — Magic Maidz paid $300 for lifetime and Cleaning Superboss has
+ * paid $194, and both still read 'trial' — and for lifetime orgs it holds
+ * 'custom' to mean "unlocks Custom-tier features", which is a different
+ * question from "which plan are they on". plan_type is what create-subscription
+ * and the access checks read.
+ *
+ * A tier with nobody on it still renders. "Custom · 0" is an answer to "how
+ * many people are on each plan", and hiding it would quietly turn a real
+ * finding — nobody has ever bought the top plan — into an absence.
+ */
+const PLAN_TIERS: { key: string; label: string; price: string }[] = [
+  { key: 'basic', label: 'Basic', price: '$49/mo' },
+  { key: 'pro', label: 'Pro', price: '$97/mo' },
+  { key: 'custom', label: 'Custom', price: '$197/mo' },
+  { key: 'lifetime', label: 'Lifetime', price: '$300 once' },
+];
+
 type PayerKind = 'paying' | 'comped' | 'trial';
 
 /**
@@ -327,55 +348,77 @@ function MonthlyBars({ series }: { series: MonthPoint[] }) {
  * shorter.
  */
 /**
- * A muted, expandable group of non-paying businesses.
+ * One plan tier: a header row that answers "how many, and what is it worth",
+ * expanding to the businesses on it.
  *
- * Comped and on-trial render identically and differ only in wording, so they
- * share this rather than carrying two copies of the disclosure markup that
- * would drift the moment one is edited.
+ * Lifetime carries a paid/granted marker per business. Without it the group
+ * reads as eleven people on the best plan, when four bought it and seven were
+ * given it — the same overstatement that "9 on trial" made, relocated.
  */
-function CollapsedPayerGroup({
-  rows, open, onToggle, summary, rowLabel, keyPrefix, label,
+function TierGroup({
+  tier, rows, open, onToggle, label, period,
 }: {
+  tier: { key: string; label: string; price: string };
   rows: PlanPayer[];
   open: boolean;
   onToggle: () => void;
-  summary: string;
-  rowLabel: string;
-  keyPrefix: string;
   label: (p: PlanPayer) => string;
+  period: (p: PlanPayer) => string;
 }) {
-  if (rows.length === 0) return null;
+  const net = rows.reduce((a, p) => a + p.net_cash_cents, 0);
+  const empty = rows.length === 0;
+
   return (
     <>
-      <tr className="text-muted-foreground">
-        <td className="py-2 pr-3" colSpan={3}>
+      <tr className={empty ? 'text-muted-foreground' : undefined}>
+        <td className="py-2 pr-3">
           <button
             type="button"
             onClick={onToggle}
-            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
-            aria-expanded={open}
+            disabled={empty}
+            className="inline-flex items-center gap-1.5 disabled:cursor-default hover:text-foreground transition-colors"
+            aria-expanded={empty ? undefined : open}
           >
-            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-            {summary}
+            {empty
+              ? <span className="w-3.5" aria-hidden="true" />
+              : open
+                ? <ChevronDown className="w-3.5 h-3.5" />
+                : <ChevronRight className="w-3.5 h-3.5" />}
+            <span className="font-medium">{tier.label}</span>
+            <span className="text-xs text-muted-foreground">{tier.price}</span>
           </button>
         </td>
-        <td className="py-2 text-right tabular-nums">{money(0)}</td>
+        <td className="py-2 whitespace-nowrap text-muted-foreground">
+          {rows.length} {rows.length === 1 ? 'business' : 'businesses'}
+        </td>
+        <td className="py-2 text-right tabular-nums text-muted-foreground">
+          {rows.reduce((a, p) => a + p.payment_events, 0) || '—'}
+        </td>
+        <td className="py-2 text-right tabular-nums font-medium">
+          {empty ? '—' : money(net)}
+        </td>
       </tr>
 
       {open && rows.map((p) => (
-        <tr
-          key={`${keyPrefix}-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}
-          className="text-muted-foreground"
-        >
+        <tr key={`${tier.key}-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}>
           <td className="py-2 pr-3 pl-6">
-            <span className="font-medium text-foreground">{label(p)}</span>
+            <span className="font-medium">{label(p)}</span>
             {p.customer_email && p.organization_name && (
-              <span className="block text-[11px]">{p.customer_email}</span>
+              <span className="block text-[11px] text-muted-foreground">{p.customer_email}</span>
+            )}
+            {/* Reversals only where they exist — same rule as the chart. */}
+            {p.reversal_cents !== 0 && (
+              <span className="block text-[11px] text-destructive">
+                {money(p.reversal_cents)} refunded
+                {p.reversal_events > 0 && ` · ${p.reversal_events}×`}
+              </span>
             )}
           </td>
-          <td className="py-2 whitespace-nowrap">{rowLabel}</td>
-          <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
-          <td className="py-2 text-right tabular-nums">{money(0)}</td>
+          <td className="py-2 whitespace-nowrap text-muted-foreground">
+            {p.net_cash_cents === 0 ? 'Granted' : period(p)}
+          </td>
+          <td className="py-2 text-right tabular-nums text-muted-foreground">{p.payment_events}</td>
+          <td className="py-2 text-right tabular-nums font-medium">{money(p.net_cash_cents)}</td>
         </tr>
       ))}
     </>
@@ -384,8 +427,9 @@ function CollapsedPayerGroup({
 
 function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCreditsNet: number }) {
   const { data: payers, isLoading, error } = useBillingPlanPayers();
-  const [showTrials, setShowTrials] = useState(false);
-  const [showComped, setShowComped] = useState(false);
+  // Which tiers are expanded. Empty by default: the question the page is here
+  // to answer — how many businesses are on each plan — is on the header rows.
+  const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({});
 
 
   const all = payers ?? [];
@@ -393,8 +437,24 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
   // the trial row would be the same omission this panel exists to prevent.
   const customers = all.filter((p) => !p.organization_id || !OWN_ORGANIZATION_IDS.has(p.organization_id));
   const paying = customers.filter((p) => classifyPayer(p) === 'paying');
-  const comped = customers.filter((p) => classifyPayer(p) === 'comped');
-  const trials = customers.filter((p) => classifyPayer(p) === 'trial');
+
+  /*
+    Grouped by plan, highest payers first inside each. A business whose
+    plan_type matches no known tier still has to appear somewhere — dropping it
+    would make the list disagree with the footer total — so anything unmatched
+    falls into a trailing "Other" group rather than vanishing.
+  */
+  const byTier = PLAN_TIERS.map((tier) => ({
+    tier,
+    rows: customers
+      .filter((p) => p.plan_type === tier.key)
+      .sort((a, b) => b.net_cash_cents - a.net_cash_cents),
+  }));
+
+  const knownTierKeys = new Set(PLAN_TIERS.map((t) => t.key));
+  const otherRows = customers
+    .filter((p) => !p.plan_type || !knownTierKeys.has(p.plan_type))
+    .sort((a, b) => b.net_cash_cents - a.net_cash_cents);
 
   const payersTotal = all.reduce((a, p) => a + p.net_cash_cents, 0);
   const planTotal = sumRows(planRows);
@@ -453,60 +513,38 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
               <table className="w-full text-sm min-w-[440px]">
                 <thead>
                   <tr className="border-b text-xs text-muted-foreground">
-                    <th className="text-left py-2 font-medium">Business</th>
-                    <th className="text-left py-2 font-medium">Paying since</th>
+                    <th className="text-left py-2 font-medium">Plan</th>
+                    <th className="text-left py-2 font-medium">On it</th>
                     <th className="text-right py-2 font-medium">Payments</th>
                     <th className="text-right py-2 font-medium">Net</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {paying.map((p) => (
-                    <tr key={p.organization_id ?? p.customer_email ?? 'unattributed'}>
-                      <td className="py-2 pr-3">
-                        <span className="font-medium">{label(p)}</span>
-                        {p.customer_email && p.organization_name && (
-                          <span className="block text-[11px] text-muted-foreground">
-                            {p.customer_email}
-                          </span>
-                        )}
-                        {/* Reversals only where they exist — same rule as the chart. */}
-                        {p.reversal_cents !== 0 && (
-                          <span className="block text-[11px] text-destructive">
-                            {money(p.reversal_cents)} refunded
-                            {p.reversal_events > 0 && ` · ${p.reversal_events}×`}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 whitespace-nowrap text-muted-foreground">{period(p)}</td>
-                      <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
-                      <td className="py-2 text-right tabular-nums font-medium">
-                        {money(p.net_cash_cents)}
-                      </td>
-                    </tr>
+                  {byTier.map(({ tier, rows }) => (
+                    <TierGroup
+                      key={tier.key}
+                      tier={tier}
+                      rows={rows}
+                      open={!!openTiers[tier.key]}
+                      onToggle={() => setOpenTiers((s) => ({ ...s, [tier.key]: !s[tier.key] }))}
+                      label={label}
+                      period={period}
+                    />
                   ))}
 
-                  {/* Comped and on-trial are separate rows, not one bucket. The
-                      old single "on trial" row said nine businesses were still
-                      deciding when eight of them had been granted access. */}
-                  <CollapsedPayerGroup
-                    rows={comped}
-                    open={showComped}
-                    onToggle={() => setShowComped((v) => !v)}
-                    summary={`${comped.length} ${comped.length === 1 ? 'business' : 'businesses'} comped — lifetime access granted`}
-                    rowLabel="Comped"
-                    keyPrefix="comped"
-                    label={label}
-                  />
-
-                  <CollapsedPayerGroup
-                    rows={trials}
-                    open={showTrials}
-                    onToggle={() => setShowTrials((v) => !v)}
-                    summary={`${trials.length} ${trials.length === 1 ? 'business' : 'businesses'} on trial — nothing paid yet`}
-                    rowLabel="On trial"
-                    keyPrefix="trial"
-                    label={label}
-                  />
+                  {/* Only rendered when something does not match a known plan.
+                      Silently dropping such a row would make these groups
+                      disagree with the footer total below. */}
+                  {otherRows.length > 0 && (
+                    <TierGroup
+                      tier={{ key: 'other', label: 'Other', price: 'unrecognised plan' }}
+                      rows={otherRows}
+                      open={!!openTiers.other}
+                      onToggle={() => setOpenTiers((s) => ({ ...s, other: !s.other }))}
+                      label={label}
+                      period={period}
+                    />
+                  )}
 
                 </tbody>
                 <tfoot className="border-t">
