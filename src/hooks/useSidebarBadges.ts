@@ -15,20 +15,37 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
  *
  * Each nav href has:
  *   - a numeric count (sum of enabled sub-counts)
- *   - a breakdown array of {key, label, count, filter}
+ *   - a breakdown array of {key, label, count}
  *
- * Breakdowns power the sidebar hover tooltip, the on-page "Attention"
- * strip, and let the user jump to the exact filter that produced the
- * count. Individual sub-counts are gated by the organization's
- * notification preferences.
+ * Breakdowns power the sidebar hover tooltip (display only — those rows are not
+ * links) and the on-page "Attention" strip, where clicking a reason calls
+ * onReasonClick and the page switches on its `key`. Individual sub-counts are
+ * gated by the organization's notification preferences.
  */
 
 export interface BadgeReason {
   key: string;
   label: string;
   count: number;
-  /** Query string appended to the nav href to filter to these items. */
-  filter?: string;
+  /*
+    There is deliberately no `filter` here any more.
+
+    A `filter?: string` carrying query strings ('status=pending',
+    'payment=pending' and so on) sat on every reason for a long time and was
+    read by NOTHING. The sidebar tooltip renders each row as a plain <p> — never
+    a link — and AttentionStrip, the one surface where reasons ARE clickable,
+    dispatches on `key` via onReasonClick. Grepped: zero consumers.
+
+    It was worse than dead weight. Its presence repeatedly read as "these are
+    deep-links and they're broken", producing a bug report and a risk assessment
+    for a defect that did not exist. The `key` values were correct the whole
+    time; only the filter was misleading.
+
+    If per-reason navigation is ever built, carry the matching row IDs rather
+    than a query string. A query string means re-deriving each badge's predicate
+    on the page, which is two definitions of the same thing in two files — the
+    exact shape of the ['staff'] / ['staff-all'] drift fixed in a6ac1263.
+  */
 }
 
 export interface SidebarBadgeData {
@@ -346,14 +363,14 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Staff
     const staffReasons: BadgeReason[] = [];
-    push(staffReasons, { key: 'time_off', label: 'time-off request', count: g(staff.timeOff, 'staff.time_off'), filter: 'tab=time-off' });
-    push(staffReasons, { key: 'docs', label: 'document review', count: g(staff.docs, 'staff.documents'), filter: 'tab=documents' });
-    if (payoutRequired) push(staffReasons, { key: 'payout', label: 'payout issue', count: g(staff.payout, 'staff.payout'), filter: 'tab=team' });
+    push(staffReasons, { key: 'time_off', label: 'time-off request', count: g(staff.timeOff, 'staff.time_off') });
+    push(staffReasons, { key: 'docs', label: 'document review', count: g(staff.docs, 'staff.documents') });
+    if (payoutRequired) push(staffReasons, { key: 'payout', label: 'payout issue', count: g(staff.payout, 'staff.payout') });
 
     // Bookings
     const bookingReasons: BadgeReason[] = [];
-    push(bookingReasons, { key: 'pending', label: 'pending booking', count: g(bookings.pending, 'bookings.pending'), filter: 'status=pending' });
-    push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings.unassigned, 'bookings.unassigned'), filter: 'status=unassigned' });
+    push(bookingReasons, { key: 'pending', label: 'pending booking', count: g(bookings.pending, 'bookings.pending') });
+    push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings.unassigned, 'bookings.unassigned') });
     // Labelled by what it actually queries: payment_status 'pending' on a job
     // whose date has passed. It said "failed payment", which is a different
     // and more alarming thing than an invoice nobody has settled yet.
@@ -365,8 +382,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     // The pluraliser in BadgeWithReasons appends a bare 's', so these labels
     // have to read correctly with one appended. That is why this says
     // "uncollected job" rather than "uncollected this week".
-    push(bookingReasons, { key: 'payment', label: 'uncollected job', count: g(bookings.payment, 'bookings.payment'), filter: 'payment=pending' });
-    push(bookingReasons, { key: 'chargeFailed', label: 'failed card charge', count: g(bookings.chargeFailed, 'bookings.payment'), filter: 'payment=pending' });
+    push(bookingReasons, { key: 'payment', label: 'uncollected job', count: g(bookings.payment, 'bookings.payment') });
+    push(bookingReasons, { key: 'chargeFailed', label: 'failed card charge', count: g(bookings.chargeFailed, 'bookings.payment') });
 
     // Scheduler intentionally has no badge — unassigned jobs surface on the
     // Bookings item, and duplicating the count here produced a "phantom"
@@ -383,7 +400,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Messages
     const messageReasons: BadgeReason[] = [];
-    push(messageReasons, { key: 'unread', label: 'unread conversation', count: g(messages.unreadConvs, 'messages.unread'), filter: 'filter=unread' });
+    push(messageReasons, { key: 'unread', label: 'unread conversation', count: g(messages.unreadConvs, 'messages.unread') });
 
     // Tasks
     const taskReasons: BadgeReason[] = [];
@@ -393,8 +410,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Leads
     const leadReasons: BadgeReason[] = [];
-    push(leadReasons, { key: 'new', label: 'new lead', count: g(leads.newCount, 'leads.new'), filter: 'status=new' });
-    push(leadReasons, { key: 'follow_up', label: 'lead needs follow-up', count: g(leads.followUp, 'leads.new'), filter: 'status=follow_up' });
+    push(leadReasons, { key: 'new', label: 'new lead', count: g(leads.newCount, 'leads.new') });
+    push(leadReasons, { key: 'follow_up', label: 'lead needs follow-up', count: g(leads.followUp, 'leads.new') });
 
     // Inventory
     const invReasons: BadgeReason[] = [];
@@ -412,8 +429,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Feedback
     const fbReasons: BadgeReason[] = [];
-    push(fbReasons, { key: 'unresolved', label: 'unresolved feedback', count: g(feedback.unresolved, 'feedback.low_rating'), filter: 'filter=unresolved' });
-    push(fbReasons, { key: 'followup', label: 'needs follow-up', count: g(feedback.followup, 'feedback.low_rating'), filter: 'filter=followup' });
+    push(fbReasons, { key: 'unresolved', label: 'unresolved feedback', count: g(feedback.unresolved, 'feedback.low_rating') });
+    push(fbReasons, { key: 'followup', label: 'needs follow-up', count: g(feedback.followup, 'feedback.low_rating') });
 
     const sum = (arr: BadgeReason[]) => arr.reduce((s, r) => s + r.count, 0);
 
