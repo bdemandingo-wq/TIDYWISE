@@ -21,6 +21,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { COMPETITORS, NICHES } from "../data/compareNicheData";
+import { STATIC_ROUTE_META } from "./routeMeta";
+
+/**
+ * Marker the build plugin greps for to tell a route-meta mismatch — which must
+ * fail the build — apart from a transient failure like the blog-slug fetch,
+ * which should only warn. Keep in sync with vite.config.ts.
+ */
+export const ROUTE_META_GUARD_MARKER = "SITEMAP_ROUTE_META_MISMATCH";
 
 // @babel/traverse ships as CJS; under ESM the default export lives on `.default`.
 const traverse =
@@ -40,6 +48,15 @@ const EXCLUDED_PATHS = new Set<string>([
   "/onboarding",
   "/card-saved",
   "/delete-account",
+  // The hard paywall between onboarding and the dashboard. Reachable only with
+  // a session, redirects to /login on native, and has nothing to offer a
+  // crawler — it was being advertised purely because it is a top-level route.
+  "/choose-plan",
+  // Both only function with a one-time token in the URL. A crawler arriving
+  // without one gets an error state, and indexing either invites people to a
+  // page that cannot work for them.
+  "/set-password",
+  "/accept-invite",
   "*",
 ]);
 
@@ -217,6 +234,40 @@ export async function generateSitemap(): Promise<{ count: number; outputPath: st
   const source = readFileSync(appTsxPath, "utf8");
   const rawPaths = extractRoutePaths(source);
   const includedPaths = rawPaths.filter((p) => !shouldExclude(p));
+
+  /*
+    GUARD: every static route this file advertises must also be prerenderable.
+
+    These two systems take their routes from different places, and only one is
+    automatic. This file AST-extracts them from App.tsx, so a new public page
+    lands in sitemap.xml the moment it is added. prerender-routes.ts takes its
+    static routes from STATIC_ROUTE_META, which is hand-maintained — so a new
+    page is advertised to Google immediately and prerendered never, and crawlers
+    fetch the SPA shell carrying THE HOMEPAGE'S title and description.
+
+    That is not hypothetical: /get-the-app shipped in exactly that state and was
+    caught only because someone looked at the build output.
+
+    Failing here makes the two agree by construction rather than by memory. The
+    fix when it fires is to add the route to STATIC_ROUTE_META, or to
+    EXCLUDED_PATHS/EXCLUDED_PREFIXES above if it should not be public at all.
+
+    Dynamic routes are exempt by design — blog posts, locations, score and
+    competitor pages are expanded separately by BOTH systems and never appear in
+    STATIC_ROUTE_META. Only the static list extracted from App.tsx is checked.
+  */
+  const missingMeta = includedPaths.filter((p) => !(p in STATIC_ROUTE_META));
+  if (missingMeta.length > 0) {
+    console.error(
+      `${ROUTE_META_GUARD_MARKER}: ${missingMeta.length} route(s) are in the sitemap ` +
+        `but have no STATIC_ROUTE_META entry, so they will NOT be prerendered and ` +
+        `will serve the homepage's title and description to crawlers:\n` +
+        missingMeta.map((p) => `  ${p}`).join("\n") +
+        `\n\nAdd them to STATIC_ROUTE_META in src/lib/routeMeta.ts, or exclude them ` +
+        `in src/lib/generate-sitemap.ts if they should not be public.`,
+    );
+    process.exit(1);
+  }
 
   // Dedupe (HashRouter + BrowserRouter branches in App.tsx share most routes).
   const entryMap = new Map<string, SitemapEntry>();

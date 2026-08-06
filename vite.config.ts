@@ -21,6 +21,14 @@ function sitemapPlugin(): Plugin {
         if (output) this.info(output);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
+        // A route in the sitemap with no STATIC_ROUTE_META entry is not a
+        // transient problem — it ships a page that tells Google the wrong title
+        // and description, and it is invisible unless someone inspects dist/.
+        // That one FAILS the build. Everything else (a blog-slug fetch timing
+        // out, say) still only warns, as before.
+        if (message.includes("SITEMAP_ROUTE_META_MISMATCH")) {
+          this.error(message);
+        }
         this.warn(`sitemap generation failed: ${message}`);
       }
     },

@@ -48,6 +48,20 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
       "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Plans from $49/mo, or a one-time Lifetime spot at $300.",
     h1: "Run your cleaning business on one platform",
   },
+  "/terms": {
+    title: "Terms of Service | TidyWise",
+    description:
+      "The terms governing use of TidyWise cleaning business software, including subscriptions, acceptable use, and cancellation.",
+    h1: "Terms of Service",
+  },
+  // Public, no signup required — it had been in the sitemap without meta since
+  // it shipped, so crawlers were served the homepage's title and description.
+  "/score/generate": {
+    title: "Generate Your Free TidyWise Score | TidyWise",
+    description:
+      "Get a free TidyWise Score for your cleaning business in under a minute. No signup required — see how your online presence and operations compare.",
+    h1: "Generate your TidyWise Score",
+  },
   "/get-the-app": {
     title: "Get the TidyWise App — iPhone, iPad, Mac & Windows",
     description:
