@@ -1,0 +1,159 @@
+In the jointidywise project, do two things: keep the shared automation-template
+module in sync with the frontend copy, and repair two organisations' stored
+review templates. Deploy anything you touch and confirm DEPLOYED, not just
+committed.
+
+────────────────────────────────────────────────────────────────────────
+PART 1 — sync TOKEN_PATTERN in the edge-function copy
+────────────────────────────────────────────────────────────────────────
+
+supabase/functions/_shared/automation-templates.ts is a VERBATIM copy of
+src/lib/automationTemplates.ts. Its own header says so, and says why: the
+editor validates against the frontend copy and this one resolves at send time,
+so if they drift an owner can save a token the sender cannot resolve.
+
+The frontend copy has just changed. Apply the identical change here.
+
+BEFORE:
+    /** `{single}` braces — the syntax all three SMS engines already use. */
+    const TOKEN_PATTERN = /\{([a-z0-9_]+)\}/gi;
+
+AFTER:
+    const TOKEN_PATTERN = /\{([^}]+)\}/g;
+
+Copy the explanatory comment block from src/lib/automationTemplates.ts above it
+verbatim as well, so the two files stay literally identical.
+
+WHY: the old character class has no dot, so `{contact.first_name}` was not
+recognised as a token AT ALL. tokensIn returned nothing for it, validateTemplate
+found no unknown token and allowed the save, and resolveTemplate logged no
+warning. A token the pattern cannot see is a token nothing can reject.
+
+Do NOT change AUTOMATION_VOCABULARY, AUTOMATION_DEFAULTS, validateTemplate,
+resolveTemplate, or anything else in either file. One constant, both copies.
+
+────────────────────────────────────────────────────────────────────────
+PART 2 — repair two organisations' stored templates
+────────────────────────────────────────────────────────────────────────
+
+Both have a brace-wrapped string that is not a token, in BOTH stores —
+organization_automations.settings.templates.review_request AND the legacy
+business_settings.review_sms_template. Yesterday's backfill faithfully copied
+the breakage across, which was correct migration behaviour, so both copies need
+the same repair.
+
+── ADD Bhutan Cleaning & Gardening ──
+Wrapped their raw Google review URL in braces instead of using {review_link}:
+
+  "...Please take a moment to leave us a review: {https://g.page/r/CatskCLIILz5EBM/review}"
+
+Their business_settings.google_review_url is ALREADY exactly
+https://g.page/r/CatskCLIILz5EBM/review, so {review_link} resolves to the same
+URL. This is a clean, exact substitution.
+
+── Regal Rest Cleaning ──
+Pasted a GoHighLevel token, twice:
+
+  "Hi {contact.first_name}, Joe here from Regal Rest. Hope the home feels
+   amazing. We left something for you ✨
+   https://gift.regalrestcleaning.com/?name={contact.first_name}"
+
+Replace both occurrences of {contact.first_name} with {customer_name}.
+
+READ THE NOTE IN PART 3 BEFORE ASSUMING THIS FIXES THEIR MESSAGE. It does not.
+
+-- ── Both stores, both organisations ─────────────────────────────────────
+update organization_automations a
+set settings = coalesce(a.settings, '{}'::jsonb)
+             || jsonb_build_object(
+                  'templates',
+                  coalesce(a.settings -> 'templates', '{}'::jsonb)
+                  || jsonb_build_object(
+                       'review_request',
+                       replace(
+                         replace(a.settings -> 'templates' ->> 'review_request',
+                                 '{https://g.page/r/CatskCLIILz5EBM/review}', '{review_link}'),
+                         '{contact.first_name}', '{customer_name}')
+                     )
+                ),
+    updated_at = now()
+where a.automation_type = 'review_request'
+  and a.settings -> 'templates' ->> 'review_request' ~ '\{(contact\.first_name|https://)';
+
+update business_settings b
+set review_sms_template = replace(
+      replace(b.review_sms_template,
+              '{https://g.page/r/CatskCLIILz5EBM/review}', '{review_link}'),
+      '{contact.first_name}', '{customer_name}')
+where b.review_sms_template ~ '\{(contact\.first_name|https://)';
+
+Both statements are keyed on the broken pattern rather than on organisation
+ids, so they are safe to re-run and will also catch any other org that has
+acquired the same two mistakes since this was written.
+
+────────────────────────────────────────────────────────────────────────
+PART 3 — what this does NOT fix, and must not be "fixed" silently
+────────────────────────────────────────────────────────────────────────
+
+{review_link} is REQUIRED for review_request. When a template omits it,
+resolveTemplate discards the template and sends AUTOMATION_DEFAULTS instead.
+
+Neither organisation's template contains {review_link} today, so BOTH are
+already sending the shipped default — the broken tokens are not reaching
+customers. The real damage is quieter: both owners believe they have
+customised their review request, and the platform has been silently ignoring
+it.
+
+  - ADD Bhutan: the substitution above ADDS {review_link}, so after this runs
+    their real wording starts sending for the first time. That is the intended
+    outcome and needs no decision.
+
+  - Regal Rest: their message is a gift-link message, not a review request —
+    there is no review link in it and adding one would be putting words in
+    their mouth. After the token fix it STILL fails the required-token check
+    and STILL sends the default. Do not add {review_link} to their copy to
+    make it pass. Report this back and it will be raised with them.
+
+────────────────────────────────────────────────────────────────────────
+VERIFY BEFORE REPORTING BACK — run this and paste the output
+────────────────────────────────────────────────────────────────────────
+
+select o.name as org,
+       a.is_enabled,
+       (a.settings -> 'templates' ->> 'review_request') as automation_template,
+       b.review_sms_template as legacy_template,
+       (a.settings -> 'templates' ->> 'review_request') like '%{review_link}%' as will_actually_send
+from organizations o
+left join business_settings b on b.organization_id = o.id
+left join organization_automations a
+  on a.organization_id = o.id and a.automation_type = 'review_request'
+where o.name in ('Regal Rest Cleaning','ADD Bhutan Cleaning & Gardening');
+
+EXPECTED:
+  - Neither template contains 'contact.first_name' or '{https://' any more.
+  - The automation and legacy columns match each other for both orgs.
+  - ADD Bhutan: will_actually_send = true.
+  - Regal Rest: will_actually_send = FALSE. That is correct and expected —
+    see part 3.
+
+Then confirm no other org has a brace-wrapped non-token left anywhere:
+
+select o.name, t.key, t.value
+from organization_automations a
+join organizations o on o.id = a.organization_id
+cross join lateral jsonb_each_text(coalesce(a.settings->'templates','{}'::jsonb)) as t(key, value)
+where t.value ~ '\{[^}]*[^a-z0-9_}][^}]*\}';
+
+EXPECTED: zero rows.
+
+────────────────────────────────────────────────────────────────────────
+DO NOT CHANGE
+────────────────────────────────────────────────────────────────────────
+  - AUTOMATION_VOCABULARY or AUTOMATION_DEFAULTS in either copy.
+  - validateTemplate or resolveTemplate. The widened pattern is the whole fix;
+    both functions already reject unknown tokens correctly once they can see
+    them.
+  - Any organisation's is_enabled state.
+  - business_settings.google_review_url for either org. ADD Bhutan's is already
+    correct, which is why {review_link} is the right substitution.
+  - Regal Rest's wording beyond the two token replacements.

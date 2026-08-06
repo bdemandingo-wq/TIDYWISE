@@ -40,6 +40,47 @@ import {
 /** The view reports CENTS; fmt() takes dollars. One conversion, one place. */
 const money = (cents: number) => fmt(cents / 100);
 
+/**
+ * The founder's own organisations, which are not customers.
+ *
+ * TIDYWISE is his cleaning business; Clean Collective is a co-venture. Money
+ * between his own businesses is not someone paying for the software, and
+ * counting either as a customer overstates the thing this page exists to
+ * measure. Clean Collective's ledger rows are being marked counts_as_cash=false
+ * so it drops out upstream; TIDYWISE has only ever contributed $0, so it never
+ * touched revenue — it was inflating the comped count instead.
+ *
+ * By id, not name: an organisation can be renamed, and a rename silently
+ * putting the founder's own business back into the customer list is exactly the
+ * failure this guards against.
+ */
+const OWN_ORGANIZATION_IDS = new Set<string>([
+  'e95b92d0-7099-408e-a773-e4407b34f8b4', // TIDYWISE
+]);
+
+type PayerKind = 'paying' | 'comped' | 'trial';
+
+/**
+ * Paying, comped, or still deciding.
+ *
+ * "9 on trial" was wrong and overstated live pipeline by eight: most of those
+ * businesses were GRANTED lifetime access, not evaluating the product.
+ *
+ * Classified on plan_type and payment, NOT on grandfathered_lifetime. That flag
+ * means "original launch/founder user" and nothing else — both
+ * reconcile-checkout-session:291 and stripe-invoice-webhook:465 explicitly
+ * refuse to set it for new lifetime buyers, because plan_type alone grants
+ * access. Using it would label every future $300 founding-offer buyer comped.
+ *
+ * So: paid anything -> paying. Paid nothing but holds lifetime access -> that
+ * access was granted, i.e. comped. Paid nothing and holds no such access ->
+ * genuinely still on trial.
+ */
+function classifyPayer(p: PlanPayer): PayerKind {
+  if (p.net_cash_cents !== 0) return 'paying';
+  return p.plan_type === 'lifetime' ? 'comped' : 'trial';
+}
+
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTH_FULL = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -285,16 +326,75 @@ function MonthlyBars({ series }: { series: MonthPoint[] }) {
  * and the list is lying by omission. It says so rather than just rendering
  * shorter.
  */
+/**
+ * A muted, expandable group of non-paying businesses.
+ *
+ * Comped and on-trial render identically and differ only in wording, so they
+ * share this rather than carrying two copies of the disclosure markup that
+ * would drift the moment one is edited.
+ */
+function CollapsedPayerGroup({
+  rows, open, onToggle, summary, rowLabel, keyPrefix, label,
+}: {
+  rows: PlanPayer[];
+  open: boolean;
+  onToggle: () => void;
+  summary: string;
+  rowLabel: string;
+  keyPrefix: string;
+  label: (p: PlanPayer) => string;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <>
+      <tr className="text-muted-foreground">
+        <td className="py-2 pr-3" colSpan={3}>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
+            aria-expanded={open}
+          >
+            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+            {summary}
+          </button>
+        </td>
+        <td className="py-2 text-right tabular-nums">{money(0)}</td>
+      </tr>
+
+      {open && rows.map((p) => (
+        <tr
+          key={`${keyPrefix}-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}
+          className="text-muted-foreground"
+        >
+          <td className="py-2 pr-3 pl-6">
+            <span className="font-medium text-foreground">{label(p)}</span>
+            {p.customer_email && p.organization_name && (
+              <span className="block text-[11px]">{p.customer_email}</span>
+            )}
+          </td>
+          <td className="py-2 whitespace-nowrap">{rowLabel}</td>
+          <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
+          <td className="py-2 text-right tabular-nums">{money(0)}</td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCreditsNet: number }) {
   const { data: payers, isLoading, error } = useBillingPlanPayers();
   const [showTrials, setShowTrials] = useState(false);
+  const [showComped, setShowComped] = useState(false);
 
 
   const all = payers ?? [];
   // Not `> 0`: a payer refunded below zero is still a payer, and hiding them in
   // the trial row would be the same omission this panel exists to prevent.
-  const paying = all.filter((p) => p.net_cash_cents !== 0);
-  const trials = all.filter((p) => p.net_cash_cents === 0);
+  const customers = all.filter((p) => !p.organization_id || !OWN_ORGANIZATION_IDS.has(p.organization_id));
+  const paying = customers.filter((p) => classifyPayer(p) === 'paying');
+  const comped = customers.filter((p) => classifyPayer(p) === 'comped');
+  const trials = customers.filter((p) => classifyPayer(p) === 'trial');
 
   const payersTotal = all.reduce((a, p) => a + p.net_cash_cents, 0);
   const planTotal = sumRows(planRows);
@@ -385,44 +485,28 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
                     </tr>
                   ))}
 
-                  {trials.length > 0 && (
-                    <>
-                      <tr className="text-muted-foreground">
-                        <td className="py-2 pr-3" colSpan={3}>
-                          <button
-                            type="button"
-                            onClick={() => setShowTrials((v) => !v)}
-                            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors"
-                            aria-expanded={showTrials}
-                          >
-                            {showTrials
-                              ? <ChevronDown className="w-3.5 h-3.5" />
-                              : <ChevronRight className="w-3.5 h-3.5" />}
-                            {trials.length} {trials.length === 1 ? 'business' : 'businesses'} on
-                            trial — nothing paid yet
-                          </button>
-                        </td>
-                        <td className="py-2 text-right tabular-nums">{money(0)}</td>
-                      </tr>
+                  {/* Comped and on-trial are separate rows, not one bucket. The
+                      old single "on trial" row said nine businesses were still
+                      deciding when eight of them had been granted access. */}
+                  <CollapsedPayerGroup
+                    rows={comped}
+                    open={showComped}
+                    onToggle={() => setShowComped((v) => !v)}
+                    summary={`${comped.length} ${comped.length === 1 ? 'business' : 'businesses'} comped — lifetime access granted`}
+                    rowLabel="Comped"
+                    keyPrefix="comped"
+                    label={label}
+                  />
 
-                      {showTrials && trials.map((p) => (
-                        <tr
-                          key={`trial-${p.organization_id ?? p.customer_email ?? 'unattributed'}`}
-                          className="text-muted-foreground"
-                        >
-                          <td className="py-2 pr-3 pl-6">
-                            <span className="font-medium text-foreground">{label(p)}</span>
-                            {p.customer_email && p.organization_name && (
-                              <span className="block text-[11px]">{p.customer_email}</span>
-                            )}
-                          </td>
-                          <td className="py-2 whitespace-nowrap">On trial</td>
-                          <td className="py-2 text-right tabular-nums">{p.payment_events}</td>
-                          <td className="py-2 text-right tabular-nums">{money(0)}</td>
-                        </tr>
-                      ))}
-                    </>
-                  )}
+                  <CollapsedPayerGroup
+                    rows={trials}
+                    open={showTrials}
+                    onToggle={() => setShowTrials((v) => !v)}
+                    summary={`${trials.length} ${trials.length === 1 ? 'business' : 'businesses'} on trial — nothing paid yet`}
+                    rowLabel="On trial"
+                    keyPrefix="trial"
+                    label={label}
+                  />
 
                 </tbody>
                 <tfoot className="border-t">
@@ -542,8 +626,14 @@ export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }
     [rows],
   );
 
-  const payingCount = (payers ?? []).filter((p) => p.net_cash_cents !== 0).length;
-  const trialCount = (payers ?? []).filter((p) => p.net_cash_cents === 0).length;
+  // Same exclusion and classification as the payer list, so the card and the
+  // table can never disagree about who counts.
+  const customerPayers = (payers ?? []).filter(
+    (p) => !p.organization_id || !OWN_ORGANIZATION_IDS.has(p.organization_id),
+  );
+  const payingCount = customerPayers.filter((p) => classifyPayer(p) === 'paying').length;
+  const compedCount = customerPayers.filter((p) => classifyPayer(p) === 'comped').length;
+  const trialCount = customerPayers.filter((p) => classifyPayer(p) === 'trial').length;
 
   const first = series[0];
   const current = series[series.length - 1];
@@ -593,7 +683,15 @@ export function PlatformRevenueView({ embedded = false }: { embedded?: boolean }
               <MetricCard
                 label="Paying businesses"
                 value={String(payingCount)}
-                sub={trialCount > 0 ? `${trialCount} more on trial` : 'none on trial'}
+                /* "8 more on trial" claimed eight businesses were still
+                   deciding. Most had been granted access and were never going
+                   to convert, because there is nothing left to convert. */
+                sub={
+                  [
+                    compedCount > 0 ? `${compedCount} comped` : null,
+                    trialCount > 0 ? `${trialCount} on trial` : null,
+                  ].filter(Boolean).join(' · ') || 'no others'
+                }
               />
               <MetricCard
                 label="This month"

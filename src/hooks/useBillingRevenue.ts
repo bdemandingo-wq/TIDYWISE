@@ -189,6 +189,20 @@ export interface PlanPayer {
   reversal_cents: number;
   net_cash_cents: number;
   confidence_worst: Confidence;
+  /**
+   * From `organizations`, joined client-side — the view does not expose it.
+   *
+   * Together with net_cash_cents this is what separates a comped business from
+   * one still deciding: plan_type 'lifetime' having paid nothing means access
+   * was GRANTED, not bought.
+   *
+   * Deliberately NOT grandfathered_lifetime. That flag means "original
+   * launch/founder user" and nothing else — reconcile-checkout-session:291 and
+   * stripe-invoice-webhook:465 both refuse to set it for new lifetime buyers,
+   * because plan_type alone grants access. Classifying on it would label every
+   * future $300 founding-offer buyer as comped.
+   */
+  plan_type: string | null;
 }
 
 /**
@@ -214,6 +228,32 @@ export function useBillingPlanPayers() {
 
       if (error) throw error;
 
+      /*
+        plan_type lives on `organizations` and the view does not carry it, so it
+        is joined here rather than by widening the view — this is display
+        classification, not ledger truth, and the ledger should not learn about
+        access tiers.
+
+        A failure to load it is NOT swallowed into an empty map: without
+        plan_type every comped business would silently present as "on trial",
+        which is the exact overstatement this split exists to remove.
+      */
+      const orgIds = [...new Set((data ?? [])
+        .map((r: Record<string, unknown>) => r.organization_id as string | null)
+        .filter((id): id is string => !!id))];
+
+      const planTypes = new Map<string, string | null>();
+      if (orgIds.length > 0) {
+        const { data: orgs, error: orgError } = await supabase
+          .from('organizations')
+          .select('id, plan_type')
+          .in('id', orgIds);
+        if (orgError) throw orgError;
+        for (const o of orgs ?? []) {
+          planTypes.set(o.id as string, (o.plan_type as string) ?? null);
+        }
+      }
+
       return (data ?? []).map((r: Record<string, unknown>) => ({
         organization_id: (r.organization_id as string) ?? null,
         organization_name: (r.organization_name as string) ?? null,
@@ -226,6 +266,9 @@ export function useBillingPlanPayers() {
         reversal_cents: n(r.reversal_cents),
         net_cash_cents: n(r.net_cash_cents),
         confidence_worst: (r.confidence_worst as Confidence) ?? 'inferred',
+        plan_type: r.organization_id
+          ? planTypes.get(r.organization_id as string) ?? null
+          : null,
       }));
     },
   });

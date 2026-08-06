@@ -1,0 +1,108 @@
+In the jointidywise project, mark Clean Collective's plan payments as not
+TidyWise subscription revenue, exactly the way Clean Castillo and the
+website-build payments were handled on 2026-08-05. Commit it as a migration
+file and confirm it RAN against the live database, not just that the file
+exists.
+
+────────────────────────────────────────────────────────────────────────
+WHY
+────────────────────────────────────────────────────────────────────────
+
+Clean Collective is a co-venture of the founder's, not a customer. The $97 is
+money moving between his own businesses, so counting it as plan revenue
+overstates what the CRM has earned from other people.
+
+This is the same category as two corrections already applied in migration
+20260805062431:
+
+  "Clean Castillo - personal, paid by a friend of the founder."
+  "Pointpolishcleaners / Lumi Elevated - payment for website build work,
+   not a plan."
+
+Both set counts_as_cash = false and appended the reason to correction_basis,
+leaving the rows in place. billing_events is append-only — the row stays, it
+just stops counting. Do the same here. Do NOT delete anything.
+
+Clean Collective has exactly two cash-counting plan events:
+
+  2026-06-26  invoice.paid       $0.00
+  2026-07-03  charge.succeeded  $97.00
+
+The $0 invoice matters as much as the charge: leaving it counting would keep
+Clean Collective in billing_plan_payers as a zero-value payer, which is the
+same misclassification in a different place.
+
+────────────────────────────────────────────────────────────────────────
+WHAT TO RUN
+────────────────────────────────────────────────────────────────────────
+
+update public.billing_events b
+set counts_as_cash   = false,
+    correction_basis = coalesce(b.correction_basis || ' | ', '')
+      || 'counts_as_cash=false 2026-08-05: not TidyWise subscription revenue. '
+      || 'Clean Collective - founder co-venture, money moving between his own businesses.',
+    corrected_at     = now()
+from public.organizations o
+where o.id = b.organization_id
+  and o.name = 'Clean Collective'
+  and b.counts_as_cash
+  and coalesce(b.revenue_stream_corrected, b.revenue_stream) = 'plan';
+
+Keyed on the organisation rather than on the two event ids, so a later-synced
+payment from the same org is caught by a re-run instead of silently counting.
+Safe to run more than once — `and b.counts_as_cash` means already-corrected
+rows are skipped and their correction_basis is not appended to twice.
+
+Do NOT touch merchant_cleaning rows for this org. Clean Collective's own
+cleaning customers paying Clean Collective is real revenue for that business;
+it simply is not TidyWise plan revenue, and it is already a separate stream.
+
+────────────────────────────────────────────────────────────────────────
+VERIFY BEFORE REPORTING BACK — run these and paste the output
+────────────────────────────────────────────────────────────────────────
+
+-- 1. Both rows corrected, nothing else touched.
+select b.occurred_at::date as on_date, b.event_type, b.amount_cents,
+       b.counts_as_cash, b.correction_basis
+from public.billing_events b
+join public.organizations o on o.id = b.organization_id
+where o.name = 'Clean Collective'
+order by b.occurred_at;
+
+EXPECTED: the 2026-06-26 invoice.paid and 2026-07-03 charge.succeeded both
+show counts_as_cash = false with the new reason appended.
+
+-- 2. The headline figures.
+select round(sum(net_cash_cents)/100.0, 2) as total_earned,
+       round(sum(net_cash_cents) filter (where stream='plan')/100.0, 2) as plan,
+       round(sum(net_cash_cents) filter (where stream='ai_credits')/100.0, 2) as ai_credits
+from billing_revenue_by_confidence
+where confidence in ('certain','probable')
+  and stream in ('plan','ai_credits','ad_management');
+
+EXPECTED: total_earned 954.00, plan 944.00, ai_credits 10.00.
+(Before this migration: 1051.00 / 1041.00 / 10.00.)
+
+-- 3. Clean Collective is gone from the payer list.
+select coalesce(organization_name, customer_email) as who, net_cash_cents
+from billing_plan_payers
+order by net_cash_cents desc;
+
+EXPECTED: no Clean Collective row at all, and 11 rows with net_cash_cents > 0
+where there were 12.
+
+If total_earned is not exactly 954.00, stop and report rather than adjusting
+further — a different figure means something else changed in the ledger since
+this was written.
+
+────────────────────────────────────────────────────────────────────────
+DO NOT CHANGE
+────────────────────────────────────────────────────────────────────────
+  - Any row's amount_cents, occurred_at, or stripe ids. This marks rows as
+    non-revenue; it does not rewrite what happened.
+  - merchant_cleaning events for any organisation.
+  - revenue_stream_corrected. These stay 'plan' — they WERE plan payments,
+    they simply are not third-party revenue.
+  - The organizations row for Clean Collective. Its plan_type and access are
+    unaffected; this is a ledger classification only.
+  - Any other organisation.
