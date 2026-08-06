@@ -200,8 +200,6 @@ export default function StaffPage() {
         .eq('id', staffToDelete.id);
 
       if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['staff-all'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Staff member permanently deleted');
       setPermanentDeleteDialogOpen(false);
@@ -221,7 +219,6 @@ export default function StaffPage() {
         .update({ is_active: checked })
         .eq('id', member.id);
       if (error) throw error;
-      queryClient.invalidateQueries({ queryKey: ['staff-all'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success(`${member.name} ${checked ? 'activated — now available for bookings' : 'deactivated — removed from booking assignments'}`);
     } catch (error) {
@@ -309,8 +306,6 @@ export default function StaffPage() {
         .eq('id', staffToDelete.id);
 
       if (error) throw error;
-
-      queryClient.invalidateQueries({ queryKey: ['staff-all'] });
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Staff member deactivated — they remain in your records');
       setDeleteDialogOpen(false);

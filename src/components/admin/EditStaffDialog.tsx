@@ -183,6 +183,10 @@ export function EditStaffDialog({ open, onOpenChange, staff }: EditStaffDialogPr
 
       if (error) throw error;
 
+      // This line was already here and already looked right, but matched only
+      // ['staff', orgId] — never ['staff-all', orgId] — so editing a staff
+      // member left StaffPage's list stale exactly the way adding one did. The
+      // shared prefix makes it reach both without a second call.
       queryClient.invalidateQueries({ queryKey: ['staff'] });
       toast.success('Staff member updated');
       onOpenChange(false);

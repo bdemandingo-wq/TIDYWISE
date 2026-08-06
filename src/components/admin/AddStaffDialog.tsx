@@ -105,23 +105,13 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
         throw new Error(data.error);
       }
 
-      // Two queries cover the staff table and their keys only LOOK related.
-      // React-query prefix-matches on array elements, not string prefixes, so
-      // ['staff'] matches ['staff', orgId] and never ['staff-all', orgId] —
-      // 'staff' and 'staff-all' are simply different strings. StaffPage renders
-      // useAllStaff(), so invalidating ['staff'] alone succeeded and refreshed
-      // nothing the person who just added someone was looking at.
-      //
-      // The realtime channel in useStaff does not save it either: it invalidates
-      // ['staff'] too, and it lives inside a hook StaffPage never calls, so on
-      // that page the subscription is not even open.
-      //
-      // With refetchOnWindowFocus off and a 5-minute staleTime, the new member
-      // then appeared only on a hard refresh, or on navigating back to the page
-      // after the cache aged out — which is exactly the window you are inside
-      // when onboarding several people in a row.
+      // One call now covers both staff queries. They live under a shared prefix
+      // — ['staff','active',orgId] and ['staff','all',orgId] — so ['staff']
+      // genuinely matches both. This needed two calls while the keys were
+      // ['staff'] and ['staff-all'], because react-query prefix-matches on array
+      // elements and those are different strings; the version with only the
+      // first refreshed nothing on StaffPage, which renders useAllStaff().
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      queryClient.invalidateQueries({ queryKey: ['staff-all'] });
 
       if (data.alreadyExists) {
         toast.success('This staff member is already active in your organization.');

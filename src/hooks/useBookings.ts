@@ -662,6 +662,9 @@ export function useStaff() {
           filter: `organization_id=eq.${organizationId}`,
         },
         () => {
+          // Now genuinely reaches both queries. Before the restructure this
+          // matched only the active-staff list, so a row inserted by another
+          // admin never refreshed the management page.
           queryClient.invalidateQueries({ queryKey: ['staff'] });
         }
       )
@@ -673,7 +676,21 @@ export function useStaff() {
   }, [organizationId, queryClient]);
 
   return useQuery({
-    queryKey: ['staff', organizationId],
+    /*
+      ['staff', 'active', orgId] — a SEGMENT under a shared prefix, not a
+      sibling key.
+
+      This was ['staff', orgId] while useAllStaff was ['staff-all', orgId].
+      React-query prefix-matches on ARRAY ELEMENTS, so ['staff'] matched the
+      first and never the second — 'staff' and 'staff-all' are simply different
+      strings. Every invalidation had to name both, and the ones that named only
+      ['staff'] silently refreshed nothing on StaffPage: adding a staff member
+      (fixed in a6ac1263) and editing one (fixed here) both left the list stale.
+
+      Under this shape ['staff'] correctly matches both, so a caller that cares
+      about "staff changed" can say exactly that and be right.
+    */
+    queryKey: ['staff', 'active', organizationId],
     queryFn: async () => {
       if (!organizationId) {
         return [];
@@ -704,7 +721,9 @@ export function useAllStaff() {
   const organizationId = organization?.id;
 
   return useQuery({
-    queryKey: ['staff-all', organizationId],
+    // Sibling segment of ['staff','active',orgId] — see the note there for why
+    // these live under a shared prefix rather than as ['staff'] / ['staff-all'].
+    queryKey: ['staff', 'all', organizationId],
     queryFn: async () => {
       if (!organizationId) {
         return [];
