@@ -84,9 +84,21 @@ createRoot(document.getElementById("root")!).render(
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>Something went wrong.</h1>
+        {/* The last thing anyone sees. This fires only for what the in-app
+            ErrorBoundary did not catch — i.e. the app failed before or outside
+            it — so "couldn't start" is accurate where the inner boundary's
+            "this part stopped working" would not be.
+
+            "We've been told" is true HERE and only here: this is
+            Sentry.ErrorBoundary, which captures. The inner boundary writes to
+            system_logs instead and says "logged" rather than claiming Sentry.
+
+            An email address appears at this level and no lower, because by this
+            point reloading is the only other thing left to suggest. */}
+        <h1 style={{ fontSize: "1.25rem", margin: 0 }}>TidyWise couldn't start</h1>
         <p style={{ color: "#666", margin: 0, maxWidth: "32rem" }}>
-          We've been notified and are looking into it. Refresh the page to try again.
+          The app failed while loading. We've been told. Try reloading — if it
+          keeps happening, email support@tidywisecleaning.com.
         </p>
         <button
           onClick={() => {

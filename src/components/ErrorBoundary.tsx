@@ -1,5 +1,5 @@
 import React, { Component, ReactNode } from 'react';
-import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
+import { AlertTriangle, RefreshCcw, Home, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
@@ -115,28 +115,58 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      /*
+        A dropped connection is not a crash, and rendering it as one teaches
+        people to distrust the app for something that was never its fault.
+
+        The test is only `navigator.onLine === false` — the browser's own
+        answer. A fetch that fails while online is a real failure (ours or the
+        server's) and must not be excused as "you're offline", which would send
+        someone to check their wifi while the actual problem went unlooked-at.
+      */
+      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+
       return (
         <div className="flex items-center justify-center min-h-[400px] p-4">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
+              <div
+                className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${
+                  isOffline ? 'bg-muted' : 'bg-destructive/10'
+                }`}
+              >
+                {isOffline
+                  ? <WifiOff className="h-6 w-6 text-muted-foreground" />
+                  : <AlertTriangle className="h-6 w-6 text-destructive" />}
               </div>
-              <CardTitle>Something went wrong</CardTitle>
+              <CardTitle>
+                {isOffline ? "You're offline" : 'This part of TidyWise stopped working'}
+              </CardTitle>
               <CardDescription>
-                {this.props.featureName 
-                  ? `There was a problem loading ${this.props.featureName}.`
-                  : 'An unexpected error occurred.'}
+                {isOffline
+                  ? 'TidyWise will reconnect on its own. You may need to re-enter anything you were part-way through.'
+                  : /* "Logged", not "reported" — componentDidCatch writes to
+                       system_logs in Supabase. Sentry does NOT see errors caught
+                       here; its boundary sits above this one and only fires for
+                       what this does not catch. Claiming otherwise would be a
+                       promise the code does not keep. */
+                    `The problem has been logged.${
+                      this.props.featureName ? ` The rest of TidyWise is still fine.` : ''
+                    }`}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
-                <p className="font-medium mb-1">Error details:</p>
-                <p className="font-mono text-xs break-all">
-                  {this.state.error?.message || 'Unknown error'}
-                </p>
-              </div>
-            </CardContent>
+            {/* A stack trace explains nothing about a dropped connection, and
+                showing one makes an ordinary network blip look like a defect. */}
+            {!isOffline && (
+              <CardContent>
+                <div className="bg-muted rounded-lg p-3 text-sm text-muted-foreground">
+                  <p className="font-medium mb-1">Error details:</p>
+                  <p className="font-mono text-xs break-all">
+                    {this.state.error?.message || 'Unknown error'}
+                  </p>
+                </div>
+              </CardContent>
+            )}
             <CardFooter className="flex gap-2 justify-center">
               <Button variant="outline" onClick={this.handleGoHome}>
                 <Home className="h-4 w-4 mr-2" />

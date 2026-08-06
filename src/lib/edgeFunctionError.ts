@@ -100,10 +100,17 @@ export function firstFieldError(details: unknown): string | null {
 /**
  * Returns the function's own error message when it sent one, otherwise the
  * supplied fallback. Never throws — it is called from a catch path.
+ *
+ * `fallback` is REQUIRED, deliberately. It defaulted to "Something went wrong",
+ * which is filler: it names nothing, suggests nothing, and reads identically
+ * whether a card was declined or a server fell over. Every call site knows what
+ * it was attempting and can say so; making the parameter required means the
+ * compiler finds anywhere that forgot, instead of quietly substituting a string
+ * that helps nobody.
  */
 export async function readEdgeFunctionError(
   error: unknown,
-  fallback = "Something went wrong",
+  fallback: string,
 ): Promise<string> {
   const err = error as MaybeFunctionsHttpError | null;
 
