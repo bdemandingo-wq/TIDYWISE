@@ -145,6 +145,7 @@ const PayrollSoftware = lazy(() => import("./pages/features/PayrollSoftware"));
 const CompareHousecallPro = lazy(() => import("./pages/compare/CompareHousecallPro"));
 const CompareNichePage = lazy(() => import("./pages/compare/CompareNichePage"));
 const PricingPage = lazy(() => import("./pages/PricingPage"));
+const GetTheAppPage = lazy(() => import("./pages/GetTheAppPage"));
 const ChoosePlanPage = lazy(() => import("./pages/ChoosePlanPage"));
 const CheckoutSuccessPage = lazy(() => import("./pages/CheckoutSuccessPage"));
 const CleaningBusinessSoftware = lazy(() => import("./pages/CleaningBusinessSoftware"));
@@ -318,6 +319,10 @@ const App = () => (
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
                       {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
                       <Route path="/pricing" element={<Navigate to="/login" replace />} />
+                      {/* Native already IS the app — pointing someone at the
+                          App Store from inside it makes no sense, and marketing
+                          routes are redirected here anyway (App Store 3.1.1). */}
+                      <Route path="/get-the-app" element={<Navigate to="/login" replace />} />
                       <Route path="/choose-plan" element={<Navigate to="/login" replace />} />
                       <Route path="/onboarding" element={<Navigate to="/login" replace />} />
                       <Route path="/demo" element={<Navigate to="/login" replace />} />
@@ -429,6 +434,7 @@ const App = () => (
                       <Route path="/terms" element={<TermsPage />} />
                      <Route path="/delete-account" element={<DeleteAccountPage />} />
                      <Route path="/pricing" element={<ErrorBoundary featureName="Pricing"><PricingPage /></ErrorBoundary>} />
+                     <Route path="/get-the-app" element={<ErrorBoundary featureName="Get the app"><GetTheAppPage /></ErrorBoundary>} />
                      <Route path="/choose-plan" element={<ErrorBoundary featureName="Choose Plan"><ChoosePlanPage /></ErrorBoundary>} />
                      <Route path="/checkout/success" element={<ErrorBoundary featureName="Checkout Success"><CheckoutSuccessPage /></ErrorBoundary>} />
                      <Route path="/demo" element={<DemoPage />} />

@@ -48,6 +48,12 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
       "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Plans from $49/mo, or a one-time Lifetime spot at $300.",
     h1: "Run your cleaning business on one platform",
   },
+  "/get-the-app": {
+    title: "Get the TidyWise App — iPhone, iPad, Mac & Windows",
+    description:
+      "Install TidyWise on iPhone and iPad from the App Store, or as a desktop app on Mac and Windows. Same account and data on every device.",
+    h1: "Get TidyWise on every device you work from",
+  },
   "/pricing": {
     title: "Pricing — Plans from $49/mo | TidyWise",
     description:

@@ -99,6 +99,7 @@ export function SiteFooter() {
                   <li><Link to="/" className={linkClass}>Home</Link></li>
                   <li><Link to={{ pathname: "/", hash: "#features" }} className={linkClass}>Features</Link></li>
                   <li><Link to="/pricing" className={linkClass}>Pricing</Link></li>
+                  <li><Link to="/get-the-app" className={linkClass}>Get the app</Link></li>
                   <li><Link to="/blog" className={linkClass}>Blog</Link></li>
                   <li><Link to="/cleaning-business-software" className={linkClass}>By Location</Link></li>
                   <li><Link to={{ pathname: "/", hash: "#testimonials" }} className={linkClass}>Testimonials</Link></li>

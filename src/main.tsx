@@ -28,6 +28,7 @@ import {
 // the same handling as any other bootstrap error. No-op on native and in dev —
 // see lib/registerPwa for why both are excluded.
 import { registerPwa } from "@/lib/registerPwa";
+import { initInstallPrompt } from "@/lib/installPrompt";
 
 // Vite's own signal, and the one that actually fires for a failed lazy import.
 // React catches the import rejection itself and routes it through Suspense to
@@ -66,6 +67,11 @@ setupDeepLinkListener();
 // Installability. Deliberately last of the bootstrap side effects: registration
 // is not required for the app to work, so nothing above it should wait on it.
 registerPwa();
+
+// Must listen BEFORE React mounts. Chrome fires beforeinstallprompt once, often
+// during initial load, so a listener attached when a component mounts misses it
+// and the Install button never appears. See lib/installPrompt.
+initInstallPrompt();
 
 createRoot(document.getElementById("root")!).render(
   <Sentry.ErrorBoundary
