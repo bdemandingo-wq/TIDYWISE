@@ -30,6 +30,7 @@ import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO, startOfMont
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { cn } from '@/lib/utils';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
@@ -191,10 +192,9 @@ export default function OperationsTrackerPage() {
       e.notes || '',
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    // `notes` is free text. Wrapping in quotes without doubling the inner ones
+    // meant a single " in a note truncated the field and shifted the row.
+    const csvContent = matrixToCsv([headers, ...rows]);
 
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`operations-tracker-${orgDateKey(new Date(), orgTimezone)}.csv`, csvContent, 'text/csv');

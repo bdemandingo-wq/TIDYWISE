@@ -40,6 +40,7 @@ import { Plus, Package, Trash2, Edit, Settings, MoreHorizontal, Download, Upload
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
@@ -267,10 +268,12 @@ export default function InventoryPage() {
   };
 
   const handleExport = async () => {
-    const csv = [
-      ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'].join(','),
-      ...filteredItems.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || ''].join(','))
-    ].join('\n');
+    // Supplier names are the usual offender — "Acme Janitorial, Inc." split the
+    // row and pushed every later column one field left.
+    const csv = matrixToCsv([
+      ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'],
+      ...filteredItems.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || '']),
+    ]);
     const blob = new Blob([csv], { type: 'text/csv' });
     await saveBlob(blob, 'inventory.csv');
     toast.success('Inventory exported');
@@ -361,10 +364,10 @@ export default function InventoryPage() {
               className="h-7 text-xs"
               onClick={async () => {
                 const selected = items.filter(i => selectedIds.has(i.id));
-                const csv = [
-                  ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'].join(','),
-                  ...selected.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || ''].join(','))
-                ].join('\n');
+                const csv = matrixToCsv([
+                  ['Name', 'Category', 'Available', 'Low Stock Min', 'Cost/Unit', 'Supplier'],
+                  ...selected.map(i => [i.name, i.category, i.quantity, i.min_quantity, i.cost_per_unit, i.supplier || '']),
+                ]);
                 const blob = new Blob([csv], { type: 'text/csv' });
                 await saveBlob(blob, 'inventory-selected.csv');
               }}

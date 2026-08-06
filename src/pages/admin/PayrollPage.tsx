@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { saveBlob } from '@/lib/fileActions';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3, CreditCard, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
@@ -1042,7 +1043,7 @@ export default function PayrollPage() {
       s.revenueAttributed, s.profitAttributed, `${s.laborPercent}%`,
       s.avgPayPerClean, s.ytdEarnings,
     ]);
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const csv = matrixToCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: 'text/csv' });
     await saveBlob(blob, `payroll-report-${orgDateKey(dateRange.from, orgTimezone)}-to-${orgDateKey(dateRange.to, orgTimezone)}.csv`);
   };
@@ -1061,7 +1062,7 @@ export default function PayrollPage() {
       b.revenue_is_share ? 'share of booking' : 'full booking',
       `${b.labor_percent.toFixed(1)}%`, b.profit.toFixed(2), `${b.margin_percent.toFixed(1)}%`,
     ]);
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const csv = matrixToCsv([headers, ...rows]);
     const blob = new Blob([csv], { type: 'text/csv' });
     await saveBlob(blob, `payroll-details-${orgDateKey(dateRange.from, orgTimezone)}-to-${orgDateKey(dateRange.to, orgTimezone)}.csv`);
   };

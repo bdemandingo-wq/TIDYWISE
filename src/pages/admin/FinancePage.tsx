@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { orgDateKey, orgEndOfMonth, orgStartOfMonth } from '@/lib/orgDateRange';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { 
   CalendarIcon, 
@@ -406,7 +407,7 @@ export default function FinancePage() {
   };
 
   const downloadCSV = async (filename: string, headers: string[], rows: string[][]) => {
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const csv = matrixToCsv([headers, ...rows]);
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`${filename}-${orgDateKey(new Date(), orgTz)}.csv`, csv, 'text/csv');
   };

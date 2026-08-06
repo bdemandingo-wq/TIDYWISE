@@ -17,6 +17,7 @@ import { TrendingUp, TrendingDown, DollarSign, Percent, CalendarIcon, Download }
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { BookingWithDetails } from '@/hooks/useBookings';
 import { cn } from '@/lib/utils';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { DateRange } from 'react-day-picker';
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -211,10 +212,9 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
       item.marginPercent.toFixed(1),
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    // Service names carry commas. `.join(',')` split them into extra columns
+    // and shifted every figure after, so a margin landed under the wrong header.
+    const csvContent = matrixToCsv([headers, ...rows]);
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */

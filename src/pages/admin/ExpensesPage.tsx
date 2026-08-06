@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -233,7 +234,9 @@ export default function ExpensesPage() {
       e.vendor || '',
       e.amount.toFixed(2),
     ]);
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    // Expense vendor and description are free text — commas and line breaks
+    // both appear, and both silently reshaped the file.
+    const csv = matrixToCsv([headers, ...rows]);
     const { exportFile } = await import('@/lib/exportFile');
     /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     await exportFile(`expenses-${format(new Date(), 'yyyy-MM-dd')}.csv`, csv, 'text/csv');

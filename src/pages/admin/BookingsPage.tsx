@@ -82,6 +82,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { handleSmsError } from '@/lib/smsErrorHandler';
 import {
   DropdownMenu,
@@ -1561,7 +1562,9 @@ export default function BookingsPage() {
       const filename = `bookings-${orgDateKey(new Date(), orgTz)}`;
 
       if (type === 'csv') {
-        const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+        // Customer names and addresses carry commas and quotes. Wrapping every
+        // cell without doubling inner quotes broke on the quotes instead.
+        const csvContent = matrixToCsv([headers, ...rows]);
         const { exportFile } = await import('@/lib/exportFile');
         await exportFile(`${filename}.csv`, csvContent, 'text/csv');
       } else if (type === 'json') {

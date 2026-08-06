@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { saveBlob } from '@/lib/fileActions';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -147,10 +148,9 @@ export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerforma
       c.avgEarningsPerJob.toFixed(2),
     ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
+    // Cleaner names carry commas — "Open Arms Cleaning, LLC" is a real one on
+    // this platform. Unescaped it split the row and shifted every metric.
+    const csvContent = matrixToCsv([headers, ...rows]);
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */

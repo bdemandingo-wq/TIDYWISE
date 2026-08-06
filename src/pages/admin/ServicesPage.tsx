@@ -1,4 +1,5 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -42,22 +43,33 @@ export default function ServicesPage() {
         return;
       }
 
+      /*
+        A multi-section sheet, so it is assembled line by line rather than as
+        one matrix. Every DATA line goes through matrixToCsv([[…]]) — one row in,
+        one escaped line out — instead of being hand-built with template
+        literals. The old form pre-wrapped names in quotes without doubling the
+        inner ones, so a service called 6" Baseboards ended its own field and
+        shifted every price after it.
+
+        Section markers and the fixed ASCII headers are pushed raw: they contain
+        no comma, quote or newline, and routing them through the escaper would
+        only obscure that they are literals.
+      */
       const rows: string[] = [];
 
       // --- Section 1: Square Footage Pricing ---
       const sqftHeader = ['Service', ...squareFootageRanges.map(r => r.label), 'Minimum Price'];
-      rows.push(sqftHeader.join(','));
+      rows.push(matrixToCsv([sqftHeader]));
 
       for (const svc of services) {
         const pricing = servicePricing.get(svc.id);
         const prices = pricing?.sqft_prices || [];
         const min = pricing?.minimum_price ?? '';
-        const row = [
-          `"${svc.name}"`,
+        rows.push(matrixToCsv([[
+          svc.name,
           ...squareFootageRanges.map((_, i) => prices[i] ?? ''),
           min,
-        ];
-        rows.push(row.join(','));
+        ]]));
       }
 
       rows.push(''); // blank line
@@ -69,7 +81,7 @@ export default function ServicesPage() {
         const pricing = servicePricing.get(svc.id);
         const bedroomPricing = pricing?.bedroom_pricing || [];
         for (const bp of bedroomPricing) {
-          rows.push(`"${svc.name}",${bp.bedrooms},${bp.bathrooms},${bp.basePrice}`);
+          rows.push(matrixToCsv([[svc.name, bp.bedrooms, bp.bathrooms, bp.basePrice]]));
         }
       }
 
@@ -82,7 +94,7 @@ export default function ServicesPage() {
         const pricing = servicePricing.get(svc.id);
         const extras = pricing?.extras || [];
         for (const ex of extras) {
-          rows.push(`"${svc.name}","${ex.name}",${ex.price},"${ex.note || ''}"`);
+          rows.push(matrixToCsv([[svc.name, ex.name, ex.price, ex.note || '']]));
         }
       }
 
@@ -95,7 +107,7 @@ export default function ServicesPage() {
         const pricing = servicePricing.get(svc.id);
         const pets = pricing?.pet_options || [];
         for (const p of pets) {
-          rows.push(`"${svc.name}","${p.label}",${p.price}`);
+          rows.push(matrixToCsv([[svc.name, p.label, p.price]]));
         }
       }
 
@@ -108,7 +120,7 @@ export default function ServicesPage() {
         const pricing = servicePricing.get(svc.id);
         const conditions = pricing?.home_condition_options || [];
         for (const c of conditions) {
-          rows.push(`"${svc.name}","${c.label}",${c.price}`);
+          rows.push(matrixToCsv([[svc.name, c.label, c.price]]));
         }
       }
 

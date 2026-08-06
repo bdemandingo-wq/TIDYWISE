@@ -53,6 +53,7 @@ import { LeadTagsEditor, LeadTagChip, normalizeTags, type LeadTag } from '@/comp
 import { AttentionStrip } from '@/components/admin/AttentionStrip';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { orgDateKey } from '@/lib/orgDateRange';
+import { matrixToCsv } from '@/lib/orgDataExport';
 
 
 
@@ -411,7 +412,9 @@ export default function LeadsPage() {
       orgDateKey(new Date(lead.created_at), orgTimezone),
     ]);
 
-    const csv = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+    // Lead `message` is free text — quotes and line breaks are the norm, and
+    // wrapping without doubling meant both corrupted the row.
+    const csv = matrixToCsv([headers, ...rows]);
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`leads-export-${orgDateKey(new Date(), orgTimezone)}.csv`, csv, 'text/csv');
     toast.success('Leads exported successfully');

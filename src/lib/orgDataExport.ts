@@ -94,14 +94,17 @@ export const EXPORT_TABLES: ExportTable[] = [
 /**
  * Escape one value for RFC 4180 CSV.
  *
- * The ~17 existing per-page exports all inline
- * `[headers, ...rows].map(r => r.join(',')).join('\n')` with no escaping at
- * all, so a customer called `Smith, John`, a note containing a line break, or
- * any `"` silently splits the row and shifts every column after it. That is
- * tolerable-ish on a filtered page someone eyeballs; it is not tolerable on
- * the file a departing customer takes with them.
+ * Exported because the per-page exports inline their own serialisation, and the
+ * ones that attempt escaping mostly get it wrong in the same way: they wrap
+ * every cell in quotes but never double the inner ones, so a value containing
+ * `"` terminates its own field early and shifts every column after it. That is
+ * worse than no escaping at all, because the output looks handled.
+ *
+ * Use {@link matrixToCsv} rather than calling this per cell — the separator and
+ * line ending are part of the format, and hand-rolling those is how the current
+ * mess arose.
  */
-function escapeCsvValue(value: unknown): string {
+export function escapeCsvValue(value: unknown): string {
   if (value === null || value === undefined) return '';
 
   let str: string;
@@ -148,6 +151,23 @@ export function rowsToCsv(rows: Record<string, unknown>[]): string {
   }
   // CRLF is what RFC 4180 specifies and what Excel is happiest with.
   return lines.join('\r\n');
+}
+
+/**
+ * Serialise a matrix of rows — header row included — to RFC 4180 CSV.
+ *
+ * {@link rowsToCsv} takes objects and derives columns from their keys, which is
+ * right for a table dump but wrong for the per-page exports: those build arrays
+ * of arrays with hand-written headers. Callers pass `[headers, ...rows]`,
+ * exactly the shape they already had before `.join(',')`, and get correct
+ * quoting and CRLF endings instead.
+ *
+ * No BOM. Callers that need Excel to auto-detect UTF-8 prepend U+FEFF
+ * themselves — baking it in would corrupt the output for anything that feeds
+ * these files to a parser rather than to Excel.
+ */
+export function matrixToCsv(rows: readonly unknown[][]): string {
+  return rows.map((row) => row.map(escapeCsvValue).join(',')).join('\r\n');
 }
 
 export interface TableExportResult {

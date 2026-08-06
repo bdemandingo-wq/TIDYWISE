@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { saveBlob } from '@/lib/fileActions';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
@@ -70,7 +71,9 @@ export default function SchedulerPage() {
       const filename = `bookings-${format(new Date(), 'yyyy-MM-dd')}`;
 
       if (type === 'csv') {
-        const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+        // Quoted every cell but never doubled inner quotes, so any " ended its
+        // field early and shifted the rest of the row.
+        const csvContent = matrixToCsv([headers, ...rows]);
         const blob = new Blob([csvContent], { type: 'text/csv' });
         await saveBlob(blob, `${filename}.csv`);
       } else if (type === 'json') {

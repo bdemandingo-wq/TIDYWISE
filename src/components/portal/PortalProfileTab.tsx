@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { AddressAutocomplete } from '@/components/address/AddressAutocomplete';
 import { Loader2, User, MapPin, Plus, Trash2, Check, Trophy, FileText, Download, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -996,10 +997,10 @@ function TaxReportCard({ clientUserId }: { clientUserId?: string }) {
 
       rows.push(["", "", "TOTALS:", `${fmt(totalSubtotal)}`, `${fmt(totalTax)}`, `${fmt(totalAmount)}`, ""]);
 
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row: string[]) => row.map((cell) => `"${cell}"`).join(",")),
-      ].join("\n");
+      // Client-facing tax report. This quoted every cell but never doubled the
+      // inner quotes, so a value containing " terminated its own field early —
+      // worse than no escaping, because the output looked handled.
+      const csvContent = matrixToCsv([headers, ...rows]);
 
       // Download file
       const { exportFile } = await import('@/lib/exportFile');

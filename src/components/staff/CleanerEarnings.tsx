@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
+import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -319,7 +320,10 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     rows.push(['Total Earnings', stats.totalEarnings.toFixed(2)]);
     rows.push(['Average Per Job', stats.avgPerJob.toFixed(2)]);
     rows.push(['Average Per Hour', stats.avgPerHour.toFixed(2)]);
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    // "Export for Taxes" — a cleaner files from this file, so a shifted column
+    // is a wrong number on a tax return. Customer and service names carry
+    // commas routinely and `.join(',')` split every one of them.
+    const csvContent = matrixToCsv([headers, ...rows]);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const fileName = `earnings-${staffName.replace(/\s+/g, '-')}-${orgDateKey(dateRange?.from || new Date(), orgTimezone)}-to-${orgDateKey(dateRange?.to || new Date(), orgTimezone)}.csv`;
     // saveBlob → share sheet on iOS; <a download> is ignored in WKWebView.
