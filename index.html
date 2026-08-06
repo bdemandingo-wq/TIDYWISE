@@ -34,6 +34,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
+    <!-- Matches manifest.theme_color in vite.config.ts. Derived from
+         --primary: 230 100% 50% in src/index.css; if a brand doc has a
+         canonical hex, change BOTH or the title bar and the installed icon
+         will disagree. -->
+    <meta name="theme-color" content="#002aff" />
 
     <!-- Author & Keywords (not managed by SEOHead) -->
     <meta name="author" content="TidyWise" />

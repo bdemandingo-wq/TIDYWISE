@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import { componentTagger } from "lovable-tagger";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 // Runs the sitemap generator after the production build completes so
 // public/sitemap.xml stays in sync with the routes declared in src/App.tsx.
@@ -68,6 +69,91 @@ export default defineConfig(({ mode }) => ({
       avif: { quality: 70 },
       includePublic: true,
       logStats: true,
+    }),
+    /*
+      Installable desktop app (Chrome/Edge on macOS + Windows, and Safari's
+      "Add to Dock" on Sonoma, which reads the manifest and needs no worker).
+
+      THIS INTERACTS WITH src/lib/chunkReload.ts. That code exists because a tab
+      holding an old index.html requests a hashed chunk that no longer exists,
+      404s, and reloads once to pull the fresh index. A precaching worker
+      changes that failure rather than just coexisting with it:
+
+        - Normally the worker serves the old chunk from cache, so the 404 never
+          happens and the reload never fires. Strictly better.
+        - But if outdated caches were purged while the old worker still served
+          the old index.html, the reload would fetch the SAME stale index from
+          cache. The per-chunk sessionStorage guard stops an infinite loop, and
+          the user is then stuck with the recovery already spent.
+
+      Hence cleanupOutdatedCaches:false — old chunk versions accumulate (a few
+      MB per deploy) and a returning tab can always still resolve them. A stuck
+      tab is worse than the storage.
+
+      registerType is 'prompt', never 'autoUpdate'. autoUpdate implies
+      skipWaiting, which swaps assets underneath a live tab mid-session — that
+      is the CAUSE of chunk-load errors, not a fix for them.
+    */
+    VitePWA({
+      registerType: "prompt",
+      // Registration is done by hand in src/lib/registerPwa.ts so it can be
+      // skipped on native. Capacitor bundles its own assets with no server.url,
+      // and a worker caching inside that WebView would strand the app in the
+      // one environment where a reload cannot clear it.
+      injectRegister: null,
+      includeAssets: ["favicon.ico", "favicon.png", "apple-touch-icon.png"],
+      manifest: {
+        name: "TidyWise",
+        short_name: "TidyWise",
+        description:
+          "Scheduling, CRM, payroll and invoicing for cleaning businesses.",
+        // Derived from --primary: 230 100% 50% in src/index.css. There is no
+        // canonical brand hex in the repo; if one exists in a brand doc it wins.
+        theme_color: "#002aff",
+        background_color: "#ffffff",
+        display: "standalone",
+        // An installed app opens to the product, not the marketing homepage.
+        // AdminRoute bounces to login when there is no session.
+        start_url: "/dashboard",
+        scope: "/",
+        icons: [
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "/pwa-512x512-maskable.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
+      },
+      workbox: {
+        cleanupOutdatedCaches: false,
+        /*
+          Precache the app shell only. dist/ carries hundreds of PRERENDERED
+          marketing pages (blog, locations, compare) that exist for SEO — the
+          default glob would sweep every one of them into the precache, bloating
+          it and, worse, letting the worker answer those navigations from cache
+          with content search engines and visitors expect to come from the
+          server.
+        */
+        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.ico"],
+        globIgnores: ["**/images/**", "**/blog/**", "**/locations/**"],
+        navigateFallback: "/index.html",
+        /*
+          And the same boundary for navigations: the SPA shell is only ever
+          served for app routes. Every marketing and prerendered route falls
+          through to the network and keeps its server-rendered HTML.
+        */
+        navigateFallbackAllowlist: [
+          /^\/dashboard/,
+          /^\/staff/,
+          /^\/portal/,
+          /^\/auth/,
+        ],
+        // Chunks are hashed and a few exceed the 2 MB default.
+        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+      },
     }),
     mcpPlugin(),
     sitemapPlugin(),
