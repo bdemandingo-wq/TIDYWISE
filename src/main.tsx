@@ -23,6 +23,12 @@ import {
   clearChunkReloadGuard,
 } from "@/lib/chunkReload";
 
+// Makes TidyWise installable on desktop. Registered AFTER the chunk-recovery
+// listeners above are attached, so a failure during registration still lands in
+// the same handling as any other bootstrap error. No-op on native and in dev —
+// see lib/registerPwa for why both are excluded.
+import { registerPwa } from "@/lib/registerPwa";
+
 // Vite's own signal, and the one that actually fires for a failed lazy import.
 // React catches the import rejection itself and routes it through Suspense to
 // an error boundary, so the generic 'error' / 'unhandledrejection' listeners
@@ -56,6 +62,10 @@ window.addEventListener("load", () => {
 // Set up deep link listener for native OAuth callbacks (Guideline 4.0)
 // Must run before React renders so we don't miss the callback
 setupDeepLinkListener();
+
+// Installability. Deliberately last of the bootstrap side effects: registration
+// is not required for the app to work, so nothing above it should wait on it.
+registerPwa();
 
 createRoot(document.getElementById("root")!).render(
   <Sentry.ErrorBoundary
