@@ -27,6 +27,7 @@
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SEOHead } from '@/components/SEOHead';
@@ -117,7 +118,13 @@ export default function CheckoutSuccessPage() {
           body: { session_id: sessionId },
         });
         if (error) {
-          console.error('[checkout-success] reconcile-checkout-session call failed:', error);
+          // The person only ever sees the provisioning-issue state, so the real
+          // reason has to reach the console — otherwise a failed provision is
+          // logged as "non-2xx status code" and there is nothing to debug from.
+          console.error(
+            '[checkout-success] reconcile-checkout-session call failed:',
+            await readEdgeFunctionError(error, 'no reason returned'),
+          );
           if (!cancelled) setProvisioningIssue(true);
         } else if (data?.error) {
           console.error('[checkout-success] reconcile-checkout-session reported a provisioning error:', data.error);

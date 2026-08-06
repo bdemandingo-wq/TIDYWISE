@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -146,7 +147,10 @@ export default function LoginPage() {
     if (pendingPlan === 'lifetime') {
       try {
         const { data, error } = await supabaseNoSession.functions.invoke('buy-lifetime', { body: {} });
-        if (error) throw error;
+        // The catch below prefixes this with "Couldn't open checkout:", so the
+        // function's own reason — sold out, already subscribed, price not
+        // configured — completes the sentence instead of "non-2xx status code".
+        if (error) throw new Error(await readEdgeFunctionError(error, 'please try again'));
         const url = (data as { url?: string })?.url;
         if (url) {
           window.location.href = url;
@@ -170,7 +174,10 @@ export default function LoginPage() {
         const { data, error } = await supabaseNoSession.functions.invoke('create-subscription', {
           body: { plan: pendingPlan, interval },
         });
-        if (error) throw error;
+        // The catch below prefixes this with "Couldn't open checkout:", so the
+        // function's own reason — sold out, already subscribed, price not
+        // configured — completes the sentence instead of "non-2xx status code".
+        if (error) throw new Error(await readEdgeFunctionError(error, 'please try again'));
         const url = (data as { url?: string })?.url;
         if (url) {
           window.location.href = url;

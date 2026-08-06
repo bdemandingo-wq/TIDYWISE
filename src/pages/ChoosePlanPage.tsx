@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { Check, Crown, Loader2, Lock, LogOut, Sparkles } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 type Interval = 'monthly' | 'yearly';
 
@@ -228,17 +229,11 @@ export default function ChoosePlanPage() {
         : await supabase.functions.invoke('create-subscription', {
             body: { plan: planId, interval: billingInterval },
           });
-      if (error) {
-        let realMessage: string | undefined;
-        try {
-          const ctx = (error as { context?: Response }).context;
-          if (ctx && typeof ctx.json === 'function') {
-            const body = await ctx.clone().json();
-            if (body?.error) realMessage = String(body.error);
-          }
-        } catch { /* fall back to generic */ }
-        throw new Error(realMessage || error.message);
-      }
+      // Was a hand-rolled copy of readEdgeFunctionError. Folded into the shared
+      // helper so the sold-out and already-subscribed messages buy-lifetime and
+      // create-subscription return reach the person, and so there is one
+      // definition of "read the function's own error" rather than three.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Failed to start checkout'));
       const payload = data as { url?: string; error?: string } | null;
       if (payload?.error) throw new Error(payload.error);
       if (!payload?.url) throw new Error('No checkout URL returned');

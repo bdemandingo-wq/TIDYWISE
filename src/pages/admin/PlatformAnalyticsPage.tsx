@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -175,7 +176,10 @@ export default function PlatformAnalyticsPage() {
       const { data, error } = await supabase.functions.invoke('admin-send-resubscribe-email', {
         body: { customerEmail: resubTarget.email },
       });
-      if (error) throw error;
+      // The catch surfaces err.message directly, so without this the operator
+      // saw "Edge Function returned a non-2xx status code" instead of the
+      // function's actual reason.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Failed to send resubscribe email'));
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success(`Resubscribe email sent to ${resubTarget.email}`);
       setResubTarget(null);

@@ -14,6 +14,7 @@ import {
 } from '@/components/pricing/AdManagementRequestDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
+import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
@@ -495,21 +496,10 @@ export default function PricingPage() {
       const { data, error } = await supabase.functions.invoke('create-subscription', {
         body: { plan: planId, interval: billingInterval },
       });
-      if (error) {
-        // Supabase wraps non-2xx as FunctionsHttpError with a generic message.
-        // Read the real error from the response body so the toast is useful.
-        let realMessage: string | undefined;
-        try {
-          const ctx = (error as { context?: Response }).context;
-          if (ctx && typeof ctx.json === 'function') {
-            const body = await ctx.clone().json();
-            if (body?.error) realMessage = String(body.error);
-          }
-        } catch {
-          // ignore — fall back to generic error.message
-        }
-        throw new Error(realMessage || error.message);
-      }
+      // Was a hand-rolled copy of readEdgeFunctionError. Same behaviour, one
+      // definition — and this one also drops supabase-js's generic wrapper
+      // instead of surfacing "non-2xx status code" when the body has nothing.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Could not start checkout. Try again.'));
       const payload = data as { url?: string; error?: string } | null;
       if (payload?.error) throw new Error(payload.error);
       const url = payload?.url;
@@ -563,7 +553,10 @@ export default function PricingPage() {
       const { data, error } = await supabase.functions.invoke('buy-lifetime', {
         body: {},
       });
-      if (error) throw error;
+      // buy-lifetime returns real reasons — sold out, already subscribed,
+      // price not configured. Throwing the raw error showed "non-2xx status
+      // code" instead of any of them.
+      if (error) throw new Error(await readEdgeFunctionError(error, 'Could not start the lifetime checkout. Try again.'));
       const payload = data as { url?: string; error?: string } | null;
       if (payload?.error) throw new Error(payload.error);
       const url = payload?.url;
