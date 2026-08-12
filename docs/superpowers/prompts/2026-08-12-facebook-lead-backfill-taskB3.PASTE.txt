@@ -1,0 +1,711 @@
+=== SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
+
+Two files, both given below in full. Create/replace them EXACTLY as written and
+deploy. Do not rewrite, reformat, shorten, or "improve" either one.
+
+This importer writes to public.leads, a LIVE multi-tenant customer table. It is
+gated by a secret and defaults to dry-run, but the code below is the reviewed
+version and its safety properties are load-bearing. In particular do not:
+
+  - change `const dryRun = body.dryRun === false ? false : true;` — defaulting
+    to dry-run is deliberate, so that writing has to be opted into
+  - reorder the claim-then-insert sequence, or drop the claim release on insert
+    failure — that ordering is what makes a double-insert with the live webhook
+    impossible, and the release is what stops one failure blackholing a lead
+  - make graphFetch return an empty page on a Graph error instead of throwing —
+    an auth failure that reads as "0 leads found" looks like a clean success
+  - add an import to _shared/facebook-lead-mapping.ts. It has ZERO imports on
+    purpose: 51 Playwright tests load it from outside Deno, and one import
+    breaks that
+  - touch facebook-lead-webhook, morning-brief, leads, facebook_page_connections
+    or facebook_lead_ingestions. No migration is needed for this task; the
+    schema is already in place
+
+If you notice something that looks wrong, REPORT IT in your reply and leave it
+alone. A previous change went beyond its brief and rewrote an edge function I had
+not asked about, which cost a full verification cycle to unpick.
+
+I am NOT asking you to run the importer. Deploy it and stop. I will call it
+myself, dry-run first.
+
+
+=== FILE 1 of 2: supabase/functions/_shared/facebook-lead-mapping.ts ===
+
+This REPLACES the existing file. It is the same file you already have, plus
+three new exports at the end (buildBackfillLeadRow, parseLeadgenFormsPage,
+parseLeadsPage) and an expanded header comment. Everything above the
+"Historical backfill" divider is unchanged.
+
+Zero import statements. Confirm that after pasting.
+
+```ts
+/**
+ * Pure mapping logic for Meta Lead Ads -> public.leads.
+ *
+ * Deliberately ZERO imports and no Deno globals so it is unit-testable from
+ * the Playwright runner (same shape as _shared/format-address.ts). Tests:
+ * tests/facebook-lead-mapping.unit.spec.ts
+ *
+ * Column facts this encodes, from the original CREATE TABLE
+ * (20251222044239_*.sql:80-96) and re-probed against the live schema
+ * 2026-08-12:
+ *   - leads.name  TEXT NOT NULL   (there is NO first_name / last_name)
+ *   - leads.email TEXT NOT NULL   (phone-only FB leads need a placeholder)
+ *   - leads.source is compared with === against 'facebook' in
+ *     src/pages/admin/LeadsPage.tsx:327, so the case matters
+ *
+ * leads_status_check, read from pg_constraint on the live database
+ * 2026-08-12, allows EIGHT values:
+ *   new, contacted, qualified, follow_up, quoted, commercial, converted, lost
+ * The original CREATE TABLE (20251222044239_*.sql:92) declared only five of
+ * those — new, contacted, qualified, converted, lost — so the migration files
+ * understate the live constraint. This is CLAUDE.md rule 4b in miniature: the
+ * live schema is the authority, not the migration that appears to define it.
+ * We write 'new', which is valid under both.
+ *
+ * There is NO unique index on (organization_id, email) — also confirmed from
+ * pg_indexes on 2026-08-12, and deliberately not added: it would reject a
+ * genuine repeat inquiry from a returning customer. Duplicate protection for
+ * Meta's webhook retries comes from the facebook_lead_ingestions leadgen_id
+ * ledger instead, which targets the actual failure mode. See
+ * classifyIngestionClaim below.
+ */
+
+export const LEAD_SOURCE_FACEBOOK = "facebook";
+
+const MAX_NAME = 200;
+const MAX_EMAIL = 255;
+const MAX_PHONE = 20;
+
+export interface MetaFieldDatum {
+  name?: string;
+  values?: string[];
+}
+
+export interface MappedLeadFields {
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface LeadInsertRow {
+  name: string;
+  email: string;
+  phone: string | null;
+  source: string;
+  status: string;
+  notes: string;
+  organization_id: string;
+}
+
+export function placeholderEmailFor(leadgenId: string): string {
+  // .invalid is reserved by RFC 2606 — can never resolve to a real inbox, so
+  // this is safe to store in a NOT NULL column that other features may email.
+  return `fb-lead-${leadgenId}@facebook.invalid`;
+}
+
+/**
+ * Flatten Meta's field_data array into the three values leads cares about.
+ *
+ * Meta sends `[{ name: "full_name", values: ["Ada Lovelace"] }, ...]`, and
+ * which fields are present depends on how the advertiser built the form —
+ * first/last vs full name, email vs phone vs both.
+ */
+export function mapMetaFieldData(
+  fieldData: MetaFieldDatum[] | null | undefined,
+): MappedLeadFields {
+  const f: Record<string, string> = {};
+  for (const item of fieldData ?? []) {
+    const key = item?.name?.toLowerCase();
+    const value = item?.values?.[0];
+    // An empty string counts as absent, not as a value.
+    if (key && value) f[key] = value;
+  }
+
+  const first = f["first_name"];
+  const last = f["last_name"];
+  const full = f["full_name"];
+
+  let name = [first, last].filter(Boolean).join(" ").trim();
+  if (!name) name = (full ?? "").trim();
+  if (!name) name = "Facebook Lead";
+
+  const email = f["email"] ? f["email"].toLowerCase() : null;
+  const phone = f["phone_number"] ?? f["phone"] ?? null;
+
+  return { name, email, phone };
+}
+
+/**
+ * Assemble the exact row to insert into public.leads.
+ *
+ * Returns a single `name`; there is no first_name/last_name on the table.
+ * `email` is never null — leads.email is NOT NULL, and a phone-only Facebook
+ * lead is a paid lead we must not drop.
+ */
+export function buildLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+}): LeadInsertRow {
+  const { fields, leadgenId, organizationId } = args;
+  return {
+    name: fields.name.slice(0, MAX_NAME),
+    email: (fields.email ?? placeholderEmailFor(leadgenId)).slice(0, MAX_EMAIL),
+    phone: fields.phone ? fields.phone.slice(0, MAX_PHONE) : null,
+    source: LEAD_SOURCE_FACEBOOK,
+    status: "new",
+    notes: `Auto-captured from Facebook Lead Ad (leadgen_id: ${leadgenId})`,
+    organization_id: organizationId,
+  };
+}
+
+export interface PageConnectionRow {
+  organization_id: string;
+  page_access_token: string | null;
+  is_active: boolean;
+}
+
+export type OrgResolution =
+  | { ok: true; organizationId: string; pageAccessToken: string | null }
+  | { ok: false; reason: string };
+
+export type ClaimOutcome = "claimed" | "duplicate" | "failed";
+
+/**
+ * Decide which tenant a Page's leads belong to.
+ *
+ * `queryError` is a REQUIRED argument, and that is the whole point. The
+ * original bug destructured only `data` from the Supabase call, so a hard
+ * schema error (42703, from a column that never existed) was indistinguishable
+ * from "this page isn't mapped" — the webhook logged neither and silently
+ * dropped every lead. Making the error an input means it cannot be dropped.
+ *
+ * There is deliberately NO org-list parameter. The fallback this replaces
+ * ("if exactly one organization exists, use it") could route a stranger's
+ * leads into an unrelated tenant; making that unrepresentable is the fix.
+ */
+export function resolveOrgFromConnection(args: {
+  pageId: string | null | undefined;
+  connection: PageConnectionRow | null;
+  queryError: { code?: string; message?: string } | null;
+}): OrgResolution {
+  const { pageId, connection, queryError } = args;
+
+  if (queryError) {
+    return {
+      ok: false,
+      reason:
+        `facebook_page_connections lookup failed for page_id=${pageId}: ` +
+        `${queryError.code ?? "unknown"} ${queryError.message ?? ""}`.trim(),
+    };
+  }
+  if (!pageId) {
+    return { ok: false, reason: "Meta payload contained no page_id" };
+  }
+  if (!connection) {
+    return {
+      ok: false,
+      reason:
+        `page_id=${pageId} is not mapped to an organization — ` +
+        `add a facebook_page_connections row before enabling this page`,
+    };
+  }
+  if (!connection.is_active) {
+    return { ok: false, reason: `page_id=${pageId} connection is inactive` };
+  }
+  return {
+    ok: true,
+    organizationId: connection.organization_id,
+    pageAccessToken: connection.page_access_token,
+  };
+}
+
+/**
+ * Interpret the result of inserting the facebook_lead_ingestions claim row.
+ *
+ * Meta retries any non-200 delivery, so the claim is what turns a retry into a
+ * no-op instead of a second lead — and a duplicate lead means phoning the same
+ * person twice. The email dedupe cannot cover this: phone-only leads get a
+ * placeholder email synthesized per leadgen_id, so they are always distinct.
+ *
+ * 23505 (unique violation on the leadgen_id primary key) is the ONLY code that
+ * means "already ingested". Every other error is a real failure and must not
+ * be mistaken for a duplicate, or the lead is silently discarded.
+ */
+export function classifyIngestionClaim(
+  error: { code?: string; message?: string } | null,
+): ClaimOutcome {
+  if (!error) return "claimed";
+  if (error.code === "23505") return "duplicate";
+  return "failed";
+}
+
+// ---------------------------------------------------------------------------
+// Historical backfill (one-off import of leads that arrived before ingestion
+// was working). See docs/superpowers/plans/2026-08-12-facebook-lead-backfill.md
+//
+// Timestamp facts, read from the live database 2026-08-12 after adding
+// leads.backfilled_at:
+//   - leads.created_at is NOT NULL DEFAULT now(). The default fires ONLY when
+//     the column is omitted from the insert, so a backfill MUST pass an
+//     explicit value or all 29 imported leads silently stamp as today — the
+//     exact wrong outcome, and invisible until someone notices every date is
+//     identical.
+//   - There are NO non-internal triggers on public.leads (pg_trigger returned
+//     zero rows). Nothing overwrites created_at, so an explicit value survives.
+//   - leads.updated_at is NOT NULL DEFAULT now() and has no trigger
+//     maintaining it either.
+// ---------------------------------------------------------------------------
+
+/**
+ * Assemble a historically-imported row: identical to a live one, plus a
+ * truthful arrival time and the historical-import marker.
+ *
+ * The spread of buildLeadRow is deliberate and load-bearing. Rebuilding the
+ * seven shared fields here would let the backfill path drift from the live one;
+ * spreading makes "identical in shape to a live row" true by construction
+ * rather than by discipline.
+ *
+ * `metaCreatedTime` is passed through VERBATIM. Postgres timestamptz accepts
+ * Meta's "2026-07-20T14:03:00+0000" as-is, and re-parsing or reformatting a
+ * timestamp is how timezone bugs get introduced.
+ *
+ * `backfilledAt` non-null is what marks the row historical. It is a column
+ * rather than a note because `notes` is one of the seven shared fields, so a
+ * marker written there would make a shared field differ — and because an admin
+ * editing notes in the UI could erase it, silently re-arming the lead for
+ * outbound automation.
+ */
+export function buildBackfillLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+  /** Meta's `created_time`, verbatim. Never re-parse it. */
+  metaCreatedTime: string;
+  /** When this backfill ran. Non-null is the historical marker. */
+  backfilledAt: string;
+}): LeadInsertRow & { created_at: string; updated_at: string; backfilled_at: string } {
+  const { fields, leadgenId, organizationId, metaCreatedTime, backfilledAt } = args;
+  return {
+    ...buildLeadRow({ fields, leadgenId, organizationId }),
+    // Both timestamps explicit, because each has DEFAULT now() that fires
+    // whenever the column is omitted — omitting them would stamp every imported
+    // lead as today.
+    created_at: metaCreatedTime,
+    // Same value as created_at, not the run time: nothing has actually happened
+    // to these leads since they arrived, so "updated today" would be false.
+    // Consequence, and it is intended — these rows surface immediately in the
+    // stale-lead follow-up panel (AIAnalysisCenter.tsx:228 selects on
+    // `updated_at.lt.<threeDaysAgo>`), which is the point of importing
+    // un-followed-up July enquiries.
+    updated_at: metaCreatedTime,
+    backfilled_at: backfilledAt,
+  };
+}
+
+/**
+ * Read one page of GET /{page-id}/leadgen_forms.
+ *
+ * Tolerates a non-object body because the Graph API answers an auth failure
+ * with `{ error: {...} }` and no `data` at all — the caller checks for that
+ * separately and should not have to guard this call too.
+ */
+export function parseLeadgenFormsPage(json: unknown): {
+  formIds: string[];
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const formIds: string[] = [];
+  for (const row of rows) {
+    const id = (row as { id?: unknown })?.id;
+    if (typeof id === "string" && id) formIds.push(id);
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { formIds, next };
+}
+
+/**
+ * Read one page of GET /{form-id}/leads.
+ *
+ * Returns `skipped` alongside `leads` rather than quietly dropping unusable
+ * entries (CLAUDE.md rule 5). The run report has to be able to say "Meta
+ * returned 29, 28 usable, here is the one that wasn't" — a count that silently
+ * shrinks is indistinguishable from success.
+ *
+ * `field_data` is handed through untouched, in exactly the shape
+ * mapMetaFieldData consumes. Reshaping it here is how the backfill would start
+ * producing rows unlike the live ones.
+ */
+export function parseLeadsPage(json: unknown): {
+  leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }>;
+  skipped: Array<{ reason: string; raw: unknown }>;
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }> = [];
+  const skipped: Array<{ reason: string; raw: unknown }> = [];
+
+  for (const row of rows) {
+    const r = (row ?? {}) as { id?: unknown; created_time?: unknown; field_data?: unknown };
+
+    if (typeof r.id !== "string" || !r.id) {
+      skipped.push({ reason: "lead has no id", raw: row });
+      continue;
+    }
+    // Without a real timestamp the truthful-created_at decision can't be
+    // honoured, and falling back to now() would make a July lead read as
+    // today — precisely what the backfill marker exists to prevent. Skip and
+    // report rather than import a lie.
+    if (typeof r.created_time !== "string" || !r.created_time) {
+      skipped.push({ reason: `lead ${r.id} has no created_time`, raw: row });
+      continue;
+    }
+
+    leads.push({
+      leadgenId: r.id,
+      createdTime: r.created_time,
+      fieldData: Array.isArray(r.field_data) ? (r.field_data as MetaFieldDatum[]) : [],
+    });
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { leads, skipped, next };
+}
+```
+
+
+=== FILE 2 of 2: supabase/functions/backfill-facebook-leads/index.ts ===
+
+New file.
+
+```ts
+// One-off importer for Facebook Lead Ads leads that arrived before live
+// ingestion worked. See docs/superpowers/plans/2026-08-12-facebook-lead-backfill.md
+//
+// DELETE THIS FUNCTION AFTER THE RUN. It is a secret-gated writer to a live
+// multi-tenant customer table; it should not outlive its one use.
+//
+// Safety properties, all deliberate:
+//   - dryRun defaults to TRUE. Writing needs an explicit dryRun: false.
+//   - In dry-run the ledger is only ever SELECTed, never claimed, so a dry run
+//     leaves zero trace.
+//   - Org and Graph token resolve through facebook_page_connections via the
+//     tested resolveOrgFromConnection. No hardcoded organization_id.
+//   - Claim-first through facebook_lead_ingestions, released on insert failure —
+//     the same control flow as the live webhook, which is what makes a
+//     double-insert impossible in either direction.
+//   - Every lead Meta returns appears in the report as inserted, skipped or
+//     failed, with a reason (CLAUDE.md rule 5). A count that silently shrinks
+//     reads exactly like success.
+//   - maxLeads caps the run; if it truncates, the report says so.
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import {
+  mapMetaFieldData,
+  buildBackfillLeadRow,
+  resolveOrgFromConnection,
+  classifyIngestionClaim,
+  parseLeadgenFormsPage,
+  parseLeadsPage,
+} from "../_shared/facebook-lead-mapping.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
+};
+
+const GRAPH = "https://graph.facebook.com/v21.0";
+/** Backstop against a paging loop that never terminates. */
+const MAX_PAGES = 50;
+
+type Outcome =
+  | "inserted"
+  | "would_insert"
+  | "already_ingested"
+  | "duplicate_email"
+  | "insert_failed"
+  | "claim_failed";
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body, null, 2), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Fetch a Graph page and fail loudly on an API error.
+ *
+ * Distinguishing "Meta returned no leads" from "the token was rejected" is the
+ * whole reason this throws instead of returning an empty page: an auth failure
+ * that reads as "0 leads found" would look like a clean, successful no-op.
+ */
+async function graphFetch(url: string): Promise<unknown> {
+  const res = await fetch(url);
+  const body = await res.json().catch(() => null);
+  const err = (body as { error?: { message?: string; code?: number; type?: string } })?.error;
+  if (err) {
+    throw new Error(
+      `Graph API error ${err.code ?? "?"} ${err.type ?? ""}: ${err.message ?? "unknown"}`.trim(),
+    );
+  }
+  if (!res.ok) throw new Error(`Graph API HTTP ${res.status}`);
+  return body;
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const gate = requireCronSecret(req);
+  if (gate) return gate;
+
+  let body: { pageId?: unknown; dryRun?: unknown; maxLeads?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+
+  const pageId = typeof body.pageId === "string" ? body.pageId.trim() : "";
+  if (!pageId) return json({ error: "pageId is required" }, 400);
+
+  // Default TRUE: writing to a live customer table must be opted into.
+  const dryRun = body.dryRun === false ? false : true;
+  const maxLeads =
+    typeof body.maxLeads === "number" && body.maxLeads > 0 ? Math.floor(body.maxLeads) : 100;
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── 1. Which tenant, and which token? Same path as the live webhook. ──
+  const { data: connection, error: connError } = await supabase
+    .from("facebook_page_connections")
+    .select("organization_id, page_access_token, is_active")
+    .eq("page_id", pageId)
+    .maybeSingle();
+
+  const resolution = resolveOrgFromConnection({ pageId, connection, queryError: connError });
+  if (!resolution.ok) return json({ error: resolution.reason }, 400);
+  const { organizationId, pageAccessToken } = resolution;
+
+  const token = pageAccessToken ?? Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN");
+  if (!token) return json({ error: `no page access token for page_id=${pageId}` }, 400);
+
+  // One timestamp for the whole run, so a run is one identifiable batch.
+  const backfilledAt = new Date().toISOString();
+
+  const skippedByParser: Array<{ reason: string }> = [];
+  const collected: Array<{ leadgenId: string; createdTime: string; fieldData: unknown[] }> = [];
+  let truncated = false;
+  let formsFound = 0;
+
+  try {
+    // ── 2. Every lead form on the page. ──
+    const formIds: string[] = [];
+    let formsUrl: string | null =
+      `${GRAPH}/${encodeURIComponent(pageId)}/leadgen_forms` +
+      `?limit=100&access_token=${encodeURIComponent(token)}`;
+    for (let page = 0; formsUrl && page < MAX_PAGES; page++) {
+      const parsed = parseLeadgenFormsPage(await graphFetch(formsUrl));
+      formIds.push(...parsed.formIds);
+      // paging.next already carries the access token; never log it.
+      formsUrl = parsed.next;
+    }
+    formsFound = formIds.length;
+
+    // ── 3. Every lead on every form, up to the cap. ──
+    outer: for (const formId of formIds) {
+      let leadsUrl: string | null =
+        `${GRAPH}/${encodeURIComponent(formId)}/leads` +
+        `?limit=100&access_token=${encodeURIComponent(token)}`;
+      for (let page = 0; leadsUrl && page < MAX_PAGES; page++) {
+        const parsed = parseLeadsPage(await graphFetch(leadsUrl));
+        skippedByParser.push(...parsed.skipped.map((s) => ({ reason: s.reason })));
+        for (const lead of parsed.leads) {
+          if (collected.length >= maxLeads) {
+            truncated = true;
+            break outer;
+          }
+          collected.push(lead);
+        }
+        leadsUrl = parsed.next;
+      }
+    }
+  } catch (err) {
+    // Partial progress is reported rather than swallowed: knowing we read 2 of
+    // 5 forms before the token expired is very different from knowing nothing.
+    return json(
+      {
+        error: String(err instanceof Error ? err.message : err),
+        stage: "graph_read",
+        formsFound,
+        leadsCollectedBeforeFailure: collected.length,
+        skippedByParser,
+      },
+      502,
+    );
+  }
+
+  // ── 4. Per-lead processing. ──
+  const outcomes: Array<{ leadgenId: string; outcome: Outcome; reason?: string }> = [];
+
+  for (const lead of collected) {
+    const { leadgenId, createdTime, fieldData } = lead;
+    const fields = mapMetaFieldData(fieldData as Parameters<typeof mapMetaFieldData>[0]);
+    const row = buildBackfillLeadRow({
+      fields,
+      leadgenId,
+      organizationId,
+      metaCreatedTime: createdTime,
+      backfilledAt,
+    });
+
+    // Already ingested? In dry-run this is a read; in a real run the claim
+    // insert below is the authoritative check (it is atomic, this is not).
+    if (dryRun) {
+      const { data: prior } = await supabase
+        .from("facebook_lead_ingestions")
+        .select("lead_id")
+        .eq("leadgen_id", leadgenId)
+        .maybeSingle();
+      if (prior) {
+        outcomes.push({ leadgenId, outcome: "already_ingested" });
+        continue;
+      }
+    }
+
+    // Same email-dedupe rule as the live webhook, so the two paths cannot
+    // disagree about what counts as a duplicate. Only meaningful for real
+    // emails — placeholder addresses are unique per leadgen_id.
+    if (fields.email) {
+      const { data: existing, error: dupErr } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("email", fields.email)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
+      if (dupErr) {
+        outcomes.push({ leadgenId, outcome: "insert_failed", reason: `dedupe: ${dupErr.message}` });
+        continue;
+      }
+      if (existing) {
+        outcomes.push({ leadgenId, outcome: "duplicate_email" });
+        continue;
+      }
+    }
+
+    if (dryRun) {
+      outcomes.push({ leadgenId, outcome: "would_insert" });
+      continue;
+    }
+
+    // ── Claim, then insert. Identical ordering to the live webhook. ──
+    const { error: claimErr } = await supabase
+      .from("facebook_lead_ingestions")
+      .insert({ leadgen_id: leadgenId, organization_id: organizationId });
+    const claim = classifyIngestionClaim(claimErr);
+
+    if (claim === "failed") {
+      outcomes.push({ leadgenId, outcome: "claim_failed", reason: claimErr?.message });
+      continue;
+    }
+    if (claim === "duplicate") {
+      const { data: prior } = await supabase
+        .from("facebook_lead_ingestions")
+        .select("lead_id")
+        .eq("leadgen_id", leadgenId)
+        .maybeSingle();
+      if (prior?.lead_id) {
+        outcomes.push({ leadgenId, outcome: "already_ingested" });
+        continue;
+      }
+      // Claim with no lead_id: a previous attempt died between claiming and
+      // inserting. That is an orphan, not a duplicate — skipping it would lose
+      // the lead permanently. Fall through and retry the insert.
+    }
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from("leads")
+      .insert(row)
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      // Release the claim so the lead can be retried.
+      await supabase.from("facebook_lead_ingestions").delete().eq("leadgen_id", leadgenId);
+      outcomes.push({ leadgenId, outcome: "insert_failed", reason: insertErr.message });
+      continue;
+    }
+
+    await supabase
+      .from("facebook_lead_ingestions")
+      .update({ lead_id: inserted.id })
+      .eq("leadgen_id", leadgenId);
+    outcomes.push({ leadgenId, outcome: "inserted" });
+  }
+
+  const summary: Record<string, number> = {};
+  for (const o of outcomes) summary[o.outcome] = (summary[o.outcome] ?? 0) + 1;
+
+  return json({
+    dryRun,
+    pageId,
+    organizationId,
+    backfilledAt,
+    formsFound,
+    leadsFound: collected.length,
+    truncated,
+    maxLeads,
+    skippedByParser,
+    summary,
+    outcomes,
+  });
+});
+```
+
+
+=== ALSO: supabase/config.toml ===
+
+Add this entry, keeping the file's existing alphabetical-ish ordering (it sits
+just before [functions.backfill-openphone-messages]):
+
+  [functions.backfill-facebook-leads]
+    # One-off historical importer. Gated internally by requireCronSecret
+    # (x-cron-secret header), not by a JWT - there is no user session behind it.
+    # DELETE this entry and the function directory after the run.
+    verify_jwt = false
+
+verify_jwt = false is correct and required: the caller is me with a shared
+secret, not a logged-in user, so there is no JWT to verify. Authorisation
+happens inside the function via requireCronSecret.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm backfill-facebook-leads is DEPLOYED, not just committed. Those are
+   different and only the first one counts.
+
+b) Confirm _shared/facebook-lead-mapping.ts was written with ZERO import
+   statements, and give me its line count.
+
+c) Confirm the config.toml entry was added.
+
+d) Confirm CRON_SECRET is set as a secret on this project. If it is not, say so
+   - the function fails closed with a 500 rather than running unauthenticated,
+   which is correct, but I need to know before I call it.
+
+e) Confirm you did NOT run the importer, and did not modify
+   facebook-lead-webhook, morning-brief, or any table.
+
+f) List anything you noticed but deliberately did not touch.
