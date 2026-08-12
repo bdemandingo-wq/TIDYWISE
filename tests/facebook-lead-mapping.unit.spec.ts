@@ -33,7 +33,9 @@ import {
   placeholderEmailFor,
   resolveOrgFromConnection,
   classifyIngestionClaim,
+  greetingNameFromLead,
   LEAD_SOURCE_FACEBOOK,
+  PLACEHOLDER_LEAD_NAME,
 } from "../supabase/functions/_shared/facebook-lead-mapping";
 
 // Clean Collective. Resolved via the anon-callable public-booking-data
@@ -170,6 +172,59 @@ test.describe("buildLeadRow", () => {
     });
     expect(row.name.length).toBeLessThanOrEqual(200);
     expect(row.phone!.length).toBeLessThanOrEqual(20);
+  });
+});
+
+test.describe("greetingNameFromLead", () => {
+  // NOTE ON ORDER: these tests were written AFTER the function, which is a
+  // deviation from the TDD used everywhere else in this module. Recorded rather
+  // than hidden. The round-trip test at the end is the one that would actually
+  // have caught the bug this function exists for.
+  test("takes the first word of a full name", () => {
+    expect(greetingNameFromLead("Ada Lovelace")).toBe("Ada");
+  });
+
+  test("passes a single-word name straight through", () => {
+    expect(greetingNameFromLead("Ada")).toBe("Ada");
+  });
+
+  test("returns 'there' for an empty or missing name", () => {
+    expect(greetingNameFromLead("")).toBe("there");
+    expect(greetingNameFromLead("   ")).toBe("there");
+    expect(greetingNameFromLead(null)).toBe("there");
+    expect(greetingNameFromLead(undefined)).toBe("there");
+  });
+
+  test("returns 'there' for the placeholder name, never 'Facebook'", () => {
+    // The bug this function exists for: "Facebook Lead".split(" ")[0] is the
+    // perfectly non-empty "Facebook", so a bare `|| "there"` never fires and the
+    // recipient gets "Hey Facebook, this is Clean Collective."
+    expect(greetingNameFromLead(PLACEHOLDER_LEAD_NAME)).toBe("there");
+    expect(greetingNameFromLead("Facebook Lead")).toBe("there");
+  });
+
+  test("recognises the placeholder regardless of case", () => {
+    expect(greetingNameFromLead("facebook lead")).toBe("there");
+    expect(greetingNameFromLead("FACEBOOK LEAD")).toBe("there");
+  });
+
+  test("tolerates leading and repeated whitespace", () => {
+    expect(greetingNameFromLead("  Ada   Lovelace ")).toBe("Ada");
+  });
+
+  test("does not mistake a real name that merely contains 'Facebook'", () => {
+    // Only the exact placeholder means "no name". Someone actually called
+    // Facebook Jones still gets greeted by name.
+    expect(greetingNameFromLead("Facebook Jones")).toBe("Facebook");
+  });
+
+  test("round trip: a nameless Meta payload ends up greeted as 'there'", () => {
+    // The writer and the reader agreeing is the whole point of exporting
+    // PLACEHOLDER_LEAD_NAME. This is the test that fails if either side drifts.
+    const fields = mapMetaFieldData([{ name: "phone_number", values: ["+15551234567"] }]);
+    const row = buildLeadRow({ fields, leadgenId: "1", organizationId: ORG });
+    expect(row.name).toBe(PLACEHOLDER_LEAD_NAME);
+    expect(greetingNameFromLead(row.name)).toBe("there");
   });
 });
 
