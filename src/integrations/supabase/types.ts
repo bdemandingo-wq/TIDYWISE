@@ -5715,6 +5715,7 @@ export type Database = {
         Row: {
           address: string | null
           assigned_to: string | null
+          backfilled_at: string | null
           city: string | null
           created_at: string
           email: string
@@ -5736,6 +5737,7 @@ export type Database = {
         Insert: {
           address?: string | null
           assigned_to?: string | null
+          backfilled_at?: string | null
           city?: string | null
           created_at?: string
           email: string
@@ -5757,6 +5759,7 @@ export type Database = {
         Update: {
           address?: string | null
           assigned_to?: string | null
+          backfilled_at?: string | null
           city?: string | null
           created_at?: string
           email?: string
