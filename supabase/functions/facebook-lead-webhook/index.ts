@@ -1,5 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  mapMetaFieldData,
+  buildLeadRow,
+  resolveOrgFromConnection,
+  classifyIngestionClaim,
+} from "../_shared/facebook-lead-mapping.ts";
+
 
 serve(async (req: Request) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
