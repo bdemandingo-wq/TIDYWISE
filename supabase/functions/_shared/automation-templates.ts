@@ -19,6 +19,7 @@ export type AutomationKey =
   | 'seasonal_promo'
   | 'missed_call_textback'
   | 'abandoned_booking_recovery'
+  | 'facebook_lead_speed_to_lead'
   // ── Email ──────────────────────────────────────────────────────────────
   | 'winback_step_1'
   | 'winback_step_2'
@@ -46,6 +47,7 @@ export const AUTOMATION_ROW_TYPE: Record<AutomationKey, string> = {
   seasonal_promo: 'seasonal_promo',
   missed_call_textback: 'missed_call_textback',
   abandoned_booking_recovery: 'abandoned_booking_recovery',
+  facebook_lead_speed_to_lead: 'facebook_lead_speed_to_lead',
   winback_step_1: 'winback_60day',
   winback_step_2: 'winback_60day',
   winback_step_3: 'winback_60day',
@@ -181,6 +183,17 @@ export const AUTOMATION_VOCABULARY: Record<AutomationKey, TokenSpec[]> = {
    */
   abandoned_booking_recovery: [
     { token: 'first_name', description: "The name they typed before leaving" },
+    COMPANY_NAME,
+  ],
+
+  /*
+   * `{first_name}`, not `{customer_name}`: a lead is not a customer record, and
+   * `{customer_name}` is resolved inconsistently across callers - its spec says
+   * "the customer's first name" while five of six senders pass a full name. See
+   * docs/superpowers/plans/2026-08-12-customer-name-token-inconsistency.md.
+   */
+  facebook_lead_speed_to_lead: [
+    { token: 'first_name', description: "The lead's first name" },
     COMPANY_NAME,
   ],
 
@@ -357,6 +370,24 @@ export const AUTOMATION_DEFAULTS: Record<AutomationKey, AutomationDefault> = {
     message_class: 'marketing',
     sms_body:
       "Hi {first_name}! We noticed you started booking with {company_name} but didn't finish. We'd love to help you complete your reservation! Reply to this message or visit our booking page.",
+  },
+  /*
+   * Hyphen, not an em dash, and that is not a style preference. One non-GSM-7
+   * character forces the whole message into UCS-2, dropping the per-segment
+   * budget from 153 characters to 67 - measured at 232 chars including the
+   * appended STOP line, that is 4 billed segments instead of 2, for a character
+   * the recipient cannot distinguish from a hyphen.
+   *
+   * {company_name} rather than a literal: this default ships to every org.
+   */
+  facebook_lead_speed_to_lead: {
+    label: 'Facebook lead - speed to lead',
+    hint: 'Sent within seconds of a Facebook lead arriving. Once per lead, ever.',
+    channel: 'sms',
+    group: 'Marketing',
+    message_class: 'marketing',
+    sms_body:
+      "Hey {first_name}, this is {company_name}. I saw your request come in for a cleaning on Facebook. I can get you pricing and availability in about 2 minutes - usually easiest over the phone. When's a good time to call?",
   },
 
   /*
