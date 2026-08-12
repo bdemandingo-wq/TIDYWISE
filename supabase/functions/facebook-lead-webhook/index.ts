@@ -94,8 +94,9 @@ serve(async (req: Request) => {
 
     // Process leads in background (same logic as before)
     try {
-      const FACEBOOK_PAGE_ACCESS_TOKEN = Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN");
-      if (body.object === 'page' && FACEBOOK_PAGE_ACCESS_TOKEN) {
+      // Env token is now only a fallback for pages with no token of their own.
+      const ENV_PAGE_ACCESS_TOKEN = Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN");
+      if (body.object === 'page') {
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
         for (const entry of body.entry || []) {
