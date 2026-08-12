@@ -1,0 +1,423 @@
+Do NOT re-derive any of this logic inline. There is a tested module for it.
+Create it exactly as given, then import from it.
+
+=== STEP 0: create supabase/functions/_shared/facebook-lead-mapping.ts ===
+
+Create this file with EXACTLY these contents. Do not rewrite, reformat,
+shorten, or "improve" it, and do not add any import statement to it. It has
+zero imports and no Deno globals on purpose: 28 Playwright tests import it from
+outside Deno, and a single import would break that.
+
+```ts
+/**
+ * Pure mapping logic for Meta Lead Ads -> public.leads.
+ *
+ * Deliberately ZERO imports and no Deno globals so it is unit-testable from
+ * the Playwright runner (same shape as _shared/format-address.ts). Tests:
+ * tests/facebook-lead-mapping.unit.spec.ts
+ *
+ * Column facts this encodes, from the original CREATE TABLE
+ * (20251222044239_*.sql:80-96) and re-probed against the live schema
+ * 2026-08-12:
+ *   - leads.name  TEXT NOT NULL   (there is NO first_name / last_name)
+ *   - leads.email TEXT NOT NULL   (phone-only FB leads need a placeholder)
+ *   - leads.source is compared with === against 'facebook' in
+ *     src/pages/admin/LeadsPage.tsx:327, so the case matters
+ *
+ * leads_status_check, read from pg_constraint on the live database
+ * 2026-08-12, allows EIGHT values:
+ *   new, contacted, qualified, follow_up, quoted, commercial, converted, lost
+ * The original CREATE TABLE (20251222044239_*.sql:92) declared only five of
+ * those — new, contacted, qualified, converted, lost — so the migration files
+ * understate the live constraint. This is CLAUDE.md rule 4b in miniature: the
+ * live schema is the authority, not the migration that appears to define it.
+ * We write 'new', which is valid under both.
+ *
+ * There is NO unique index on (organization_id, email) — also confirmed from
+ * pg_indexes on 2026-08-12, and deliberately not added: it would reject a
+ * genuine repeat inquiry from a returning customer. Duplicate protection for
+ * Meta's webhook retries comes from the facebook_lead_ingestions leadgen_id
+ * ledger instead, which targets the actual failure mode. See
+ * classifyIngestionClaim below.
+ */
+
+export const LEAD_SOURCE_FACEBOOK = "facebook";
+
+const MAX_NAME = 200;
+const MAX_EMAIL = 255;
+const MAX_PHONE = 20;
+
+export interface MetaFieldDatum {
+  name?: string;
+  values?: string[];
+}
+
+export interface MappedLeadFields {
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface LeadInsertRow {
+  name: string;
+  email: string;
+  phone: string | null;
+  source: string;
+  status: string;
+  notes: string;
+  organization_id: string;
+}
+
+export function placeholderEmailFor(leadgenId: string): string {
+  // .invalid is reserved by RFC 2606 — can never resolve to a real inbox, so
+  // this is safe to store in a NOT NULL column that other features may email.
+  return `fb-lead-${leadgenId}@facebook.invalid`;
+}
+
+/**
+ * Flatten Meta's field_data array into the three values leads cares about.
+ *
+ * Meta sends `[{ name: "full_name", values: ["Ada Lovelace"] }, ...]`, and
+ * which fields are present depends on how the advertiser built the form —
+ * first/last vs full name, email vs phone vs both.
+ */
+export function mapMetaFieldData(
+  fieldData: MetaFieldDatum[] | null | undefined,
+): MappedLeadFields {
+  const f: Record<string, string> = {};
+  for (const item of fieldData ?? []) {
+    const key = item?.name?.toLowerCase();
+    const value = item?.values?.[0];
+    // An empty string counts as absent, not as a value.
+    if (key && value) f[key] = value;
+  }
+
+  const first = f["first_name"];
+  const last = f["last_name"];
+  const full = f["full_name"];
+
+  let name = [first, last].filter(Boolean).join(" ").trim();
+  if (!name) name = (full ?? "").trim();
+  if (!name) name = "Facebook Lead";
+
+  const email = f["email"] ? f["email"].toLowerCase() : null;
+  const phone = f["phone_number"] ?? f["phone"] ?? null;
+
+  return { name, email, phone };
+}
+
+/**
+ * Assemble the exact row to insert into public.leads.
+ *
+ * Returns a single `name`; there is no first_name/last_name on the table.
+ * `email` is never null — leads.email is NOT NULL, and a phone-only Facebook
+ * lead is a paid lead we must not drop.
+ */
+export function buildLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+}): LeadInsertRow {
+  const { fields, leadgenId, organizationId } = args;
+  return {
+    name: fields.name.slice(0, MAX_NAME),
+    email: (fields.email ?? placeholderEmailFor(leadgenId)).slice(0, MAX_EMAIL),
+    phone: fields.phone ? fields.phone.slice(0, MAX_PHONE) : null,
+    source: LEAD_SOURCE_FACEBOOK,
+    status: "new",
+    notes: `Auto-captured from Facebook Lead Ad (leadgen_id: ${leadgenId})`,
+    organization_id: organizationId,
+  };
+}
+
+export interface PageConnectionRow {
+  organization_id: string;
+  page_access_token: string | null;
+  is_active: boolean;
+}
+
+export type OrgResolution =
+  | { ok: true; organizationId: string; pageAccessToken: string | null }
+  | { ok: false; reason: string };
+
+export type ClaimOutcome = "claimed" | "duplicate" | "failed";
+
+/**
+ * Decide which tenant a Page's leads belong to.
+ *
+ * `queryError` is a REQUIRED argument, and that is the whole point. The
+ * original bug destructured only `data` from the Supabase call, so a hard
+ * schema error (42703, from a column that never existed) was indistinguishable
+ * from "this page isn't mapped" — the webhook logged neither and silently
+ * dropped every lead. Making the error an input means it cannot be dropped.
+ *
+ * There is deliberately NO org-list parameter. The fallback this replaces
+ * ("if exactly one organization exists, use it") could route a stranger's
+ * leads into an unrelated tenant; making that unrepresentable is the fix.
+ */
+export function resolveOrgFromConnection(args: {
+  pageId: string | null | undefined;
+  connection: PageConnectionRow | null;
+  queryError: { code?: string; message?: string } | null;
+}): OrgResolution {
+  const { pageId, connection, queryError } = args;
+
+  if (queryError) {
+    return {
+      ok: false,
+      reason:
+        `facebook_page_connections lookup failed for page_id=${pageId}: ` +
+        `${queryError.code ?? "unknown"} ${queryError.message ?? ""}`.trim(),
+    };
+  }
+  if (!pageId) {
+    return { ok: false, reason: "Meta payload contained no page_id" };
+  }
+  if (!connection) {
+    return {
+      ok: false,
+      reason:
+        `page_id=${pageId} is not mapped to an organization — ` +
+        `add a facebook_page_connections row before enabling this page`,
+    };
+  }
+  if (!connection.is_active) {
+    return { ok: false, reason: `page_id=${pageId} connection is inactive` };
+  }
+  return {
+    ok: true,
+    organizationId: connection.organization_id,
+    pageAccessToken: connection.page_access_token,
+  };
+}
+
+/**
+ * Interpret the result of inserting the facebook_lead_ingestions claim row.
+ *
+ * Meta retries any non-200 delivery, so the claim is what turns a retry into a
+ * no-op instead of a second lead — and a duplicate lead means phoning the same
+ * person twice. The email dedupe cannot cover this: phone-only leads get a
+ * placeholder email synthesized per leadgen_id, so they are always distinct.
+ *
+ * 23505 (unique violation on the leadgen_id primary key) is the ONLY code that
+ * means "already ingested". Every other error is a real failure and must not
+ * be mistaken for a duplicate, or the lead is silently discarded.
+ */
+export function classifyIngestionClaim(
+  error: { code?: string; message?: string } | null,
+): ClaimOutcome {
+  if (!error) return "claimed";
+  if (error.code === "23505") return "duplicate";
+  return "failed";
+}
+```
+
+=== STEP 1: new migration, facebook_lead_ingestions ===
+
+create table if not exists public.facebook_lead_ingestions (
+  leadgen_id      text primary key,
+  lead_id         uuid references public.leads(id) on delete set null,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  created_at      timestamptz not null default now()
+);
+
+create index if not exists facebook_lead_ingestions_org_idx
+  on public.facebook_lead_ingestions (organization_id, created_at desc);
+
+alter table public.facebook_lead_ingestions enable row level security;
+revoke all on public.facebook_lead_ingestions from anon, authenticated;
+grant all on public.facebook_lead_ingestions to service_role;
+
+leadgen_id is the PRIMARY KEY deliberately: that unique violation is what makes
+a Meta retry a no-op instead of a second lead. Do not add a surrogate id.
+
+=== STEP 2: edit supabase/functions/facebook-lead-webhook/index.ts ===
+
+Add this import at the top, after the existing two imports. Note the .ts
+extension - Deno requires it:
+
+  import {
+    mapMetaFieldData,
+    buildLeadRow,
+    resolveOrgFromConnection,
+    classifyIngestionClaim,
+  } from "../_shared/facebook-lead-mapping.ts";
+
+Then make four line-specific changes. Line numbers are from the currently
+deployed file.
+
+--- 2a. Lines 90-91. Currently:
+
+      const FACEBOOK_PAGE_ACCESS_TOKEN = Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN");
+      if (body.object === 'page' && FACEBOOK_PAGE_ACCESS_TOKEN) {
+
+Replace with:
+
+      // Env token is now only a fallback for pages with no token of their own.
+      const ENV_PAGE_ACCESS_TOKEN = Deno.env.get("FACEBOOK_PAGE_ACCESS_TOKEN");
+      if (body.object === 'page') {
+
+Why: each Facebook Page issues its OWN Page access token, so one env var can
+only ever serve one page. Gating the whole loop on the env var means a page
+with its own token in the database would be skipped entirely.
+
+--- 2b. Replace lines 103 through 165 in full - from `const graphRes = await
+fetch(` down to and including the closing `}` of the `if (leadInsertErr)`
+block - with exactly this:
+
+            // 1. Which tenant? Select all three columns the module needs, and
+            //    do NOT filter on is_active in SQL - let the module tell the
+            //    difference between "not mapped" and "inactive" so the log
+            //    says which. Capture BOTH data and error.
+            const { data: connection, error: connError } = await supabase
+              .from('facebook_page_connections')
+              .select('organization_id, page_access_token, is_active')
+              .eq('page_id', String(pageId))
+              .maybeSingle();
+
+            const resolution = resolveOrgFromConnection({
+              pageId,
+              connection,
+              queryError: connError,
+            });
+            if (!resolution.ok) {
+              console.error(
+                `[facebook-lead-webhook] dropping leadgen_id=${leadgenId}: ${resolution.reason}`,
+              );
+              continue;
+            }
+            const { organizationId, pageAccessToken } = resolution;
+
+            // 2. Per-page token, env var only as fallback.
+            const token = pageAccessToken ?? ENV_PAGE_ACCESS_TOKEN;
+            if (!token) {
+              console.error(
+                `[facebook-lead-webhook] no page access token for page_id=${pageId}`,
+              );
+              continue;
+            }
+
+            // 3. Fetch the lead. leadgenId comes from an inbound request, so
+            //    it must be escaped before going into a URL.
+            const graphRes = await fetch(
+              `https://graph.facebook.com/v21.0/${encodeURIComponent(leadgenId)}` +
+              `?access_token=${encodeURIComponent(token)}`,
+            );
+            const leadData = await graphRes.json();
+            if (leadData.error) {
+              console.error("[facebook-lead-webhook] Graph API error:", leadData.error);
+              continue;
+            }
+
+            // 4. Map via the shared module. Do not inline this.
+            const fields = mapMetaFieldData(leadData.field_data);
+            const row = buildLeadRow({ fields, leadgenId, organizationId });
+
+            // 5. Skip a same-email lead already in this org. Only meaningful
+            //    for real emails - phone-only leads get a synthesized address
+            //    that is unique per leadgen_id, which step 6 handles instead.
+            if (fields.email) {
+              const { data: existing, error: dupErr } = await supabase
+                .from('leads')
+                .select('id')
+                .eq('email', fields.email)
+                .eq('organization_id', organizationId)
+                .maybeSingle();
+              if (dupErr) {
+                console.error("[facebook-lead-webhook] dedupe check failed, skipping:", dupErr);
+                continue;
+              }
+              if (existing) {
+                console.log(
+                  `[facebook-lead-webhook] duplicate email, skipping leadgen_id=${leadgenId}`,
+                );
+                continue;
+              }
+            }
+
+            // 6. Claim the leadgen_id immediately before inserting, so a Meta
+            //    retry cannot produce a second lead.
+            const { error: claimErr } = await supabase
+              .from('facebook_lead_ingestions')
+              .insert({ leadgen_id: leadgenId, organization_id: organizationId });
+            const claim = classifyIngestionClaim(claimErr);
+            if (claim === 'failed') {
+              console.error(
+                `[facebook-lead-webhook] claim insert failed for leadgen_id=${leadgenId}:`,
+                claimErr,
+              );
+              continue;
+            }
+            if (claim === 'duplicate') {
+              // A claim row exists. If it never received a lead_id then a
+              // previous attempt died between claiming and inserting - that is
+              // an orphan, not a duplicate, and skipping it would lose a paid
+              // lead permanently. Fall through and retry the insert.
+              const { data: prior } = await supabase
+                .from('facebook_lead_ingestions')
+                .select('lead_id')
+                .eq('leadgen_id', leadgenId)
+                .maybeSingle();
+              if (prior?.lead_id) {
+                console.log(
+                  `[facebook-lead-webhook] leadgen_id=${leadgenId} already ingested as lead ${prior.lead_id}, skipping`,
+                );
+                continue;
+              }
+              console.warn(
+                `[facebook-lead-webhook] orphaned claim for leadgen_id=${leadgenId}, retrying insert`,
+              );
+            }
+
+            // 7. Insert. `row` comes from buildLeadRow and contains exactly
+            //    the seven columns public.leads has: name, email, phone,
+            //    source, status, notes, organization_id. There is NO
+            //    first_name or last_name on that table, and email is NOT NULL.
+            const { data: inserted, error: leadInsertErr } = await supabase
+              .from('leads')
+              .insert(row)
+              .select('id')
+              .single();
+
+            if (leadInsertErr) {
+              console.error(
+                `[facebook-lead-webhook] lead insert FAILED for leadgen_id=${leadgenId}:`,
+                leadInsertErr,
+              );
+              // Release the claim so a genuine Meta retry can still succeed.
+              await supabase
+                .from('facebook_lead_ingestions')
+                .delete()
+                .eq('leadgen_id', leadgenId);
+            } else {
+              await supabase
+                .from('facebook_lead_ingestions')
+                .update({ lead_id: inserted.id })
+                .eq('leadgen_id', leadgenId);
+              console.log(
+                `[facebook-lead-webhook] created lead ${inserted.id} org=${organizationId} leadgen_id=${leadgenId}`,
+              );
+            }
+
+--- 2c. Delete lines 112-120 (the inline `fields` loop and the firstName /
+lastName / email / phone consts). mapMetaFieldData replaces all of it. If any
+variable named firstName or lastName remains anywhere in the file, the change
+is not finished.
+
+--- 2d. Leave lines 1-89 alone. The GET verification, the HMAC check, and the
+tenant-stamped raw-event insert are all correct - do not touch them.
+
+=== STEP 3: report back in ONE reply ===
+
+a) Confirm the migration RAN against the live database.
+b) Confirm facebook-lead-webhook is DEPLOYED, not just committed.
+c) Paste the deployed source of the whole `for (const change of ...)` loop so I
+   can verify the import is used and no inline mapping survived.
+d) Confirm supabase/functions/_shared/facebook-lead-mapping.ts was created with
+   201 lines and zero import statements.
+e) Paste the output of:
+
+   select leadgen_id, lead_id, organization_id from public.facebook_lead_ingestions;
+
+   (Expected: zero rows. It proves the table exists and is empty before the
+   first test lead.)
