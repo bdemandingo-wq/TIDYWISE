@@ -126,7 +126,19 @@ Node v24 strips TypeScript natively, and both template files are import-free, so
 
 ---
 
-## Task S1: Schema, trigger, and the disabled automation row
+## Task S1: Schema and the disabled automation row
+
+> **SPLIT 2026-08-12, before sending.** This task originally created the trigger too. It does not, and the reason changed once during drafting — the first version of this note was wrong, so both versions are recorded.
+>
+> **Wrong first answer:** that the design should read `app.settings.cron_secret`, and that its absence from the repo was the blocker. `app.settings.*` is the *older, minority* convention here — 4 uses of `app.settings.supabase_url`, 1 of `app.settings.service_role_key`.
+>
+> **Actual answer, already in the repo:** the secret belongs in **Supabase Vault**. `(SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_secret')` sent as an `x-cron-secret` header appears in **12+ migrations**, alongside a `supabase_url` secret in the same vault, and it matches the `requireCronSecret` gate the function already uses. No new setting is needed and nothing has to be provisioned.
+>
+> **The real open question** is narrower and more interesting: **all 12 of those are inside `cron.schedule` blocks, which run as the job owner. Not one is inside a trigger function.** A trigger fires in the context of whoever performed the INSERT, so whether it can read `vault.decrypted_secrets` depends on the `SECURITY DEFINER` owner having vault access — and there is no example in this project proving it does. If that read returns NULL inside a trigger, the trigger either fires unauthenticated requests or silently does nothing on every new lead, which is the exact failure mode this feature exists to fix.
+>
+> So S1 ships the two pieces that depend on nothing (`lead_notification_sends`, the disabled automation row) plus a disposable `SECURITY DEFINER` probe function that returns a boolean — never the secret — and is dropped immediately. **Task S1b** writes the trigger against the answer.
+>
+> Paste-ready message: `docs/superpowers/prompts/2026-08-12-speed-to-lead-taskS1.PASTE.txt`
 
 **Files:** Create `supabase/migrations/<timestamp>_speed_to_lead.sql`
 
@@ -152,6 +164,15 @@ alter table public.lead_notification_sends enable row level security;
 revoke all on public.lead_notification_sends from anon, authenticated;
 grant all on public.lead_notification_sends to service_role;
 ```
+
+### Task S1b: The dispatch function and trigger
+
+**Blocked on S1's vault probe.** Do not write this until that boolean comes back.
+
+- **Probe returns TRUE** → use the established Vault pattern: `x-cron-secret` from `vault.decrypted_secrets`, URL from the `supabase_url` secret in the same vault. Copy the shape from `20260506204202_automation_phase_2_cron.sql:22-29` verbatim, minus the `cron.schedule` wrapper.
+- **Probe returns FALSE or errors** → the trigger cannot fetch its own credential. Fall back to inserting into a small queue table from the trigger (a plain INSERT needs no secret) and draining it from an existing `cron.schedule` job, which *can* read the vault. That costs up to a minute of latency, which matters for speed-to-lead, so only take it if the probe forces it.
+
+The code block below is written for the TRUE branch. Do not paste it before the probe answers.
 
 - [ ] **Step 2: The dispatch function and trigger**
 

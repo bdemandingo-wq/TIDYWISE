@@ -1,0 +1,173 @@
+=== SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
+
+This creates ONE new table and inserts ONE row. It also asks three read-only
+questions whose answers decide how the next step is written.
+
+It deliberately does NOT create the trigger. See "WHY THE TRIGGER IS NOT IN
+THIS MESSAGE" below - that is the purpose of this round trip, not an oversight,
+so please do not helpfully add it.
+
+public.leads and public.organization_automations are LIVE CUSTOMER TABLES
+serving every paying organization. The new table takes a foreign key to
+public.leads, which needs a brief lock on it to validate - leads has 466 rows so
+that is milliseconds, but if it turns out to be far larger, tell me instead of
+running it.
+
+Do NOT:
+  - create the notify_new_lead() function or any trigger on public.leads
+  - alter, drop or rename any existing column on any existing table
+  - change any RLS policy, GRANT, REVOKE or constraint on an existing table
+  - UPDATE or DELETE any existing row
+  - enable any automation, or set is_enabled to true anywhere
+  - touch any edge function - there is no function work in this message
+  - "improve" or tidy anything you notice
+
+If you spot something wrong, REPORT IT in your reply and leave it alone. A
+previous change went beyond its brief and rewrote an edge function I had not
+asked about, which cost a full verification cycle to unpick.
+
+
+=== WHY THE TRIGGER IS NOT IN THIS MESSAGE ===
+
+The trigger will call an edge function through pg_net, and that call needs to
+authenticate. This project already has a well-established way to do that, which
+I intend to copy rather than invent: read the secret out of Supabase Vault and
+send it as an x-cron-secret header, exactly as these do -
+
+  net.http_post(
+    url := (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'supabase_url')
+             || '/functions/v1/<fn>',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'x-cron-secret', (SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = 'cron_secret')
+    ),
+    ...
+
+That pattern appears in at least 12 migrations and matches the requireCronSecret
+gate the edge function will use. Good.
+
+The catch: every one of those 12 is inside a cron.schedule block, which runs as
+the job owner. Not one of them is inside a trigger function. A trigger fires in
+the context of whoever performed the INSERT, so whether it can read
+vault.decrypted_secrets at all depends on the SECURITY DEFINER owner having
+vault access - and I have no example in this project that proves it does.
+
+If that read silently returns NULL inside a trigger, the trigger either fires
+unauthenticated requests or quietly does nothing on every new lead. "Quietly
+does nothing" is precisely the failure mode this entire feature is being built
+to fix, so I am not shipping a trigger on an unverified assumption.
+
+Step 1 settles it. The trigger comes next, written against what is actually
+there.
+
+
+=== STEP 1: THREE READ-ONLY QUESTIONS - ANSWER THESE FIRST ===
+
+-- 1a. Is pg_net actually installed, not merely referenced by migrations?
+select extname, extversion from pg_extension where extname = 'pg_net';
+
+-- 1b. Do the two Vault secrets exist? NAMES ONLY.
+--     Do not print decrypted_secret for either one - I only need to know they
+--     are there, and secrets should not travel through chat.
+select name from vault.decrypted_secrets
+where name in ('cron_secret', 'supabase_url')
+order by name;
+
+-- 1c. Confirm the leads row count, so I know the Step 2 FK lock is trivial.
+select count(*) as leads_rows from public.leads;
+
+Then the question that actually decides the design. Please run this exact probe
+and give me the boolean it returns:
+
+  create or replace function public.__vault_probe()
+  returns boolean
+  language plpgsql
+  security definer
+  set search_path = public
+  as $$
+  declare v text;
+  begin
+    select decrypted_secret into v from vault.decrypted_secrets where name = 'cron_secret';
+    return v is not null and length(v) > 0;
+  end;
+  $$;
+
+  select public.__vault_probe() as security_definer_can_read_vault;
+
+  drop function public.__vault_probe();
+
+It returns TRUE or FALSE, never the secret itself. Please drop it afterwards as
+written - it exists only to answer this one question. If creating it fails
+outright, that is also a useful answer: say so and paste the error.
+
+
+=== STEP 2: THE SEND-CLAIM TABLE ===
+
+create table if not exists public.lead_notification_sends (
+  lead_id         uuid primary key references public.leads(id) on delete cascade,
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  status          text not null default 'sending'
+                    check (status in ('sending', 'sent', 'failed', 'skipped')),
+  skip_reason     text,
+  claimed_at      timestamptz not null default now(),
+  completed_at    timestamptz
+);
+
+create index if not exists lead_notification_sends_org_idx
+  on public.lead_notification_sends (organization_id, claimed_at desc);
+
+alter table public.lead_notification_sends enable row level security;
+revoke all on public.lead_notification_sends from anon, authenticated;
+grant all on public.lead_notification_sends to service_role;
+
+Please keep lead_id as the PRIMARY KEY. That is deliberate and it is the entire
+point of the table: at most one speed-to-lead SMS per lead, ever, enforced by
+Postgres rather than by a read-then-write check in application code. Do not add
+a surrogate id column, and do not relax it to a plain index.
+
+
+=== STEP 3: THE AUTOMATION ROW - IT MUST BE CREATED DISABLED ===
+
+insert into public.organization_automations
+  (organization_id, automation_type, is_enabled, description)
+select o.id, 'facebook_lead_speed_to_lead', false,
+       'Texts a new Facebook lead asking for a good time to call'
+from public.organizations o
+where o.slug = 'clean-collective'
+on conflict (organization_id, automation_type) do nothing;
+
+is_enabled is passed explicitly as false, and that is not redundant:
+organization_automations.is_enabled has DEFAULT true at the schema level, so a
+row created without it arrives switched ON.
+
+This automation sends SMS to real members of the public who filled in a Facebook
+form. Switching it on has to be a deliberate human act, not a side effect of
+creating a row. If your tooling wants to normalise that false away to the
+default, don't - the explicit false IS the safety property.
+
+Do not enable it. Do not create rows for any other organization.
+
+
+=== STEP 4: REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) The output of 1a, 1b and 1c, verbatim. For 1b I want the names only.
+
+b) The boolean from the __vault_probe function, and confirmation you dropped it.
+   If creating it errored, paste the error instead.
+
+c) Confirm the migration RAN against the live database, not just that it was
+   committed. Those are different and only the first counts.
+
+d) The output of:
+
+   select automation_type, is_enabled
+   from public.organization_automations
+   where automation_type = 'facebook_lead_speed_to_lead';
+
+   I expect exactly one row with is_enabled = false. If it says true, something
+   overrode the explicit false and I need to know immediately.
+
+e) Confirm you did NOT create any trigger on public.leads, and did not modify
+   any edge function.
+
+f) List anything you noticed but deliberately did not touch.
