@@ -1,0 +1,276 @@
+// Fires on every new lead. Two jobs, in this order:
+//   1. Dispatch lead.created to Zapier/GHL — closing the gap where only the
+//      frontend's manual create-lead mutation ever fired it, so Facebook,
+//      chatbot and booking-form leads silently reached no integration.
+//   2. Send the speed-to-lead SMS, if that automation is enabled for the org.
+//
+// Invoked by trg_notify_new_lead on public.leads via pg_net. That trigger
+// carries `WHEN (new.backfilled_at IS NULL)`, so historical imports never reach
+// here — but step 3 below re-checks anyway, because this function is also
+// callable directly with the secret and a manual call bypasses the trigger.
+//
+// Task S1b/S3 of docs/superpowers/plans/2026-08-12-speed-to-lead.md
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import { isPhoneOptedOut } from "../_shared/marketing-guard.ts";
+import { greetingNameFromLead } from "../_shared/facebook-lead-mapping.ts";
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
+};
+
+const AUTOMATION_KEY = "facebook_lead_speed_to_lead" as const;
+
+type Outcome =
+  | "sent"
+  | "already_handled"
+  | "skipped_backfilled"
+  | "skipped_automation_off"
+  | "skipped_no_phone"
+  | "skipped_opted_out"
+  | "skipped_sms_not_configured"
+  | "failed";
+
+function json(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const gate = requireCronSecret(req);
+  if (gate) return gate;
+
+  let body: { lead_id?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+  const leadId = typeof body.lead_id === "string" ? body.lead_id : "";
+  if (!leadId) return json({ error: "lead_id is required" }, 400);
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── 2. Load the lead ──
+  const { data: lead, error: leadErr } = await supabase
+    .from("leads")
+    .select("id, name, phone, source, organization_id, backfilled_at")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  if (leadErr) return json({ error: `lead lookup failed: ${leadErr.message}` }, 500);
+  if (!lead) return json({ error: `lead ${leadId} not found` }, 404);
+
+  const organizationId = lead.organization_id as string | null;
+  if (!organizationId) return json({ error: `lead ${leadId} has no organization_id` }, 400);
+
+  // ── 3. Belt and braces on the backfill guard ──
+  // The trigger's WHEN clause should make this unreachable. It is here because a
+  // direct call with the secret bypasses the trigger entirely, and texting
+  // someone about a July enquiry is the mistake this whole feature must not make.
+  if (lead.backfilled_at) {
+    console.log(`[notify-new-lead] lead ${leadId} is backfilled, no outbound action`);
+    return json({ outcome: "skipped_backfilled" satisfies Outcome, lead_id: leadId });
+  }
+
+  // ── 4. Dispatch lead.created, regardless of the SMS automation ──
+  // Deliberately before the SMS and deliberately non-fatal: an integration
+  // failure must not cost the customer their text.
+  let dispatched = false;
+  try {
+    const { error: dispatchErr } = await supabase.functions.invoke("zapier-dispatch", {
+      body: { event: "lead.created", organizationId, payload: lead },
+    });
+    if (dispatchErr) {
+      console.error(`[notify-new-lead] lead.created dispatch failed:`, dispatchErr);
+    } else {
+      dispatched = true;
+    }
+  } catch (err) {
+    console.error(`[notify-new-lead] lead.created dispatch threw:`, err);
+  }
+
+  const done = (outcome: Outcome, extra: Record<string, unknown> = {}) =>
+    json({ outcome, lead_id: leadId, organization_id: organizationId, dispatched, ...extra });
+
+  // ── 5. Is the automation on for this org? ──
+  const { data: automation, error: autoErr } = await supabase
+    .from("organization_automations")
+    .select("is_enabled, settings")
+    .eq("organization_id", organizationId)
+    .eq("automation_type", AUTOMATION_KEY)
+    .maybeSingle();
+
+  if (autoErr) {
+    console.error(`[notify-new-lead] automation lookup failed:`, autoErr);
+    return done("failed", { reason: autoErr.message });
+  }
+  if (!automation?.is_enabled) {
+    return done("skipped_automation_off");
+  }
+
+  // ── 6. A text needs a number ──
+  const phone = typeof lead.phone === "string" ? lead.phone.trim() : "";
+  if (!phone) {
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: "no_phone",
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_no_phone");
+  }
+
+  // ── 7. Consent. Fails closed: any lookup error returns true. ──
+  // isPhoneOptedOut rather than isOptedOut because a lead has no customers row,
+  // so marketing_status is not reachable by customer id.
+  if (await isPhoneOptedOut(supabase, organizationId, phone)) {
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: "opted_out",
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_opted_out");
+  }
+
+  // ── 8. SMS transport configured? ──
+  const { data: smsSettings } = await supabase
+    .from("organization_sms_settings")
+    .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (
+    !smsSettings?.sms_enabled ||
+    !smsSettings.openphone_api_key ||
+    !smsSettings.openphone_phone_number_id
+  ) {
+    return done("skipped_sms_not_configured");
+  }
+
+  // ── 9. Claim BEFORE sending ──
+  // lead_id is the PK, so a concurrent or repeat invocation loses the race
+  // atomically. Claiming after the send is how campaign_sms_sends ended up
+  // texting someone twice: it hit 23505 once the SMS was already delivered,
+  // left no dedupe row, and the customer stayed eligible.
+  const { error: claimErr } = await supabase
+    .from("lead_notification_sends")
+    .insert({ lead_id: leadId, organization_id: organizationId, status: "sending" });
+
+  if (claimErr) {
+    if (claimErr.code === "23505") {
+      console.log(`[notify-new-lead] lead ${leadId} already handled, not re-sending`);
+      return done("already_handled");
+    }
+    console.error(`[notify-new-lead] claim failed:`, claimErr);
+    return done("failed", { reason: claimErr.message });
+  }
+
+  // ── 10. Copy: org override, else the shipped default ──
+  const { data: businessSettings } = await supabase
+    .from("business_settings")
+    .select("company_name")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  const savedTemplate =
+    ((automation.settings as { templates?: Record<string, string> } | null)
+      ?.templates?.[AUTOMATION_KEY]) ?? null;
+
+  const resolved = resolveTemplate(AUTOMATION_KEY, savedTemplate, {
+    // greetingNameFromLead, not `name.split(' ')[0] || 'there'`: a nameless lead
+    // is stored as "Facebook Lead", whose first word is the non-empty
+    // "Facebook", so a bare fallback would send "Hey Facebook,".
+    first_name: greetingNameFromLead(lead.name as string | null),
+    company_name: businessSettings?.company_name || "us",
+  });
+  if (resolved.warning) {
+    console.warn(`[notify-new-lead] org=${organizationId}: ${resolved.warning}`);
+  }
+
+  // ── 11. Marketing class, so the opt-out line is appended here ──
+  // Appended at send time rather than baked into the body, so an owner
+  // rewording their copy in the Automation Center cannot drop it.
+  const messageText =
+    AUTOMATION_DEFAULTS[AUTOMATION_KEY].message_class === "marketing"
+      ? withStopSentence(resolved.text)
+      : resolved.text;
+
+  // ── 12. Send ──
+  let toPhone = phone.replace(/\D/g, "");
+  if (!toPhone.startsWith("1") && toPhone.length === 10) toPhone = "1" + toPhone;
+  toPhone = "+" + toPhone;
+
+  try {
+    const res = await fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: {
+        Authorization: smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, ""),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: smsSettings.openphone_phone_number_id,
+        to: [toPhone],
+        content: messageText,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error(`[notify-new-lead] SMS failed for lead ${leadId}: ${res.status} ${detail}`);
+      // The claim is NOT released. Deliberately the opposite of the backfill's
+      // decision: OpenPhone may have accepted the message before the response
+      // failed, and a duplicate text to a real person is worse than a missed
+      // one. The failed row stays visible for an operator to act on.
+      await supabase
+        .from("lead_notification_sends")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("lead_id", leadId);
+      return done("failed", { reason: `openphone ${res.status}` });
+    }
+  } catch (err) {
+    console.error(`[notify-new-lead] SMS threw for lead ${leadId}:`, err);
+    await supabase
+      .from("lead_notification_sends")
+      .update({ status: "failed", completed_at: new Date().toISOString() })
+      .eq("lead_id", leadId);
+    return done("failed", { reason: String(err instanceof Error ? err.message : err) });
+  }
+
+  // ── 13. Record success, and log the fire for the Automation Center ──
+  await supabase
+    .from("lead_notification_sends")
+    .update({ status: "sent", completed_at: new Date().toISOString() })
+    .eq("lead_id", leadId);
+
+  // automation_fire_log's invariant is that a row means success — which is why
+  // the claim lives in its own table rather than here. Written only now.
+  await supabase.from("automation_fire_log").insert({
+    organization_id: organizationId,
+    automation_type: AUTOMATION_KEY,
+    target_id: leadId,
+    metadata: { source: lead.source ?? null },
+  });
+
+  console.log(`[notify-new-lead] sent speed-to-lead SMS for lead ${leadId} org=${organizationId}`);
+  return done("sent");
+});

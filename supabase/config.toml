@@ -63,6 +63,10 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.notify-booking-request]
     verify_jwt = false
+  [functions.notify-new-lead]
+    # Invoked by trg_notify_new_lead on public.leads via pg_net, which cannot
+    # present a user JWT. Gated internally by requireCronSecret.
+    verify_jwt = false
   [functions.notify-platform-admin-subscription]
     verify_jwt = false
   [functions.openphone-webhook]

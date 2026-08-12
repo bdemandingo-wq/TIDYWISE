@@ -32,6 +32,15 @@
 
 export const LEAD_SOURCE_FACEBOOK = "facebook";
 
+/**
+ * The name stored when Meta sends no name field at all.
+ *
+ * Exported rather than inlined because two places need to agree on it: the
+ * writer (buildLeadRow, below) and the reader (greetingNameFromLead, which must
+ * recognise it as "no name" rather than greeting someone "Hey Facebook").
+ */
+export const PLACEHOLDER_LEAD_NAME = "Facebook Lead";
+
 const MAX_NAME = 200;
 const MAX_EMAIL = 255;
 const MAX_PHONE = 20;
@@ -87,12 +96,32 @@ export function mapMetaFieldData(
 
   let name = [first, last].filter(Boolean).join(" ").trim();
   if (!name) name = (full ?? "").trim();
-  if (!name) name = "Facebook Lead";
+  if (!name) name = PLACEHOLDER_LEAD_NAME;
 
   const email = f["email"] ? f["email"].toLowerCase() : null;
   const phone = f["phone_number"] ?? f["phone"] ?? null;
 
   return { name, email, phone };
+}
+
+/**
+ * The first name to greet a lead by, or "there".
+ *
+ * `|| "there"` on its own is not enough, which is the whole reason this exists.
+ * A nameless Facebook lead is stored as "Facebook Lead", so
+ * `name.split(" ")[0]` yields the perfectly non-empty "Facebook" and the
+ * fallback never fires — the recipient gets "Hey Facebook, this is ...".
+ *
+ * Compare process-recurring-offers/index.ts:196, which can safely use the bare
+ * `|| "there"` because it reads customers.first_name, a field that is either a
+ * real name or empty. A lead's `name` has a third state: a placeholder that
+ * looks like data.
+ */
+export function greetingNameFromLead(name: string | null | undefined): string {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return "there";
+  if (trimmed.toLowerCase() === PLACEHOLDER_LEAD_NAME.toLowerCase()) return "there";
+  return trimmed.split(/\s+/)[0] || "there";
 }
 
 /**
