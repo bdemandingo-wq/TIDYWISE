@@ -199,3 +199,132 @@ export function classifyIngestionClaim(
   if (error.code === "23505") return "duplicate";
   return "failed";
 }
+
+// ---------------------------------------------------------------------------
+// Historical backfill (one-off import of leads that arrived before ingestion
+// was working). See docs/superpowers/plans/2026-08-12-facebook-lead-backfill.md
+//
+// Timestamp facts, read from the live database 2026-08-12 after adding
+// leads.backfilled_at:
+//   - leads.created_at is NOT NULL DEFAULT now(). The default fires ONLY when
+//     the column is omitted from the insert, so a backfill MUST pass an
+//     explicit value or all 29 imported leads silently stamp as today — the
+//     exact wrong outcome, and invisible until someone notices every date is
+//     identical.
+//   - There are NO non-internal triggers on public.leads (pg_trigger returned
+//     zero rows). Nothing overwrites created_at, so an explicit value survives.
+//   - leads.updated_at is NOT NULL DEFAULT now() and has no trigger
+//     maintaining it either.
+// ---------------------------------------------------------------------------
+
+/**
+ * Assemble a historically-imported row: identical to a live one, plus a
+ * truthful arrival time and the historical-import marker.
+ *
+ * The spread of buildLeadRow is deliberate and load-bearing. Rebuilding the
+ * seven shared fields here would let the backfill path drift from the live one;
+ * spreading makes "identical in shape to a live row" true by construction
+ * rather than by discipline.
+ *
+ * `metaCreatedTime` is passed through VERBATIM. Postgres timestamptz accepts
+ * Meta's "2026-07-20T14:03:00+0000" as-is, and re-parsing or reformatting a
+ * timestamp is how timezone bugs get introduced.
+ *
+ * `backfilledAt` non-null is what marks the row historical. It is a column
+ * rather than a note because `notes` is one of the seven shared fields, so a
+ * marker written there would make a shared field differ — and because an admin
+ * editing notes in the UI could erase it, silently re-arming the lead for
+ * outbound automation.
+ */
+export function buildBackfillLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+  /** Meta's `created_time`, verbatim. Never re-parse it. */
+  metaCreatedTime: string;
+  /** When this backfill ran. Non-null is the historical marker. */
+  backfilledAt: string;
+}): LeadInsertRow & { created_at: string; backfilled_at: string } {
+  const { fields, leadgenId, organizationId, metaCreatedTime, backfilledAt } = args;
+  return {
+    ...buildLeadRow({ fields, leadgenId, organizationId }),
+    // Explicit, because created_at's DEFAULT now() fires whenever the column is
+    // omitted — omitting it would stamp every imported lead as today.
+    created_at: metaCreatedTime,
+    backfilled_at: backfilledAt,
+  };
+}
+
+/**
+ * Read one page of GET /{page-id}/leadgen_forms.
+ *
+ * Tolerates a non-object body because the Graph API answers an auth failure
+ * with `{ error: {...} }` and no `data` at all — the caller checks for that
+ * separately and should not have to guard this call too.
+ */
+export function parseLeadgenFormsPage(json: unknown): {
+  formIds: string[];
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const formIds: string[] = [];
+  for (const row of rows) {
+    const id = (row as { id?: unknown })?.id;
+    if (typeof id === "string" && id) formIds.push(id);
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { formIds, next };
+}
+
+/**
+ * Read one page of GET /{form-id}/leads.
+ *
+ * Returns `skipped` alongside `leads` rather than quietly dropping unusable
+ * entries (CLAUDE.md rule 5). The run report has to be able to say "Meta
+ * returned 29, 28 usable, here is the one that wasn't" — a count that silently
+ * shrinks is indistinguishable from success.
+ *
+ * `field_data` is handed through untouched, in exactly the shape
+ * mapMetaFieldData consumes. Reshaping it here is how the backfill would start
+ * producing rows unlike the live ones.
+ */
+export function parseLeadsPage(json: unknown): {
+  leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }>;
+  skipped: Array<{ reason: string; raw: unknown }>;
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }> = [];
+  const skipped: Array<{ reason: string; raw: unknown }> = [];
+
+  for (const row of rows) {
+    const r = (row ?? {}) as { id?: unknown; created_time?: unknown; field_data?: unknown };
+
+    if (typeof r.id !== "string" || !r.id) {
+      skipped.push({ reason: "lead has no id", raw: row });
+      continue;
+    }
+    // Without a real timestamp the truthful-created_at decision can't be
+    // honoured, and falling back to now() would make a July lead read as
+    // today — precisely what the backfill marker exists to prevent. Skip and
+    // report rather than import a lie.
+    if (typeof r.created_time !== "string" || !r.created_time) {
+      skipped.push({ reason: `lead ${r.id} has no created_time`, raw: row });
+      continue;
+    }
+
+    leads.push({
+      leadgenId: r.id,
+      createdTime: r.created_time,
+      fieldData: Array.isArray(r.field_data) ? (r.field_data as MetaFieldDatum[]) : [],
+    });
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { leads, skipped, next };
+}
