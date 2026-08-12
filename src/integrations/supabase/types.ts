@@ -5044,19 +5044,71 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          organization_id: string | null
           payload: Json | null
         }
         Insert: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           payload?: Json | null
         }
         Update: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           payload?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "facebook_lead_webhook_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facebook_page_connections: {
+        Row: {
+          connected_by: string | null
+          created_at: string
+          is_active: boolean
+          organization_id: string
+          page_access_token: string | null
+          page_id: string
+          page_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          connected_by?: string | null
+          created_at?: string
+          is_active?: boolean
+          organization_id: string
+          page_access_token?: string | null
+          page_id: string
+          page_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connected_by?: string | null
+          created_at?: string
+          is_active?: boolean
+          organization_id?: string
+          page_access_token?: string | null
+          page_id?: string
+          page_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_page_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ghl_dispatch_log: {
         Row: {
