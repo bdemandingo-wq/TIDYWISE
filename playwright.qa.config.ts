@@ -35,6 +35,15 @@ export default defineConfig({
   },
   projects: [
     {
+      // Pure logic tests (*.unit.spec.ts): no browser, no login, no network,
+      // no live site. Deliberately declares NO dependencies so it does not
+      // inherit the setup -> logout-check chain that every "chromium" test
+      // waits on — those perform real production logins and take ~a minute.
+      // Run alone with: npx playwright test -c playwright.qa.config.ts --project=unit
+      name: "unit",
+      testMatch: /.*\.unit\.spec\.ts/,
+    },
+    {
       name: "setup",
       testMatch: /global-setup\.ts/,
     },
@@ -60,7 +69,7 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup", "logout-check"],
-      testIgnore: /global-setup\.ts|logout-check\.spec\.ts/,
+      testIgnore: /global-setup\.ts|logout-check\.spec\.ts|.*\.unit\.spec\.ts/,
     },
   ],
 });
