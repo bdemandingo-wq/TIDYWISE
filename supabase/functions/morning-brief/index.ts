@@ -309,7 +309,11 @@ Deno.serve(async (req) => {
       if (data) leads.push(...data.map(r => ({ name: r.customers ? `${r.customers.first_name || ""} ${r.customers.last_name || ""}`.trim() : "Unknown", source: "Booking Request", service: r.services?.name || "N/A", created_at: r.created_at })));
     } catch {}
     try {
-      const { data } = await supabase.from("facebook_lead_webhook_events").select("id, created_at, payload").gte("created_at", twentyFourAgo);
+      const { data } = await supabase
+        .from("facebook_lead_webhook_events")
+        .select("id, created_at, payload")
+        .eq("organization_id", orgId)
+        .gte("created_at", twentyFourAgo);
       if (data) leads.push(...data.map(r => ({ name: (r.payload as any)?.name || "FB Lead", source: "Facebook", service: "N/A", created_at: r.created_at })));
     } catch {}
     return leads;
