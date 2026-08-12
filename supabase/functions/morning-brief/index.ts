@@ -543,6 +543,7 @@ Deno.serve(async (req) => {
     const { data, error } = await supabase
       .from("facebook_lead_webhook_events")
       .select("id")
+      .eq("organization_id", orgId)
       .gte("created_at", twentyFourAgo);
     if (error) throw error;
     return (data || []).length;
