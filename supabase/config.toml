@@ -9,11 +9,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.auth-email-hook]
     verify_jwt = false
-  [functions.backfill-facebook-leads]
-    # One-off historical importer. Gated internally by requireCronSecret
-    # (x-cron-secret header), not by a JWT - there is no user session behind it.
-    # DELETE this entry and the function directory after the run.
-    verify_jwt = false
   [functions.backfill-openphone-messages]
     verify_jwt = false
   [functions.booking-chatbot]
