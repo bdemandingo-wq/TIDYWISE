@@ -5040,23 +5040,111 @@ export type Database = {
           },
         ]
       }
+      facebook_lead_ingestions: {
+        Row: {
+          created_at: string
+          lead_id: string | null
+          leadgen_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          lead_id?: string | null
+          leadgen_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          lead_id?: string | null
+          leadgen_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_lead_ingestions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facebook_lead_ingestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facebook_lead_webhook_events: {
         Row: {
           created_at: string
           id: string
+          organization_id: string | null
           payload: Json | null
         }
         Insert: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           payload?: Json | null
         }
         Update: {
           created_at?: string
           id?: string
+          organization_id?: string | null
           payload?: Json | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "facebook_lead_webhook_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facebook_page_connections: {
+        Row: {
+          connected_by: string | null
+          created_at: string
+          is_active: boolean
+          organization_id: string
+          page_access_token: string | null
+          page_id: string
+          page_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          connected_by?: string | null
+          created_at?: string
+          is_active?: boolean
+          organization_id: string
+          page_access_token?: string | null
+          page_id: string
+          page_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          connected_by?: string | null
+          created_at?: string
+          is_active?: boolean
+          organization_id?: string
+          page_access_token?: string | null
+          page_id?: string
+          page_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_page_connections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ghl_dispatch_log: {
         Row: {
@@ -5623,10 +5711,53 @@ export type Database = {
           },
         ]
       }
+      lead_notification_sends: {
+        Row: {
+          claimed_at: string
+          completed_at: string | null
+          lead_id: string
+          organization_id: string
+          skip_reason: string | null
+          status: string
+        }
+        Insert: {
+          claimed_at?: string
+          completed_at?: string | null
+          lead_id: string
+          organization_id: string
+          skip_reason?: string | null
+          status?: string
+        }
+        Update: {
+          claimed_at?: string
+          completed_at?: string | null
+          lead_id?: string
+          organization_id?: string
+          skip_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notification_sends_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notification_sends_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           address: string | null
           assigned_to: string | null
+          backfilled_at: string | null
           city: string | null
           created_at: string
           email: string
@@ -5648,6 +5779,7 @@ export type Database = {
         Insert: {
           address?: string | null
           assigned_to?: string | null
+          backfilled_at?: string | null
           city?: string | null
           created_at?: string
           email: string
@@ -5669,6 +5801,7 @@ export type Database = {
         Update: {
           address?: string | null
           assigned_to?: string | null
+          backfilled_at?: string | null
           city?: string | null
           created_at?: string
           email?: string
