@@ -1,0 +1,111 @@
+=== SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
+
+This adds ONE nullable column to public.leads.
+
+public.leads is a LIVE CUSTOMER TABLE. It holds real lead records for every
+paying organization on the platform, not just mine. Clean Collective's Facebook
+leads are in there alongside every other org's. Treat it accordingly.
+
+Do exactly two things:
+  1. Add one nullable column, its comment, and one partial index.
+  2. Run three read-only queries and report their output.
+
+Nothing else. Specifically, do NOT:
+  - alter, drop, rename or re-type any existing column on leads
+  - change any RLS policy, GRANT, REVOKE, CHECK constraint or foreign key on leads
+  - add, drop or rebuild any index on leads other than the single one named below
+  - UPDATE, DELETE or backfill any existing rows in leads
+  - touch facebook-lead-webhook, morning-brief, facebook_page_connections,
+    or facebook_lead_ingestions
+  - create a backfill function, or add anything to
+    supabase/functions/_shared/facebook-lead-mapping.ts (those are later tasks
+    and I will send them separately, with the code)
+  - "improve", refactor or tidy anything you notice while you are in there
+
+If you spot something that looks wrong, REPORT IT in your reply and leave it
+alone. A previous change went beyond its brief and rewrote an edge function I
+had not asked about, which cost a full verification cycle to unpick. I would
+rather hear about a problem than find an unrequested fix.
+
+The column is nullable with no default, so this is a catalog-only change: no
+table rewrite, and existing rows simply get NULL. That is the correct value for
+them - NULL means "this lead arrived live".
+
+One check before you run it: if public.leads turns out to hold millions of rows,
+tell me the row count instead of creating the index, and I will switch it to
+CREATE INDEX CONCURRENTLY in a separate step. On a table of a few thousand rows
+the plain form locks writes for a few milliseconds and is fine.
+
+
+=== STEP 1: THE MIGRATION ===
+
+alter table public.leads add column if not exists backfilled_at timestamptz;
+
+comment on column public.leads.backfilled_at is
+  'Non-null when this row was imported from a historical source rather than '
+  'arriving live. NULL means it arrived live. Outbound speed-to-lead '
+  'automation MUST filter on `backfilled_at is null` - a backfilled row can be '
+  'weeks old, and texting that person as a fresh enquiry is a real-world '
+  'mistake, not just bad data.';
+
+-- The exact predicate a future speed-to-lead notifier will run, made cheap now.
+create index if not exists leads_live_recent_idx
+  on public.leads (organization_id, created_at desc)
+  where backfilled_at is null;
+
+
+=== STEP 2: STOP CHECK - RUN THIS AND READ THE RESULT BEFORE REPORTING SUCCESS ===
+
+select tgname, pg_get_triggerdef(oid) as definition
+from pg_trigger
+where tgrelid = 'public.leads'::regclass
+  and not tgisinternal;
+
+*** IF ANY RETURNED TRIGGER IS A BEFORE INSERT OR BEFORE UPDATE TRIGGER THAT
+*** SETS, OVERWRITES OR OTHERWISE TOUCHES created_at:
+***
+***   STOP. Do not report this task as done. Do not proceed to anything else.
+***   Paste the full trigger definition into your reply and wait for me.
+
+Why this matters more than it looks. The next step after this migration imports
+~29 real Facebook leads that arrived in JULY, writing their true arrival dates
+into created_at. A BEFORE INSERT trigger that sets created_at = now() would
+silently overwrite every one of those dates. The import would report complete
+success while producing exactly the wrong data: 29 leads that all look like they
+arrived today. Since the entire point of the import is that a lead's age is the
+most important thing about it, that failure would defeat the whole exercise -
+and it would be invisible until someone noticed the dates were all identical.
+
+So this is not a formality. If the trigger exists, the plan changes before
+anything is imported.
+
+If there are no non-internal triggers on public.leads, say so explicitly -
+"no rows returned" is the answer I need, not silence.
+
+
+=== STEP 3: CONFIRM THE COLUMN LANDED AS INTENDED ===
+
+select column_name, data_type, column_default, is_nullable
+from information_schema.columns
+where table_schema = 'public' and table_name = 'leads'
+  and column_name in ('created_at', 'updated_at', 'backfilled_at')
+order by column_name;
+
+Expected: backfilled_at is timestamptz, nullable, with NO default. If it comes
+back with a default, or as NOT NULL, something rewrote the statement - tell me.
+
+
+=== STEP 4: REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm the migration RAN against the live database, not just that it was
+   committed. Those are different things and only the first one counts.
+
+b) Paste the Step 2 pg_trigger output verbatim - including "no rows" if that is
+   the result.
+
+c) Paste the Step 3 information_schema output verbatim.
+
+d) Confirm you changed nothing else about public.leads: no policy, grant,
+   constraint, other index, or existing row.
+
+e) List anything you noticed but deliberately did not touch.
