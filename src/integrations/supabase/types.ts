@@ -5040,6 +5040,42 @@ export type Database = {
           },
         ]
       }
+      facebook_lead_ingestions: {
+        Row: {
+          created_at: string
+          lead_id: string | null
+          leadgen_id: string
+          organization_id: string
+        }
+        Insert: {
+          created_at?: string
+          lead_id?: string | null
+          leadgen_id: string
+          organization_id: string
+        }
+        Update: {
+          created_at?: string
+          lead_id?: string | null
+          leadgen_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facebook_lead_ingestions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facebook_lead_ingestions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       facebook_lead_webhook_events: {
         Row: {
           created_at: string
