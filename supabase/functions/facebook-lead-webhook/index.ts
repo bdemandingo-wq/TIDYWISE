@@ -108,8 +108,43 @@ serve(async (req: Request) => {
 
             console.log("[facebook-lead-webhook] Processing leadgen_id:", leadgenId);
 
+            // 1. Which tenant? Select all three columns the module needs, and
+            //    do NOT filter on is_active in SQL - let the module tell the
+            //    difference between "not mapped" and "inactive" so the log
+            //    says which. Capture BOTH data and error.
+            const { data: connection, error: connError } = await supabase
+              .from('facebook_page_connections')
+              .select('organization_id, page_access_token, is_active')
+              .eq('page_id', String(pageId))
+              .maybeSingle();
+
+            const resolution = resolveOrgFromConnection({
+              pageId,
+              connection,
+              queryError: connError,
+            });
+            if (!resolution.ok) {
+              console.error(
+                `[facebook-lead-webhook] dropping leadgen_id=${leadgenId}: ${resolution.reason}`,
+              );
+              continue;
+            }
+            const { organizationId, pageAccessToken } = resolution;
+
+            // 2. Per-page token, env var only as fallback.
+            const token = pageAccessToken ?? ENV_PAGE_ACCESS_TOKEN;
+            if (!token) {
+              console.error(
+                `[facebook-lead-webhook] no page access token for page_id=${pageId}`,
+              );
+              continue;
+            }
+
+            // 3. Fetch the lead. leadgenId comes from an inbound request, so
+            //    it must be escaped before going into a URL.
             const graphRes = await fetch(
-              `https://graph.facebook.com/v21.0/${leadgenId}?access_token=${FACEBOOK_PAGE_ACCESS_TOKEN}`
+              `https://graph.facebook.com/v21.0/${encodeURIComponent(leadgenId)}` +
+              `?access_token=${encodeURIComponent(token)}`,
             );
             const leadData = await graphRes.json();
             if (leadData.error) {
@@ -117,59 +152,94 @@ serve(async (req: Request) => {
               continue;
             }
 
-            const fields: Record<string, string> = {};
-            for (const f of leadData.field_data || []) {
-              fields[f.name?.toLowerCase()] = f.values?.[0] || '';
-            }
+            // 4. Map via the shared module. Do not inline this.
+            const fields = mapMetaFieldData(leadData.field_data);
+            const row = buildLeadRow({ fields, leadgenId, organizationId });
 
-            const firstName = fields['first_name'] || fields['full_name']?.split(' ')[0] || 'Facebook';
-            const lastName = fields['last_name'] || fields['full_name']?.split(' ').slice(1).join(' ') || 'Lead';
-            const email = fields['email'] || '';
-            const phone = fields['phone_number'] || fields['phone'] || '';
-
-            let organizationId: string | null = null;
-            const { data: orgMatch } = await supabase
-              .from('facebook_page_connections')
-              .select('organization_id')
-              .eq('page_id', String(pageId))
-              .eq('is_active', true)
-              .maybeSingle();
-
-            if (orgMatch) {
-              organizationId = orgMatch.organization_id;
-            }
-
-            if (!organizationId) {
-              console.error("[facebook-lead-webhook] Cannot determine org for page_id:", pageId);
-              continue;
-            }
-
-            if (email) {
-              const { data: existing, error: existingErr } = await supabase
+            // 5. Skip a same-email lead already in this org. Only meaningful
+            //    for real emails - phone-only leads get a synthesized address
+            //    that is unique per leadgen_id, which step 6 handles instead.
+            if (fields.email) {
+              const { data: existing, error: dupErr } = await supabase
                 .from('leads')
                 .select('id')
-                .eq('email', email.toLowerCase())
+                .eq('email', fields.email)
                 .eq('organization_id', organizationId)
                 .maybeSingle();
-              if (existingErr) {
-                console.error("[facebook-lead-webhook] Lead dedupe check failed, skipping to avoid a possible duplicate:", existingErr);
+              if (dupErr) {
+                console.error("[facebook-lead-webhook] dedupe check failed, skipping:", dupErr);
                 continue;
               }
-              if (existing) continue;
+              if (existing) {
+                console.log(
+                  `[facebook-lead-webhook] duplicate email, skipping leadgen_id=${leadgenId}`,
+                );
+                continue;
+              }
             }
 
-            const { error: leadInsertErr } = await supabase.from('leads').insert({
-              first_name: firstName.slice(0, 100),
-              last_name: lastName.slice(0, 100),
-              email: email ? email.toLowerCase().slice(0, 255) : null,
-              phone: phone ? phone.slice(0, 20) : null,
-              source: 'facebook',
-              status: 'new',
-              notes: `Auto-captured from Facebook Lead Ad (leadgen_id: ${leadgenId})`,
-              organization_id: organizationId,
-            });
+            // 6. Claim the leadgen_id immediately before inserting, so a Meta
+            //    retry cannot produce a second lead.
+            const { error: claimErr } = await supabase
+              .from('facebook_lead_ingestions')
+              .insert({ leadgen_id: leadgenId, organization_id: organizationId });
+            const claim = classifyIngestionClaim(claimErr);
+            if (claim === 'failed') {
+              console.error(
+                `[facebook-lead-webhook] claim insert failed for leadgen_id=${leadgenId}:`,
+                claimErr,
+              );
+              continue;
+            }
+            if (claim === 'duplicate') {
+              // A claim row exists. If it never received a lead_id then a
+              // previous attempt died between claiming and inserting - that is
+              // an orphan, not a duplicate, and skipping it would lose a paid
+              // lead permanently. Fall through and retry the insert.
+              const { data: prior } = await supabase
+                .from('facebook_lead_ingestions')
+                .select('lead_id')
+                .eq('leadgen_id', leadgenId)
+                .maybeSingle();
+              if (prior?.lead_id) {
+                console.log(
+                  `[facebook-lead-webhook] leadgen_id=${leadgenId} already ingested as lead ${prior.lead_id}, skipping`,
+                );
+                continue;
+              }
+              console.warn(
+                `[facebook-lead-webhook] orphaned claim for leadgen_id=${leadgenId}, retrying insert`,
+              );
+            }
+
+            // 7. Insert. `row` comes from buildLeadRow and contains exactly
+            //    the seven columns public.leads has: name, email, phone,
+            //    source, status, notes, organization_id. There is NO
+            //    first_name or last_name on that table, and email is NOT NULL.
+            const { data: inserted, error: leadInsertErr } = await supabase
+              .from('leads')
+              .insert(row)
+              .select('id')
+              .single();
+
             if (leadInsertErr) {
-              console.error("[facebook-lead-webhook] Lead insert failed:", leadInsertErr);
+              console.error(
+                `[facebook-lead-webhook] lead insert FAILED for leadgen_id=${leadgenId}:`,
+                leadInsertErr,
+              );
+              // Release the claim so a genuine Meta retry can still succeed.
+              await supabase
+                .from('facebook_lead_ingestions')
+                .delete()
+                .eq('leadgen_id', leadgenId);
+            } else {
+              await supabase
+                .from('facebook_lead_ingestions')
+                .update({ lead_id: inserted.id })
+                .eq('leadgen_id', leadgenId);
+              console.log(
+                `[facebook-lead-webhook] created lead ${inserted.id} org=${organizationId} leadgen_id=${leadgenId}`,
+              );
             }
           }
         }
