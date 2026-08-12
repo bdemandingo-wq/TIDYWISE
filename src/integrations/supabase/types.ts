@@ -5711,6 +5711,48 @@ export type Database = {
           },
         ]
       }
+      lead_notification_sends: {
+        Row: {
+          claimed_at: string
+          completed_at: string | null
+          lead_id: string
+          organization_id: string
+          skip_reason: string | null
+          status: string
+        }
+        Insert: {
+          claimed_at?: string
+          completed_at?: string | null
+          lead_id: string
+          organization_id: string
+          skip_reason?: string | null
+          status?: string
+        }
+        Update: {
+          claimed_at?: string
+          completed_at?: string | null
+          lead_id?: string
+          organization_id?: string
+          skip_reason?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notification_sends_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_notification_sends_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           address: string | null
@@ -11031,8 +11073,6 @@ export type Database = {
       }
     }
     Functions: {
-      __vault_names: { Args: never; Returns: string[] }
-      __vault_probe: { Args: never; Returns: boolean }
       add_client_portal_location: {
         Args: {
           p_address: string
