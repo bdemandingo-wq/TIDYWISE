@@ -8,9 +8,16 @@
 // database and the original CREATE TABLE (20251222044239_*.sql:80-96):
 //   - leads.name  TEXT NOT NULL  — there is NO first_name / last_name
 //   - leads.email TEXT NOT NULL  — phone-only Facebook leads need a placeholder
-//   - leads.status CHECK IN ('new','contacted','qualified','converted','lost')
 //   - leads.source is compared with === against 'facebook' in
 //     src/pages/admin/LeadsPage.tsx:327, so the case matters
+//   - leads_status_check, read from pg_constraint on the LIVE database
+//     2026-08-12, allows eight values: new, contacted, qualified, follow_up,
+//     quoted, commercial, converted, lost. The CREATE TABLE migration declares
+//     only five of them, so the files understate the live constraint — rule 4b
+//     again. We write 'new', valid under both.
+//   - there is NO unique index on (organization_id, email), confirmed from
+//     pg_indexes 2026-08-12, and deliberately not added: it would reject a
+//     genuine repeat inquiry from a returning customer.
 //
 // The two bugs these guard against, both confirmed live via PostgREST probe
 // (400/42703, matched against a deliberately fake control column):
@@ -119,7 +126,7 @@ test.describe("buildLeadRow", () => {
     ).toBe(other);
   });
 
-  test("sets status 'new' to satisfy the leads status CHECK constraint", () => {
+  test("sets status 'new', valid under the live 8-value leads_status_check", () => {
     expect(buildLeadRow({ fields: complete, leadgenId: "1", organizationId: ORG }).status).toBe(
       "new",
     );

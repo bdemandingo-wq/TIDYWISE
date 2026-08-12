@@ -10,9 +10,24 @@
  * 2026-08-12:
  *   - leads.name  TEXT NOT NULL   (there is NO first_name / last_name)
  *   - leads.email TEXT NOT NULL   (phone-only FB leads need a placeholder)
- *   - leads.status CHECK IN ('new','contacted','qualified','converted','lost')
  *   - leads.source is compared with === against 'facebook' in
  *     src/pages/admin/LeadsPage.tsx:327, so the case matters
+ *
+ * leads_status_check, read from pg_constraint on the live database
+ * 2026-08-12, allows EIGHT values:
+ *   new, contacted, qualified, follow_up, quoted, commercial, converted, lost
+ * The original CREATE TABLE (20251222044239_*.sql:92) declared only five of
+ * those — new, contacted, qualified, converted, lost — so the migration files
+ * understate the live constraint. This is CLAUDE.md rule 4b in miniature: the
+ * live schema is the authority, not the migration that appears to define it.
+ * We write 'new', which is valid under both.
+ *
+ * There is NO unique index on (organization_id, email) — also confirmed from
+ * pg_indexes on 2026-08-12, and deliberately not added: it would reject a
+ * genuine repeat inquiry from a returning customer. Duplicate protection for
+ * Meta's webhook retries comes from the facebook_lead_ingestions leadgen_id
+ * ledger instead, which targets the actual failure mode. See
+ * classifyIngestionClaim below.
  */
 
 export const LEAD_SOURCE_FACEBOOK = "facebook";
