@@ -66,10 +66,21 @@ serve(async (req: Request) => {
 
     console.log("[facebook-lead-webhook] POST payload:", JSON.stringify(body).slice(0, 1000));
 
-    // Store raw event
+    // Store raw event (tenant-stamped so per-org briefs can filter it)
     try {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      await supabase.from('facebook_lead_webhook_events').insert({ payload: body });
+      const eventPageId = body?.entry?.[0]?.changes?.[0]?.value?.page_id ?? body?.entry?.[0]?.id;
+      let eventOrgId: string | null = null;
+      if (eventPageId) {
+        const { data: conn } = await supabase
+          .from('facebook_page_connections')
+          .select('organization_id')
+          .eq('page_id', String(eventPageId))
+          .eq('is_active', true)
+          .maybeSingle();
+        eventOrgId = conn?.organization_id ?? null;
+      }
+      await supabase.from('facebook_lead_webhook_events').insert({ payload: body, organization_id: eventOrgId });
     } catch (err) {
       console.error("[facebook-lead-webhook] DB insert error:", err);
     }
@@ -110,16 +121,14 @@ serve(async (req: Request) => {
 
             let organizationId: string | null = null;
             const { data: orgMatch } = await supabase
-              .from('business_settings')
+              .from('facebook_page_connections')
               .select('organization_id')
-              .eq('facebook_page_id', pageId)
+              .eq('page_id', String(pageId))
+              .eq('is_active', true)
               .maybeSingle();
 
             if (orgMatch) {
               organizationId = orgMatch.organization_id;
-            } else {
-              const { data: allOrgs } = await supabase.from('organizations').select('id').limit(2);
-              if (allOrgs && allOrgs.length === 1) organizationId = allOrgs[0].id;
             }
 
             if (!organizationId) {
