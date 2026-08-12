@@ -11031,6 +11031,8 @@ export type Database = {
       }
     }
     Functions: {
+      __vault_names: { Args: never; Returns: string[] }
+      __vault_probe: { Args: never; Returns: boolean }
       add_client_portal_location: {
         Args: {
           p_address: string
