@@ -1,0 +1,1474 @@
+=== SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
+
+Four files, all given below in full. Create/replace them EXACTLY as written and
+deploy. Do not rewrite, reformat, shorten or "improve" any of them.
+
+This one arms the feature. After it, an insert into public.leads will fire an
+HTTP call - so the details below are not stylistic.
+
+THE AUTOMATION MUST STAY OFF. organization_automations for
+facebook_lead_speed_to_lead is is_enabled = false and must remain so. Do not
+enable it, do not "activate the feature", do not set it true for any org. The
+notifier checks that flag and stops, so with it off nothing is texted. Turning it
+on is a deliberate human act that happens after I have tested the wiring.
+
+Do NOT:
+  - change `when (new.backfilled_at is null)` on the trigger, or drop the WHEN
+    clause. It is the guard that stops 29 imported July leads being texted
+  - remove the `exception when others` block from notify_new_lead()
+  - change the order of claim-then-send in notify-new-lead, or add a claim
+    release on send failure
+  - add an import to _shared/facebook-lead-mapping.ts (it has ZERO on purpose;
+    59 Playwright tests load it from outside Deno and one import breaks that)
+  - enable any automation, or alter is_enabled anywhere
+  - touch public.leads columns, RLS, policies or existing rows
+  - touch facebook-lead-webhook, morning-brief, backfill-facebook-leads or
+    followup-abandoned-booking
+  - "improve" anything you notice
+
+If you spot something wrong, REPORT IT and leave it alone.
+
+
+=== WHY THE VAULT PATTERN, AND WHAT NOT TO COPY ===
+
+The trigger reads its secret from Supabase Vault and sends x-cron-secret, the
+same shape as 12+ existing cron migrations, e.g.
+20260506204202_automation_phase_2_cron.sql:22-29. Keep it.
+
+Do NOT "fix" it to match 20251224072250_*.sql:64, which builds
+`'Bearer ' || current_setting('request.jwt.claims', true)::json->>'role'`. That
+yields the role NAME, not a JWT, and it is a known defect - see
+docs/superpowers/plans/2026-08-12-pgnet-trigger-auth-defect.md. If you think the
+new trigger's auth looks inconsistent with that one, the other one is the wrong
+one.
+
+
+=== FILE 1 of 4: supabase/migrations/20260812190000_speed_to_lead_trigger.sql ===
+
+New migration. Apply it.
+
+```sql
+-- Speed-to-lead dispatch: fire notify-new-lead the moment a lead arrives.
+-- Task S1b of docs/superpowers/plans/2026-08-12-speed-to-lead.md
+--
+-- Vault, not app.settings.*. This copies the convention used by 12+ cron
+-- migrations (e.g. 20260506204202_automation_phase_2_cron.sql:22-29) and pairs
+-- with requireCronSecret on the receiving function. A SECURITY DEFINER function
+-- reading vault.decrypted_secrets was verified working on this project
+-- 2026-08-12 via a disposable probe — every prior use is inside cron.schedule,
+-- which runs as the job owner, so trigger context could not be assumed.
+--
+-- Do NOT copy the auth pattern from 20251224072250_*.sql:64, which sends
+-- 'Bearer ' || current_setting('request.jwt.claims')::json->>'role' — that is
+-- the role NAME, not a JWT. See
+-- docs/superpowers/plans/2026-08-12-pgnet-trigger-auth-defect.md
+
+create or replace function public.notify_new_lead()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_url    text;
+  v_secret text;
+begin
+  select decrypted_secret into v_url
+    from vault.decrypted_secrets where name = 'supabase_url';
+  select decrypted_secret into v_secret
+    from vault.decrypted_secrets where name = 'cron_secret';
+
+  if v_url is null or v_secret is null then
+    -- Loud, and does not fire an unauthenticated request.
+    raise warning 'notify_new_lead: vault secrets missing, lead % not dispatched', new.id;
+    return new;
+  end if;
+
+  perform net.http_post(
+    url     := v_url || '/functions/v1/notify-new-lead',
+    headers := jsonb_build_object(
+      'Content-Type',  'application/json',
+      'x-cron-secret', v_secret
+    ),
+    body    := jsonb_build_object('lead_id', new.id)
+  );
+
+  return new;
+
+exception when others then
+  -- A dispatch failure must never roll back the INSERT. An uncaught exception
+  -- in an AFTER INSERT trigger aborts the whole statement, which would mean a
+  -- Facebook lead we were paid for is not merely un-texted but never stored.
+  -- A captured-but-unnotified lead is recoverable; a lost one is not.
+  raise warning 'notify_new_lead failed for lead %: %', new.id, sqlerrm;
+  return new;
+end;
+$$;
+
+-- Rule 2: a SECURITY DEFINER function should not be executable by clients. This
+-- one is only ever invoked by the trigger below.
+revoke all on function public.notify_new_lead() from public, anon, authenticated;
+
+-- The WHEN clause IS the backfill guard, enforced by Postgres rather than by an
+-- application branch that could be refactored away. A row with backfilled_at set
+-- never invokes the function at all — which is why the historical-import marker
+-- had to be a column and not a notes convention.
+drop trigger if exists trg_notify_new_lead on public.leads;
+create trigger trg_notify_new_lead
+  after insert on public.leads
+  for each row
+  when (new.backfilled_at is null)
+  execute function public.notify_new_lead();
+```
+
+
+=== FILE 2 of 4: supabase/functions/notify-new-lead/index.ts ===
+
+New edge function. Create and DEPLOY it. It must be deployed BEFORE the
+migration is applied, or the first lead to arrive will fire pg_net at a function
+that does not exist. Order matters here.
+
+```ts
+// Fires on every new lead. Two jobs, in this order:
+//   1. Dispatch lead.created to Zapier/GHL — closing the gap where only the
+//      frontend's manual create-lead mutation ever fired it, so Facebook,
+//      chatbot and booking-form leads silently reached no integration.
+//   2. Send the speed-to-lead SMS, if that automation is enabled for the org.
+//
+// Invoked by trg_notify_new_lead on public.leads via pg_net. That trigger
+// carries `WHEN (new.backfilled_at IS NULL)`, so historical imports never reach
+// here — but step 3 below re-checks anyway, because this function is also
+// callable directly with the secret and a manual call bypasses the trigger.
+//
+// Task S1b/S3 of docs/superpowers/plans/2026-08-12-speed-to-lead.md
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+import { isPhoneOptedOut } from "../_shared/marketing-guard.ts";
+import { greetingNameFromLead } from "../_shared/facebook-lead-mapping.ts";
+import {
+  resolveTemplate,
+  withStopSentence,
+  AUTOMATION_DEFAULTS,
+} from "../_shared/automation-templates.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-cron-secret",
+};
+
+const AUTOMATION_KEY = "facebook_lead_speed_to_lead" as const;
+
+type Outcome =
+  | "sent"
+  | "already_handled"
+  | "skipped_backfilled"
+  | "skipped_automation_off"
+  | "skipped_no_phone"
+  | "skipped_opted_out"
+  | "skipped_sms_not_configured"
+  | "failed";
+
+function json(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const gate = requireCronSecret(req);
+  if (gate) return gate;
+
+  let body: { lead_id?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON" }, 400);
+  }
+  const leadId = typeof body.lead_id === "string" ? body.lead_id : "";
+  if (!leadId) return json({ error: "lead_id is required" }, 400);
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // ── 2. Load the lead ──
+  const { data: lead, error: leadErr } = await supabase
+    .from("leads")
+    .select("id, name, phone, source, organization_id, backfilled_at")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  if (leadErr) return json({ error: `lead lookup failed: ${leadErr.message}` }, 500);
+  if (!lead) return json({ error: `lead ${leadId} not found` }, 404);
+
+  const organizationId = lead.organization_id as string | null;
+  if (!organizationId) return json({ error: `lead ${leadId} has no organization_id` }, 400);
+
+  // ── 3. Belt and braces on the backfill guard ──
+  // The trigger's WHEN clause should make this unreachable. It is here because a
+  // direct call with the secret bypasses the trigger entirely, and texting
+  // someone about a July enquiry is the mistake this whole feature must not make.
+  if (lead.backfilled_at) {
+    console.log(`[notify-new-lead] lead ${leadId} is backfilled, no outbound action`);
+    return json({ outcome: "skipped_backfilled" satisfies Outcome, lead_id: leadId });
+  }
+
+  // ── 4. Dispatch lead.created, regardless of the SMS automation ──
+  // Deliberately before the SMS and deliberately non-fatal: an integration
+  // failure must not cost the customer their text.
+  let dispatched = false;
+  try {
+    const { error: dispatchErr } = await supabase.functions.invoke("zapier-dispatch", {
+      body: { event: "lead.created", organizationId, payload: lead },
+    });
+    if (dispatchErr) {
+      console.error(`[notify-new-lead] lead.created dispatch failed:`, dispatchErr);
+    } else {
+      dispatched = true;
+    }
+  } catch (err) {
+    console.error(`[notify-new-lead] lead.created dispatch threw:`, err);
+  }
+
+  const done = (outcome: Outcome, extra: Record<string, unknown> = {}) =>
+    json({ outcome, lead_id: leadId, organization_id: organizationId, dispatched, ...extra });
+
+  // ── 5. Is the automation on for this org? ──
+  const { data: automation, error: autoErr } = await supabase
+    .from("organization_automations")
+    .select("is_enabled, settings")
+    .eq("organization_id", organizationId)
+    .eq("automation_type", AUTOMATION_KEY)
+    .maybeSingle();
+
+  if (autoErr) {
+    console.error(`[notify-new-lead] automation lookup failed:`, autoErr);
+    return done("failed", { reason: autoErr.message });
+  }
+  if (!automation?.is_enabled) {
+    return done("skipped_automation_off");
+  }
+
+  // ── 6. A text needs a number ──
+  const phone = typeof lead.phone === "string" ? lead.phone.trim() : "";
+  if (!phone) {
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: "no_phone",
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_no_phone");
+  }
+
+  // ── 7. Consent. Fails closed: any lookup error returns true. ──
+  // isPhoneOptedOut rather than isOptedOut because a lead has no customers row,
+  // so marketing_status is not reachable by customer id.
+  if (await isPhoneOptedOut(supabase, organizationId, phone)) {
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: "opted_out",
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_opted_out");
+  }
+
+  // ── 8. SMS transport configured? ──
+  const { data: smsSettings } = await supabase
+    .from("organization_sms_settings")
+    .select("openphone_api_key, openphone_phone_number_id, sms_enabled")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (
+    !smsSettings?.sms_enabled ||
+    !smsSettings.openphone_api_key ||
+    !smsSettings.openphone_phone_number_id
+  ) {
+    return done("skipped_sms_not_configured");
+  }
+
+  // ── 9. Claim BEFORE sending ──
+  // lead_id is the PK, so a concurrent or repeat invocation loses the race
+  // atomically. Claiming after the send is how campaign_sms_sends ended up
+  // texting someone twice: it hit 23505 once the SMS was already delivered,
+  // left no dedupe row, and the customer stayed eligible.
+  const { error: claimErr } = await supabase
+    .from("lead_notification_sends")
+    .insert({ lead_id: leadId, organization_id: organizationId, status: "sending" });
+
+  if (claimErr) {
+    if (claimErr.code === "23505") {
+      console.log(`[notify-new-lead] lead ${leadId} already handled, not re-sending`);
+      return done("already_handled");
+    }
+    console.error(`[notify-new-lead] claim failed:`, claimErr);
+    return done("failed", { reason: claimErr.message });
+  }
+
+  // ── 10. Copy: org override, else the shipped default ──
+  const { data: businessSettings } = await supabase
+    .from("business_settings")
+    .select("company_name")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  const savedTemplate =
+    ((automation.settings as { templates?: Record<string, string> } | null)
+      ?.templates?.[AUTOMATION_KEY]) ?? null;
+
+  const resolved = resolveTemplate(AUTOMATION_KEY, savedTemplate, {
+    // greetingNameFromLead, not `name.split(' ')[0] || 'there'`: a nameless lead
+    // is stored as "Facebook Lead", whose first word is the non-empty
+    // "Facebook", so a bare fallback would send "Hey Facebook,".
+    first_name: greetingNameFromLead(lead.name as string | null),
+    company_name: businessSettings?.company_name || "us",
+  });
+  if (resolved.warning) {
+    console.warn(`[notify-new-lead] org=${organizationId}: ${resolved.warning}`);
+  }
+
+  // ── 11. Marketing class, so the opt-out line is appended here ──
+  // Appended at send time rather than baked into the body, so an owner
+  // rewording their copy in the Automation Center cannot drop it.
+  const messageText =
+    AUTOMATION_DEFAULTS[AUTOMATION_KEY].message_class === "marketing"
+      ? withStopSentence(resolved.text)
+      : resolved.text;
+
+  // ── 12. Send ──
+  let toPhone = phone.replace(/\D/g, "");
+  if (!toPhone.startsWith("1") && toPhone.length === 10) toPhone = "1" + toPhone;
+  toPhone = "+" + toPhone;
+
+  try {
+    const res = await fetch("https://api.openphone.com/v1/messages", {
+      method: "POST",
+      headers: {
+        Authorization: smsSettings.openphone_api_key.trim().replace(/^Bearer\s+/i, ""),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: smsSettings.openphone_phone_number_id,
+        to: [toPhone],
+        content: messageText,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error(`[notify-new-lead] SMS failed for lead ${leadId}: ${res.status} ${detail}`);
+      // The claim is NOT released. Deliberately the opposite of the backfill's
+      // decision: OpenPhone may have accepted the message before the response
+      // failed, and a duplicate text to a real person is worse than a missed
+      // one. The failed row stays visible for an operator to act on.
+      await supabase
+        .from("lead_notification_sends")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("lead_id", leadId);
+      return done("failed", { reason: `openphone ${res.status}` });
+    }
+  } catch (err) {
+    console.error(`[notify-new-lead] SMS threw for lead ${leadId}:`, err);
+    await supabase
+      .from("lead_notification_sends")
+      .update({ status: "failed", completed_at: new Date().toISOString() })
+      .eq("lead_id", leadId);
+    return done("failed", { reason: String(err instanceof Error ? err.message : err) });
+  }
+
+  // ── 13. Record success, and log the fire for the Automation Center ──
+  await supabase
+    .from("lead_notification_sends")
+    .update({ status: "sent", completed_at: new Date().toISOString() })
+    .eq("lead_id", leadId);
+
+  // automation_fire_log's invariant is that a row means success — which is why
+  // the claim lives in its own table rather than here. Written only now.
+  await supabase.from("automation_fire_log").insert({
+    organization_id: organizationId,
+    automation_type: AUTOMATION_KEY,
+    target_id: leadId,
+    metadata: { source: lead.source ?? null },
+  });
+
+  console.log(`[notify-new-lead] sent speed-to-lead SMS for lead ${leadId} org=${organizationId}`);
+  return done("sent");
+});
+```
+
+
+=== FILE 3 of 4: supabase/functions/_shared/automation-templates.ts ===
+
+REPLACES the existing file. Same as what you have, plus the
+facebook_lead_speed_to_lead entries in the key union, AUTOMATION_ROW_TYPE,
+AUTOMATION_VOCABULARY and AUTOMATION_DEFAULTS.
+
+Its twin src/lib/automationTemplates.ts has already received byte-identical
+insertions and is in the repo - do not edit that one, and do not "reconcile"
+them. They are meant to match and they already do.
+
+```ts
+/**
+ * Editable automation messages — vocabulary, validation and resolution.
+ *
+ * KEEP IN SYNC: this is a verbatim copy of `src/lib/automationTemplates.ts`
+ * below this header. The editor validates against that copy; this one resolves
+ * at send time. If they drift, an owner will be allowed to save a token the
+ * sender cannot resolve. Run src/lib/automationTemplates.test.ts after editing.
+ */
+
+export type AutomationKey =
+  // ── SMS ────────────────────────────────────────────────────────────────
+  | 'booking_confirmation'
+  | 'reminder_advance'
+  | 'reminder_soon'
+  | 'quote_stale_reengage'
+  | 'rebooking_reminder'
+  | 'recurring_upsell'
+  | 'review_request'
+  | 'seasonal_promo'
+  | 'missed_call_textback'
+  | 'abandoned_booking_recovery'
+  | 'facebook_lead_speed_to_lead'
+  // ── Email ──────────────────────────────────────────────────────────────
+  | 'winback_step_1'
+  | 'winback_step_2'
+  | 'winback_step_3'
+  | 'weekly_summary';
+
+/**
+ * Which `organization_automations.automation_type` row carries the custom body
+ * for each key. Several keys can share a row — the three booking-reminder
+ * messages all live on `appointment_reminder`, and the three win-back steps on
+ * `winback_60day`, because that is the single automation an owner toggles.
+ *
+ * Editing does NOT require the row to be enabled. The row may be off, or may
+ * not exist yet; the hook creates it disabled rather than silently switching an
+ * automation on because somebody reworded it.
+ */
+export const AUTOMATION_ROW_TYPE: Record<AutomationKey, string> = {
+  booking_confirmation: 'appointment_reminder',
+  reminder_advance: 'appointment_reminder',
+  reminder_soon: 'appointment_reminder',
+  quote_stale_reengage: 'quote_stale_reengage',
+  rebooking_reminder: 'rebooking_reminder',
+  recurring_upsell: 'recurring_upsell',
+  review_request: 'review_request',
+  seasonal_promo: 'seasonal_promo',
+  missed_call_textback: 'missed_call_textback',
+  abandoned_booking_recovery: 'abandoned_booking_recovery',
+  facebook_lead_speed_to_lead: 'facebook_lead_speed_to_lead',
+  winback_step_1: 'winback_60day',
+  winback_step_2: 'winback_60day',
+  winback_step_3: 'winback_60day',
+  weekly_summary: 'weekly_summary',
+};
+
+/** Marketing messages get an opt-out line appended by the sender. Not editable. */
+export type MessageClass = 'marketing' | 'transactional';
+
+/**
+ * Email bodies are prose dropped into a branded HTML shell the owner does not
+ * edit. Segment counting is meaningless for them, and the editor suppresses it.
+ */
+export type MessageChannel = 'sms' | 'email';
+
+/** Grouping for the editor only — no behavioural meaning. */
+export type AutomationGroup = 'Bookings' | 'Retention' | 'Marketing' | 'Email';
+
+export interface TokenSpec {
+  /** Without braces: 'customer_name'. */
+  token: string;
+  /** Shown in the editor, so it should read as help rather than as a schema note. */
+  description: string;
+  /**
+   * The message has no purpose without it. A template missing a required token
+   * is rejected at save time, and at send time falls back to the default rather
+   * than sending something useless.
+   */
+  required?: boolean;
+}
+
+const CUSTOMER_NAME: TokenSpec = { token: 'customer_name', description: "The customer's first name" };
+const COMPANY_NAME: TokenSpec = { token: 'company_name', description: 'Your business name' };
+const SERVICE_NAME: TokenSpec = { token: 'service_name', description: 'The service involved' };
+
+/**
+ * Vocabulary is declared PER KEY, not globally, because it genuinely differs —
+ * `{cleaner_name}` means something in a review request and nothing in a quote
+ * nudge. A shared list would either permit tokens that cannot resolve or block
+ * ones that can.
+ */
+export const AUTOMATION_VOCABULARY: Record<AutomationKey, TokenSpec[]> = {
+  /*
+   * The three booking-reminder messages share one vocabulary because they are
+   * the same message at three distances from the appointment.
+   *
+   * `{address_line}` carries the word "Address" itself, not just the street.
+   * The hardcoded originals only printed the address clause when they HAD an
+   * address; a bare `{address}` token would render "Address: ." for the
+   * bookings with none. The sender therefore supplies either
+   * "Address: 12 Elm St." or an empty string, and the resolver collapses the
+   * gap it leaves behind.
+   *
+   * `{time}` is required on all three — a reminder that does not say when is
+   * not a reminder. `{date}` is NOT required, because the two-hour message
+   * legitimately says "today" instead.
+   */
+  booking_confirmation: [
+    CUSTOMER_NAME,
+    { token: 'service_name', description: 'The service they booked' },
+    COMPANY_NAME,
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_advance: [
+    CUSTOMER_NAME,
+    { token: 'service_name', description: 'The service they booked' },
+    COMPANY_NAME,
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+  reminder_soon: [
+    CUSTOMER_NAME,
+    { token: 'service_name', description: 'The service they booked' },
+    COMPANY_NAME,
+    { token: 'date', description: 'The appointment date' },
+    { token: 'time', description: 'The appointment time', required: true },
+    { token: 'address_line', description: "The job address (blank when we don't have one)" },
+  ],
+
+  quote_stale_reengage: [
+    CUSTOMER_NAME,
+    { token: 'service_name', description: 'The service they asked about' },
+    COMPANY_NAME,
+    { token: 'quote_link', description: 'Link to their quote', required: true },
+  ],
+
+  /* The nudge is worthless without somewhere to book, so the link is required. */
+  rebooking_reminder: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+    { token: 'booking_link', description: 'Link to your booking page', required: true },
+  ],
+
+  /*
+   * No link: this one asks a question and waits for a reply, which is how the
+   * conversation gets to a human. Nothing is required beyond having some text.
+   */
+  recurring_upsell: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+  ],
+
+  /*
+   * One key covers both review senders. The queued sender has no cleaner or
+   * service to hand, so those two resolve to empty there — which is why neither
+   * is required. `{review_link}` is: a review request with no link is spam.
+   */
+  review_request: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+    SERVICE_NAME,
+    { token: 'cleaner_name', description: 'The tech who did the job (blank when unknown)' },
+    { token: 'review_link', description: 'Link to your review page', required: true },
+  ],
+
+  seasonal_promo: [
+    COMPANY_NAME,
+    { token: 'holiday_name', description: 'The upcoming holiday, e.g. Thanksgiving', required: true },
+    { token: 'booking_link', description: 'Link to your booking page', required: true },
+  ],
+
+  /* The caller has no name yet — they only rang. All we know is who we are. */
+  missed_call_textback: [
+    COMPANY_NAME,
+  ],
+
+  /*
+   * `{first_name}`, not `{customer_name}`: the abandoned row is a half-filled
+   * form, not a customer record, and that is the field it actually has.
+   */
+  abandoned_booking_recovery: [
+    { token: 'first_name', description: "The name they typed before leaving" },
+    COMPANY_NAME,
+  ],
+
+  /*
+   * `{first_name}`, not `{customer_name}`: a lead is not a customer record, and
+   * `{customer_name}` is resolved inconsistently across callers - its spec says
+   * "the customer's first name" while five of six senders pass a full name. See
+   * docs/superpowers/plans/2026-08-12-customer-name-token-inconsistency.md.
+   */
+  facebook_lead_speed_to_lead: [
+    { token: 'first_name', description: "The lead's first name" },
+    COMPANY_NAME,
+  ],
+
+  winback_step_1: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+    { token: 'offer_percent', description: 'The discount percentage for this step' },
+  ],
+  winback_step_2: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+    { token: 'offer_percent', description: 'The discount percentage for this step' },
+  ],
+  winback_step_3: [
+    CUSTOMER_NAME,
+    COMPANY_NAME,
+    { token: 'offer_percent', description: 'The discount percentage for this step' },
+  ],
+
+  /*
+   * The weekly digest's numbers are built by the sender into a table the owner
+   * cannot reword. What IS editable is the sentence above it.
+   */
+  weekly_summary: [
+    COMPANY_NAME,
+    { token: 'week_range', description: 'The dates the report covers' },
+  ],
+};
+
+export interface AutomationDefault {
+  sms_body: string;
+  message_class: MessageClass;
+  channel: MessageChannel;
+  group: AutomationGroup;
+  /** Shown in the editor above the box, so an owner knows what they are changing. */
+  label: string;
+  /** One line of context under the label. */
+  hint?: string;
+  /** Email only. Owners can reword it; SMS has no subject. */
+  subject?: string;
+}
+
+/**
+ * The seeded defaults. Copied from the senders they replace, so migrating
+ * changes nothing about what is sent until an owner edits it — with ONE
+ * deliberate exception per message, noted inline where it applies:
+ *
+ *   - em dashes became hyphens and the rebooking emoji was dropped, because
+ *     each of them forced UCS-2 and roughly tripled the segment bill;
+ *   - `quote_stale_reengage` and the other marketing keys get a STOP line
+ *     appended by the sender, outside the editable body.
+ */
+export const AUTOMATION_DEFAULTS: Record<AutomationKey, AutomationDefault> = {
+  /*
+   * Copied verbatim from send-booking-reminder apart from the em dashes.
+   * All three are transactional: the customer booked a job and is being told
+   * about that job. No opt-out line is appended.
+   */
+  booking_confirmation: {
+    label: 'Booking confirmation',
+    hint: 'Sent as soon as a booking is confirmed.',
+    channel: 'sms',
+    group: 'Bookings',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} appointment with {company_name} is confirmed for {date} at {time}. {address_line} Reply to this message with any questions!',
+  },
+  reminder_advance: {
+    label: 'Reminder - 48 hours or more before',
+    channel: 'sms',
+    group: 'Bookings',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Friendly reminder - your {service_name} appointment with {company_name} is coming up on {date} at {time}. {address_line} Reply with any questions!',
+  },
+  reminder_soon: {
+    label: 'Reminder - 2 hours or less before',
+    channel: 'sms',
+    group: 'Bookings',
+    message_class: 'transactional',
+    sms_body:
+      'Hi {customer_name}! Your {service_name} with {company_name} is starting soon - today at {time}. {address_line} See you shortly!',
+  },
+
+  /*
+   * `quote_stale_reengage` is classed `marketing`, which ADDS an opt-out line
+   * the hardcoded version never carried. Deliberate, decided 2026-07-31: the
+   * nudge goes to someone who asked for a price and did not book, which is
+   * close enough to marketing that carrying the line is cheaper than defending
+   * its absence later.
+   */
+  quote_stale_reengage: {
+    label: 'Quote follow-up',
+    hint: 'Sent 3-4 days after a quote is sent and still unanswered.',
+    channel: 'sms',
+    group: 'Marketing',
+    message_class: 'marketing',
+    sms_body:
+      'Hi {customer_name} - just checking in on your {service_name} quote from {company_name}. Still interested? View it here: {quote_link}. Reply if you have questions!',
+  },
+
+  /*
+   * The original carried a house emoji and an em dash, which together forced
+   * UCS-2 on a message already over 300 characters — five segments where three
+   * would do. The emoji is gone and the wording is otherwise unchanged.
+   */
+  rebooking_reminder: {
+    label: 'Rebooking nudge',
+    hint: 'Sent 28 days after a completed job when nothing is on the books.',
+    channel: 'sms',
+    group: 'Retention',
+    message_class: 'marketing',
+    sms_body:
+      "Hi {customer_name}! {company_name} here. We loved making your home sparkle! Here's our EXCLUSIVE returning client offer: Book your next cleaning in the next 48 hours and get priority scheduling + our premium deep-clean checklist at NO extra charge. Book now: {booking_link}",
+  },
+
+  recurring_upsell: {
+    label: 'Recurring plan offer',
+    hint: 'Sent 2 hours after a one-time customer\'s first completed job.',
+    channel: 'sms',
+    group: 'Retention',
+    message_class: 'marketing',
+    sms_body:
+      'Hi! This is {company_name}. Most of our recurring clients never have to worry about cleaning again and also get priority scheduling and lower pricing than one-time bookings.\n\nWant us to lock in a regular cleaning every 2 or 4 weeks so your home stays taken care of automatically?',
+  },
+
+  /*
+   * Merged default for BOTH review senders. The queued sender's original
+   * wording is kept, since it is the one that fires automatically; the manual
+   * sender's older `business_settings.review_sms_template` is migrated into
+   * this store on first read so the two paths stop disagreeing.
+   */
+  review_request: {
+    label: 'Review request',
+    hint: 'Sent 30 minutes after a job is marked complete.',
+    channel: 'sms',
+    group: 'Retention',
+    message_class: 'transactional',
+    sms_body:
+      "Hi {customer_name}! This is {company_name}. If you enjoyed your cleaning today, we'd really appreciate a quick review here: {review_link}. Thank you for supporting our small business!",
+  },
+
+  /*
+   * The original ended with a hardcoded "Reply STOP to opt out." Because this
+   * key is marketing, the sender now appends that line itself and the default
+   * body no longer carries it — `withStopSentence` is idempotent, so an owner
+   * who types their own does not get two.
+   */
+  seasonal_promo: {
+    label: 'Seasonal promo',
+    hint: 'Sent 3 days before each major holiday.',
+    channel: 'sms',
+    group: 'Marketing',
+    message_class: 'marketing',
+    sms_body:
+      '{company_name}: {holiday_name} is around the corner! Book your cleaning before {holiday_name} - reply to this message or visit {booking_link} to schedule.',
+  },
+
+  missed_call_textback: {
+    label: 'Missed-call textback',
+    hint: 'Sent instantly when an inbound call goes unanswered. Once per caller per 24 hours.',
+    channel: 'sms',
+    group: 'Bookings',
+    message_class: 'transactional',
+    sms_body:
+      "Hi, this is {company_name} - sorry we missed your call! Reply to this text and we'll help you get scheduled or answer any questions.",
+  },
+
+  abandoned_booking_recovery: {
+    label: 'Abandoned booking recovery',
+    hint: 'Sent to someone who started a booking and did not finish.',
+    channel: 'sms',
+    group: 'Marketing',
+    message_class: 'marketing',
+    sms_body:
+      "Hi {first_name}! We noticed you started booking with {company_name} but didn't finish. We'd love to help you complete your reservation! Reply to this message or visit our booking page.",
+  },
+  /*
+   * Hyphen, not an em dash, and that is not a style preference. One non-GSM-7
+   * character forces the whole message into UCS-2, dropping the per-segment
+   * budget from 153 characters to 67 - measured at 232 chars including the
+   * appended STOP line, that is 4 billed segments instead of 2, for a character
+   * the recipient cannot distinguish from a hyphen.
+   *
+   * {company_name} rather than a literal: this default ships to every org.
+   */
+  facebook_lead_speed_to_lead: {
+    label: 'Facebook lead - speed to lead',
+    hint: 'Sent within seconds of a Facebook lead arriving. Once per lead, ever.',
+    channel: 'sms',
+    group: 'Marketing',
+    message_class: 'marketing',
+    sms_body:
+      "Hey {first_name}, this is {company_name}. I saw your request come in for a cleaning on Facebook. I can get you pricing and availability in about 2 minutes - usually easiest over the phone. When's a good time to call?",
+  },
+
+  /*
+   * Email keys. `sms_body` holds the prose paragraph that drops into the
+   * branded HTML shell — the shell, header, offer block and footer are not
+   * editable, because breaking them breaks rendering in Outlook.
+   */
+  winback_step_1: {
+    label: 'Win-back email 1 (30 days)',
+    channel: 'email',
+    group: 'Email',
+    message_class: 'marketing',
+    subject: "We miss you - here's 10% off your next clean",
+    sms_body:
+      "It's been a month since we last cleaned your home, and we've been thinking about you! We'd love to welcome you back.",
+  },
+  winback_step_2: {
+    label: 'Win-back email 2 (60 days)',
+    channel: 'email',
+    group: 'Email',
+    message_class: 'marketing',
+    subject: 'Still thinking of you - 15% off inside',
+    sms_body:
+      "It's been two months and your home deserves the care it got before. We're still here and ready to help!",
+  },
+  winback_step_3: {
+    label: 'Win-back email 3 (90 days)',
+    channel: 'email',
+    group: 'Email',
+    message_class: 'marketing',
+    subject: 'Last chance - 20% off before we stop reaching out',
+    sms_body:
+      "It's been three months since your last clean. This is our final check-in - we'd love one more chance to earn your business.",
+  },
+  weekly_summary: {
+    label: 'Weekly business summary (intro)',
+    hint: 'Goes to you, not customers. The numbers below the intro are generated.',
+    channel: 'email',
+    group: 'Email',
+    message_class: 'transactional',
+    subject: 'Weekly Report for {company_name}',
+    sms_body: "Here's how {company_name} did during {week_range}.",
+  },
+};
+
+/** Every key, in the order the editor should show them. */
+export const AUTOMATION_KEYS = Object.keys(AUTOMATION_DEFAULTS) as AutomationKey[];
+
+/* ─── GSM-7 ────────────────────────────────────────────────────────────────
+ * Duplicated deliberately from src/lib/smsSegments.ts: the Deno copy of this
+ * file cannot import from `src/`, and the alternative — no check on the sender
+ * side at all — is how the em dash survived three releases.
+ */
+const GSM_CHARSET = new Set(
+  ('@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?' +
+    '¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà' +
+    '^{}\\[~]|€').split(''),
+);
+
+/** The characters in `body` that would force a whole SMS to UCS-2. */
+export function nonGsmCharacters(body: string): string[] {
+  const found: string[] = [];
+  for (const ch of body ?? '') {
+    if (!GSM_CHARSET.has(ch) && !found.includes(ch)) found.push(ch);
+  }
+  return found;
+}
+
+/** `{single}` braces — the syntax all three SMS engines already use. */
+const TOKEN_PATTERN = /\{([a-z0-9_]+)\}/gi;
+
+/** Every token appearing in a body, lowercased, in order of first appearance. */
+export function tokensIn(body: string): string[] {
+  const found: string[] = [];
+  for (const m of body.matchAll(TOKEN_PATTERN)) {
+    const name = m[1].toLowerCase();
+    if (!found.includes(name)) found.push(name);
+  }
+  return found;
+}
+
+/**
+ * Save-time validation. Returns an error string, or null when the body is fine.
+ *
+ * Returns a message rather than a boolean so the editor names the offending
+ * token. "Invalid template" tells an owner nothing they can act on; the whole
+ * value of validating at save time is that the person who can fix it is present.
+ */
+export function validateTemplate(key: AutomationKey, body: string): string | null {
+  const trimmed = (body ?? '').trim();
+  if (!trimmed) {
+    return 'Message cannot be empty. Clear it and save to go back to the default wording.';
+  }
+
+  const vocabulary = AUTOMATION_VOCABULARY[key] ?? [];
+  const allowed = new Set(vocabulary.map((t) => t.token));
+  const used = tokensIn(trimmed);
+
+  const unknown = used.filter((t) => !allowed.has(t));
+  if (unknown.length > 0) {
+    const list = [...allowed].map((t) => `{${t}}`).join(', ');
+    return `{${unknown[0]}} isn't a thing we can fill in. Available: ${list}`;
+  }
+
+  const missingRequired = vocabulary.filter((t) => t.required && !used.includes(t.token));
+  if (missingRequired.length > 0) {
+    return `Your message needs {${missingRequired[0].token}} — without it the text has no purpose.`;
+  }
+
+  return null;
+}
+
+export interface ResolveResult {
+  /** Never empty. */
+  text: string;
+  /** True when the default was used instead of the supplied template. */
+  usedDefault: boolean;
+  /** Non-null when something was wrong worth logging. */
+  warning: string | null;
+}
+
+/**
+ * Turn a template into a message, falling back to the default whenever the
+ * template cannot produce something worth sending.
+ *
+ * The five cases, all of which send SOMETHING:
+ *
+ *   1. body null/undefined (no row at all)  → default
+ *   2. body empty or whitespace             → default
+ *   3. required token missing               → default   (a nudge with no link
+ *                                                        is worse than stock copy)
+ *   4. unknown token present                → strip the braces, send the rest,
+ *                                             warn (legacy rows predate validation)
+ *   5. otherwise                            → the template
+ *
+ * Missing DATA for a known token resolves to empty string rather than blocking:
+ * the sender already defaults customer_name to "there" and service_name to
+ * "cleaning service", so a blank here means the sender genuinely had nothing.
+ */
+export function resolveTemplate(
+  key: AutomationKey,
+  body: string | null | undefined,
+  data: Record<string, string>,
+): ResolveResult {
+  const fallback = AUTOMATION_DEFAULTS[key];
+  const vocabulary = AUTOMATION_VOCABULARY[key] ?? [];
+  const allowed = new Set(vocabulary.map((t) => t.token));
+
+  const trimmed = (body ?? '').trim();
+  let warning: string | null = null;
+  let usedDefault = false;
+  let template = trimmed;
+
+  if (!trimmed) {
+    template = fallback.sms_body;
+    usedDefault = true;
+  } else {
+    const used = tokensIn(trimmed);
+    const missingRequired = vocabulary.filter((t) => t.required && !used.includes(t.token));
+    if (missingRequired.length > 0) {
+      template = fallback.sms_body;
+      usedDefault = true;
+      warning = `template missing required {${missingRequired[0].token}}, used default`;
+    } else {
+      const unknown = used.filter((t) => !allowed.has(t));
+      if (unknown.length > 0) {
+        warning = `template has unknown token(s): ${unknown.map((t) => `{${t}}`).join(', ')}`;
+      }
+    }
+  }
+
+  const text = template.replace(TOKEN_PATTERN, (_match, rawName: string) => {
+    const name = rawName.toLowerCase();
+    if (allowed.has(name)) return data[name] ?? '';
+    // Unknown token: strip the braces rather than shipping literal {braces} to
+    // a customer. Save-time validation stops new ones; this is for rows written
+    // before validation existed.
+    return rawName;
+  });
+
+  // Collapse the gap an empty token leaves behind. `{address_line}` is blank
+  // for bookings with no address, and "at 9am.  Reply" reads as a mistake.
+  const finalText = text.replace(/[ \t]{2,}/g, ' ').trim();
+
+  if (!finalText) {
+    // Belt and braces: a template of nothing but tokens, all of which resolved
+    // empty. Never send blank.
+    return {
+      text: fallback.sms_body.replace(TOKEN_PATTERN, (_m, n: string) => data[n.toLowerCase()] ?? ''),
+      usedDefault: true,
+      warning: 'template resolved to empty, used default',
+    };
+  }
+
+  return { text: finalText, usedDefault, warning };
+}
+
+/**
+ * Email subject, resolved the same way. Falls back to the default subject; an
+ * email with a blank subject line lands in spam, so there is no path to one.
+ */
+export function resolveSubject(
+  key: AutomationKey,
+  subject: string | null | undefined,
+  data: Record<string, string>,
+): string {
+  const fallback = AUTOMATION_DEFAULTS[key].subject ?? '';
+  const chosen = (subject ?? '').trim() || fallback;
+  const text = chosen
+    .replace(TOKEN_PATTERN, (_m, rawName: string) => data[rawName.toLowerCase()] ?? '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+  return text || fallback;
+}
+
+/* ─── STOP compliance ──────────────────────────────────────────────────────
+ * Ported from src/components/admin/campaigns/stopCompliance.ts. Case-SENSITIVE
+ * on purpose: lowercase "stop" is ordinary English ("we'll stop by Tuesday")
+ * and would pass a case-insensitive check while containing no opt-out
+ * instruction at all — a false pass that lets a non-compliant message through
+ * while appearing validated.
+ */
+export const STOP_SENTENCE = 'Reply STOP to opt out.';
+
+export function hasStopLanguage(body: string | null | undefined): boolean {
+  if (!body) return false;
+  return /\bSTOP\b/.test(body);
+}
+
+/** Idempotent — safe to call twice, will not stack duplicate sentences. */
+export function withStopSentence(body: string): string {
+  if (hasStopLanguage(body)) return body;
+  const trimmed = body.trimEnd();
+  if (!trimmed) return STOP_SENTENCE;
+  const needsSpace = !/[.!?]$/.test(trimmed);
+  return `${trimmed}${needsSpace ? '.' : ''} ${STOP_SENTENCE}`;
+}
+```
+
+
+=== FILE 4 of 4: supabase/functions/_shared/facebook-lead-mapping.ts ===
+
+REPLACES the existing file. Adds PLACEHOLDER_LEAD_NAME and
+greetingNameFromLead, and buildLeadRow now uses the constant instead of an
+inline "Facebook Lead" literal. Everything else is unchanged.
+
+ZERO import statements. Confirm that after pasting.
+
+```ts
+/**
+ * Pure mapping logic for Meta Lead Ads -> public.leads.
+ *
+ * Deliberately ZERO imports and no Deno globals so it is unit-testable from
+ * the Playwright runner (same shape as _shared/format-address.ts). Tests:
+ * tests/facebook-lead-mapping.unit.spec.ts
+ *
+ * Column facts this encodes, from the original CREATE TABLE
+ * (20251222044239_*.sql:80-96) and re-probed against the live schema
+ * 2026-08-12:
+ *   - leads.name  TEXT NOT NULL   (there is NO first_name / last_name)
+ *   - leads.email TEXT NOT NULL   (phone-only FB leads need a placeholder)
+ *   - leads.source is compared with === against 'facebook' in
+ *     src/pages/admin/LeadsPage.tsx:327, so the case matters
+ *
+ * leads_status_check, read from pg_constraint on the live database
+ * 2026-08-12, allows EIGHT values:
+ *   new, contacted, qualified, follow_up, quoted, commercial, converted, lost
+ * The original CREATE TABLE (20251222044239_*.sql:92) declared only five of
+ * those — new, contacted, qualified, converted, lost — so the migration files
+ * understate the live constraint. This is CLAUDE.md rule 4b in miniature: the
+ * live schema is the authority, not the migration that appears to define it.
+ * We write 'new', which is valid under both.
+ *
+ * There is NO unique index on (organization_id, email) — also confirmed from
+ * pg_indexes on 2026-08-12, and deliberately not added: it would reject a
+ * genuine repeat inquiry from a returning customer. Duplicate protection for
+ * Meta's webhook retries comes from the facebook_lead_ingestions leadgen_id
+ * ledger instead, which targets the actual failure mode. See
+ * classifyIngestionClaim below.
+ */
+
+export const LEAD_SOURCE_FACEBOOK = "facebook";
+
+/**
+ * The name stored when Meta sends no name field at all.
+ *
+ * Exported rather than inlined because two places need to agree on it: the
+ * writer (buildLeadRow, below) and the reader (greetingNameFromLead, which must
+ * recognise it as "no name" rather than greeting someone "Hey Facebook").
+ */
+export const PLACEHOLDER_LEAD_NAME = "Facebook Lead";
+
+const MAX_NAME = 200;
+const MAX_EMAIL = 255;
+const MAX_PHONE = 20;
+
+export interface MetaFieldDatum {
+  name?: string;
+  values?: string[];
+}
+
+export interface MappedLeadFields {
+  name: string;
+  email: string | null;
+  phone: string | null;
+}
+
+export interface LeadInsertRow {
+  name: string;
+  email: string;
+  phone: string | null;
+  source: string;
+  status: string;
+  notes: string;
+  organization_id: string;
+}
+
+export function placeholderEmailFor(leadgenId: string): string {
+  // .invalid is reserved by RFC 2606 — can never resolve to a real inbox, so
+  // this is safe to store in a NOT NULL column that other features may email.
+  return `fb-lead-${leadgenId}@facebook.invalid`;
+}
+
+/**
+ * Flatten Meta's field_data array into the three values leads cares about.
+ *
+ * Meta sends `[{ name: "full_name", values: ["Ada Lovelace"] }, ...]`, and
+ * which fields are present depends on how the advertiser built the form —
+ * first/last vs full name, email vs phone vs both.
+ */
+export function mapMetaFieldData(
+  fieldData: MetaFieldDatum[] | null | undefined,
+): MappedLeadFields {
+  const f: Record<string, string> = {};
+  for (const item of fieldData ?? []) {
+    const key = item?.name?.toLowerCase();
+    const value = item?.values?.[0];
+    // An empty string counts as absent, not as a value.
+    if (key && value) f[key] = value;
+  }
+
+  const first = f["first_name"];
+  const last = f["last_name"];
+  const full = f["full_name"];
+
+  let name = [first, last].filter(Boolean).join(" ").trim();
+  if (!name) name = (full ?? "").trim();
+  if (!name) name = PLACEHOLDER_LEAD_NAME;
+
+  const email = f["email"] ? f["email"].toLowerCase() : null;
+  const phone = f["phone_number"] ?? f["phone"] ?? null;
+
+  return { name, email, phone };
+}
+
+/**
+ * The first name to greet a lead by, or "there".
+ *
+ * `|| "there"` on its own is not enough, which is the whole reason this exists.
+ * A nameless Facebook lead is stored as "Facebook Lead", so
+ * `name.split(" ")[0]` yields the perfectly non-empty "Facebook" and the
+ * fallback never fires — the recipient gets "Hey Facebook, this is ...".
+ *
+ * Compare process-recurring-offers/index.ts:196, which can safely use the bare
+ * `|| "there"` because it reads customers.first_name, a field that is either a
+ * real name or empty. A lead's `name` has a third state: a placeholder that
+ * looks like data.
+ */
+export function greetingNameFromLead(name: string | null | undefined): string {
+  const trimmed = (name ?? "").trim();
+  if (!trimmed) return "there";
+  if (trimmed.toLowerCase() === PLACEHOLDER_LEAD_NAME.toLowerCase()) return "there";
+  return trimmed.split(/\s+/)[0] || "there";
+}
+
+/**
+ * Assemble the exact row to insert into public.leads.
+ *
+ * Returns a single `name`; there is no first_name/last_name on the table.
+ * `email` is never null — leads.email is NOT NULL, and a phone-only Facebook
+ * lead is a paid lead we must not drop.
+ */
+export function buildLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+}): LeadInsertRow {
+  const { fields, leadgenId, organizationId } = args;
+  return {
+    name: fields.name.slice(0, MAX_NAME),
+    email: (fields.email ?? placeholderEmailFor(leadgenId)).slice(0, MAX_EMAIL),
+    phone: fields.phone ? fields.phone.slice(0, MAX_PHONE) : null,
+    source: LEAD_SOURCE_FACEBOOK,
+    status: "new",
+    notes: `Auto-captured from Facebook Lead Ad (leadgen_id: ${leadgenId})`,
+    organization_id: organizationId,
+  };
+}
+
+export interface PageConnectionRow {
+  organization_id: string;
+  page_access_token: string | null;
+  is_active: boolean;
+}
+
+export type OrgResolution =
+  | { ok: true; organizationId: string; pageAccessToken: string | null }
+  | { ok: false; reason: string };
+
+export type ClaimOutcome = "claimed" | "duplicate" | "failed";
+
+/**
+ * Decide which tenant a Page's leads belong to.
+ *
+ * `queryError` is a REQUIRED argument, and that is the whole point. The
+ * original bug destructured only `data` from the Supabase call, so a hard
+ * schema error (42703, from a column that never existed) was indistinguishable
+ * from "this page isn't mapped" — the webhook logged neither and silently
+ * dropped every lead. Making the error an input means it cannot be dropped.
+ *
+ * There is deliberately NO org-list parameter. The fallback this replaces
+ * ("if exactly one organization exists, use it") could route a stranger's
+ * leads into an unrelated tenant; making that unrepresentable is the fix.
+ */
+export function resolveOrgFromConnection(args: {
+  pageId: string | null | undefined;
+  connection: PageConnectionRow | null;
+  queryError: { code?: string; message?: string } | null;
+}): OrgResolution {
+  const { pageId, connection, queryError } = args;
+
+  if (queryError) {
+    return {
+      ok: false,
+      reason:
+        `facebook_page_connections lookup failed for page_id=${pageId}: ` +
+        `${queryError.code ?? "unknown"} ${queryError.message ?? ""}`.trim(),
+    };
+  }
+  if (!pageId) {
+    return { ok: false, reason: "Meta payload contained no page_id" };
+  }
+  if (!connection) {
+    return {
+      ok: false,
+      reason:
+        `page_id=${pageId} is not mapped to an organization — ` +
+        `add a facebook_page_connections row before enabling this page`,
+    };
+  }
+  if (!connection.is_active) {
+    return { ok: false, reason: `page_id=${pageId} connection is inactive` };
+  }
+  return {
+    ok: true,
+    organizationId: connection.organization_id,
+    pageAccessToken: connection.page_access_token,
+  };
+}
+
+/**
+ * Interpret the result of inserting the facebook_lead_ingestions claim row.
+ *
+ * Meta retries any non-200 delivery, so the claim is what turns a retry into a
+ * no-op instead of a second lead — and a duplicate lead means phoning the same
+ * person twice. The email dedupe cannot cover this: phone-only leads get a
+ * placeholder email synthesized per leadgen_id, so they are always distinct.
+ *
+ * 23505 (unique violation on the leadgen_id primary key) is the ONLY code that
+ * means "already ingested". Every other error is a real failure and must not
+ * be mistaken for a duplicate, or the lead is silently discarded.
+ */
+export function classifyIngestionClaim(
+  error: { code?: string; message?: string } | null,
+): ClaimOutcome {
+  if (!error) return "claimed";
+  if (error.code === "23505") return "duplicate";
+  return "failed";
+}
+
+// ---------------------------------------------------------------------------
+// Historical backfill (one-off import of leads that arrived before ingestion
+// was working). See docs/superpowers/plans/2026-08-12-facebook-lead-backfill.md
+//
+// Timestamp facts, read from the live database 2026-08-12 after adding
+// leads.backfilled_at:
+//   - leads.created_at is NOT NULL DEFAULT now(). The default fires ONLY when
+//     the column is omitted from the insert, so a backfill MUST pass an
+//     explicit value or all 29 imported leads silently stamp as today — the
+//     exact wrong outcome, and invisible until someone notices every date is
+//     identical.
+//   - There are NO non-internal triggers on public.leads (pg_trigger returned
+//     zero rows). Nothing overwrites created_at, so an explicit value survives.
+//   - leads.updated_at is NOT NULL DEFAULT now() and has no trigger
+//     maintaining it either.
+// ---------------------------------------------------------------------------
+
+/**
+ * Assemble a historically-imported row: identical to a live one, plus a
+ * truthful arrival time and the historical-import marker.
+ *
+ * The spread of buildLeadRow is deliberate and load-bearing. Rebuilding the
+ * seven shared fields here would let the backfill path drift from the live one;
+ * spreading makes "identical in shape to a live row" true by construction
+ * rather than by discipline.
+ *
+ * `metaCreatedTime` is passed through VERBATIM. Postgres timestamptz accepts
+ * Meta's "2026-07-20T14:03:00+0000" as-is, and re-parsing or reformatting a
+ * timestamp is how timezone bugs get introduced.
+ *
+ * `backfilledAt` non-null is what marks the row historical. It is a column
+ * rather than a note because `notes` is one of the seven shared fields, so a
+ * marker written there would make a shared field differ — and because an admin
+ * editing notes in the UI could erase it, silently re-arming the lead for
+ * outbound automation.
+ */
+export function buildBackfillLeadRow(args: {
+  fields: MappedLeadFields;
+  leadgenId: string;
+  organizationId: string;
+  /** Meta's `created_time`, verbatim. Never re-parse it. */
+  metaCreatedTime: string;
+  /** When this backfill ran. Non-null is the historical marker. */
+  backfilledAt: string;
+}): LeadInsertRow & { created_at: string; updated_at: string; backfilled_at: string } {
+  const { fields, leadgenId, organizationId, metaCreatedTime, backfilledAt } = args;
+  return {
+    ...buildLeadRow({ fields, leadgenId, organizationId }),
+    // Both timestamps explicit, because each has DEFAULT now() that fires
+    // whenever the column is omitted — omitting them would stamp every imported
+    // lead as today.
+    created_at: metaCreatedTime,
+    // Same value as created_at, not the run time: nothing has actually happened
+    // to these leads since they arrived, so "updated today" would be false.
+    // Consequence, and it is intended — these rows surface immediately in the
+    // stale-lead follow-up panel (AIAnalysisCenter.tsx:228 selects on
+    // `updated_at.lt.<threeDaysAgo>`), which is the point of importing
+    // un-followed-up July enquiries.
+    updated_at: metaCreatedTime,
+    backfilled_at: backfilledAt,
+  };
+}
+
+/**
+ * Read one page of GET /{page-id}/leadgen_forms.
+ *
+ * Tolerates a non-object body because the Graph API answers an auth failure
+ * with `{ error: {...} }` and no `data` at all — the caller checks for that
+ * separately and should not have to guard this call too.
+ */
+export function parseLeadgenFormsPage(json: unknown): {
+  formIds: string[];
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const formIds: string[] = [];
+  for (const row of rows) {
+    const id = (row as { id?: unknown })?.id;
+    if (typeof id === "string" && id) formIds.push(id);
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { formIds, next };
+}
+
+/**
+ * Read one page of GET /{form-id}/leads.
+ *
+ * Returns `skipped` alongside `leads` rather than quietly dropping unusable
+ * entries (CLAUDE.md rule 5). The run report has to be able to say "Meta
+ * returned 29, 28 usable, here is the one that wasn't" — a count that silently
+ * shrinks is indistinguishable from success.
+ *
+ * `field_data` is handed through untouched, in exactly the shape
+ * mapMetaFieldData consumes. Reshaping it here is how the backfill would start
+ * producing rows unlike the live ones.
+ */
+export function parseLeadsPage(json: unknown): {
+  leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }>;
+  skipped: Array<{ reason: string; raw: unknown }>;
+  next: string | null;
+} {
+  const body = (json ?? {}) as { data?: unknown; paging?: { next?: unknown } };
+  const rows = Array.isArray(body.data) ? body.data : [];
+
+  const leads: Array<{ leadgenId: string; createdTime: string; fieldData: MetaFieldDatum[] }> = [];
+  const skipped: Array<{ reason: string; raw: unknown }> = [];
+
+  for (const row of rows) {
+    const r = (row ?? {}) as { id?: unknown; created_time?: unknown; field_data?: unknown };
+
+    if (typeof r.id !== "string" || !r.id) {
+      skipped.push({ reason: "lead has no id", raw: row });
+      continue;
+    }
+    // Without a real timestamp the truthful-created_at decision can't be
+    // honoured, and falling back to now() would make a July lead read as
+    // today — precisely what the backfill marker exists to prevent. Skip and
+    // report rather than import a lie.
+    if (typeof r.created_time !== "string" || !r.created_time) {
+      skipped.push({ reason: `lead ${r.id} has no created_time`, raw: row });
+      continue;
+    }
+
+    leads.push({
+      leadgenId: r.id,
+      createdTime: r.created_time,
+      fieldData: Array.isArray(r.field_data) ? (r.field_data as MetaFieldDatum[]) : [],
+    });
+  }
+
+  const next = typeof body.paging?.next === "string" ? body.paging.next : null;
+  return { leads, skipped, next };
+}
+```
+
+
+=== ALSO: supabase/config.toml ===
+
+Add this entry, immediately before [functions.backfill-facebook-leads]:
+
+  [functions.notify-new-lead]
+    # Invoked by trg_notify_new_lead on public.leads via pg_net, which cannot
+    # present a user JWT. Gated internally by requireCronSecret.
+    verify_jwt = false
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm notify-new-lead is DEPLOYED, and that it was deployed BEFORE the
+   migration was applied.
+
+b) Confirm the migration RAN against the live database.
+
+c) Paste the output of:
+
+   select tgname, pg_get_triggerdef(oid) as definition
+   from pg_trigger
+   where tgrelid = 'public.leads'::regclass and not tgisinternal;
+
+   I am checking one specific thing: that the stored definition contains
+   WHEN (new.backfilled_at IS NULL). If it does not, say so prominently - the
+   trigger would then fire on historical imports, and this feature must not be
+   switched on until that is fixed.
+
+d) Paste the output of:
+
+   select automation_type, is_enabled
+   from public.organization_automations
+   where automation_type = 'facebook_lead_speed_to_lead';
+
+   I expect is_enabled = false. If it is true, tell me immediately and do not
+   insert any test leads.
+
+e) Confirm _shared/facebook-lead-mapping.ts has ZERO import statements, and give
+   me its line count.
+
+f) Confirm you did NOT enable the automation and did NOT insert, update or delete
+   any row in public.leads.
+
+g) List anything you noticed but deliberately did not touch.
