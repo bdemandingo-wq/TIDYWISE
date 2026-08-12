@@ -61,7 +61,7 @@ test.describe("buildBackfillLeadRow", () => {
     }
   });
 
-  test("adds exactly created_at and backfilled_at, and nothing else", () => {
+  test("adds exactly created_at, updated_at and backfilled_at, and nothing else", () => {
     const live = buildLeadRow({ fields, leadgenId: "42", organizationId: ORG });
     const back = buildBackfillLeadRow({
       fields,
@@ -71,8 +71,29 @@ test.describe("buildBackfillLeadRow", () => {
       backfilledAt: RUN_AT,
     });
     expect(Object.keys(back).sort()).toEqual(
-      [...Object.keys(live), "created_at", "backfilled_at"].sort(),
+      [...Object.keys(live), "created_at", "updated_at", "backfilled_at"].sort(),
     );
+  });
+
+  test("updated_at equals created_at — nothing has happened to these leads since they arrived", () => {
+    // leads.updated_at is NOT NULL DEFAULT now() with no trigger maintaining
+    // it, so omitting it would stamp every imported lead as "updated today",
+    // which is simply false. Setting it to the arrival time also means these
+    // leads surface immediately in the stale-lead follow-up panel
+    // (AIAnalysisCenter.tsx:228 selects on `updated_at.lt.<threeDaysAgo>`) —
+    // which is the point of importing un-followed-up July enquiries, not a
+    // side effect to be avoided.
+    const back = buildBackfillLeadRow({
+      fields,
+      leadgenId: "42",
+      organizationId: ORG,
+      metaCreatedTime: META_CREATED,
+      backfilledAt: RUN_AT,
+    });
+    expect(back.updated_at).toBe(META_CREATED);
+    expect(back.updated_at).toBe(back.created_at);
+    // And distinctly NOT the run timestamp.
+    expect(back.updated_at).not.toBe(RUN_AT);
   });
 
   test("created_at is Meta's created_time passed through verbatim", () => {

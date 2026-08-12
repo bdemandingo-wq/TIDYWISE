@@ -244,13 +244,21 @@ export function buildBackfillLeadRow(args: {
   metaCreatedTime: string;
   /** When this backfill ran. Non-null is the historical marker. */
   backfilledAt: string;
-}): LeadInsertRow & { created_at: string; backfilled_at: string } {
+}): LeadInsertRow & { created_at: string; updated_at: string; backfilled_at: string } {
   const { fields, leadgenId, organizationId, metaCreatedTime, backfilledAt } = args;
   return {
     ...buildLeadRow({ fields, leadgenId, organizationId }),
-    // Explicit, because created_at's DEFAULT now() fires whenever the column is
-    // omitted — omitting it would stamp every imported lead as today.
+    // Both timestamps explicit, because each has DEFAULT now() that fires
+    // whenever the column is omitted — omitting them would stamp every imported
+    // lead as today.
     created_at: metaCreatedTime,
+    // Same value as created_at, not the run time: nothing has actually happened
+    // to these leads since they arrived, so "updated today" would be false.
+    // Consequence, and it is intended — these rows surface immediately in the
+    // stale-lead follow-up panel (AIAnalysisCenter.tsx:228 selects on
+    // `updated_at.lt.<threeDaysAgo>`), which is the point of importing
+    // un-followed-up July enquiries.
+    updated_at: metaCreatedTime,
     backfilled_at: backfilledAt,
   };
 }
