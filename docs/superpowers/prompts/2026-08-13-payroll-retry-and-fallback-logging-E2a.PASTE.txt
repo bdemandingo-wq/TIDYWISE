@@ -1,0 +1,306 @@
+=== TASK E2a — follow-up to E2, the payroll platform-sender fallback ===
+
+This is NOT the E3 in docs/superpowers/plans/2026-08-13-owner-email-platform-fallback.md.
+That E3 is a separate task about send-org-email.ts and has not been sent yet. This
+one only corrects two defects in the E2 change you already deployed.
+
+
+=== SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
+
+ONE file, three edits, all inside the send block of
+supabase/functions/_shared/payroll-period-process.ts. Create nothing. Touch no
+other file.
+
+Both fixes are follow-ups to the platform-sender fallback you deployed earlier
+today. That change is correct and is not being reverted. These are two defects in
+how it retries and how it logs.
+
+  FIX 1 — the 30-second backoff runs even when the retry has already changed the
+  sender identity, where a backoff cannot help.
+
+  FIX 2 — the "sent via platform sender" row is written BEFORE the send is
+  attempted, so it can claim a delivery that never happened.
+
+Do NOT:
+  - touch supabase/functions/_shared/email-sender-resolution.ts. Not one character.
+    It has 15 unit tests that run outside Deno and it is not involved in either fix.
+  - change the escalation CONDITION at the `if (escalated.ok && ...)` line. Its
+    three clauses are all load-bearing; see "WHAT MUST NOT CHANGE" below.
+  - remove the 30-second wait. It is being made conditional, not deleted.
+  - make the org loop concurrent, or add ordering/paging to it. Tempting given
+    fix 1 is about wasted wall-clock, but it is a separate decision with its own
+    risks and it is not this task.
+  - add a failure row to org_email_send_failures when the send fails outright.
+    See "WHAT MUST NOT CHANGE" — that gap is real, known, and deliberately not
+    part of this change.
+  - alter the payroll CALCULATIONS. Only the send path changes. The comment at
+    payroll-period-process.ts:91-95 warning that the per-booking calc mirrors the
+    dashboard and must not drift still holds.
+  - change the arguments passed to log_org_email_send_failure. All six names were
+    verified against the migration that defines the function
+    (20260708093246_57ff139f-b433-43f2-81e3-9d8263263eb2.sql) and they are correct,
+    _error_message included.
+  - "improve" anything else you notice. Report it in your reply and leave it.
+
+DO NOT RUN THE REPORT. Do not invoke payroll-period-report, do not trigger it from
+the admin UI, and do not "test" it with a real or dry run. It iterates every
+organisation and sends live email to real business owners. Deploy the function and
+stop there. I will run it myself.
+
+
+=== WHAT MUST NOT CHANGE — three non-obvious invariants ===
+
+1. THE ESCALATION CONDITION.
+
+     if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback)
+
+   `!resolved.sender.usedFallback` is the clause that looks redundant and is not.
+   It means "the FIRST attempt used the org's own identity, so there is somewhere
+   better to escalate to." When the first attempt already went out from the
+   platform sender — the ~22 orgs with no email settings row at all — there is no
+   better identity available, and that org correctly falls through to the plain
+   retry. Dropping the clause would make those orgs "escalate" to the identity they
+   already used, and then log a second fallback row for a single send.
+
+2. BORROWING THE PLATFORM KEY IS NOT A FALLBACK.
+
+   An org with a valid From address but no Resend key of its own sends from its OWN
+   From using the platform key, and resolveSender returns `usedFallback: false`.
+   Nothing is logged for that case, and nothing should be. The recipient sees an
+   unchanged sender, so nothing has degraded. If that were logged, most orgs would
+   appear in org_email_send_failures as misconfigured and bury the ones that
+   genuinely are.
+
+   In the new code this means `pendingFallbackReason` stays null for those orgs.
+
+3. A TOTAL SEND FAILURE STILL WRITES NO org_email_send_failures ROW.
+
+   After these edits, an org whose send fails on both attempts produces no row in
+   org_email_send_failures. That is unchanged from today's behaviour and it is
+   intentional here. The failure is not lost — email_send_log gets status 'failed'
+   with the error message, which is how it is already reported.
+
+   Adding a `fell_back_to IS NULL` row on hard failure is a genuine improvement and
+   it is NOT part of this task, because that column is exactly what the owner-facing
+   health banner counts. Starting to write those rows would begin alarming owners,
+   which is a product decision, not a cleanup. Leave it. Mention it in your reply if
+   you like.
+
+
+=== THE FILE: supabase/functions/_shared/payroll-period-process.ts ===
+
+Three edits. Line numbers are from the current deployed version (838 lines). Match
+on the quoted text, not on the numbers, in case they have shifted.
+
+
+--- EDIT 1 of 3. Lines 724-749. Split the warning from the database row, and
+--- record the reason instead of writing it immediately.
+
+CURRENTLY:
+
+```ts
+  // The fallback must never be silent. org_email_send_failures already has method
+  // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
+  // org while the owner-facing health banner (which counts fell_back_to IS NULL)
+  // correctly does not alarm anyone about mail that arrived.
+  const logPlatformFallback = async (reason: string) => {
+    console.warn(
+      `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
+      `(${reason}). The org's own email identity is not usable.`,
+    );
+    try {
+      await supabase.rpc("log_org_email_send_failure", {
+        _organization_id: org.id,
+        _method: "resend",
+        _fell_back_to: "platform",
+        _recipient: recipients[0],
+        _subject: subject,
+        _error_message: `payroll report sent via platform sender: ${reason}`,
+      });
+    } catch (e) {
+      console.error("[payroll-period-report] fallback log failed", e);
+    }
+  };
+
+  if (resolved.sender.usedFallback) {
+    await logPlatformFallback(String(resolved.sender.fallbackReason));
+  }
+```
+
+REPLACE THAT ENTIRE BLOCK WITH:
+
+```ts
+  // The fallback must never be silent. org_email_send_failures already has method
+  // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
+  // org while the owner-facing health banner (which counts fell_back_to IS NULL)
+  // correctly does not alarm anyone about mail that arrived.
+  //
+  // Split in two deliberately. The console line describes what is being ATTEMPTED,
+  // so it is safe to emit straight away — and it is the only trace left if the send
+  // then fails. The database row ASSERTS a delivery: its own text reads "sent via
+  // platform sender". So it is written only after one has actually happened.
+  // Writing it up front meant a row could claim a delivery that never occurred,
+  // which is the inverse of the problem this fallback exists to solve.
+  const warnPlatformSender = (reason: string) => {
+    console.warn(
+      `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
+      `(${reason}). The org's own email identity is not usable.`,
+    );
+  };
+
+  const logPlatformFallback = async (reason: string) => {
+    try {
+      await supabase.rpc("log_org_email_send_failure", {
+        _organization_id: org.id,
+        _method: "resend",
+        _fell_back_to: "platform",
+        _recipient: recipients[0],
+        _subject: subject,
+        _error_message: `payroll report sent via platform sender: ${reason}`,
+      });
+    } catch (e) {
+      console.error("[payroll-period-report] fallback log failed", e);
+    }
+  };
+
+  // Non-null when a platform fallback is in play. Written to the database only
+  // after a successful send, at the bottom of this function. Reassigned if the
+  // retry escalates to the platform identity.
+  let pendingFallbackReason: string | null = null;
+
+  if (resolved.sender.usedFallback) {
+    pendingFallbackReason = String(resolved.sender.fallbackReason);
+    warnPlatformSender(pendingFallbackReason);
+  }
+```
+
+
+--- EDIT 2 of 3. Lines 798-809. Make the 30-second wait conditional on the
+--- identity NOT having changed.
+
+CURRENTLY:
+
+```ts
+    if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+      console.warn(
+        `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
+        `retrying from the platform sender.`,
+      );
+      resend = new Resend(platformKey as string);
+      fromHeader = escalated.sender.from;
+      await logPlatformFallback(String(escalated.sender.fallbackReason));
+    }
+
+    // ONE retry, same 30-second wait as before.
+    await new Promise((resolve) => setTimeout(resolve, 30_000));
+```
+
+REPLACE THAT ENTIRE BLOCK WITH:
+
+```ts
+    if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+      console.warn(
+        `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
+        `retrying from the platform sender immediately.`,
+      );
+      resend = new Resend(platformKey as string);
+      fromHeader = escalated.sender.from;
+      pendingFallbackReason = String(escalated.sender.fallbackReason);
+
+      // NO WAIT ON THIS PATH, deliberately. The identity itself has just changed,
+      // and the failure it is working around — an unverified From address, or a
+      // rejected API key — is a permanent validation error from Resend, not a
+      // transient one. Thirty seconds cannot change that outcome. Only the swap
+      // two lines above can, and it has already happened.
+      //
+      // The cost is not theoretical: payroll-period-report/index.ts:63 runs a
+      // single serial `for` loop over every organisation in one invocation, so
+      // every needless sleep is 30 seconds added to one shared wall clock, and the
+      // orgs that hit this path are precisely the misconfigured ones.
+    } else {
+      // Identity unchanged, so the only thing that could differ on a second
+      // attempt is a genuinely transient failure — which is what a backoff is for.
+      // Original behaviour, preserved for this case only.
+      await new Promise((resolve) => setTimeout(resolve, 30_000));
+    }
+
+```
+
+Note the retry itself — the `await sendOnce()` in the try/catch immediately below —
+does not move and does not change. It stays outside the if/else so that BOTH paths
+still retry exactly once.
+
+
+--- EDIT 3 of 3. Lines 832-837, the success path at the very end of the function.
+--- Write the fallback row here, now that a delivery has actually happened.
+
+CURRENTLY:
+
+```ts
+  await supabase
+    .from("email_send_log")
+    .update({ status: "sent" })
+    .eq("message_id", messageId);
+
+  return { ...result, success: true };
+```
+
+REPLACE WITH:
+
+```ts
+  await supabase
+    .from("email_send_log")
+    .update({ status: "sent" })
+    .eq("message_id", messageId);
+
+  // Only now. The send has succeeded, so the row's own wording — "payroll report
+  // sent via platform sender" — is true when it is written. This is the single
+  // place the fallback is recorded; both the first-attempt case and the escalated
+  // retry funnel into it via pendingFallbackReason.
+  if (pendingFallbackReason) {
+    await logPlatformFallback(pendingFallbackReason);
+  }
+
+  return { ...result, success: true };
+```
+
+This is BELOW the `if (sendError) { ... return { success: false } }` block, so it is
+only reachable when the send actually succeeded. Do not move it above that block.
+
+
+=== SANITY CHECK BEFORE YOU DEPLOY ===
+
+Read the finished file and confirm all four:
+
+  - `logPlatformFallback` is called exactly ONCE in the file, inside the
+    `if (pendingFallbackReason)` at the end. If you find two call sites, edit 1 or
+    edit 2 was applied incompletely.
+  - `setTimeout(resolve, 30_000)` appears exactly ONCE, inside an `else`.
+  - `pendingFallbackReason` is declared once with `let`, assigned in exactly two
+    places, and read in exactly one.
+  - `warnPlatformSender` is called once; the second `console.warn` about escalation
+    is a separate inline one and stays where it is.
+
+Then deploy the function.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm you changed ONE file and created none. Give its final line count.
+
+b) Paste the finished `if (escalated.ok && ...) { ... } else { ... }` block in full,
+   so I can see the wait is inside the else and the escalation condition is
+   unchanged.
+
+c) Paste the finished end-of-function block from the `status: "sent"` update to the
+   `return`.
+
+d) Confirm the four sanity-check counts above, as numbers.
+
+e) Confirm email-sender-resolution.ts is untouched. Its sha256 should still start
+   8c0c8e33a758.
+
+f) Confirm the function is DEPLOYED, not just committed — and confirm you did NOT
+   run or trigger payroll-period-report.
+
+g) List anything you noticed but deliberately did not touch.
