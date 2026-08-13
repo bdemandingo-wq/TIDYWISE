@@ -725,11 +725,21 @@ export async function processOrg(
   // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
   // org while the owner-facing health banner (which counts fell_back_to IS NULL)
   // correctly does not alarm anyone about mail that arrived.
-  const logPlatformFallback = async (reason: string) => {
+  //
+  // Split in two deliberately. The console line describes what is being ATTEMPTED,
+  // so it is safe to emit straight away — and it is the only trace left if the send
+  // then fails. The database row ASSERTS a delivery: its own text reads "sent via
+  // platform sender". So it is written only after one has actually happened.
+  // Writing it up front meant a row could claim a delivery that never occurred,
+  // which is the inverse of the problem this fallback exists to solve.
+  const warnPlatformSender = (reason: string) => {
     console.warn(
       `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
       `(${reason}). The org's own email identity is not usable.`,
     );
+  };
+
+  const logPlatformFallback = async (reason: string) => {
     try {
       await supabase.rpc("log_org_email_send_failure", {
         _organization_id: org.id,
@@ -744,9 +754,16 @@ export async function processOrg(
     }
   };
 
+  // Non-null when a platform fallback is in play. Written to the database only
+  // after a successful send, at the bottom of this function. Reassigned if the
+  // retry escalates to the platform identity.
+  let pendingFallbackReason: string | null = null;
+
   if (resolved.sender.usedFallback) {
-    await logPlatformFallback(String(resolved.sender.fallbackReason));
+    pendingFallbackReason = String(resolved.sender.fallbackReason);
+    warnPlatformSender(pendingFallbackReason);
   }
+
 
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
