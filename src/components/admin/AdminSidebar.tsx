@@ -115,9 +115,22 @@ const defaultNavigation = [
   
   { name: 'Automation Center', href: '/dashboard/automation-center', icon: Zap },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
-  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
-  
+
 ];
+
+/**
+ * Help is pinned above the scrollable nav, so it is deliberately NOT a member of
+ * defaultNavigation. Membership there would make it draggable, hideable, and
+ * subject to a user's saved `tidywise_nav_order`.
+ *
+ * That last one is why moving it to the top of the array would not have worked:
+ * the saved order wins on load, and the "append items not in the saved order"
+ * loop only adds hrefs it has never seen — so an existing user's stored position
+ * for /dashboard/help would have kept it exactly where it was. A stale
+ * /dashboard/help entry in a saved order is harmless now: the .find() below
+ * returns undefined and it is filtered out, so no migration is needed.
+ */
+const PINNED_HELP: NavItem = { name: 'Help', href: '/dashboard/help', icon: HelpCircle };
 
 const iconMap: Record<string, typeof Home> = {
   Home, Calendar, ClipboardList, Repeat, Users, Target, MapPin, MessageSquare,
@@ -470,8 +483,31 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
         )}
       </div>
 
+      {/* Pinned Help — must stay reachable however long the nav gets, so it
+          lives OUTSIDE the scroll container below. `shrink-0` is the same
+          mechanism the logo above and the Business Switcher below already use to
+          stay out of the `flex-1` scroll area. This sits inside SidebarContent,
+          which both the desktop <aside> and the mobile <Sheet> render, so one
+          block covers both platforms.
+
+          StaticNavItem, not SortableNavItem: a pinned row must not be draggable,
+          and StaticNavItem is already the non-draggable renderer used on mobile,
+          so the styling matches the rest of the list for free. */}
+      <div className="px-3 pt-4 pb-2 shrink-0 border-b border-sidebar-border">
+        <StaticNavItem
+          item={PINNED_HELP}
+          isActive={
+            location.pathname === PINNED_HELP.href ||
+            location.pathname.startsWith(PINNED_HELP.href)
+          }
+          isOpen={isOpen}
+          isMobile={isMobile}
+          onNavClick={handleNavClick}
+        />
+      </div>
+
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 pointer-events-auto touch-manipulation relative z-10">
+      <nav className="flex-1 overflow-y-auto px-3 pt-2 pb-4 pointer-events-auto touch-manipulation relative z-10">
         {(isMobile || isMobileDevice) ? (
           <div className="space-y-0.5">
             {visibleNavigation.map((item) => {

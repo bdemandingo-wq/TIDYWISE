@@ -58,7 +58,11 @@ const sidebarItems = [
   { name: 'AI Intelligence', href: '/dashboard/ai-intelligence', icon: Sparkles },
   { name: 'Subscription', href: '/dashboard/subscription', icon: CreditCard },
   { name: 'Payment Setup', href: '/dashboard/payment-integration', icon: CreditCard },
-  { name: 'Help Videos', href: '/dashboard/help', icon: HelpCircle },
+  // required: Help is pinned above the sidebar's scroll area (AdminSidebar's
+  // PINNED_HELP) precisely so it can never be scrolled away. Letting it be
+  // hidden would defeat that, so the toggle is disabled the same way
+  // Dashboard's is.
+  { name: 'Help Videos', href: '/dashboard/help', icon: HelpCircle, required: true },
 ];
 
 export function SidebarVisibilitySettings() {
