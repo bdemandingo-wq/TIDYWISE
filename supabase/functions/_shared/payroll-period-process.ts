@@ -780,6 +780,29 @@ export async function processOrg(
     sendError = e;
   }
   if (sendError) {
+    const firstError = sendError instanceof Error ? sendError.message : JSON.stringify(sendError);
+    const escalated = resolveSender({
+      settings: orgEmailSettings,
+      platformFrom: PLATFORM_SENDER_FROM,
+      platformKeyPresent: !!platformKey,
+      allowPlatformFallback: true,
+      priorFailure: firstError,
+    });
+
+    // Retry from the platform identity when the first attempt used the org's, since
+    // an unverified From is rejected whichever API key sent it — changing only the
+    // key would not help.
+    if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+      console.warn(
+        `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
+        `retrying from the platform sender.`,
+      );
+      resend = new Resend(platformKey as string);
+      fromHeader = escalated.sender.from;
+      await logPlatformFallback(String(escalated.sender.fallbackReason));
+    }
+
+    // ONE retry, same 30-second wait as before.
     await new Promise((resolve) => setTimeout(resolve, 30_000));
     try {
       const r = await sendOnce();
