@@ -1,9 +1,9 @@
-# Cross-org isolation: from 2 meaningful passes to 9
+# Cross-org isolation: from 2 meaningful passes to 10
 
 *Originally titled "still unverified: the QA accounts share one org". Retitled once it was verified — the history below is kept because the failure modes are the useful part.*
 
 **Logged:** 2026-08-13, immediately after restoring the test credentials.
-**Status:** Plumbing fixed. Org B provisioned. **9 of 13 tests now genuinely meaningful, up from 2.** Two outstanding: an invoice in Org A, and the client-portal gap (see Outstanding).
+**Status:** Verified. Org B provisioned and seeded. **10 of 13 tests genuinely meaningful, up from 2.** One known gap (client portal, test 12) and one partial (test 11) remain — see Outstanding.
 **Related:** `2026-08-13-dead-test-credentials.md` (the credential half of the same problem)
 
 ## Run 1 — restoring credentials was necessary but not sufficient
@@ -72,19 +72,26 @@ pass vacuously. Seat them in separate orgs.
 
 A cross-org suite that cannot see a second org must fail loudly, not go green.
 
-## Resolved: how it went from 2 genuine passes to 9
+## Resolved: how it went from 2 genuine passes to 10
 
-Playwright's pass count barely moved across three runs. The number of passes that
-*proved something* tripled. That gap is the whole point of this document.
+Across four runs Playwright's pass count moved by three. The number of passes that
+*proved something* went up five-fold. That gap is the whole point of this document.
 
 | Run | State | Reported | **Genuinely meaningful** |
 |---|---|---|---|
 | 1 | Both accounts in one org, no data | 9 passed / 2 failed / 1 skipped | **2** |
 | 2 | Org B created, orgs distinct; row-count guards added | 9 passed / 3 failed / 1 skipped | **6** |
 | 3 | Booking in Org B assigned to the staff member | 11 passed / 2 failed | **9** |
+| 4 | Invoice seeded in Org A | **12 passed / 1 failed** | **10** |
 
-Run 2's guards made the count *worse* and the suite more trustworthy — two hollow
-filter-checks flipped from green to red with messages naming the seed they needed.
+Playwright's count went 9 -> 9 -> 11 -> 12. Meaning went 2 -> 6 -> 10. **The gap
+between those two sequences is the finding worth keeping.** A reported pass count
+tracked the work being done almost not at all; what tracked it was whether each
+assertion could still fail.
+
+Run 2 is the clearest case: adding the row-count guards made the reported count
+*worse* and the suite trustworthy, because two hollow filter-checks flipped from
+green to red with messages naming the exact seed they needed.
 
 Final state, per test:
 
@@ -93,7 +100,7 @@ Final state, per test:
 | 1 | PRECONDITION: distinct orgs + marker | pass | yes — marker is **strong** |
 | 2 | owner list of customers has no Org B row | pass | yes |
 | 3 | owner list of bookings has no Org B row | pass | yes |
-| 4 | owner list of invoices has no Org B row | **fail** | correctly — Org A has 0 invoices |
+| 4 | owner list of invoices has no Org B row | pass | yes — 2 invoices in Org A, filter ran |
 | 5 | staff list has no Org A row | pass | yes |
 | 6 | owner direct-ID GET of Org B org row | pass | yes |
 | 7 | staff direct-ID GET of Org A org row | pass | yes |
@@ -101,12 +108,22 @@ Final state, per test:
 | 9 | staff `/dashboard` → `/staff` | pass | yes |
 | 10 | staff Finance route redirected | pass | yes |
 | 11 | staff reading `manual_payments` → empty | pass | partial — see below |
-| 12 | client portal dashboard isolation | **fail** | **known gap** |
+| 12 | client portal dashboard isolation | **fail** | **known gap** — see Outstanding |
 | 13 | anon REST read of bookings → zero rows | pass | yes |
 
-The cross-org boundary is now substantively verified in both directions: list
-reads filtered with real rows on both sides, direct-ID lookups of a genuinely
-foreign org masked to empty, role separation enforced, anon reads blocked.
+The cross-org boundary is now genuinely exercised in both directions: list reads
+filtered with real rows on both sides, direct-ID lookups of a genuinely foreign
+org masked to an empty body rather than the record, role separation enforced for a
+real `member` account, and bare anon reads of `bookings` blocked. First honest
+verification of this suite since 2026-07-15.
+
+Each pass was confirmed by probing the tokens directly rather than trusting the
+green tick — both sides must hold real rows for a filter-check to have iterated:
+
+```
+OWNER (Org A e4d60558)  customers: 1  bookings: 1  invoices: 2   all org_id = e4d60558
+STAFF (Org B d14b42bd)  customers: 1  bookings: 1               all org_id = d14b42bd
+```
 
 ## The non-obvious requirement: a customer is not enough, it needs a booking
 
@@ -153,12 +170,15 @@ same `describe` block, rather than reading what each test actually did.
 
 ## Outstanding
 
-1. **An invoice in Org A** (`e4d60558-af69-45d2-97cf-cdea4c68a411`) — test 4 is
-   the last hollow filter-check. Two seeding attempts have not shown up to the
-   owner token. Note the owner's auth id changed mid-session
-   (`d56c62af…` → `cb627101…`), so an invoice created as the earlier account is
-   likely sitting in a different org. `tests/.auth/owner-org.json` is
-   authoritative on which org the test owner is actually in.
+1. ~~An invoice in Org A~~ — **done** (run 4). Two earlier attempts had not shown
+   up to the owner token, and the cause was worth recording: `.env.test` pointed at
+   `support+qa2@tidywisecleaning.com` while the invoice was being created as
+   `support+qa@` — two different accounts, not two orgs behind one email. The
+   apparent mid-session auth-id change (`d56c62af…` → `cb627101…`) was the owner
+   *email* in `.env.test` changing, not an account being recreated.
+   **Verify a seed landed by asking the token, not by looking at the app**, and
+   treat `tests/.auth/owner-org.json` as authoritative on which org the test owner
+   is in.
 2. **Test 12 is a KNOWN UNTESTED GAP, not assumed covered.** Creating a client
    portal account requires payment, so the client-portal *UI* isolation boundary
    has never been exercised. That is the same surface as follow-up item 8, where
