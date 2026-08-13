@@ -42,6 +42,7 @@ supabase/.temp/
 android/
 
 # Playwright output
+/screenshots/
 /test-results/
 /playwright-report/
 /qa-report/

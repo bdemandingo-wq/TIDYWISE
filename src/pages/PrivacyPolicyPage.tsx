@@ -3,6 +3,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ArrowLeft } from "lucide-react";
+import { ArticleBody } from "@/components/ArticleBody";
 
 export default function PrivacyPolicyPage() {
   const navigate = useNavigate();
@@ -45,7 +46,7 @@ export default function PrivacyPolicyPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
           <p className="mt-2 text-sm text-muted-foreground">Effective date: February 1, 2025</p>
 
-          <div className="prose prose-sm mt-8 max-w-none text-foreground dark:prose-invert">
+          <ArticleBody size="sm" className="mt-8">
             <p>
               This Privacy Policy explains how <strong>TidyWise</strong> ("we", "us", "our") collects, uses, and shares
               information when you use our website and app (the "Services").
@@ -150,7 +151,7 @@ export default function PrivacyPolicyPage() {
             <p>
               If you have questions about this Privacy Policy, please contact us at <strong>support@jointidywise.com</strong>.
             </p>
-          </div>
+          </ArticleBody>
         </article>
 
         <nav

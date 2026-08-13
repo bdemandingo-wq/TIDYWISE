@@ -4,9 +4,9 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Loader2, Pencil } from "lucide-react";
-import DOMPurify from "dompurify";
 import { format } from "date-fns";
 import { BlogStatusBadge } from "@/components/admin/blog/StatusBadge";
+import { ArticleBody } from "@/components/ArticleBody";
 
 export default function BlogAdminPreviewPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,15 +44,13 @@ export default function BlogAdminPreviewPage() {
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">{post.title}</h1>
           <p className="text-lg text-muted-foreground mb-8">{post.excerpt}</p>
-          <div
-            className="prose prose-lg max-w-none dark:prose-invert"
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(post.content || "", {
-                ALLOWED_TAGS: ["p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "strong", "em", "a", "blockquote", "br", "span", "div", "code", "pre", "img"],
-                ALLOWED_ATTR: ["href", "target", "rel", "class", "id", "src", "alt"],
-              }),
-            }}
-          />
+          {/* ArticleBody sanitises with the SAME allowlist the public page uses,
+              so the preview cannot be more permissive than production. It was:
+              this file allowed <img src alt> and DynamicBlogPost did not, so an
+              author who inserted an image saw it here and it silently vanished on
+              the live post. If images should be supported, widen the allowlist in
+              ArticleBody — one place, both surfaces. */}
+          <ArticleBody html={post.content || ""} />
         </Card>
       </div>
     </div>

@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
+import tailwindcssTypography from "@tailwindcss/typography";
 
 export default {
   darkMode: ["class"],
@@ -107,5 +109,10 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  // @tailwindcss/typography was in package.json but never registered here, so
+  // every `prose` class in the app compiled to nothing — 0 occurrences in the
+  // built CSS. With Preflight zeroing heading/paragraph margins, blog and legal
+  // bodies rendered as one dense block. See
+  // docs/superpowers/plans/2026-08-13-blog-legal-vertical-rhythm.md
+  plugins: [tailwindcssAnimate, tailwindcssTypography],
 } satisfies Config;

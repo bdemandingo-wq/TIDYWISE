@@ -1,11 +1,11 @@
 import { Link, useParams } from "react-router-dom";
+import { ArticleBody } from "@/components/ArticleBody";
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Calendar, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
-import DOMPurify from "dompurify";
 import { CopyrightYear } from '@/components/CopyrightYear';
 
 export default function DynamicBlogPost() {
@@ -205,22 +205,8 @@ export default function DynamicBlogPost() {
             </p>
           </header>
 
-          {/* Content - Sanitized to prevent XSS */}
-          <div 
-            className="prose prose-lg max-w-none dark:prose-invert
-              prose-headings:font-semibold prose-headings:text-foreground
-              prose-p:text-muted-foreground prose-p:leading-relaxed
-              prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-foreground
-              prose-ul:text-muted-foreground prose-ol:text-muted-foreground
-              prose-li:marker:text-primary"
-            dangerouslySetInnerHTML={{ 
-              __html: DOMPurify.sanitize(post.content, {
-                ALLOWED_TAGS: ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'em', 'a', 'blockquote', 'br', 'span', 'div', 'code', 'pre'],
-                ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'id']
-              })
-            }}
-          />
+          {/* Body. ArticleBody sanitises the HTML itself — see its header. */}
+          <ArticleBody html={post.content} />
 
           {/* CTA */}
           <div className="mt-16 bg-primary/5 rounded-2xl p-8 sm:p-12 text-center border border-primary/20">

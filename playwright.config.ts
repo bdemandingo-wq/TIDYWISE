@@ -28,6 +28,15 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // Screenshot capture is a tool, not a test — keep it out of the default run.
+      testIgnore: /\.screenshots\.spec\.ts/,
+    },
+    {
+      // Before/after visual capture. Run explicitly:
+      //   PROSE_PHASE=before npx playwright test --project=screenshots
+      name: "screenshots",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /\.screenshots\.spec\.ts/,
     },
   ],
   webServer: {

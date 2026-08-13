@@ -1,3 +1,4 @@
+import { ArticleBody } from "@/components/ArticleBody";
 /**
  * Canonical TidyWise Terms of Service.
  *
@@ -164,18 +165,18 @@ export const TOS_SECTIONS: Section[] = [
 
 export function TermsContent() {
   return (
-    <div className="space-y-5 text-sm leading-relaxed">
-      <p className="text-muted-foreground">
+    <ArticleBody size="sm">
+      <p>
         Version {TOS_VERSION} · Effective {TOS_EFFECTIVE_DATE}
       </p>
       {TOS_SECTIONS.map((s) => (
-        <section key={s.title} className="space-y-2">
-          <h3 className="font-semibold text-foreground">{s.title}</h3>
+        <section key={s.title}>
+          <h3>{s.title}</h3>
           {s.body.map((p, i) => (
-            <p key={i} className="text-muted-foreground">{p}</p>
+            <p key={i}>{p}</p>
           ))}
         </section>
       ))}
-    </div>
+    </ArticleBody>
   );
 }
