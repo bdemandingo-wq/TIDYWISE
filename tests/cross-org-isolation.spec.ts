@@ -1,4 +1,5 @@
 import { test, expect, OWNER, STAFF, SUPABASE_URL, SUPABASE_ANON_KEY, getAccessToken } from "./fixtures";
+import type { APIRequestContext } from "@playwright/test";
 
 /**
  * Highest-priority checklist section. Asserts on raw network responses
@@ -19,6 +20,59 @@ import { test, expect, OWNER, STAFF, SUPABASE_URL, SUPABASE_ANON_KEY, getAccessT
  * See docs/superpowers/plans/2026-08-13-test-accounts-not-provisioned.md
  */
 
+/**
+ * A string that identifies an Org B record, for asserting it never renders on
+ * an Org A page.
+ *
+ * Discovery is layered because the obvious source is not reliably available: a
+ * customer email is the strongest marker, but staff_can_view_customer
+ * (20260122200613_*.sql:12-28) only lets a staff member see a customer who has
+ * a booking ASSIGNED to them. A `member`-role account in an org full of
+ * customers can legitimately see none of them. That is correct least-privilege
+ * design, not a bug, so the marker search falls back rather than failing.
+ *
+ * `strong: false` markers keep the suite running but prove much less — an org
+ * name was never going to appear in a customer list either way. The precondition
+ * surfaces that instead of letting a weak pass read as a strong one.
+ */
+type OrgBMarker = { kind: string; value: string; strong: boolean };
+
+async function discoverOrgBMarker(request: APIRequestContext): Promise<OrgBMarker | null> {
+  const token = await getAccessToken(request, STAFF.email, STAFF.password);
+  const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` };
+  const get = async (path: string) => {
+    const r = await request.get(`${SUPABASE_URL}/rest/v1/${path}`, { headers });
+    return r.ok() ? ((await r.json()) as Array<Record<string, string>>) : [];
+  };
+
+  const [customer] = await get("customers?select=email&limit=1");
+  if (customer?.email) return { kind: "Org B customer email", value: customer.email, strong: true };
+
+  const [booking] = await get("bookings?select=id&limit=1");
+  if (booking?.id) return { kind: "Org B booking id", value: booking.id, strong: true };
+
+  // Always reachable: a member can read their own organizations row.
+  const [org] = await get(`organizations?id=eq.${STAFF.orgId}&select=name`);
+  if (org?.name) return { kind: "Org B org name", value: org.name, strong: false };
+
+  return null;
+}
+
+/**
+ * A filter-check ("no returned row belongs to the other org") asserts NOTHING
+ * when the read comes back empty — the loop body never executes. Three separate
+ * times this suite reported green while proving nothing, so an empty read is now
+ * a failure rather than a pass. See
+ * docs/superpowers/plans/2026-08-13-test-accounts-not-provisioned.md
+ */
+function expectNonEmptyRead(rows: unknown[], what: string, seedHint: string): void {
+  expect(
+    rows.length,
+    `${what} returned 0 rows, so this filter-check asserted nothing and would ` +
+      `have passed vacuously. ${seedHint}`,
+  ).toBeGreaterThan(0);
+}
+
 test("PRECONDITION: owner and staff are in different orgs, and Org B has data", async ({
   request,
 }) => {
@@ -30,18 +84,29 @@ test("PRECONDITION: owner and staff are in different orgs, and Org B has data", 
   ).not.toBe(STAFF.orgId);
 
   // A leak marker is required, not optional: these tests prove isolation by
-  // looking for a specific Org B row inside Org A's results. With Org B empty
-  // there is nothing to look for, and absence proves nothing.
-  const staffToken = await getAccessToken(request, STAFF.email, STAFF.password);
-  const resp = await request.get(`${SUPABASE_URL}/rest/v1/customers?select=id&limit=1`, {
-    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${staffToken}` },
-  });
-  expect(resp.ok(), "staff REST read of its own org's customers failed").toBeTruthy();
+  // looking for a specific Org B value inside Org A's results. With nothing to
+  // look for, absence proves nothing.
+  const marker = await discoverOrgBMarker(request);
   expect(
-    (await resp.json()).length,
-    `Org B (${STAFF.orgId}) has no customers, so there is no leak marker to ` +
-      `search for in Org A's results. Add at least one customer to Org B.`,
-  ).toBeGreaterThan(0);
+    marker,
+    `no Org B marker could be discovered at all. Even the org name was ` +
+      `unreadable, which means the staff account cannot read its own org — ` +
+      `check it is seated in ${STAFF.orgId} and re-run --project=setup.`,
+  ).not.toBeNull();
+
+  test.info().annotations.push({ type: "org-b-marker", description: `${marker!.kind} (strong=${marker!.strong})` });
+
+  if (!marker!.strong) {
+    // Deliberately not a failure: the suite should still run. But a weak marker
+    // must not read as a strong pass, so say so loudly in the output.
+    console.warn(
+      `[cross-org] WEAK MARKER: falling back to "${marker!.kind}". A staff member ` +
+        `only sees customers with a booking assigned to them ` +
+        `(staff_can_view_customer), so no customer email was reachable. ` +
+        `Assign a booking in Org B to staff ${STAFF.staffId} to restore the ` +
+        `strong marker — UI leak checks are much weaker without it.`,
+    );
+  }
 });
 
 test.describe("1.8 — CROSS-ORG: Org A cannot read Org B customers/bookings/payments", () => {
@@ -53,6 +118,11 @@ test.describe("1.8 — CROSS-ORG: Org A cannot read Org B customers/bookings/pay
       });
       expect(resp.ok(), `${table} query should succeed (200), just scoped by RLS`).toBeTruthy();
       const rows = (await resp.json()) as Array<{ organization_id: string }>;
+      expectNonEmptyRead(
+        rows,
+        `owner's ${table} read`,
+        `Seed at least one ${table} row in Org A (${OWNER.orgId}) so there is something to filter.`,
+      );
       for (const row of rows) {
         expect(row.organization_id, `${table} row leaked into owner's cross-org read`).not.toBe(STAFF.orgId);
       }
@@ -67,6 +137,13 @@ test.describe("1.8 — CROSS-ORG: Org A cannot read Org B customers/bookings/pay
       });
       expect(resp.ok()).toBeTruthy();
       const rows = (await resp.json()) as Array<{ organization_id: string }>;
+      expectNonEmptyRead(
+        rows,
+        `staff's ${table} read`,
+        `A member-role account only sees ${table} linked to a booking assigned to ` +
+          `them (staff_can_view_customer). Assign a booking in Org B to staff ` +
+          `${STAFF.staffId} so this check has rows to filter.`,
+      );
       for (const row of rows) {
         expect(row.organization_id).not.toBe(OWNER.orgId);
       }
@@ -124,13 +201,20 @@ test.describe("1.9 — CROSS-ORG: direct API/URL access to another org's record 
     // isolation than an empty-state check ever was: the original version
     // only proved isolation by coincidence (any row at all would have
     // been a leak), not by actually looking for one.
-    const staffToken = await getAccessToken(request, STAFF.email, STAFF.password);
-    const orgBResp = await request.get(`${SUPABASE_URL}/rest/v1/customers?select=email&limit=1`, {
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${staffToken}` },
+    const marker = await discoverOrgBMarker(request);
+    expect(marker, "no Org B marker available — see the PRECONDITION test").not.toBeNull();
+    test.info().annotations.push({
+      type: "org-b-marker",
+      description: `${marker!.kind} (strong=${marker!.strong})`,
     });
-    expect(orgBResp.ok()).toBeTruthy();
-    const [orgBCustomer] = await orgBResp.json();
-    expect(orgBCustomer?.email, "Org B has no customers to use as a leak marker — can't run this check").toBeTruthy();
+    if (!marker!.strong) {
+      // An org name would not have rendered in a customer list either way, so a
+      // pass here proves far less than it appears to. Recorded, not hidden.
+      console.warn(
+        `[cross-org] this UI leak check is running on a WEAK marker ` +
+          `(${marker!.kind}); a pass does not demonstrate much.`,
+      );
+    }
 
     await page.goto("/dashboard/customers");
     await expect(page).toHaveURL(/\/dashboard\/customers/);
@@ -138,7 +222,10 @@ test.describe("1.9 — CROSS-ORG: direct API/URL access to another org's record 
     // before checking for absence, so this can't pass trivially while
     // still loading.
     await expect(page.getByText("Loading customers...")).not.toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText(orgBCustomer.email), "an Org B customer's email leaked into Org A owner's customer list").not.toBeVisible();
+    await expect(
+      page.getByText(marker!.value),
+      `an Org B value (${marker!.kind}) leaked into Org A owner's customer list`,
+    ).not.toBeVisible();
   });
 });
 
@@ -167,6 +254,14 @@ test.describe("1.10 — Role separation: staff cannot access owner-only admin pa
     // manual_payments has no member-level SELECT policy — only
     // owner/admin/manager (is_org_admin) can read it at all. Staff's role
     // is "member", so this must come back empty even for their OWN org.
+    //
+    // NOT a filter-check, so it gets no expectNonEmptyRead guard: an empty
+    // result IS the assertion here, and a non-empty one would be the failure.
+    // Its weakness is different and cannot be closed from a member token — it
+    // cannot distinguish "RLS blocked the member" from "Org B has no
+    // manual_payments rows at all". Closing that needs a row seeded in Org B by
+    // an admin, then re-running this to confirm the member still reads zero.
+    // Until then, treat a pass as consistent-with-isolation, not proof of it.
     const token = await getAccessToken(request, STAFF.email, STAFF.password);
     const resp = await request.get(
       `${SUPABASE_URL}/rest/v1/manual_payments?organization_id=eq.${STAFF.orgId}&select=id&limit=5`,
