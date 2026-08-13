@@ -641,54 +641,12 @@ export async function processOrg(
     zeroPayBookings: currentTotals.zeroPayBookings,
   };
 
-  // --- 12. Org email settings — block if missing ---------------------------
+  // --- 12. Org email settings — missing is a fallback trigger, not a blocker ---
+  // These are internal reports to the owner about their own payroll. Blocking on a
+  // missing customer-facing sender identity is what left 29 of 30 orgs with no
+  // report at all.
   const emailSettingsResult = await getOrgEmailSettings(org.id);
-  if (!emailSettingsResult.success || !emailSettingsResult.settings) {
-    if (!opts.dryRun) {
-      await supabase.from("email_send_log").insert({
-        template_name: TEMPLATE_NAME,
-        recipient_email: recipients[0],
-        status: "failed",
-        error_message: emailSettingsResult.error ?? "Email settings missing",
-        metadata: {
-          reason: "no_email_settings",
-          organization_id: org.id,
-          period_start: result.periodStart,
-          period_end: result.periodEnd,
-        },
-      });
-    }
-    return {
-      ...result,
-      skipped: "no_email_settings",
-      success: false,
-      error: emailSettingsResult.error,
-    };
-  }
-  const emailSettings = emailSettingsResult.settings;
-  if (!emailSettings.resend_api_key) {
-    if (!opts.dryRun) {
-      await supabase.from("email_send_log").insert({
-        template_name: TEMPLATE_NAME,
-        recipient_email: recipients[0],
-        status: "failed",
-        error_message:
-          "No Resend API key configured. Set one in Settings → Emails.",
-        metadata: {
-          reason: "no_resend_key",
-          organization_id: org.id,
-          period_start: result.periodStart,
-          period_end: result.periodEnd,
-        },
-      });
-    }
-    return {
-      ...result,
-      skipped: "no_email_settings",
-      success: false,
-      error: "Resend API key not configured for this organization",
-    };
-  }
+  const orgEmailSettings = emailSettingsResult.success ? emailSettingsResult.settings ?? null : null;
 
   // --- 13. Render React Email -----------------------------------------------
   const subject = `📊 Payroll report — ${result.periodLabel} · ${
