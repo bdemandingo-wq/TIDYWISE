@@ -1,10 +1,12 @@
-# Cross-org isolation is still unverified: the QA accounts share one org
+# Cross-org isolation: from 2 meaningful passes to 9
+
+*Originally titled "still unverified: the QA accounts share one org". Retitled once it was verified — the history below is kept because the failure modes are the useful part.*
 
 **Logged:** 2026-08-13, immediately after restoring the test credentials.
-**Status:** Plumbing fixed. **Provisioning outstanding — owner to create Org B and a customer in it.**
+**Status:** Plumbing fixed. Org B provisioned. **9 of 13 tests now genuinely meaningful, up from 2.** Two outstanding: an invoice in Org A, and the client-portal gap (see Outstanding).
 **Related:** `2026-08-13-dead-test-credentials.md` (the credential half of the same problem)
 
-## Restoring credentials was necessary but not sufficient
+## Run 1 — restoring credentials was necessary but not sufficient
 
 With working owner and staff logins, `cross-org-isolation.spec.ts` reported **9 passed, 2 failed, 1 skipped**. Only **two** of those nine passes meant anything.
 
@@ -70,14 +72,105 @@ pass vacuously. Seat them in separate orgs.
 
 A cross-org suite that cannot see a second org must fail loudly, not go green.
 
-## Outstanding — needs real data, so it is the owner's call
+## Resolved: how it went from 2 genuine passes to 9
 
-1. **Create Org B** and move the staff account into it, so owner and staff are genuinely in different orgs.
-2. **Add at least one customer to Org B** — the leak marker the tests search for in Org A's results.
-3. **A client portal account** remains blocked: creating one requires payment, so tests 12 and 13 stay unrunnable. Both are client-portal isolation checks, so that boundary is untested for now and should be noted as a known gap rather than assumed covered.
-4. Re-run `--project=setup` after any account change, so the derived org context is refreshed.
+Playwright's pass count barely moved across three runs. The number of passes that
+*proved something* tripled. That gap is the whole point of this document.
 
-Once 1 and 2 are done, the precondition passes and the seven hollow tests become real probes for the first time since the accounts were recreated.
+| Run | State | Reported | **Genuinely meaningful** |
+|---|---|---|---|
+| 1 | Both accounts in one org, no data | 9 passed / 2 failed / 1 skipped | **2** |
+| 2 | Org B created, orgs distinct; row-count guards added | 9 passed / 3 failed / 1 skipped | **6** |
+| 3 | Booking in Org B assigned to the staff member | 11 passed / 2 failed | **9** |
+
+Run 2's guards made the count *worse* and the suite more trustworthy — two hollow
+filter-checks flipped from green to red with messages naming the seed they needed.
+
+Final state, per test:
+
+| # | Test | Result | Meaningful |
+|---|---|---|---|
+| 1 | PRECONDITION: distinct orgs + marker | pass | yes — marker is **strong** |
+| 2 | owner list of customers has no Org B row | pass | yes |
+| 3 | owner list of bookings has no Org B row | pass | yes |
+| 4 | owner list of invoices has no Org B row | **fail** | correctly — Org A has 0 invoices |
+| 5 | staff list has no Org A row | pass | yes |
+| 6 | owner direct-ID GET of Org B org row | pass | yes |
+| 7 | staff direct-ID GET of Org A org row | pass | yes |
+| 8 | owner UI shows no Org B marker | pass | yes — real customer email |
+| 9 | staff `/dashboard` → `/staff` | pass | yes |
+| 10 | staff Finance route redirected | pass | yes |
+| 11 | staff reading `manual_payments` → empty | pass | partial — see below |
+| 12 | client portal dashboard isolation | **fail** | **known gap** |
+| 13 | anon REST read of bookings → zero rows | pass | yes |
+
+The cross-org boundary is now substantively verified in both directions: list
+reads filtered with real rows on both sides, direct-ID lookups of a genuinely
+foreign org masked to empty, role separation enforced, anon reads blocked.
+
+## The non-obvious requirement: a customer is not enough, it needs a booking
+
+Adding a customer to Org B did **not** give the staff account a leak marker, and
+that cost a full round trip. `staff_can_view_customer`
+(`20260122200613_*.sql:12-28`) grants a staff member visibility only *through a
+booking*:
+
+```sql
+FROM public.staff s
+JOIN public.bookings b ON b.organization_id = _org_id AND b.customer_id = _customer_id
+WHERE s.user_id = auth.uid() AND s.is_active = true
+  AND ( b.staff_id = s.id
+        OR EXISTS (SELECT 1 FROM booking_team_assignments bta
+                   WHERE bta.booking_id = b.id AND bta.staff_id = s.id) )
+```
+
+So a `member`-role account in an org full of customers can legitimately see
+**none** of them. Correct least-privilege design, and it means:
+
+- **Seeding a customer in Org B is insufficient.** It needs a booking whose
+  `staff_id` is that staff member's `public.staff.id` (or a
+  `booking_team_assignments` row).
+- **The strong marker depends on that assignment.** Without it the precondition
+  falls back to the org name, which would never have appeared in a customer list
+  anyway — so test 8 passes while proving nothing. The fallback is deliberately
+  logged as `WEAK MARKER` rather than hidden.
+- **Verify a seed landed by asking the token, not the UI.** `staff bookings: 1
+  row, staff_id=a1aa8f00…` is what confirmed it; the app showing a booking would
+  not have.
+
+## Correction: test 13 was never blocked on the client account
+
+I recorded tests 12 and 13 as both needing a client portal login. **Only 12
+does.** Test 13 uses the staff token purely as a baseline and then asserts the
+bare **anon** key reads zero rows from `bookings`, guarding a policy hole removed
+in `20260413170000`. It carried its own `test.skip(staffVisibleBookings.length === 0)`
+— which is why it skipped rather than passing vacuously, the same guard pattern,
+already there before any of today's work. It runs and passes now that Org B has a
+booking.
+
+Worth noting because I assumed a shared cause from two adjacent failures in the
+same `describe` block, rather than reading what each test actually did.
+
+## Outstanding
+
+1. **An invoice in Org A** (`e4d60558-af69-45d2-97cf-cdea4c68a411`) — test 4 is
+   the last hollow filter-check. Two seeding attempts have not shown up to the
+   owner token. Note the owner's auth id changed mid-session
+   (`d56c62af…` → `cb627101…`), so an invoice created as the earlier account is
+   likely sitting in a different org. `tests/.auth/owner-org.json` is
+   authoritative on which org the test owner is actually in.
+2. **Test 12 is a KNOWN UNTESTED GAP, not assumed covered.** Creating a client
+   portal account requires payment, so the client-portal *UI* isolation boundary
+   has never been exercised. That is the same surface as follow-up item 8, where
+   ten `SECURITY DEFINER` RPCs were found anon-callable with no ownership check —
+   so it is the last place to assume coverage. Record it as untested wherever
+   client-portal security is claimed.
+3. **Optional, upgrades test 11 from partial to proof**: seed one
+   `manual_payments` row in Org B. The test asserts a `member` reads zero rows
+   there, but cannot currently distinguish "RLS blocked the member" from "the
+   table is empty for this org". A row makes the empty read meaningful.
+4. Re-run `--project=setup` after any account change, so the derived org context
+   is refreshed.
 
 ## The recurring pattern, stated once
 
