@@ -21,10 +21,13 @@ import {
   toDateString,
 } from "./payroll-period.ts";
 import {
-  formatEmailFrom,
   getOrgEmailSettings,
   getReplyTo,
 } from "./get-org-email-settings.ts";
+import {
+  resolveSender,
+  PLATFORM_SENDER_FROM,
+} from "./email-sender-resolution.ts";
 import {
   PayrollPeriodReport,
   type CleanerRow,
@@ -641,54 +644,12 @@ export async function processOrg(
     zeroPayBookings: currentTotals.zeroPayBookings,
   };
 
-  // --- 12. Org email settings — block if missing ---------------------------
+  // --- 12. Org email settings — missing is a fallback trigger, not a blocker ---
+  // These are internal reports to the owner about their own payroll. Blocking on a
+  // missing customer-facing sender identity is what left 29 of 30 orgs with no
+  // report at all.
   const emailSettingsResult = await getOrgEmailSettings(org.id);
-  if (!emailSettingsResult.success || !emailSettingsResult.settings) {
-    if (!opts.dryRun) {
-      await supabase.from("email_send_log").insert({
-        template_name: TEMPLATE_NAME,
-        recipient_email: recipients[0],
-        status: "failed",
-        error_message: emailSettingsResult.error ?? "Email settings missing",
-        metadata: {
-          reason: "no_email_settings",
-          organization_id: org.id,
-          period_start: result.periodStart,
-          period_end: result.periodEnd,
-        },
-      });
-    }
-    return {
-      ...result,
-      skipped: "no_email_settings",
-      success: false,
-      error: emailSettingsResult.error,
-    };
-  }
-  const emailSettings = emailSettingsResult.settings;
-  if (!emailSettings.resend_api_key) {
-    if (!opts.dryRun) {
-      await supabase.from("email_send_log").insert({
-        template_name: TEMPLATE_NAME,
-        recipient_email: recipients[0],
-        status: "failed",
-        error_message:
-          "No Resend API key configured. Set one in Settings → Emails.",
-        metadata: {
-          reason: "no_resend_key",
-          organization_id: org.id,
-          period_start: result.periodStart,
-          period_end: result.periodEnd,
-        },
-      });
-    }
-    return {
-      ...result,
-      skipped: "no_email_settings",
-      success: false,
-      error: "Resend API key not configured for this organization",
-    };
-  }
+  const orgEmailSettings = emailSettingsResult.success ? emailSettingsResult.settings ?? null : null;
 
   // --- 13. Render React Email -----------------------------------------------
   const subject = `📊 Payroll report — ${result.periodLabel} · ${
@@ -723,10 +684,69 @@ export async function processOrg(
   }
 
   // --- 14. Send via Resend (retry once) -------------------------------------
-  const resend = new Resend(emailSettings.resend_api_key);
+  const platformKey = Deno.env.get("RESEND_API_KEY") ?? null;
+
+  const resolved = resolveSender({
+    settings: orgEmailSettings,
+    platformFrom: PLATFORM_SENDER_FROM,
+    platformKeyPresent: !!platformKey,
+    allowPlatformFallback: true, // owner-facing internal report
+  });
+
+  if (!resolved.ok) {
+    // Nothing can send. Keep the existing failed-log shape so reporting is unchanged.
+    if (!opts.dryRun) {
+      await supabase.from("email_send_log").insert({
+        template_name: TEMPLATE_NAME,
+        recipient_email: recipients[0],
+        status: "failed",
+        error_message: resolved.error,
+        metadata: {
+          reason: "no_email_settings",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
+      });
+    }
+    return { ...result, skipped: "no_email_settings", success: false, error: resolved.error };
+  }
+
+  const senderKey = resolved.sender.keySource === "org"
+    ? (orgEmailSettings?.resend_api_key as string)
+    : (platformKey as string);
+
+  let resend = new Resend(senderKey);
   const messageId = crypto.randomUUID();
-  const fromHeader = formatEmailFrom(emailSettings);
-  const replyTo = getReplyTo(emailSettings);
+  let fromHeader = resolved.sender.from;
+  const replyTo = orgEmailSettings ? getReplyTo(orgEmailSettings) : PLATFORM_SENDER_FROM;
+
+  // The fallback must never be silent. org_email_send_failures already has method
+  // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
+  // org while the owner-facing health banner (which counts fell_back_to IS NULL)
+  // correctly does not alarm anyone about mail that arrived.
+  const logPlatformFallback = async (reason: string) => {
+    console.warn(
+      `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
+      `(${reason}). The org's own email identity is not usable.`,
+    );
+    try {
+      await supabase.rpc("log_org_email_send_failure", {
+        _organization_id: org.id,
+        _method: "resend",
+        _fell_back_to: "platform",
+        _recipient: recipients[0],
+        _subject: subject,
+        _error_message: `payroll report sent via platform sender: ${reason}`,
+      });
+    } catch (e) {
+      console.error("[payroll-period-report] fallback log failed", e);
+    }
+  };
+
+  if (resolved.sender.usedFallback) {
+    await logPlatformFallback(String(resolved.sender.fallbackReason));
+  }
 
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
@@ -763,6 +783,29 @@ export async function processOrg(
     sendError = e;
   }
   if (sendError) {
+    const firstError = sendError instanceof Error ? sendError.message : JSON.stringify(sendError);
+    const escalated = resolveSender({
+      settings: orgEmailSettings,
+      platformFrom: PLATFORM_SENDER_FROM,
+      platformKeyPresent: !!platformKey,
+      allowPlatformFallback: true,
+      priorFailure: firstError,
+    });
+
+    // Retry from the platform identity when the first attempt used the org's, since
+    // an unverified From is rejected whichever API key sent it — changing only the
+    // key would not help.
+    if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+      console.warn(
+        `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
+        `retrying from the platform sender.`,
+      );
+      resend = new Resend(platformKey as string);
+      fromHeader = escalated.sender.from;
+      await logPlatformFallback(String(escalated.sender.fallbackReason));
+    }
+
+    // ONE retry, same 30-second wait as before.
     await new Promise((resolve) => setTimeout(resolve, 30_000));
     try {
       const r = await sendOnce();
