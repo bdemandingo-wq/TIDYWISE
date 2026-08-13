@@ -863,5 +863,13 @@ export async function processOrg(
     .update({ status: "sent" })
     .eq("message_id", messageId);
 
+  // Only now. The send has succeeded, so the row's own wording — "payroll report
+  // sent via platform sender" — is true when it is written. This is the single
+  // place the fallback is recorded; both the first-attempt case and the escalated
+  // retry funnel into it via pendingFallbackReason.
+  if (pendingFallbackReason) {
+    await logPlatformFallback(pendingFallbackReason);
+  }
+
   return { ...result, success: true };
 }
