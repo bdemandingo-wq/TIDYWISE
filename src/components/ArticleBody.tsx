@@ -64,6 +64,22 @@ export const READING_COLUMN = "mx-auto max-w-[58ch]";
  */
 export const READING_COLUMN_SM = "mx-auto max-w-[58ch] text-sm";
 
+/**
+ * A card that HUGS the reading column, rather than a wide card containing a
+ * narrow one.
+ *
+ * Centring the column fixed the asymmetry but left a bordered card with ~190px of
+ * empty space either side of the text — which is what made the body read as
+ * "sitting in a box" in the first place. The border should wrap the text, not a
+ * field of whitespace.
+ *
+ * The width is the column plus the card's own horizontal padding (`sm:p-10` =
+ * 5rem across), so the text inside still measures exactly 58ch. `text-sm` is
+ * required for the same reason it is on READING_COLUMN_SM: `ch` resolves against
+ * this element's font-size, and these pages render their body at 14px.
+ */
+export const READING_CARD_SM = "mx-auto max-w-[calc(58ch+5rem)] text-sm";
+
 const SIZE_CLASS = {
   sm: "prose-sm",
   base: "",

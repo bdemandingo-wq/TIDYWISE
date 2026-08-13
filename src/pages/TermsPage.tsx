@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ArrowLeft } from "lucide-react";
 import { TermsContent } from "@/components/legal/termsContent";
-import { READING_COLUMN_SM } from "@/components/ArticleBody";
+import { READING_COLUMN_SM, READING_CARD_SM } from "@/components/ArticleBody";
 
 /**
  * Public terms page. Its existence at a stable URL is itself dispute
@@ -44,7 +44,7 @@ export default function TermsPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <article className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
+        <article className={`rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10 ${READING_CARD_SM}`}>
           <div className={READING_COLUMN_SM}>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Terms of Service</h1>
             <div className="mt-8">

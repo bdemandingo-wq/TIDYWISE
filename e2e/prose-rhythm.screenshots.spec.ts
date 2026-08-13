@@ -137,9 +137,23 @@ async function measure(page: import("@playwright/test").Page) {
       }`;
     }
 
+    // Does the CARD hug the text, or wrap a field of whitespace? A border around
+    // ~190px of empty space either side is what made the body read as "sitting in
+    // a box" even once the column was centred.
+    const card = (col.closest("article") ?? col.closest('[class*="rounded-2xl"]')) as HTMLElement | null;
+    let cardPadding = "n/a (no card)";
+    if (card && nextP) {
+      const cr = card.getBoundingClientRect();
+      const tr = nextP.getBoundingClientRect();
+      const left = Math.round(tr.left - cr.left);
+      const right = Math.round(cr.right - tr.right);
+      cardPadding = `text inset ${left}px / ${right}px from card edge`;
+    }
+
     return {
       headingTag: heading.tagName,
       titleAlignment,
+      cardPadding,
       headingFontSize: hs.fontSize,
       gapAboveHeading: gapAboveVisual,
       headingMarginTopOwn: hs.marginTop,
