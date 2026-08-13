@@ -681,10 +681,69 @@ export async function processOrg(
   }
 
   // --- 14. Send via Resend (retry once) -------------------------------------
-  const resend = new Resend(emailSettings.resend_api_key);
+  const platformKey = Deno.env.get("RESEND_API_KEY") ?? null;
+
+  const resolved = resolveSender({
+    settings: orgEmailSettings,
+    platformFrom: PLATFORM_SENDER_FROM,
+    platformKeyPresent: !!platformKey,
+    allowPlatformFallback: true, // owner-facing internal report
+  });
+
+  if (!resolved.ok) {
+    // Nothing can send. Keep the existing failed-log shape so reporting is unchanged.
+    if (!opts.dryRun) {
+      await supabase.from("email_send_log").insert({
+        template_name: TEMPLATE_NAME,
+        recipient_email: recipients[0],
+        status: "failed",
+        error_message: resolved.error,
+        metadata: {
+          reason: "no_email_settings",
+          organization_id: org.id,
+          period_start: result.periodStart,
+          period_end: result.periodEnd,
+        },
+      });
+    }
+    return { ...result, skipped: "no_email_settings", success: false, error: resolved.error };
+  }
+
+  const senderKey = resolved.sender.keySource === "org"
+    ? (orgEmailSettings?.resend_api_key as string)
+    : (platformKey as string);
+
+  let resend = new Resend(senderKey);
   const messageId = crypto.randomUUID();
-  const fromHeader = formatEmailFrom(emailSettings);
-  const replyTo = getReplyTo(emailSettings);
+  let fromHeader = resolved.sender.from;
+  const replyTo = orgEmailSettings ? getReplyTo(orgEmailSettings) : PLATFORM_SENDER_FROM;
+
+  // The fallback must never be silent. org_email_send_failures already has method
+  // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
+  // org while the owner-facing health banner (which counts fell_back_to IS NULL)
+  // correctly does not alarm anyone about mail that arrived.
+  const logPlatformFallback = async (reason: string) => {
+    console.warn(
+      `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
+      `(${reason}). The org's own email identity is not usable.`,
+    );
+    try {
+      await supabase.rpc("log_org_email_send_failure", {
+        _organization_id: org.id,
+        _method: "resend",
+        _fell_back_to: "platform",
+        _recipient: recipients[0],
+        _subject: subject,
+        _error_message: `payroll report sent via platform sender: ${reason}`,
+      });
+    } catch (e) {
+      console.error("[payroll-period-report] fallback log failed", e);
+    }
+  };
+
+  if (resolved.sender.usedFallback) {
+    await logPlatformFallback(String(resolved.sender.fallbackReason));
+  }
 
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
