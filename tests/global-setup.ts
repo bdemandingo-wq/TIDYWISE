@@ -1,5 +1,87 @@
-import { test as setup, expect } from "@playwright/test";
+import { test as setup, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { QA_OWNER, QA_STAFF, QA_CLIENT } from "../test-credentials";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./fixtures";
+
+/**
+ * Org IDs are DERIVED here, not hardcoded in fixtures.ts.
+ *
+ * They used to be constants. When the QA accounts were recreated on 2026-08-13
+ * the constants kept pointing at the previous accounts' orgs, so
+ * cross-org-isolation.spec.ts queried organizations the live accounts had no
+ * relationship to — and passed, while proving nothing. Nine green tests, two of
+ * which meant anything. Same drift class as the password that was hardcoded in
+ * six files. See docs/superpowers/plans/2026-08-13-test-accounts-not-provisioned.md
+ *
+ * Reading org_memberships from the freshly authenticated session means the
+ * fixture cannot be wrong about which org an account is in.
+ */
+async function persistOrgContext(
+  page: Page,
+  request: APIRequestContext,
+  role: "owner" | "staff",
+): Promise<void> {
+  // Lift the access token straight out of the session we just established.
+  const accessToken = await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(
+      (k) => k.startsWith("sb-") && k.endsWith("-auth-token"),
+    );
+    if (!key) return null;
+    try {
+      return JSON.parse(localStorage.getItem(key) as string).access_token as string;
+    } catch {
+      return null;
+    }
+  });
+  expect(accessToken, `no Supabase access token in localStorage for ${role}`).toBeTruthy();
+
+  const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}` };
+
+  const memResp = await request.get(
+    `${SUPABASE_URL}/rest/v1/org_memberships?select=organization_id,role`,
+    { headers },
+  );
+  expect(memResp.ok(), `org_memberships lookup failed for ${role}`).toBeTruthy();
+  const memberships = (await memResp.json()) as Array<{
+    organization_id: string;
+    role: string;
+  }>;
+
+  // No membership means the account was created but never seated in an org.
+  // Every RLS-scoped read then returns zero rows, which makes isolation tests
+  // pass for the wrong reason — fail here instead, where it is legible.
+  expect(
+    memberships.length,
+    `the ${role} account has no org_memberships row. It can read nothing, so ` +
+      `any isolation test using it would pass vacuously. Seat it in an org first.`,
+  ).toBeGreaterThan(0);
+
+  const organizationId = memberships[0].organization_id;
+
+  // staffId is best-effort: only the staff account is expected to have a row,
+  // and security.spec.ts needs a REAL one to prove a spoofed org is rejected.
+  let staffId: string | null = null;
+  const staffResp = await request.get(`${SUPABASE_URL}/rest/v1/staff?select=id&limit=1`, {
+    headers,
+  });
+  if (staffResp.ok()) {
+    const rows = (await staffResp.json()) as Array<{ id: string }>;
+    staffId = rows[0]?.id ?? null;
+  }
+
+  mkdirSync("tests/.auth", { recursive: true });
+  writeFileSync(
+    `tests/.auth/${role}-org.json`,
+    JSON.stringify(
+      { organizationId, role: memberships[0].role, staffId, derivedAt: new Date().toISOString() },
+      null,
+      2,
+    ),
+  );
+  console.log(
+    `[setup] ${role}: org=${organizationId} role=${memberships[0].role} staffId=${staffId ?? "none"}`,
+  );
+}
 
 /**
  * Logs in as each of the 3 QA roles once and saves storageState so the
@@ -20,7 +102,7 @@ const OWNER = QA_OWNER;
 const STAFF = QA_STAFF;
 const CLIENT = QA_CLIENT;
 
-setup("authenticate as owner", async ({ page }) => {
+setup("authenticate as owner", async ({ page, request }) => {
   await page.goto("/login");
   await page.locator("#email").fill(OWNER.email);
   await page.locator("#password").fill(OWNER.password);
@@ -36,9 +118,10 @@ setup("authenticate as owner", async ({ page }) => {
     { timeout: 10_000 },
   );
   await page.context().storageState({ path: "tests/.auth/owner.json" });
+  await persistOrgContext(page, request, "owner");
 });
 
-setup("authenticate as staff", async ({ page }) => {
+setup("authenticate as staff", async ({ page, request }) => {
   await page.goto("/staff/login");
   await page.locator("#email").fill(STAFF.email);
   await page.locator("#password").fill(STAFF.password);
@@ -57,6 +140,7 @@ setup("authenticate as staff", async ({ page }) => {
     { timeout: 10_000 },
   );
   await page.context().storageState({ path: "tests/.auth/staff.json" });
+  await persistOrgContext(page, request, "staff");
 });
 
 setup("authenticate as client", async ({ page }) => {

@@ -5,11 +5,44 @@ import { test, expect, OWNER, STAFF, SUPABASE_URL, SUPABASE_ANON_KEY, getAccessT
  * (direct Supabase REST calls), not just hidden UI — a component that
  * merely hides a menu item is not proof RLS enforces the boundary.
  *
- * Org A = "hu" (trial plan) — owner test account's org.
- * Org B = "TIDYWISE" (lifetime plan) — staff + client test accounts' org.
- * These are two genuinely different, real orgs (verified live), which is
- * what makes this a real cross-org probe rather than a same-org role check.
+ * Org A = the owner test account's org. Org B = the staff + client accounts'
+ * org. Both are DERIVED from org_memberships by the setup project, not
+ * hardcoded — see tests/fixtures.ts.
+ *
+ * Everything in this file assumes those are two DIFFERENT orgs. The guard below
+ * enforces that rather than trusting it, and it exists because of a real
+ * incident: on 2026-08-13 the QA accounts were recreated into a single shared
+ * org, and this file reported 9 passed / 2 failed. Only two of the nine passes
+ * meant anything — with no second org and no data, "Org A's list contains no
+ * Org B row" is true for the wrong reason. A cross-org suite that cannot see a
+ * second org must fail loudly, not go green.
+ * See docs/superpowers/plans/2026-08-13-test-accounts-not-provisioned.md
  */
+
+test("PRECONDITION: owner and staff are in different orgs, and Org B has data", async ({
+  request,
+}) => {
+  expect(
+    OWNER.orgId,
+    `the owner and staff accounts are both in org ${OWNER.orgId}. There is no ` +
+      `Org B, so nothing in this file can detect a cross-org leak — every ` +
+      `assertion below would pass vacuously. Seat them in separate orgs.`,
+  ).not.toBe(STAFF.orgId);
+
+  // A leak marker is required, not optional: these tests prove isolation by
+  // looking for a specific Org B row inside Org A's results. With Org B empty
+  // there is nothing to look for, and absence proves nothing.
+  const staffToken = await getAccessToken(request, STAFF.email, STAFF.password);
+  const resp = await request.get(`${SUPABASE_URL}/rest/v1/customers?select=id&limit=1`, {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${staffToken}` },
+  });
+  expect(resp.ok(), "staff REST read of its own org's customers failed").toBeTruthy();
+  expect(
+    (await resp.json()).length,
+    `Org B (${STAFF.orgId}) has no customers, so there is no leak marker to ` +
+      `search for in Org A's results. Add at least one customer to Org B.`,
+  ).toBeGreaterThan(0);
+});
 
 test.describe("1.8 — CROSS-ORG: Org A cannot read Org B customers/bookings/payments", () => {
   for (const table of ["customers", "bookings", "invoices"] as const) {

@@ -1,4 +1,5 @@
 import { test as base, expect, type Page, type BrowserContext, type APIRequestContext } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
 import { QA_OWNER, QA_STAFF, QA_CLIENT } from "../test-credentials";
 
 // Credentials come from .env.test via ../test-credentials — never hardcoded.
@@ -6,21 +7,65 @@ import { QA_OWNER, QA_STAFF, QA_CLIENT } from "../test-credentials";
 // credentials configured still works: the anon-key specs (security, seo-static,
 // the contract specs) import SUPABASE_URL/ANON_KEY from here and must keep
 // running. Reading a missing credential throws loudly at that point instead.
+interface DerivedOrgContext {
+  organizationId: string;
+  role: string;
+  staffId: string | null;
+  derivedAt: string;
+}
+
+/**
+ * Org context is DERIVED by the setup project from org_memberships, not
+ * hardcoded here.
+ *
+ * These used to be constants. When the QA accounts were recreated on
+ * 2026-08-13 the constants kept pointing at the previous accounts' orgs, so
+ * cross-org-isolation.spec.ts queried organizations the live accounts had no
+ * relationship to — and passed, proving nothing. Nine green tests, two of which
+ * meant anything. Same drift class as the password that lived in six files.
+ * See docs/superpowers/plans/2026-08-13-test-accounts-not-provisioned.md
+ */
+function derivedOrg(role: "owner" | "staff"): DerivedOrgContext {
+  const path = `tests/.auth/${role}-org.json`;
+  if (!existsSync(path)) {
+    throw new Error(
+      `${path} is missing, so this test does not know which organization the ` +
+        `${role} account belongs to.\n\nRun the setup project first:\n` +
+        `    npx playwright test -c playwright.qa.config.ts --project=setup\n\n` +
+        `Org IDs are derived from org_memberships at setup time rather than ` +
+        `hardcoded, because a hardcoded ID silently pointed at the wrong org ` +
+        `after the accounts were recreated.`,
+    );
+  }
+  return JSON.parse(readFileSync(path, "utf8")) as DerivedOrgContext;
+}
+
 export const OWNER = {
   get email() { return QA_OWNER.email; },
   get password() { return QA_OWNER.password; },
-  orgId: "0f329006-ac99-46b1-83d1-632c6a1bb355", // "hu" — trial plan, 0 customers/bookings
+  get orgId() { return derivedOrg("owner").organizationId; },
 };
 export const STAFF = {
   get email() { return QA_STAFF.email; },
   get password() { return QA_STAFF.password; },
-  orgId: "e95b92d0-7099-408e-a773-e4407b34f8b4", // "TIDYWISE" — lifetime plan, real seeded data
-  staffId: "4ec567a3-d2f4-47b1-bee9-de7dbfced820",
+  get orgId() { return derivedOrg("staff").organizationId; },
+  get staffId() {
+    const id = derivedOrg("staff").staffId;
+    if (!id) {
+      throw new Error(
+        "the staff account has no row in public.staff, so there is no real " +
+          "staffId to spoof an org against. security.spec.ts's spoofed-value " +
+          "checks need one. Add a staff row for this account and re-run setup.",
+      );
+    }
+    return id;
+  },
 };
 export const CLIENT = {
   get email() { return QA_CLIENT.email; },
   get password() { return QA_CLIENT.password; },
-  orgId: STAFF.orgId, // same org as the staff test account
+  // The client portal account belongs to the staff account's org.
+  get orgId() { return derivedOrg("staff").organizationId; },
 };
 
 export const SUPABASE_URL = "https://slwfkaqczvwvvvavkgpr.supabase.co";

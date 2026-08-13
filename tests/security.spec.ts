@@ -42,24 +42,27 @@ test.describe("13.2 — No unauthenticated edge functions", () => {
   // moved to KNOWN_PUBLIC since the assertion itself (expect >=400) is
   // exactly what proves the fix holds, same pattern as the 8 spoofed-value
   // regression checks below.
-  const SUSPECTED_GAPS: Array<{ name: string; body: Record<string, unknown> }> = [
-    { name: "send-deposit-request", body: { bookingId: "00000000-0000-0000-0000-000000000000", organizationId: OWNER.orgId, amount: 1 } },
-    { name: "send-tip-request", body: { bookingId: "00000000-0000-0000-0000-000000000000", organizationId: OWNER.orgId } },
-    { name: "send-arrival-sms", body: { bookingId: "00000000-0000-0000-0000-000000000000", staffId: "00000000-0000-0000-0000-000000000000" } },
-    { name: "notify-platform-admin-signup", body: { phone: "5555550100", signupMethod: "qa-regression" } },
-    { name: "recache-blog-post", body: { slug: "qa-regression-probe" } },
-    { name: "send-subscription-receipt", body: { email: "bdemandingo+qaprobe@gmail.com", amount_cents: 1, invoice_id: "qa-probe", hosted_invoice_url: "https://example.com" } },
-    { name: "weekly-blog-digest", body: {} },
-    { name: "refresh-benchmark-snapshots", body: {} },
-    { name: "send-referral-invite", body: { referralId: "00000000-0000-0000-0000-000000000000" } },
-    { name: "notify-invoice-paid", body: { invoice_id: "00000000-0000-0000-0000-000000000000" } },
+  // `body` is a THUNK, not an object. OWNER.orgId is a lazy getter that throws
+  // until the setup project has derived it, and this array is built at
+  // collection time — an eager read here would fail the whole file to load.
+  const SUSPECTED_GAPS: Array<{ name: string; body: () => Record<string, unknown> }> = [
+    { name: "send-deposit-request", body: () => ({ bookingId: "00000000-0000-0000-0000-000000000000", organizationId: OWNER.orgId, amount: 1}) },
+    { name: "send-tip-request", body: () => ({ bookingId: "00000000-0000-0000-0000-000000000000", organizationId: OWNER.orgId}) },
+    { name: "send-arrival-sms", body: () => ({ bookingId: "00000000-0000-0000-0000-000000000000", staffId: "00000000-0000-0000-0000-000000000000"}) },
+    { name: "notify-platform-admin-signup", body: () => ({ phone: "5555550100", signupMethod: "qa-regression"}) },
+    { name: "recache-blog-post", body: () => ({ slug: "qa-regression-probe"}) },
+    { name: "send-subscription-receipt", body: () => ({ email: "bdemandingo+qaprobe@gmail.com", amount_cents: 1, invoice_id: "qa-probe", hosted_invoice_url: "https://example.com"}) },
+    { name: "weekly-blog-digest", body: () => ({}) },
+    { name: "refresh-benchmark-snapshots", body: () => ({}) },
+    { name: "send-referral-invite", body: () => ({ referralId: "00000000-0000-0000-0000-000000000000"}) },
+    { name: "notify-invoice-paid", body: () => ({ invoice_id: "00000000-0000-0000-0000-000000000000"}) },
   ];
 
   for (const { name, body } of SUSPECTED_GAPS) {
     test(`${name}: rejects a fully unauthenticated request`, async ({ request }) => {
       const resp = await request.post(FN(name), {
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-        data: body,
+        data: body(),
         failOnStatusCode: false,
       });
       // "Reject" = anything that isn't a 2xx success. A well-formed 400
