@@ -1,4 +1,5 @@
 import { test as setup, expect } from "@playwright/test";
+import { QA_OWNER, QA_STAFF, QA_CLIENT } from "../test-credentials";
 
 /**
  * Logs in as each of the 3 QA roles once and saves storageState so the
@@ -12,18 +13,12 @@ import { test as setup, expect } from "@playwright/test";
  * route source.
  */
 
-const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
-};
-const STAFF = {
-  email: "bdemandingo+staff@gmail.com",
-  password: "tidywise123",
-};
-const CLIENT = {
-  email: "bdemandingo+client@gmail.com",
-  password: "tidywise123",
-};
+// From .env.test via ../test-credentials. All three are required for this
+// project to pass, and a missing one throws with instructions rather than
+// skipping — a silent skip here is what hid the last credential breakage.
+const OWNER = QA_OWNER;
+const STAFF = QA_STAFF;
+const CLIENT = QA_CLIENT;
 
 setup("authenticate as owner", async ({ page }) => {
   await page.goto("/login");

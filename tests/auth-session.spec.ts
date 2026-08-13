@@ -1,9 +1,7 @@
 import { test, expect } from "./fixtures";
+import { QA_OWNER } from "../test-credentials";
 
-const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
-};
+const OWNER = QA_OWNER; // from .env.test via ../test-credentials
 
 test.describe("1.2 — Login with correct credentials succeeds", () => {
   test("owner logs in and lands on /dashboard", async ({ page }) => {

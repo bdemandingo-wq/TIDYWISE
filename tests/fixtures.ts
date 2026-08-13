@@ -1,19 +1,25 @@
 import { test as base, expect, type Page, type BrowserContext, type APIRequestContext } from "@playwright/test";
+import { QA_OWNER, QA_STAFF, QA_CLIENT } from "../test-credentials";
 
+// Credentials come from .env.test via ../test-credentials — never hardcoded.
+// The email/password fields are getters so that importing this file with no
+// credentials configured still works: the anon-key specs (security, seo-static,
+// the contract specs) import SUPABASE_URL/ANON_KEY from here and must keep
+// running. Reading a missing credential throws loudly at that point instead.
 export const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
+  get email() { return QA_OWNER.email; },
+  get password() { return QA_OWNER.password; },
   orgId: "0f329006-ac99-46b1-83d1-632c6a1bb355", // "hu" — trial plan, 0 customers/bookings
 };
 export const STAFF = {
-  email: "bdemandingo+staff@gmail.com",
-  password: "tidywise123",
+  get email() { return QA_STAFF.email; },
+  get password() { return QA_STAFF.password; },
   orgId: "e95b92d0-7099-408e-a773-e4407b34f8b4", // "TIDYWISE" — lifetime plan, real seeded data
   staffId: "4ec567a3-d2f4-47b1-bee9-de7dbfced820",
 };
 export const CLIENT = {
-  email: "bdemandingo+client@gmail.com",
-  password: "tidywise123",
+  get email() { return QA_CLIENT.email; },
+  get password() { return QA_CLIENT.password; },
   orgId: STAFF.orgId, // same org as the staff test account
 };
 

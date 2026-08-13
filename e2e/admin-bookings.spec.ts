@@ -2,7 +2,7 @@
  * Flow 4: Admin — create a booking, open it, reschedule it, cancel it.
  *
  * BLOCKED — skipped for now (see final QA report for full details):
- * the QA owner account's org (support+paywalltest2@tidywisecleaning.com)
+ * the QA owner account's org (QA_OWNER_EMAIL in .env.test)
  * has zero existing customers, and creating a new customer via the
  * booking form's "New Customer" tab is blocked by an RLS policy that
  * requires an active subscription ("Requires active subscription to

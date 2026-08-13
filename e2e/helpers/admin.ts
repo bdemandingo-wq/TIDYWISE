@@ -1,9 +1,7 @@
 import { expect, type Page, type Locator } from "@playwright/test";
+import { QA_OWNER } from "../../test-credentials";
 
-export const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
-};
+export const OWNER = QA_OWNER; // from .env.test via ../../test-credentials
 
 export async function loginAsOwner(page: Page): Promise<void> {
   await page.goto("/login");

@@ -9,16 +9,11 @@
  * through the owner form.
  */
 import { test, expect } from "@playwright/test";
+import { QA_OWNER, QA_CLIENT } from "../test-credentials";
 
-const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
-};
+const OWNER = QA_OWNER; // from .env.test via ../test-credentials
 
-const CLIENT = {
-  email: "bdemandingo+client@gmail.com",
-  password: "tidywise123",
-};
+const CLIENT = QA_CLIENT; // from .env.test via ../test-credentials
 
 test.describe("Login — owner/admin (/login)", () => {
   test("email and password inputs, submit button exist and are enabled", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { QA_OWNER } from "../test-credentials";
 
 /**
  * 1.4 — Logout ends session; back button doesn't restore it.
@@ -38,10 +39,7 @@ import { test, expect } from "@playwright/test";
  * otherwise sort first.
  */
 
-const OWNER = {
-  email: "support+paywalltest2@tidywisecleaning.com",
-  password: "TestPaywall2026!",
-};
+const OWNER = QA_OWNER; // from .env.test via ../test-credentials
 
 test("1.4 — owner: sidebar Logout redirects to /login and back-nav does not restore the dashboard", async ({
   browser,
