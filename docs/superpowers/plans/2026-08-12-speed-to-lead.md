@@ -8,7 +8,11 @@
 
 **Tech Stack:** Postgres trigger + `pg_net`, Deno edge function, OpenPhone SMS API, `node:test` for the pure logic, Playwright for the live schema contract.
 
-**Status:** Plan written 2026-08-12. Nothing built. Depends on the Facebook lead backfill plan's marker column (`leads.backfilled_at`), which is **applied and verified live**.
+**Status: SHIPPED AND LIVE.** Built, deployed, and **enabled for Clean Collective** — `is_enabled = true`, with an end-to-end test text confirmed received (owner, 2026-08-13). Real Facebook leads for that page now receive an SMS within seconds.
+
+> An earlier revision of this file said the automation "ships off and is turned on deliberately". That was true of the deployment; it is no longer true of the state. Corrected here because a stale "it is off" is the more dangerous direction for a document about something that texts members of the public.
+
+Depends on the backfill plan's marker column (`leads.backfilled_at`), applied and verified live.
 
 **Related:** `2026-08-12-lead-created-dispatch-gap.md` (in scope here — this plan closes it), `2026-08-12-facebook-lead-backfill.md`, `2026-08-12-customer-name-token-inconsistency.md`.
 
@@ -375,7 +379,7 @@ Gated by `requireCronSecret`. Body `{ lead_id }`. Ordering is not negotiable:
 
 ## Task S4: Verification
 
-- [ ] **Step 1: Automation still OFF.** Confirm `is_enabled = false` before anything else.
+- [x] ~~**Step 1: Automation still OFF.**~~ Superseded — the automation is now ON for Clean Collective and an end-to-end test text was confirmed received. The steps below that remain unchecked are the ones that still matter, because they are the guard rails rather than the happy path.
 - [ ] **Step 2: Trigger fires and is idempotent, with the automation off.** Insert a throwaway lead named `QA-TEST-DELETE` with your own phone. Expect: `lead.created` dispatched, **no SMS** (automation off), and a `notify-new-lead` log line. Delete the lead.
 - [ ] **Step 3: The backfill guard, empirically.** Insert a lead with `backfilled_at = now()`. Expect **no** `notify-new-lead` invocation at all — the trigger should not fire. This is the single most important test in the plan; the 29 imported leads are real people.
 - [ ] **Step 4: Enable for Clean Collective, then send yourself one.** Turn the toggle on, submit a real Facebook test lead with your own number via Meta's Lead Ads Testing Tool. Check the SMS arrives, reads correctly, greets by first name, and carries the STOP line.

@@ -1,7 +1,11 @@
-# `lead.created` never fires for automated leads — blocker for speed-to-lead
+# RESOLVED — `lead.created` never fired for automated leads
 
 **Logged:** 2026-08-12, while checking whether a Facebook lead backfill could fire outbound messages.
-**Status:** Not fixed. **Blocks the speed-to-lead work**, which is the next piece after the Facebook lead backfill.
+**Status: RESOLVED 2026-08-13** by `supabase/functions/notify-new-lead/index.ts`, shipped as part of the speed-to-lead work rather than separately.
+
+The notifier dispatches `lead.created` at its step 4 — **before** the `is_enabled` check at step 5, and deliberately non-fatally — so the event now fires for every new lead regardless of whether the SMS automation is on for that org. Because `trg_notify_new_lead` fires on any `leads` INSERT with `backfilled_at IS NULL`, that covers **every source**: Facebook, the booking chatbot, and the public booking form. The recommendation this document made — a DB trigger rather than per-writer wiring, with a `backfilled_at` exclusion — is what shipped.
+
+**Not yet verified end to end:** that a real Zapier or GHL subscription actually receives the dispatched event. The call is made and its failure is logged, but no external delivery has been confirmed. The original text is kept below.
 **Related:** `2026-08-12-facebook-lead-ingestion.md`, `2026-08-12-facebook-lead-backfill.md`
 
 ## The gap
