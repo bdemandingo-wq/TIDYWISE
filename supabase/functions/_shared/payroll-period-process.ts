@@ -21,10 +21,13 @@ import {
   toDateString,
 } from "./payroll-period.ts";
 import {
-  formatEmailFrom,
   getOrgEmailSettings,
   getReplyTo,
 } from "./get-org-email-settings.ts";
+import {
+  resolveSender,
+  PLATFORM_SENDER_FROM,
+} from "./email-sender-resolution.ts";
 import {
   PayrollPeriodReport,
   type CleanerRow,
