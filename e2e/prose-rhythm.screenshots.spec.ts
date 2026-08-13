@@ -101,12 +101,45 @@ async function measure(page: import("@playwright/test").Page) {
 
     const col = nextP ?? heading;
     const colPx = Math.round(col.getBoundingClientRect().width);
+
+    // Dead space either side of the reading column inside its parent. This is
+    // the metric that was missing when max-w-[58ch] shipped without mx-auto:
+    // the column was the right WIDTH but pinned to the parent's left edge, so
+    // the text hugged one side of a bordered card. Equal values = centred.
+    let columnOffset = "n/a";
+    const proseEl = (col.closest(".prose") ?? col) as HTMLElement;
+    const parentEl = proseEl.parentElement;
+    if (parentEl) {
+      const c = proseEl.getBoundingClientRect();
+      const pr = parentEl.getBoundingClientRect();
+      const ps = getComputedStyle(parentEl);
+      const left = Math.round(c.left - (pr.left + parseFloat(ps.paddingLeft)));
+      const right = Math.round(pr.right - parseFloat(ps.paddingRight) - c.right);
+      columnOffset = `left ${left}px / right ${right}px${
+        Math.abs(left - right) <= 2 ? " (centred)" : " (NOT centred)"
+      }`;
+    }
     // Rough characters-per-line: average glyph ~0.5em for body text.
     const fontPx = parseFloat(ps?.fontSize ?? hs.fontSize);
     const approxCh = Math.round(colPx / (fontPx * 0.5));
 
+    // Does the page TITLE start at the same left edge as the body? Centring the
+    // body alone left the h1 ~128px to its left, which read as a heading hanging
+    // off the side. This is the check for that.
+    const h1 = document.querySelector("main h1, article h1") as HTMLElement | null;
+    let titleAlignment = "n/a (no h1)";
+    if (h1 && nextP) {
+      const delta = Math.round(
+        h1.getBoundingClientRect().left - nextP.getBoundingClientRect().left,
+      );
+      titleAlignment = `h1 left edge ${delta >= 0 ? "+" : ""}${delta}px vs body${
+        Math.abs(delta) <= 2 ? " (aligned)" : " (MISALIGNED)"
+      }`;
+    }
+
     return {
       headingTag: heading.tagName,
+      titleAlignment,
       headingFontSize: hs.fontSize,
       gapAboveHeading: gapAboveVisual,
       headingMarginTopOwn: hs.marginTop,
@@ -115,6 +148,7 @@ async function measure(page: import("@playwright/test").Page) {
       paragraphMarginBottom: ps?.marginBottom ?? "n/a",
       paragraphGap: paragraphGap ?? "n/a (fewer than 2 paragraphs found)",
       columnWidth: `${colPx}px (~${approxCh}ch)`,
+      columnOffset,
     };
   });
 }

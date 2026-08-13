@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArticleBody } from "@/components/ArticleBody";
+import { ArticleBody, READING_COLUMN } from "@/components/ArticleBody";
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Calendar, Loader2 } from "lucide-react";
@@ -183,6 +183,7 @@ export default function DynamicBlogPost() {
           </Link>
 
           {/* Header */}
+          <div className={READING_COLUMN}>
           <header className="mb-12">
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4 flex-wrap">
               <span className="px-3 py-1 bg-primary/10 text-primary rounded-full font-medium">
@@ -207,6 +208,7 @@ export default function DynamicBlogPost() {
 
           {/* Body. ArticleBody sanitises the HTML itself — see its header. */}
           <ArticleBody html={post.content} />
+          </div>
 
           {/* CTA */}
           <div className="mt-16 bg-primary/5 rounded-2xl p-8 sm:p-12 text-center border border-primary/20">

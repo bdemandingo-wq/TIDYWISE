@@ -34,6 +34,36 @@ const ALLOWED_HTML = {
   // Not `as const`: DOMPurify's Config types these as mutable string[].
 };
 
+/**
+ * The reading column. Wrap a page's TITLE **and** its ArticleBody in one element
+ * carrying this — do not put it on both as siblings.
+ *
+ * Two failed attempts are worth recording, because the second is subtle:
+ *
+ *   1. A max-width with no `mx-auto` left the column pinned to the parent's left
+ *      edge with dead space to the right. On /privacy-policy the parent is a
+ *      bordered card, so the text visibly hugged one side of a box.
+ *   2. `mx-auto max-w-[58ch]` on the title div AND on ArticleBody still
+ *      misaligned them by ~39px, because `ch` resolves against each ELEMENT's own
+ *      font-size: the title div inherits 16px (58ch ≈ 508px) while a `prose-sm`
+ *      body is 14px (58ch ≈ 444px). Same class, different widths, both centred,
+ *      different left edges.
+ *
+ * One wrapper avoids both. The page owns the column; ArticleBody owns only the
+ * typography inside it.
+ */
+export const READING_COLUMN = "mx-auto max-w-[58ch]";
+
+/**
+ * Pair with READING_COLUMN when the body is `size="sm"`.
+ *
+ * `ch` measures against the WRAPPER's font-size. A wrapper inheriting 16px gives
+ * 58ch ≈ 581px, which is ~83 characters of 14px body text — too wide. Matching the
+ * wrapper to the body's size brings it back to ~73. The h1 inside keeps its own
+ * explicit text-3xl, so this only affects the ch computation.
+ */
+export const READING_COLUMN_SM = "mx-auto max-w-[58ch] text-sm";
+
 const SIZE_CLASS = {
   sm: "prose-sm",
   base: "",
@@ -62,7 +92,15 @@ export function ArticleBody({ html, children, size = "lg", className }: ArticleB
     // measured 81-85 ACTUAL characters per line. 58ch lands ~70, which is the
     // number the readability guidance is actually about. Verified by measurement,
     // not assumed — see e2e/prose-rhythm.screenshots.spec.ts.
-    "max-w-[58ch]",
+    //
+    // mx-auto is NOT optional. A max-width alone leaves the column pinned to the
+    // parent's left edge with dead space to the right — on /privacy-policy the
+    // parent is a bordered card, so the text visibly hugged one side of a box.
+    // Every consumer's parent is wider than the measure, so this centres in all
+    // of them.
+    // No max-width here: the page wraps title + body in READING_COLUMN so both
+    // share one column. Setting it here too caused the ch-mismatch above.
+    "max-w-none",
     // Colour and weight mapped onto the design tokens, so prose defaults do not
     // fight the theme. Previously only DynamicBlogPost carried these.
     "prose-headings:font-semibold prose-headings:text-foreground",

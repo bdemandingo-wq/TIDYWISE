@@ -3,7 +3,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
 import { ArrowLeft } from "lucide-react";
-import { ArticleBody } from "@/components/ArticleBody";
+import { ArticleBody, READING_COLUMN_SM } from "@/components/ArticleBody";
 
 export default function PrivacyPolicyPage() {
   const navigate = useNavigate();
@@ -43,8 +43,9 @@ export default function PrivacyPolicyPage() {
 
       <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <article className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-10">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Effective date: February 1, 2025</p>
+          <div className={READING_COLUMN_SM}>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Privacy Policy</h1>
+            <p className="mt-2 text-sm text-muted-foreground">Effective date: February 1, 2025</p>
 
           <ArticleBody size="sm" className="mt-8">
             <p>
@@ -152,6 +153,7 @@ export default function PrivacyPolicyPage() {
               If you have questions about this Privacy Policy, please contact us at <strong>support@jointidywise.com</strong>.
             </p>
           </ArticleBody>
+          </div>
         </article>
 
         <nav
