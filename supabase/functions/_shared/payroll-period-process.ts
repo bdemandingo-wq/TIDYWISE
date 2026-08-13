@@ -725,11 +725,21 @@ export async function processOrg(
   // and fell_back_to columns; fell_back_to = 'platform' keeps the row queryable by
   // org while the owner-facing health banner (which counts fell_back_to IS NULL)
   // correctly does not alarm anyone about mail that arrived.
-  const logPlatformFallback = async (reason: string) => {
+  //
+  // Split in two deliberately. The console line describes what is being ATTEMPTED,
+  // so it is safe to emit straight away — and it is the only trace left if the send
+  // then fails. The database row ASSERTS a delivery: its own text reads "sent via
+  // platform sender". So it is written only after one has actually happened.
+  // Writing it up front meant a row could claim a delivery that never occurred,
+  // which is the inverse of the problem this fallback exists to solve.
+  const warnPlatformSender = (reason: string) => {
     console.warn(
       `[payroll-period-report] org ${org.id}: sending from the platform sender ` +
       `(${reason}). The org's own email identity is not usable.`,
     );
+  };
+
+  const logPlatformFallback = async (reason: string) => {
     try {
       await supabase.rpc("log_org_email_send_failure", {
         _organization_id: org.id,
@@ -744,9 +754,16 @@ export async function processOrg(
     }
   };
 
+  // Non-null when a platform fallback is in play. Written to the database only
+  // after a successful send, at the bottom of this function. Reassigned if the
+  // retry escalates to the platform identity.
+  let pendingFallbackReason: string | null = null;
+
   if (resolved.sender.usedFallback) {
-    await logPlatformFallback(String(resolved.sender.fallbackReason));
+    pendingFallbackReason = String(resolved.sender.fallbackReason);
+    warnPlatformSender(pendingFallbackReason);
   }
+
 
   // Insert pending row first so we have a record even on crash.
   await supabase.from("email_send_log").insert({
@@ -798,15 +815,27 @@ export async function processOrg(
     if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
       console.warn(
         `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
-        `retrying from the platform sender.`,
+        `retrying from the platform sender immediately.`,
       );
       resend = new Resend(platformKey as string);
       fromHeader = escalated.sender.from;
-      await logPlatformFallback(String(escalated.sender.fallbackReason));
+      pendingFallbackReason = String(escalated.sender.fallbackReason);
+      // NO WAIT ON THIS PATH, deliberately. The identity itself has just changed,
+      // and the failure it is working around — an unverified From address, or a
+      // rejected API key — is a permanent validation error from Resend, not a
+      // transient one. Thirty seconds cannot change that outcome. Only the swap
+      // two lines above can, and it has already happened.
+      //
+      // The cost is not theoretical: payroll-period-report/index.ts:63 runs a
+      // single serial `for` loop over every organisation in one invocation, so
+      // every needless sleep is 30 seconds added to one shared wall clock, and the
+      // orgs that hit this path are precisely the misconfigured ones.
+    } else {
+      // Identity unchanged, so the only thing that could differ on a second
+      // attempt is a genuinely transient failure — which is what a backoff is for.
+      // Original behaviour, preserved for this case only.
+      await new Promise((resolve) => setTimeout(resolve, 30_000));
     }
-
-    // ONE retry, same 30-second wait as before.
-    await new Promise((resolve) => setTimeout(resolve, 30_000));
     try {
       const r = await sendOnce();
       if ((r as any)?.error) sendError = (r as any).error;
@@ -833,6 +862,14 @@ export async function processOrg(
     .from("email_send_log")
     .update({ status: "sent" })
     .eq("message_id", messageId);
+
+  // Only now. The send has succeeded, so the row's own wording — "payroll report
+  // sent via platform sender" — is true when it is written. This is the single
+  // place the fallback is recorded; both the first-attempt case and the escalated
+  // retry funnel into it via pendingFallbackReason.
+  if (pendingFallbackReason) {
+    await logPlatformFallback(pendingFallbackReason);
+  }
 
   return { ...result, success: true };
 }
