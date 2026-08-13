@@ -1,6 +1,9 @@
 === SCOPE: READ THIS BEFORE YOU CHANGE ANYTHING ===
 
-Two files. One is NEW and given below in full — create it exactly as written. The
+Two files, both of which ALREADY EXIST. Create nothing.
+
+One is a shared module that was pushed to main in commit 67058ea2 — it is given
+below in full so you can verify it byte for byte, not so you can write it. The
 other is an existing shared module with four specific edits.
 
 Context for why this matters: exactly ONE organisation of 30 currently receives its
@@ -53,8 +56,25 @@ A test asserts all three stay distinct.
 
 === FILE 1 of 2: supabase/functions/_shared/email-sender-resolution.ts ===
 
-NEW file. Create it with EXACTLY these contents — no reformatting, no added
-imports, no logic changes.
+DO NOT CREATE THIS FILE. It already exists at that exact path — it was pushed to
+main in commit 67058ea2, so it is in the repo you are looking at right now.
+
+Your job here is to VERIFY, not to write. Open the file and confirm it matches the
+copy below byte for byte. Nothing in FILE 2 works unless it does.
+
+  sha256: 8c0c8e33a758…   (first 12 hex chars; 159 lines)
+
+If it matches — say so and move straight on to FILE 2. Change nothing.
+
+If it does NOT match, or the file is missing, STOP and report the difference
+instead of fixing it. A silent "correction" here is the failure mode this whole
+message is guarding against: the file's behaviour is pinned by 15 tests in
+src/lib/emailSenderResolution.test.ts, which live outside supabase/ and which you
+cannot run. Reformatting it, adding an import, tightening a type, or "improving" a
+branch would break those tests with no signal on your side that anything happened.
+
+The copy below is the REFERENCE you compare against. It is not an instruction to
+write anything — no reformatting, no added imports, no logic changes.
 
 ```ts
 /**
@@ -363,8 +383,10 @@ Four edits to the EXISTING file. Line numbers are from the current version.
 
 === REPORT BACK, ALL OF IT IN ONE REPLY ===
 
-a) Confirm email-sender-resolution.ts was created with ZERO import statements, and
-   give me its line count.
+a) Confirm the EXISTING email-sender-resolution.ts matches the reference byte for
+   byte, and that you changed nothing in it. Give me its line count and its
+   import-statement count — both should be 159 and 0. If either differs, say so
+   rather than correcting it.
 
 b) Paste the real signature of log_org_email_send_failure (from
    send-org-email.ts's logFailure, or from the database), and say whether you had
