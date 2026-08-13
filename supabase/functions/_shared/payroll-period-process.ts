@@ -815,15 +815,27 @@ export async function processOrg(
     if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
       console.warn(
         `[payroll-period-report] org ${org.id}: org identity failed (${firstError}); ` +
-        `retrying from the platform sender.`,
+        `retrying from the platform sender immediately.`,
       );
       resend = new Resend(platformKey as string);
       fromHeader = escalated.sender.from;
-      await logPlatformFallback(String(escalated.sender.fallbackReason));
+      pendingFallbackReason = String(escalated.sender.fallbackReason);
+      // NO WAIT ON THIS PATH, deliberately. The identity itself has just changed,
+      // and the failure it is working around — an unverified From address, or a
+      // rejected API key — is a permanent validation error from Resend, not a
+      // transient one. Thirty seconds cannot change that outcome. Only the swap
+      // two lines above can, and it has already happened.
+      //
+      // The cost is not theoretical: payroll-period-report/index.ts:63 runs a
+      // single serial `for` loop over every organisation in one invocation, so
+      // every needless sleep is 30 seconds added to one shared wall clock, and the
+      // orgs that hit this path are precisely the misconfigured ones.
+    } else {
+      // Identity unchanged, so the only thing that could differ on a second
+      // attempt is a genuinely transient failure — which is what a backoff is for.
+      // Original behaviour, preserved for this case only.
+      await new Promise((resolve) => setTimeout(resolve, 30_000));
     }
-
-    // ONE retry, same 30-second wait as before.
-    await new Promise((resolve) => setTimeout(resolve, 30_000));
     try {
       const r = await sendOnce();
       if ((r as any)?.error) sendError = (r as any).error;
