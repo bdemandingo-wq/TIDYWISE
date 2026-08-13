@@ -56,7 +56,40 @@ async function persistOrgContext(
       `any isolation test using it would pass vacuously. Seat it in an org first.`,
   ).toBeGreaterThan(0);
 
-  const organizationId = memberships[0].organization_id;
+  // Never pick a row arbitrarily. This used to be memberships[0], which is
+  // whatever order PostgREST happened to return — the same silent
+  // first-match-wins guess that produced a month of dead credentials, a stale
+  // hardcoded org id, and a suite of hollow passes.
+  const distinctOrgs = [...new Set(memberships.map((m) => m.organization_id))];
+  expect(
+    distinctOrgs.length,
+    `the ${role} account belongs to ${distinctOrgs.length} different orgs ` +
+      `(${distinctOrgs.join(", ")}). There is no correct answer to "which org is ` +
+      `this account's", so refusing rather than guessing. Remove the extra ` +
+      `membership, or use a dedicated single-org account for QA.`,
+  ).toBe(1);
+
+  // Resolve duplicate rows for the SAME org deterministically by privilege,
+  // rather than by row order. The QA owner currently has both an `owner` and a
+  // `member` row for its org — see
+  // docs/superpowers/plans/2026-08-13-duplicate-org-memberships.md
+  const ROLE_PRIORITY = ["owner", "admin", "manager", "member"];
+  const rank = (r: string) => {
+    const i = ROLE_PRIORITY.indexOf(r);
+    return i === -1 ? ROLE_PRIORITY.length : i;
+  };
+  const chosen = [...memberships].sort((a, b) => rank(a.role) - rank(b.role))[0];
+
+  if (memberships.length > 1) {
+    console.warn(
+      `[setup] ${role} has ${memberships.length} membership rows for org ` +
+        `${chosen.organization_id} (roles: ${memberships.map((m) => m.role).join(", ")}). ` +
+        `Using the most privileged, "${chosen.role}". Duplicate memberships can ` +
+        `confuse any is_org_admin-style check that reads the first match.`,
+    );
+  }
+
+  const organizationId = chosen.organization_id;
 
   // staffId is best-effort: only the staff account is expected to have a row,
   // and security.spec.ts needs a REAL one to prove a spoofed org is rejected.
@@ -73,13 +106,13 @@ async function persistOrgContext(
   writeFileSync(
     `tests/.auth/${role}-org.json`,
     JSON.stringify(
-      { organizationId, role: memberships[0].role, staffId, derivedAt: new Date().toISOString() },
+      { organizationId, role: chosen.role, staffId, derivedAt: new Date().toISOString() },
       null,
       2,
     ),
   );
   console.log(
-    `[setup] ${role}: org=${organizationId} role=${memberships[0].role} staffId=${staffId ?? "none"}`,
+    `[setup] ${role}: org=${organizationId} role=${chosen.role} staffId=${staffId ?? "none"}`,
   );
 }
 
