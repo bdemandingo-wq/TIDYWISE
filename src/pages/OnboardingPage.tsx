@@ -28,6 +28,11 @@ import { Capacitor } from '@capacitor/core';
 import { LocalePickers } from '@/components/admin/LocalePickers';
 import { detectBrowserCurrency } from '@/lib/currency';
 import { detectBrowserTimezone } from '@/lib/timezones';
+import {
+  buildAnswersPayload,
+  normalizeAnswers,
+  primaryPain,
+} from '@/lib/onboardingAnswers';
 
 function slugify(input: string) {
   return input
@@ -58,7 +63,7 @@ interface QualifyingOption {
   sub?: string;
 }
 interface QualifyingQuestion {
-  key: 'teamSize' | 'bookingMethod' | 'biggestPain' | 'revenueGoal';
+  key: 'teamSize' | 'bookingMethod' | 'biggestPain' | 'revenueGoal' | 'howHeard';
   title: string;
   description: string;
   options: QualifyingOption[];
@@ -109,6 +114,24 @@ const QUALIFYING_QUESTIONS: QualifyingQuestion[] = [
       { value: '50k', label: '$50k+/mo operation', sub: 'Multi-team, serious growth' },
     ],
   },
+  // Last on purpose. The four above run self-identification → pain → agitation →
+  // aspiration, so the user has articulated WHY they need this by the time they
+  // reach the paywall. This one is an attribution question that serves us, not
+  // them — putting it mid-arc would interrupt the only part of onboarding doing
+  // persuasive work. Its answer is deliberately ignored by recommendPlan.
+  {
+    key: 'howHeard',
+    title: 'How did you hear about us?',
+    description: 'Pick any that apply',
+    options: [
+      { value: 'fb_ad', label: 'Facebook ad' },
+      { value: 'fb_group', label: 'Facebook group' },
+      { value: 'tiktok', label: 'TikTok' },
+      { value: 'google', label: 'Google search' },
+      { value: 'referral', label: 'Friend or referral' },
+      { value: 'other', label: 'Other' },
+    ],
+  },
 ];
 
 // Maps biggestPain → the line shown while "building the dashboard"
@@ -128,9 +151,9 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   // Qualifying answers (steps 2-5). Persisted to sessionStorage on
   // completion so /choose-plan can personalize the recommendation.
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  // Briefly-highlighted option before auto-advance (visual confirmation).
-  const [flashValue, setFlashValue] = useState<string | null>(null);
+  // Multi-select: every question holds an ARRAY of chosen option values. Shape
+  // handling lives in @/lib/onboardingAnswers, which is where it is tested.
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   // Post-creation "building your dashboard" overlay.
   const [building, setBuilding] = useState(false);
   const [buildStage, setBuildStage] = useState(0);
@@ -324,6 +347,14 @@ export default function OnboardingPage() {
         }).catch(err => console.log('Admin notification failed (non-critical):', err));
       }
 
+      // Captured once, in the org-creation insert itself. Not a follow-up
+      // update: migration 20260616202614 revoked table-wide UPDATE on
+      // organizations from authenticated and re-granted only
+      // (name, slug, logo_url, updated_at), so a later update of this column
+      // would be silently denied. Built outside the retry loop — the payload
+      // does not change between slug attempts.
+      const onboardingAnswersPayload = buildAnswersPayload(normalizeAnswers(answers));
+
       // Try a few times in case the slug is taken.
       let orgData: any = null;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -335,6 +366,7 @@ export default function OnboardingPage() {
             name,
             owner_id: user.id,
             slug,
+            onboarding_answers: onboardingAnswersPayload,
           })
           .select()
           .single();
@@ -479,19 +511,31 @@ export default function OnboardingPage() {
   const canProceedStep1 = businessName.trim().length >= 2;
   const canProceedStep2 = selectedServices.size > 0;
 
-  const totalSteps = 6;
+  // 1 name · 2-6 the five qualifying questions · 7 services.
+  const totalSteps = 7;
   const currentQuestion =
-    step >= 2 && step <= 5 ? QUALIFYING_QUESTIONS[step - 2] : null;
+    step >= 2 && step <= 6 ? QUALIFYING_QUESTIONS[step - 2] : null;
 
-  const selectQualifyingOption = (key: string, value: string) => {
-    setAnswers((prev) => ({ ...prev, [key]: value }));
-    setFlashValue(value);
-    // Brief highlight so the tap feels acknowledged, then auto-advance.
-    window.setTimeout(() => {
-      setFlashValue(null);
-      setStep((s) => s + 1);
-    }, 280);
+  // Multi-select, so nothing auto-advances any more: the user has to be able to
+  // tick a second option, which means an explicit Continue. The checked state is
+  // its own acknowledgement, so the old 280ms flash-then-advance is gone.
+  const toggleQualifyingOption = (key: string, value: string) => {
+    setAnswers((prev) => {
+      const current = prev[key] ?? [];
+      return {
+        ...prev,
+        [key]: current.includes(value)
+          ? current.filter((v) => v !== value)
+          : [...current, value],
+      };
+    });
   };
+
+  // Every question requires at least one answer. Auto-advance made that implicit
+  // — a question could not be passed without answering it — and a Continue button
+  // that accepted an empty selection would quietly make all five optional.
+  const canProceedQuestion =
+    !!currentQuestion && (answers[currentQuestion.key]?.length ?? 0) > 0;
 
   // Show loading spinner while checking organization status
   if (orgLoading) {
@@ -528,7 +572,8 @@ export default function OnboardingPage() {
               {[
                 'Creating your online booking page',
                 'Setting up your team scheduler & CRM',
-                PAIN_BUILD_LINE[answers.biggestPain] || 'Automating your admin workflows',
+                PAIN_BUILD_LINE[primaryPain(normalizeAnswers(answers)) ?? ''] ||
+                  'Automating your admin workflows',
                 'Preparing your growth plan',
               ].map((line, i) => (
                 <div
@@ -581,7 +626,7 @@ export default function OnboardingPage() {
           <CardDescription>
             {step === 1 && "Let's start with your business name"}
             {currentQuestion && currentQuestion.description}
-            {step === 6 && "Choose which cleaning services you want to offer"}
+            {step === 7 && "Choose which cleaning services you want to offer"}
           </CardDescription>
           
           {/* Progress indicator */}
@@ -661,18 +706,18 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Steps 2-5: Qualifying questions — tap to auto-advance */}
+          {/* Steps 2-6: Qualifying questions — multi-select, then Continue */}
           {currentQuestion && (
             <div className="space-y-3">
               {currentQuestion.options.map((opt) => {
                 const selected =
-                  answers[currentQuestion.key] === opt.value || flashValue === opt.value;
+                  answers[currentQuestion.key]?.includes(opt.value) ?? false;
                 return (
                   <button
                     key={opt.value}
                     type="button"
-                    disabled={flashValue !== null}
-                    onClick={() => selectQualifyingOption(currentQuestion.key, opt.value)}
+                    aria-pressed={selected}
+                    onClick={() => toggleQualifyingOption(currentQuestion.key, opt.value)}
                     className={cn(
                       'w-full flex items-center justify-between rounded-lg border p-4 text-left transition-all',
                       'hover:border-primary hover:bg-primary/5',
@@ -697,6 +742,14 @@ export default function OnboardingPage() {
                 );
               })}
               <Button
+                className="w-full"
+                size="lg"
+                disabled={!canProceedQuestion}
+                onClick={() => setStep((s) => s + 1)}
+              >
+                Continue <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
                 variant="ghost"
                 size="sm"
                 className="w-full text-muted-foreground"
@@ -707,8 +760,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* Step 6: Service Selection */}
-          {step === 6 && (
+          {/* Step 7: Service Selection */}
+          {step === 7 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
@@ -859,7 +912,7 @@ export default function OnboardingPage() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setStep(5)}
+                  onClick={() => setStep(6)}
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Button>

@@ -13,6 +13,13 @@ import { Check, Crown, Loader2, Lock, LogOut, Sparkles } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { useLifetimeCounter } from '@/hooks/useLifetimeCounter';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
+import {
+  hasAnswer,
+  normalizeAnswers,
+  primaryPain,
+  recommendPlan,
+  type OnboardingAnswers,
+} from '@/lib/onboardingAnswers';
 
 type Interval = 'monthly' | 'yearly';
 
@@ -104,27 +111,34 @@ function priceFor(tier: Tier, interval: Interval): { display: string; sub: strin
 }
 
 // ── Personalization from onboarding answers ─────────────────────────────
-interface OnboardingAnswers {
-  teamSize?: string;
-  bookingMethod?: string;
-  biggestPain?: string;
-  revenueGoal?: string;
-  businessName?: string;
-}
+// The shape and the recommendation rules live in @/lib/onboardingAnswers, which
+// is unit-tested. They used to be local to this file, where they could not be:
+// the answers became multi-select (string[]), and every consumer here failed
+// SILENTLY on that — `a.teamSize === 'large'` is false for ['large'], so every
+// user would quietly have been recommended 'pro'.
 
+/** Read raw, normalise through the tested module. */
 function readAnswers(): OnboardingAnswers {
   try {
-    const raw = sessionStorage.getItem('tw_onboarding_answers');
-    return raw ? (JSON.parse(raw) as OnboardingAnswers) : {};
+    return normalizeAnswers(JSON.parse(sessionStorage.getItem('tw_onboarding_answers') ?? 'null'));
   } catch {
-    return {};
+    return normalizeAnswers(null);
   }
 }
 
-function recommendPlan(a: OnboardingAnswers): Tier['id'] {
-  if (a.teamSize === 'large' || a.revenueGoal === '50k') return 'custom';
-  if (a.teamSize === 'solo' && a.revenueGoal === '5k') return 'basic';
-  return 'pro';
+/**
+ * businessName is read separately: it is a plain string written alongside the
+ * answers, and normalizeAnswers deliberately drops unknown keys so nothing
+ * user-writable rides into the database payload.
+ */
+function readBusinessName(): string | null {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem('tw_onboarding_answers') ?? 'null');
+    const name = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).businessName : null;
+    return typeof name === 'string' && name.trim() ? name : null;
+  } catch {
+    return null;
+  }
 }
 
 // Ties the paywall pitch back to the pain they named minutes ago.
@@ -165,8 +179,12 @@ export default function ChoosePlanPage() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   // Onboarding answers — read once; personalizes headline + recommendation.
   const [personal] = useState<OnboardingAnswers>(() => readAnswers());
+  const [businessName] = useState<string | null>(() => readBusinessName());
   const recommendedId = recommendPlan(personal);
-  const painPitch = personal.biggestPain ? PAIN_PITCH[personal.biggestPain] : null;
+  // primaryPain, not personal.biggestPain: PAIN_PITCH is keyed by ONE pain and
+  // indexing it with an array yields undefined — no pitch, no error, no clue.
+  const pain = primaryPain(personal);
+  const painPitch = pain ? PAIN_PITCH[pain] : null;
   // One redirect per click — same duplicate-session guard as PricingPage.
   const isRedirectingRef = useRef(false);
 
@@ -308,8 +326,8 @@ export default function ChoosePlanPage() {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-sm font-medium mb-4">
             <Sparkles className="h-4 w-4" />
-            {personal.businessName
-              ? `${personal.businessName} is set up and ready`
+            {businessName
+              ? `${businessName} is set up and ready`
               : 'Last step — your business is set up'}
           </div>
           <h1 className="pv-display text-3xl sm:text-5xl tracking-tight">
@@ -358,7 +376,10 @@ export default function ChoosePlanPage() {
               >
                 {isRecommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 whitespace-nowrap">
-                    {personal.teamSize ? 'Recommended for you' : 'Most popular'}
+                    {/* hasAnswer, not truthiness: an empty ARRAY is truthy, so
+                        `personal.teamSize ?` would claim a personalised
+                        recommendation for someone who answered nothing. */}
+                    {hasAnswer(personal.teamSize) ? 'Recommended for you' : 'Most popular'}
                   </div>
                 )}
                 <CardContent className="flex flex-col flex-1 pt-6 space-y-4">
