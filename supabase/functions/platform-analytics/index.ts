@@ -102,7 +102,7 @@ serve(async (req) => {
       // Check org_memberships (owners/admins)
       const { data: memberships } = await supabaseClient
         .from('org_memberships')
-        .select('user_id, role, organization:organizations(id, name)')
+        .select('user_id, role, organization:organizations(id, name, onboarding_answers)')
         .in('user_id', userIds);
 
       // Check staff table (staff/cleaners who signed up)
