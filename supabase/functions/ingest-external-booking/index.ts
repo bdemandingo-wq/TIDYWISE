@@ -42,15 +42,71 @@ function json(body: unknown, status = 200) {
   });
 }
 
+async function sha256Hex(value: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Constant-time comparison over equal-length hex digests.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  const expectedKey = Deno.env.get("EXTERNAL_BOOKING_INGEST_KEY");
-  if (!expectedKey) return json({ error: "Ingest key not configured" }, 500);
-
   const provided = req.headers.get("x-api-key") || "";
-  if (provided !== expectedKey) return json({ error: "Unauthorized" }, 401);
+  if (!provided) return json({ error: "Unauthorized" }, 401);
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } }
+  );
+
+  const providedHash = await sha256Hex(provided);
+
+  // 1. Per-site key lookup. Unknown key and inactive key return the SAME 401.
+  const { data: keyRow } = await supabase
+    .from("external_booking_keys")
+    .select("key_hash, organization_id, active, label")
+    .eq("key_hash", providedHash)
+    .maybeSingle();
+
+  let organization_id: string | null = null;
+  let matchedKeyHash: string | null = null;
+  let legacyFallback = false;
+
+  if (keyRow && timingSafeEqual(keyRow.key_hash, providedHash) && keyRow.active === true) {
+    organization_id = keyRow.organization_id;
+    matchedKeyHash = keyRow.key_hash;
+  } else if (!keyRow) {
+    // 2. Legacy fallback: the single shared key + EXTERNAL_BOOKING_ORG_ID.
+    const legacyKey = Deno.env.get("EXTERNAL_BOOKING_INGEST_KEY") || "";
+    const legacyOrg = Deno.env.get("EXTERNAL_BOOKING_ORG_ID") || "";
+    if (legacyKey && legacyOrg) {
+      const legacyHash = await sha256Hex(legacyKey);
+      if (timingSafeEqual(legacyHash, providedHash)) {
+        organization_id = legacyOrg;
+        legacyFallback = true;
+        // Self-seed the shared key so the mapping table becomes authoritative.
+        const { error: seedErr } = await supabase
+          .from("external_booking_keys")
+          .upsert(
+            { key_hash: legacyHash, organization_id: legacyOrg, label: "shared-legacy", active: true },
+            { onConflict: "key_hash" }
+          );
+        if (seedErr) console.error("[ingest-external-booking] Failed to seed legacy key:", seedErr.message);
+        else matchedKeyHash = legacyHash;
+      }
+    }
+  }
+
+  if (!organization_id) return json({ error: "Unauthorized" }, 401);
 
   let body: any;
   try {
@@ -59,10 +115,17 @@ Deno.serve(async (req) => {
     return json({ error: "Invalid JSON body" }, 400);
   }
 
-  // Resolve target org
-  const orgFromSecret = Deno.env.get("EXTERNAL_BOOKING_ORG_ID");
-  const organization_id = orgFromSecret || body.organization_id;
-  if (!organization_id) return json({ error: "No target organization_id configured" }, 400);
+  // body.organization_id is never honored — the key decides the tenant.
+  if (body.organization_id && body.organization_id !== organization_id) {
+    console.warn(
+      "[ingest-external-booking] TAMPER SIGNAL: body.organization_id",
+      body.organization_id,
+      "does not match key-mapped org",
+      organization_id,
+      legacyFallback ? "(legacy fallback)" : ""
+    );
+  }
+
 
   // Required fields
   const email: string | undefined = body.email?.toString().trim().toLowerCase();
