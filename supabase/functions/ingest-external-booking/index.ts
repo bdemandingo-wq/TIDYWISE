@@ -152,6 +152,97 @@ Deno.serve(async (req) => {
     serviceId = svc?.id ?? null;
   }
 
+  // 2b. Resolve extras: the site sends LABELS ("Inside Oven", "Interior Windows ×3"),
+  // but the CRM matches on service_pricing.extras[].id. Resolve name -> id here.
+  const normalize = (s: string) =>
+    s
+      .replace(/\s*[x×]\s*\d+\s*$/i, "") // strip " ×3" / " x3" quantity suffix
+      .trim()
+      .toLowerCase();
+
+  const requestedExtras: string[] = Array.isArray(body.extras)
+    ? body.extras
+        .map((e: unknown) => {
+          if (typeof e === "string") return e;
+          if (e && typeof e === "object") {
+            const o = e as { name?: unknown; id?: unknown };
+            if (typeof o.name === "string") return o.name;
+            if (typeof o.id === "string") return o.id;
+          }
+          return "";
+        })
+        .filter((s: string) => s.trim().length > 0)
+    : [];
+
+  const resolvedExtras: string[] = [];
+  const droppedExtras: string[] = [];
+  const ambiguousExtras: string[] = [];
+
+  if (requestedExtras.length > 0) {
+    // Same catalogue-selection rule the app uses: created_at ASC, id ASC,
+    // first row that actually carries extras.
+    const { data: pricingRows, error: pricingErr } = await supabase
+      .from("service_pricing")
+      .select("id, extras, created_at")
+      .eq("organization_id", organization_id)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (pricingErr) {
+      return json({ error: "Failed to load extras catalogue", details: pricingErr.message }, 500);
+    }
+
+    let catalogue: Array<{ id: string; name: string }> = [];
+    for (const row of pricingRows ?? []) {
+      const raw = (row as { extras?: unknown }).extras;
+      if (Array.isArray(raw) && raw.length > 0) {
+        catalogue = raw
+          .filter(
+            (e: any) =>
+              !!e && typeof e === "object" && typeof e.id === "string" && typeof e.name === "string",
+          )
+          .map((e: any) => ({ id: e.id, name: e.name }));
+        break;
+      }
+    }
+
+    // name -> ids (a catalogue can legitimately carry the same name twice)
+    const byName = new Map<string, string[]>();
+    const byId = new Set<string>();
+    for (const e of catalogue) {
+      byId.add(e.id);
+      const key = normalize(e.name);
+      byName.set(key, [...(byName.get(key) ?? []), e.id]);
+    }
+
+    for (const requested of requestedExtras) {
+      const key = normalize(requested);
+
+      // Already an id? keep it.
+      if (byId.has(requested.trim())) {
+        resolvedExtras.push(requested.trim());
+        continue;
+      }
+
+      const matches = byName.get(key) ?? [];
+      if (matches.length === 1) {
+        resolvedExtras.push(matches[0]);
+      } else if (matches.length > 1) {
+        // Ambiguous — never guess. Drop it and report.
+        ambiguousExtras.push(requested);
+      } else {
+        droppedExtras.push(requested);
+      }
+    }
+
+    if (droppedExtras.length > 0 || ambiguousExtras.length > 0) {
+      console.warn(
+        "[ingest-external-booking] extras unresolved",
+        JSON.stringify({ organization_id, dropped: droppedExtras, ambiguous: ambiguousExtras }),
+      );
+    }
+  }
+
   // 3. Insert booking
   const { data: booking, error: bookErr } = await supabase
     .from("bookings")
@@ -173,8 +264,9 @@ Deno.serve(async (req) => {
       bedrooms: body.bedrooms?.toString() ?? "1",
       bathrooms: body.bathrooms?.toString() ?? "1",
       square_footage: body.square_footage?.toString() ?? null,
-      extras: Array.isArray(body.extras) ? body.extras : [],
+      extras: resolvedExtras,
     })
+
     .select("id, booking_number, scheduled_at")
     .single();
 
@@ -186,5 +278,8 @@ Deno.serve(async (req) => {
     booking_number: booking.booking_number,
     scheduled_at: booking.scheduled_at,
     customer_id: customerId,
+    extras: resolvedExtras,
+    extras_dropped: droppedExtras,
+    extras_ambiguous: ambiguousExtras,
   });
 });
