@@ -278,5 +278,8 @@ Deno.serve(async (req) => {
     booking_number: booking.booking_number,
     scheduled_at: booking.scheduled_at,
     customer_id: customerId,
+    extras: resolvedExtras,
+    extras_dropped: droppedExtras,
+    extras_ambiguous: ambiguousExtras,
   });
 });
