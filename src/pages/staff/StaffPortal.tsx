@@ -74,6 +74,7 @@ interface Booking extends WageBooking {
   bathrooms?: string | null;
   team_pay_share?: number | null;
   notes?: string | null;
+  customer_notes?: string | null;
   customer: {
     first_name: string;
     last_name: string;
@@ -348,7 +349,7 @@ export default function StaffPortal() {
           id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code, extras,
           total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
           cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
-          cleaner_checkin_at, cleaner_checkout_at, notes,
+          cleaner_checkin_at, cleaner_checkout_at, notes, customer_notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)
@@ -369,7 +370,7 @@ export default function StaffPortal() {
             id, organization_id, staff_id, customer_id, booking_number, scheduled_at, duration, status, address, city, state, zip_code, extras,
             total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
             cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
-            cleaner_checkin_at, cleaner_checkout_at, notes,
+            cleaner_checkin_at, cleaner_checkout_at, notes, customer_notes,
             customer:customers(first_name, last_name, phone),
             service:services(name)
           )
@@ -505,7 +506,7 @@ export default function StaffPortal() {
           total_amount, subtotal, discount_amount, cleaner_wage, cleaner_wage_type,
           cleaner_actual_payment, cleaner_pay_expected, cleaner_override_hours,
           cleaner_checkin_at, cleaner_checkout_at,
-          square_footage, bedrooms, bathrooms, notes,
+          square_footage, bedrooms, bathrooms, notes, customer_notes,
           customer:customers(first_name, last_name, phone),
           service:services(name)
         `)

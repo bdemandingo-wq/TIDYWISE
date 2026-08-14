@@ -17,6 +17,7 @@ import { Calendar, MapPin, Clock, User, CheckCircle2, DollarSign, TrendingUp, Lo
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
 
 type StaffInfo = WageStaff;
 
@@ -32,6 +33,8 @@ interface Booking extends WageBooking {
   bedrooms?: string | null;
   bathrooms?: string | null;
   notes?: string | null;
+  /** The customer's own words, from the booking they submitted. Read-only. */
+  customer_notes?: string | null;
   /** Add-on slugs; labels resolve per-org. See lib/bookingExtras. */
   extras?: unknown;
   customer: {
@@ -186,6 +189,9 @@ export function AvailableJobCard({ booking, staffInfo, organizationId, orgExtras
               </div>
             </div>
           )}
+          {/* The customer's own note, after ours — never merged with it. Renders
+              nothing when absent, which is most bookings. */}
+          <CustomerNotesBlock value={booking.customer_notes} variant="staff" />
           <Button
             className="w-full mt-2 gap-2 bg-success hover:bg-success/90"
             onClick={handleClaimClick}

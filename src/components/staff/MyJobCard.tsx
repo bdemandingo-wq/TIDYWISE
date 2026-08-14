@@ -17,6 +17,7 @@ import { useMapsNavigation } from '@/hooks/useMapsNavigation';
 import { useCleanerTracking } from '@/hooks/useCleanerTracking';
 import { supabase } from '@/lib/supabase';
 import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
+import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
 import { toast } from 'sonner';
 
 interface PropertyNote {
@@ -45,6 +46,8 @@ interface Booking extends WageBooking {
   state: string | null;
   zip_code: string | null;
   notes?: string | null;
+  /** The customer's own words, from the booking they submitted. Read-only. */
+  customer_notes?: string | null;
   /** Add-on slugs; labels resolve per-org. See lib/bookingExtras. */
   extras?: unknown;
   customer: {
@@ -389,6 +392,10 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
             </div>
           </div>
         )}
+
+        {/* The customer's own note, after ours — never merged with it. Renders
+            nothing when absent, which is most bookings. */}
+        <CustomerNotesBlock value={booking.customer_notes} variant="staff" />
 
         {/* Add-ons the customer ordered. Written to bookings.extras by both
             booking forms and, until now, never shown to the person doing the

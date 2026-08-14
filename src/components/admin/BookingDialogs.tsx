@@ -29,6 +29,7 @@ import { useOrgTimezone } from "@/hooks/useOrgTimezone";
 import { orgDateKey, formatInOrgTz } from "@/lib/orgDateRange";
 import { AdminLiveTracking } from "./AdminLiveTracking";
 import { fmt } from '@/lib/activeCurrency';
+import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
 
 const STATUS_OPTIONS: Array<{ value: BookingWithDetails["status"]; label: string }> = [
   { value: "pending", label: "Pending Payment" },
@@ -279,6 +280,10 @@ export function BookingDetailsDialog({
               <p className="text-sm whitespace-pre-wrap">{booking.notes}</p>
             </div>
           ) : null}
+
+          {/* The customer's own words. Separate block, separate label — read-only.
+              useBookings selects *, so this arrives without a query change. */}
+          <CustomerNotesBlock value={(booking as { customer_notes?: unknown }).customer_notes} />
 
           <AdminLiveTracking
             bookingId={booking.id}
@@ -580,6 +585,13 @@ export function EditBookingDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
+              {/* Above the textarea, not below: it is context for what you are
+                  about to write. Read-only — this is the customer's text and the
+                  save path below writes `notes` only. */}
+              <CustomerNotesBlock
+                value={(booking as { customer_notes?: unknown } | null)?.customer_notes}
+                className="mb-2"
+              />
               <Label>Notes</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
             </div>
