@@ -1,0 +1,101 @@
+=== SCOPE: ONE MIGRATION, ONE COLUMN. NOTHING ELSE. ===
+
+Add a single nullable jsonb column to public.organizations. Run the migration and
+confirm it applied against the live database.
+
+Do NOT:
+  - add a DEFAULT. The column must be NULL for every existing row.
+  - add NOT NULL.
+  - backfill anything. Existing organizations keep NULL, permanently and on
+    purpose — this data is captured going forward only, and a guessed value is
+    worse than no value because it looks like evidence.
+  - add, drop, or modify ANY RLS policy on public.organizations. Its four
+    policies are correct as they stand and one of them is the anti-privilege-
+    escalation INSERT check. See "WHY NOT" below.
+  - add or change any GRANT on public.organizations. In particular do not touch
+    the column-level UPDATE grant — see "WHY NOT".
+  - create an index on this column.
+  - touch any other table, function, or edge function.
+  - change anything in src/. No application code is part of this task.
+  - "improve" anything else you notice. Report it in your reply and leave it.
+
+
+=== THE MIGRATION ===
+
+```sql
+ALTER TABLE public.organizations
+  ADD COLUMN IF NOT EXISTS onboarding_answers jsonb;
+
+COMMENT ON COLUMN public.organizations.onboarding_answers IS
+  'Onboarding qualifying answers, captured once at organization creation. Shape: {"teamSize":[],"bookingMethod":[],"biggestPain":[],"revenueGoal":[],"howHeard":[]} — every value is an array of option slugs because the questions are multi-select. Forward-looking only: NULL for organizations created before 2026-08-13, and deliberately never backfilled.';
+```
+
+That is the entire change.
+
+
+=== WHY NOT: two things on this table that must stay exactly as they are ===
+
+1. THE INSERT POLICY.
+
+     CREATE POLICY "Users can create organizations"
+     ON public.organizations FOR INSERT
+     TO authenticated
+     WITH CHECK (auth.uid() = owner_id);
+
+   It is row-level and names no columns, so adding a column does not require
+   touching it. Adding one nullable column changes nothing about who may insert.
+   Leave it alone.
+
+2. THE COLUMN-LEVEL UPDATE GRANT (migration 20260616202614).
+
+     REVOKE UPDATE ON public.organizations FROM authenticated;
+     GRANT UPDATE (name, slug, logo_url, updated_at) ON public.organizations TO authenticated;
+
+   This is deliberate hardening: owners may edit display fields, but billing-state
+   columns are off-limits to authenticated users. Do NOT add onboarding_answers to
+   that grant list. The value is written once, inside the org-creation INSERT, and
+   is never updated by a client afterwards. Adding it to the UPDATE grant would
+   hand every logged-in owner a writable column for no reason.
+
+
+=== VERIFY, THEN REPORT ===
+
+A migration file existing is not proof it ran. Confirm against the live database,
+not against the file:
+
+```sql
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name  = 'organizations'
+  AND column_name = 'onboarding_answers';
+```
+
+Expected exactly: onboarding_answers | jsonb | YES | NULL
+
+Then confirm the policies are untouched:
+
+```sql
+SELECT policyname, cmd, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'public' AND tablename = 'organizations'
+ORDER BY policyname;
+```
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Paste the first query's result row verbatim. I need to see is_nullable = YES
+   and column_default = NULL.
+
+b) Paste the full output of the second query — all policies on organizations,
+   with their qual and with_check expressions. I want to compare them against
+   what they were before this migration.
+
+c) Confirm the migration is APPLIED to the live database, not just committed.
+
+d) Confirm you changed no RLS policy, no GRANT, and no file under src/.
+
+e) State how many existing organizations now have onboarding_answers IS NOT NULL.
+   The correct answer is zero. Any other number means something backfilled.
+
+f) List anything you noticed but deliberately did not touch.
