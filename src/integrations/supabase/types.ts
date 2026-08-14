@@ -2128,6 +2128,7 @@ export type Database = {
           created_at: string
           custom_frequency_days: number | null
           customer_id: string | null
+          customer_notes: string | null
           deposit_paid: number | null
           discount_amount: number | null
           discount_id: string | null
@@ -2203,6 +2204,7 @@ export type Database = {
           created_at?: string
           custom_frequency_days?: number | null
           customer_id?: string | null
+          customer_notes?: string | null
           deposit_paid?: number | null
           discount_amount?: number | null
           discount_id?: string | null
@@ -2278,6 +2280,7 @@ export type Database = {
           created_at?: string
           custom_frequency_days?: number | null
           customer_id?: string | null
+          customer_notes?: string | null
           deposit_paid?: number | null
           discount_amount?: number | null
           discount_id?: string | null
