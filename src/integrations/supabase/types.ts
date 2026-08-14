@@ -7518,6 +7518,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          onboarding_answers: Json | null
           owner_id: string
           plan_downgrade_date: string | null
           plan_downgrade_scheduled_to: string | null
@@ -7535,6 +7536,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          onboarding_answers?: Json | null
           owner_id: string
           plan_downgrade_date?: string | null
           plan_downgrade_scheduled_to?: string | null
@@ -7552,6 +7554,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          onboarding_answers?: Json | null
           owner_id?: string
           plan_downgrade_date?: string | null
           plan_downgrade_scheduled_to?: string | null
