@@ -5049,6 +5049,33 @@ export type Database = {
           },
         ]
       }
+      external_booking_keys: {
+        Row: {
+          active: boolean
+          created_at: string
+          key_hash: string
+          label: string | null
+          last_used_at: string | null
+          organization_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          key_hash: string
+          label?: string | null
+          last_used_at?: string | null
+          organization_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          key_hash?: string
+          label?: string | null
+          last_used_at?: string | null
+          organization_id?: string
+        }
+        Relationships: []
+      }
       facebook_lead_ingestions: {
         Row: {
           created_at: string
