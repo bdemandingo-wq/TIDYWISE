@@ -141,3 +141,139 @@ export function buildAnswersPayload(a: OnboardingAnswers): Record<QualifyingKey,
   }
   return payload;
 }
+
+// ─── ADMIN DISPLAY ──────────────────────────────────────────────────────────
+// Used by the Signups tab of Platform Analytics. Everything below is read-only
+// formatting of a value that arrives as `unknown` from an edge function.
+//
+// The governing fact: onboarding_answers is NULL for nearly every organisation
+// and always will be. The column landed 2026-08-13 and was deliberately never
+// backfilled, so "no data" is the normal case and must be presented as a stated
+// fact rather than as an empty panel.
+
+/**
+ * Admin-facing labels. Deliberately SEPARATE from the wizard's conversational
+ * labels in OnboardingPage — the two surfaces differ, and an admin table wants
+ * short strings where the wizard wants persuasive ones.
+ *
+ * The duplication is real. It is mitigated rather than denied: labelForOption
+ * falls back to the raw slug, so an option added to the wizard but not here
+ * shows up as `fb_reels` — visible, actionable, and obviously ours to fix —
+ * instead of rendering blank and reading as a bug.
+ */
+export const OPTION_LABELS: Record<QualifyingKey, Record<string, string>> = {
+  teamSize: {
+    solo: "Just me",
+    small: "Me + 1-4 cleaners",
+    mid: "5-15 cleaners",
+    large: "15+ cleaners",
+  },
+  bookingMethod: {
+    manual: "Calls & texts",
+    dms: "Instagram / Facebook DMs",
+    referrals: "Word of mouth",
+    software: "Another software",
+  },
+  biggestPain: {
+    scheduling: "Scheduling & dispatch",
+    payments: "Chasing payments",
+    noshows: "No-shows",
+    everything: "Doing everything alone",
+  },
+  revenueGoal: {
+    "5k": "First $5k/mo",
+    "10k": "Steady $10k/mo",
+    "25k": "Past $25k/mo",
+    "50k": "$50k+/mo",
+  },
+  howHeard: {
+    fb_ad: "Facebook ad",
+    fb_group: "Facebook group",
+    tiktok: "TikTok",
+    google: "Google search",
+    referral: "Friend or referral",
+    other: "Other",
+  },
+};
+
+/** Short question labels for the detail popover. */
+export const QUESTION_LABELS: Record<QualifyingKey, string> = {
+  teamSize: "Team size",
+  bookingMethod: "Bookings arrive via",
+  biggestPain: "Biggest pain",
+  revenueGoal: "12-month goal",
+  howHeard: "Heard about us via",
+};
+
+/**
+ * Did this organisation answer anything at all?
+ *
+ * False for a null column AND for a row whose five arrays are all empty — those
+ * are structurally identical after normalisation, and counting the second as
+ * "has data" would make the coverage figure overstate itself. A number that
+ * lies is worse than no number.
+ */
+export function hasOnboardingData(raw: unknown): boolean {
+  const a = normalizeAnswers(raw);
+  return QUALIFYING_KEYS.some((k) => a[k].length > 0);
+}
+
+/** A label, or the raw slug when the vocabulary has drifted. Never empty. */
+export function labelForOption(key: QualifyingKey, value: string): string {
+  return OPTION_LABELS[key]?.[value] ?? value;
+}
+
+/** Declared options in display order, used to make ordering deterministic. */
+const CANONICAL_ORDER: Record<QualifyingKey, readonly string[]> = {
+  teamSize: ["solo", "small", "mid", "large"],
+  bookingMethod: ["manual", "dms", "referrals", "software"],
+  biggestPain: ["scheduling", "payments", "noshows", "everything"],
+  revenueGoal: ["5k", "10k", "25k", "50k"],
+  howHeard: HOW_HEARD_VALUES,
+};
+
+/** Selected values in canonical order; anything unrecognised keeps its position at the end. */
+function inCanonicalOrder(key: QualifyingKey, values: string[]): string[] {
+  const known = CANONICAL_ORDER[key].filter((v) => values.includes(v));
+  const unknown = values.filter((v) => !CANONICAL_ORDER[key].includes(v));
+  return [...known, ...unknown];
+}
+
+/**
+ * The one source to show in the row, plus how many more there were.
+ *
+ * Ordered canonically rather than by stored order, so the same organisation
+ * never reads differently on two page loads.
+ */
+export function summariseSource(raw: unknown): { primary: string; extraCount: number } | null {
+  const selected = inCanonicalOrder("howHeard", normalizeAnswers(raw).howHeard);
+  if (selected.length === 0) return null;
+  return {
+    primary: labelForOption("howHeard", selected[0]),
+    extraCount: selected.length - 1,
+  };
+}
+
+/**
+ * Every answered question, labelled, for the detail popover. Unanswered
+ * questions are omitted rather than rendered blank — a row of empty values reads
+ * as broken, which is the failure this whole display is designed around.
+ */
+export function describeAnswers(
+  raw: unknown,
+): Array<{ key: QualifyingKey; question: string; labels: string[] }> {
+  const a = normalizeAnswers(raw);
+  return QUALIFYING_KEYS.filter((k) => a[k].length > 0).map((k) => ({
+    key: k,
+    question: QUESTION_LABELS[k],
+    labels: inCanonicalOrder(k, a[k]).map((v) => labelForOption(k, v)),
+  }));
+}
+
+/**
+ * How many rows carry any answers. This figure is what turns "almost everything
+ * is blank" from looking like a defect into being a measured statement.
+ */
+export function countWithOnboardingData(rows: Array<{ onboarding_answers?: unknown }>): number {
+  return rows.reduce((n, r) => (hasOnboardingData(r.onboarding_answers) ? n + 1 : n), 0);
+}

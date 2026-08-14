@@ -39,6 +39,13 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  countWithOnboardingData,
+  describeAnswers,
+  summariseSource,
+} from '@/lib/onboardingAnswers';
 import { useQuery } from '@tanstack/react-query';
 import { SEOHead } from '@/components/SEOHead';
 import { DemoCalendarTab } from '@/components/admin/DemoCalendarTab';
@@ -64,7 +71,22 @@ interface Subscriber {
 interface PlatformAnalytics {
   signups: {
     total: number;
-    recent: { id: string; email: string; created_at: string; org_name?: string | null; org_id?: string | null; role?: string | null }[];
+    recent: {
+      id: string;
+      email: string;
+      created_at: string;
+      org_name?: string | null;
+      org_id?: string | null;
+      role?: string | null;
+      /**
+       * jsonb from platform-analytics. `unknown`, not a concrete shape: it is
+       * NULL for every organisation created before 2026-08-13 and was never
+       * backfilled, and the API does not guarantee the shape. @/lib/onboardingAnswers
+       * narrows it. Claiming a shape the API cannot honour is how the silent
+       * failures in ChoosePlanPage started.
+       */
+      onboarding_answers?: unknown;
+    }[];
     last30Days: number;
   };
   organizations: {
@@ -916,6 +938,20 @@ export default function PlatformAnalyticsPage() {
                     )}
                   </div>
                 )}
+                {/*
+                  States the absence rather than leaving the reader to infer it.
+                  onboarding_answers is null for nearly every organisation — the
+                  column landed 2026-08-13 and was deliberately not backfilled —
+                  so without this line a column of dashes is indistinguishable
+                  from a broken panel. The number is the whole point.
+                */}
+                {analytics?.signups.recent && analytics.signups.recent.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {countWithOnboardingData(analytics.signups.recent)} of{' '}
+                    {analytics.signups.recent.length} signups have acquisition data — captured at
+                    onboarding from 13 Aug 2026, not backfilled.
+                  </p>
+                )}
                 <ScrollArea className="h-[400px] pr-4">
                   {analytics?.signups.recent && analytics.signups.recent.length > 0 ? (
                     <div className="space-y-2">
@@ -950,6 +986,55 @@ export default function PlatformAnalyticsPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
+                            {/*
+                              Fixed slot, always rendered. A dash only reads as
+                              "no data" if there is visibly a column for it to be
+                              missing from; rendered conditionally it would just
+                              look like the feature had not shipped.
+                            */}
+                            {(() => {
+                              const source = summariseSource(signup.onboarding_answers);
+                              if (!source) {
+                                return (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="w-20 text-right text-xs text-muted-foreground/50">
+                                        —
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      No acquisition data — this organisation signed up before the
+                                      question existed.
+                                    </TooltipContent>
+                                  </Tooltip>
+                                );
+                              }
+                              return (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    {/* Popover, not HoverCard: hover-only disclosure is
+                                        unreachable on touch, and this page is opened on phones. */}
+                                    <button type="button" className="shrink-0">
+                                      <Badge
+                                        variant="secondary"
+                                        className="cursor-pointer text-xs font-medium"
+                                      >
+                                        {source.primary}
+                                        {source.extraCount > 0 && ` +${source.extraCount}`}
+                                      </Badge>
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent align="end" className="w-72 space-y-2 text-xs">
+                                    {describeAnswers(signup.onboarding_answers).map((row) => (
+                                      <div key={row.key}>
+                                        <p className="text-muted-foreground">{row.question}</p>
+                                        <p className="font-medium">{row.labels.join(', ')}</p>
+                                      </div>
+                                    ))}
+                                  </PopoverContent>
+                                </Popover>
+                              );
+                            })()}
                             <Badge variant="outline" className="text-xs">
                               {format(new Date(signup.created_at), 'MMM d')}
                             </Badge>

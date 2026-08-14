@@ -38,6 +38,12 @@ import {
   primaryPain,
   hasAnswer,
   buildAnswersPayload,
+  // Admin display — see the ADMIN DISPLAY section at the foot of this file.
+  hasOnboardingData,
+  labelForOption,
+  summariseSource,
+  describeAnswers,
+  countWithOnboardingData,
   type OnboardingAnswers,
 } from "./onboardingAnswers.ts";
 
@@ -246,4 +252,128 @@ test("buildAnswersPayload does not mutate its input", () => {
   const snapshot = JSON.parse(JSON.stringify(a));
   buildAnswersPayload(a);
   assert.deepEqual(JSON.parse(JSON.stringify(a)), snapshot);
+});
+
+// ─── ADMIN DISPLAY ──────────────────────────────────────────────────────────
+// The Signups tab of Platform Analytics reads onboarding_answers off each row
+// returned by platform-analytics. Three things make this its own problem rather
+// than a formatting detail:
+//
+//   1. NULL IS THE NORMAL CASE. The column was added 2026-08-13 and deliberately
+//      never backfilled, so nearly every organisation has none and always will.
+//      Absence must read as "no data", not as a broken panel.
+//   2. THE VALUE IS UNTRUSTED. It arrives as `unknown` from an edge function and
+//      is jsonb in Postgres. It can be null, a legacy shape, or something a
+//      future migration put there.
+//   3. THE VOCABULARY CAN DRIFT. A new option added to the onboarding wizard but
+//      not to the label map here must degrade to something legible, not blank.
+//
+// See docs/superpowers/plans/2026-08-13-signups-acquisition-display.md
+
+test("hasOnboardingData is false for a null column — the common case", () => {
+  assert.equal(hasOnboardingData(null), false);
+  assert.equal(hasOnboardingData(undefined), false);
+});
+
+test("hasOnboardingData is false when every question is present but unanswered", () => {
+  // The subtle one. normalizeAnswers({}) produces five empty arrays, which is
+  // structurally identical to a row that was written with nothing selected.
+  // Neither should claim to have data, or the coverage count lies.
+  assert.equal(
+    hasOnboardingData({ teamSize: [], bookingMethod: [], biggestPain: [], revenueGoal: [], howHeard: [] }),
+    false,
+  );
+});
+
+test("hasOnboardingData is true when any single question was answered", () => {
+  assert.equal(hasOnboardingData({ howHeard: ["fb_ad"] }), true);
+  assert.equal(hasOnboardingData({ teamSize: ["solo"] }), true);
+});
+
+test("hasOnboardingData is false for junk rather than throwing", () => {
+  for (const junk of ["nonsense", 7, true, []]) {
+    assert.equal(hasOnboardingData(junk), false, `failed on ${JSON.stringify(junk)}`);
+  }
+});
+
+test("every declared howHeard value has an admin label", () => {
+  // Completeness, so a new option cannot ship unlabelled.
+  for (const v of HOW_HEARD_VALUES) {
+    const label = labelForOption("howHeard", v);
+    assert.ok(label && label !== v, `no label for howHeard value ${v}`);
+  }
+});
+
+test("an unknown option renders as its raw slug, never blank", () => {
+  // Drift has to degrade to something an admin can act on. Seeing `fb_reels` in
+  // the UI tells you exactly what to add to the label map; seeing an empty badge
+  // tells you nothing and looks like a bug.
+  assert.equal(labelForOption("howHeard", "fb_reels"), "fb_reels");
+  assert.equal(labelForOption("teamSize", "enormous"), "enormous");
+});
+
+test("summariseSource returns null when there is no acquisition answer", () => {
+  assert.equal(summariseSource(null), null);
+  assert.equal(summariseSource({ teamSize: ["solo"] }), null, "other answers are not a source");
+});
+
+test("summariseSource names one source and counts the rest", () => {
+  const s = summariseSource({ howHeard: ["fb_ad"] });
+  assert.deepEqual(s, { primary: "Facebook ad", extraCount: 0 });
+  const multi = summariseSource({ howHeard: ["fb_ad", "tiktok", "other"] });
+  assert.equal(multi?.primary, "Facebook ad");
+  assert.equal(multi?.extraCount, 2);
+});
+
+test("summariseSource picks the primary by canonical order, not stored order", () => {
+  // Same answers must produce the same badge however they were tapped, or the
+  // same org reads differently on two page loads.
+  const a = summariseSource({ howHeard: ["other", "tiktok", "fb_ad"] });
+  const b = summariseSource({ howHeard: ["fb_ad", "other", "tiktok"] });
+  assert.deepEqual(a, b);
+  assert.equal(a?.primary, "Facebook ad");
+});
+
+test("describeAnswers returns nothing to render when the column is null", () => {
+  assert.deepEqual(describeAnswers(null), []);
+});
+
+test("describeAnswers omits unanswered questions rather than showing blanks", () => {
+  const rows = describeAnswers({ howHeard: ["tiktok"], teamSize: [], biggestPain: ["payments"] });
+  assert.deepEqual(rows.map((r) => r.key), ["biggestPain", "howHeard"]);
+});
+
+test("describeAnswers labels every value and keeps question order", () => {
+  const rows = describeAnswers({
+    howHeard: ["google"], teamSize: ["solo", "mid"], revenueGoal: ["10k"],
+  });
+  assert.deepEqual(rows.map((r) => r.key), ["teamSize", "revenueGoal", "howHeard"]);
+  assert.deepEqual(rows[0].labels, ["Just me", "5-15 cleaners"]);
+  assert.ok(rows[0].question.length > 0, "each row carries a human question label");
+});
+
+test("countWithOnboardingData reports coverage over a list of signup rows", () => {
+  // This number is what turns "almost everything is blank" from looking broken
+  // into being stated. It must count rows, not answers.
+  const rows = [
+    { onboarding_answers: { howHeard: ["fb_ad"] } },
+    { onboarding_answers: null },
+    { onboarding_answers: { teamSize: [], howHeard: [] } },
+    { onboarding_answers: { teamSize: ["solo"], howHeard: ["google"] } },
+    {},
+  ];
+  assert.equal(countWithOnboardingData(rows), 2);
+});
+
+test("countWithOnboardingData is 0 for an empty list, not NaN", () => {
+  assert.equal(countWithOnboardingData([]), 0);
+});
+
+test("display helpers do not mutate what they are given", () => {
+  const input = { howHeard: ["tiktok", "fb_ad"], teamSize: ["solo"] };
+  const snapshot = JSON.parse(JSON.stringify(input));
+  summariseSource(input);
+  describeAnswers(input);
+  hasOnboardingData(input);
+  assert.deepEqual(JSON.parse(JSON.stringify(input)), snapshot);
 });
