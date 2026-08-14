@@ -86,6 +86,13 @@ interface BookingFormState {
   conflictOverride: boolean;
   
   notes: string;
+  /**
+   * The customer's own words from the booking they submitted. READ-ONLY — there
+   * is deliberately no setCustomerNotes on this context. The save path writes
+   * `notes` only, so an exposed setter would be a trap that silently discards
+   * edits. Rendered by CustomerNotesBlock, never bound to a form control.
+   */
+  customerNotes: string;
   totalAmount: number;
   cleanerWage: string;
   cleanerWageType: string;
@@ -275,6 +282,9 @@ export function BookingFormProvider({
   };
   // Payment/Notes state
   const [notes, setNotes] = useState('');
+  // The setter stays local — resetForm and prefillFromBooking need it, but it is
+  // not exported on the context. See the interface note above.
+  const [customerNotes, setCustomerNotes] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
   const [cleanerWage, setCleanerWage] = useState('');
   const [cleanerWageType, setCleanerWageType] = useState('hourly');
@@ -500,6 +510,7 @@ export function BookingFormProvider({
     setSelectedDate(undefined);
     setSelectedTime('');
     setNotes('');
+    setCustomerNotes('');
     setTotalAmount(0);
     setAddress('');
     setAptSuite('');
@@ -512,6 +523,9 @@ export function BookingFormProvider({
     setCustomFrequencyDays(null);
     setRecurringDaysOfWeek(null);
     setBedrooms('1');
+    // Must match the useState default and the prefill fallback. Without this a
+    // bathroom count carries from one booking into the next in the same session.
+    setBathrooms('1');
     setSquareFootage('');
     setSelectedExtras([]);
     setCardInfo(null);
@@ -545,6 +559,12 @@ export function BookingFormProvider({
     const timeStr = getTimeInTimezone(booking.scheduled_at, orgTimezone);
     setSelectedTime(timeStr);
     setNotes(booking.notes || '');
+    // Cast because BookingWithDetails does not declare customer_notes — the same
+    // cast BookingDialogs.tsx uses. Widening that shared interface would touch
+    // every consumer and is not this change.
+    setCustomerNotes(
+      (booking as { customer_notes?: string | null }).customer_notes || '',
+    );
     // booking.total_amount is stored post-discount. Restore the pre-discount
     // subtotal so re-applying/removing a coupon during edit doesn't stack on
     // top of an already-discounted total.
@@ -584,6 +604,14 @@ export function BookingFormProvider({
     setCustomFrequencyDays((booking as any).custom_frequency_days || null);
     setRecurringDaysOfWeek((booking as any).recurring_days_of_week || null);
     setBedrooms(booking.bedrooms || '1');
+    // setBathrooms was previously never called anywhere, so an existing booking
+    // rendered the useState default ('1') no matter what its row held — a row
+    // with "2.5" showed "1 ba". tsc could not see it: the interface entry, the
+    // state and the provider value were all present; only the call was missing.
+    //
+    // `||` not `??`: '' is as unrenderable as null to the Select, whose options
+    // are ['1','1.5','2','2.5','3','3.5','4','4.5','5','5.5','6'].
+    setBathrooms(booking.bathrooms || '1');
     setSquareFootage(booking.square_footage || '');
     // Handle extras which can be array of objects or strings from Json type
     const rawExtras = booking.extras;
@@ -731,6 +759,8 @@ export function BookingFormProvider({
       teamMemberPay,
       conflictOverride,
       notes,
+      // Value only — no setCustomerNotes below. Read-only by construction.
+      customerNotes,
       totalAmount,
       cleanerWage,
       cleanerWageType,

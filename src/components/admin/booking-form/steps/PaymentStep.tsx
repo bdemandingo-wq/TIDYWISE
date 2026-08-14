@@ -36,6 +36,7 @@ import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { preloadStripeModules } from '@/lib/stripe';
 import { useAuth } from '@/hooks/useAuth';
 import { fmt } from '@/lib/activeCurrency';
+import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
 
 // computeExpectedPay now lives in @/lib/cleanerPay (shared across all pay write sites).
 
@@ -43,6 +44,7 @@ export function PaymentStep() {
   const {
     editingBookingId,
     notes,
+    customerNotes,
     setNotes,
     cleanerWage,
     setCleanerWage,
@@ -329,6 +331,11 @@ export function PaymentStep() {
       {/* Notes Section */}
       <Card className="border-border/50 shadow-sm">
         <CardContent className="pt-6">
+          {/* Above the field, not below: it is context for what the admin is
+              about to type. Read-only — the customer's words, and the save path
+              writes `notes` only. Renders nothing when there is no note, which
+              is most bookings. */}
+          <CustomerNotesBlock value={customerNotes} className="mb-4" />
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <Label className="text-sm font-medium">Special Instructions</Label>
