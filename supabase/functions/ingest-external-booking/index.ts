@@ -142,11 +142,8 @@ Deno.serve(async (req) => {
   const first_name = (body.first_name || nameRaw.split(/\s+/)[0] || "Customer").toString();
   const last_name = (body.last_name || nameRaw.split(/\s+/).slice(1).join(" ") || "—").toString();
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } }
-  );
+
+
 
   // Optional saved-card references (stored on the customer, reused across bookings)
   const stripeCustomerId: string | null =
