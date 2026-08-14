@@ -23,6 +23,8 @@
 //   bathrooms      string
 //   square_footage string
 //   extras         array
+//   stripe_customer_id        string — saved on the customer record, reused across bookings
+//   stripe_payment_method_id  string — saved on the customer record, reused across bookings
 //   organization_id string uuid — only honored if no EXTERNAL_BOOKING_ORG_ID is set
 
 import { createClient } from "npm:@supabase/supabase-js@2";
