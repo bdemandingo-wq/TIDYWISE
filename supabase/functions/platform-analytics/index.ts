@@ -108,17 +108,27 @@ serve(async (req) => {
       // Check staff table (staff/cleaners who signed up)
       const { data: staffRecords } = await supabaseClient
         .from('staff')
-        .select('user_id, name, organization_id, organization:organizations(id, name)')
+        .select('user_id, name, organization_id, organization:organizations(id, name, onboarding_answers)')
         .in('user_id', userIds);
 
-      const orgMap = new Map<string, { org_name: string; org_id: string; role: string }>();
+      // onboarding_answers is typed `unknown` on purpose. The column is jsonb and
+      // holds {teamSize:[],bookingMethod:[],biggestPain:[],revenueGoal:[],howHeard:[]}
+      // for organizations created since 2026-08-13, but it is NULL for every older
+      // one and was never backfilled. Declaring a concrete shape here would be a
+      // claim this function cannot honour; the client normalises it.
+      const orgMap = new Map<string, { org_name: string; org_id: string; role: string; onboarding_answers: unknown }>();
       
       // Map from org_memberships first (owners/admins)
       if (memberships) {
         for (const m of memberships) {
           const org = m.organization as any;
           if (org && !orgMap.has(m.user_id)) {
-            orgMap.set(m.user_id, { org_name: org.name, org_id: org.id, role: m.role });
+            orgMap.set(m.user_id, {
+              org_name: org.name,
+              org_id: org.id,
+              role: m.role,
+              onboarding_answers: org.onboarding_answers ?? null,
+            });
           }
         }
       }
@@ -129,7 +139,12 @@ serve(async (req) => {
           if (s.user_id && !orgMap.has(s.user_id)) {
             const org = s.organization as any;
             if (org) {
-              orgMap.set(s.user_id, { org_name: org.name, org_id: org.id, role: 'staff' });
+              orgMap.set(s.user_id, {
+                org_name: org.name,
+                org_id: org.id,
+                role: 'staff',
+                onboarding_answers: org.onboarding_answers ?? null,
+              });
             }
           }
         }
@@ -142,6 +157,7 @@ serve(async (req) => {
           org_name: orgInfo?.org_name || null,
           org_id: orgInfo?.org_id || null,
           role: orgInfo?.role || null,
+          onboarding_answers: orgInfo?.onboarding_answers ?? null,
         });
       }
     }
