@@ -332,7 +332,16 @@ Deno.serve(async (req) => {
 
   if (bookErr) return json({ error: "Failed to create booking", details: bookErr.message }, 500);
 
+  if (matchedKeyHash) {
+    const { error: touchErr } = await supabase
+      .from("external_booking_keys")
+      .update({ last_used_at: new Date().toISOString() })
+      .eq("key_hash", matchedKeyHash);
+    if (touchErr) console.error("[ingest-external-booking] Failed to touch last_used_at:", touchErr.message);
+  }
+
   return json({
+
     ok: true,
     booking_id: booking.id,
     booking_number: booking.booking_number,
