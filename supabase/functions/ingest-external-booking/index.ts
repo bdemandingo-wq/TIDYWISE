@@ -164,7 +164,7 @@ Deno.serve(async (req) => {
       total_amount: Number.isFinite(+body.total_amount) ? +body.total_amount : 0,
       status: "confirmed",
       payment_status: "pending",
-      notes: body.notes ?? `Imported from external site`,
+      customer_notes: body.notes ?? null,
       address: body.address ?? null,
       city: body.city ?? null,
       state: body.state ?? null,
