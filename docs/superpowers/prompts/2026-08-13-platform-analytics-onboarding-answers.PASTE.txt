@@ -1,0 +1,263 @@
+=== SCOPE: ONE FILE, FIVE EDITS, ALL IN THE SIGNUP ENRICHMENT BLOCK ===
+
+File: supabase/functions/platform-analytics/index.ts (410 lines)
+
+You already added onboarding_answers to the org_memberships embed at line 105.
+That part is correct and stays. The problem is that the value is fetched and then
+dropped on the floor: orgMap's type at line 114 declares only org_name, org_id and
+role, neither orgMap.set call carries the new field, and the object pushed into
+enrichedSignups at lines 140-145 never mentions it. So the query costs more and
+the response is unchanged.
+
+This finishes the propagation, and adds the same field to the parallel staff
+select so the two branches return the same shape.
+
+Do NOT:
+  - add a second query, or re-query organizations. Both embeds already join it.
+  - change the precedence rule. org_memberships is mapped FIRST and the staff
+    loop only fills gaps (`!orgMap.has(...)`). That ordering is deliberate: an
+    owner who is also a staff record must be reported as owner, not staff.
+  - add, remove or rename ANY other field in the response. org_name, org_id and
+    role keep their exact names and their `|| null` fallbacks. Downstream UI reads
+    them by name.
+  - touch the RLS policies on public.organizations. There are four and they are
+    correct. This function runs on the service-role key and bypasses RLS anyway,
+    so there is nothing to change for it to read the column.
+  - touch the column-level UPDATE grant on public.organizations:
+        REVOKE UPDATE ON public.organizations FROM authenticated;
+        GRANT UPDATE (name, slug, logo_url, updated_at) ON public.organizations TO authenticated;
+    That is deliberate hardening from migration 20260616202614. onboarding_answers
+    is written once inside the org-creation INSERT and must never become
+    client-updatable. Adding it to that grant would be a security regression, not
+    a fix.
+  - modify any other section of this file: revenue, subscribers, organizations,
+    comped, churn, activity, evidence, demos, notifications. Only the signup
+    enrichment block between lines 97 and 147 changes.
+  - backfill or write anything. This function is read-only and stays read-only.
+  - "improve" anything else you notice. Report it in your reply and leave it.
+
+DO NOT INVOKE THE FUNCTION. Do not call platform-analytics to "verify", and do not
+open the Platform Analytics page to trigger it. Deploy it and stop. I will exercise
+it myself and check the payload.
+
+
+=== THE FIVE EDITS ===
+
+Line numbers are from the current deployed version. Match on the quoted text.
+
+
+--- EDIT 1 of 5. Line 109-112. Add the column to the staff embed so both
+--- branches select the same shape.
+
+CURRENTLY:
+
+```ts
+      // Check staff table (staff/cleaners who signed up)
+      const { data: staffRecords } = await supabaseClient
+        .from('staff')
+        .select('user_id, name, organization_id, organization:organizations(id, name)')
+        .in('user_id', userIds);
+```
+
+REPLACE WITH:
+
+```ts
+      // Check staff table (staff/cleaners who signed up)
+      const { data: staffRecords } = await supabaseClient
+        .from('staff')
+        .select('user_id, name, organization_id, organization:organizations(id, name, onboarding_answers)')
+        .in('user_id', userIds);
+```
+
+
+--- EDIT 2 of 5. Line 114 ONLY, a single line. Widen orgMap's type so it can
+--- carry the value.
+---
+--- Deliberately split from Edit 3 rather than replacing lines 114-124 as one
+--- block: line 115 between them is whitespace-only ("      "), and a
+--- whitespace-only line inside a quoted anchor is the kind of thing that gets
+--- silently normalised in transit and then fails to match. Two exact one-purpose
+--- anchors beat one fragile large one.
+
+CURRENTLY (one line):
+
+```ts
+      const orgMap = new Map<string, { org_name: string; org_id: string; role: string }>();
+```
+
+REPLACE WITH (a comment plus one line):
+
+```ts
+      // onboarding_answers is typed `unknown` on purpose. The column is jsonb and
+      // holds {teamSize:[],bookingMethod:[],biggestPain:[],revenueGoal:[],howHeard:[]}
+      // for organizations created since 2026-08-13, but it is NULL for every older
+      // one and was never backfilled. Declaring a concrete shape here would be a
+      // claim this function cannot honour; the client normalises it.
+      const orgMap = new Map<string, { org_name: string; org_id: string; role: string; onboarding_answers: unknown }>();
+```
+
+Leave the blank line directly below it exactly as it is. Do not trim it.
+
+
+--- EDIT 3 of 5. Lines 117-124. Store it from the membership branch.
+
+CURRENTLY:
+
+```ts
+      if (memberships) {
+        for (const m of memberships) {
+          const org = m.organization as any;
+          if (org && !orgMap.has(m.user_id)) {
+            orgMap.set(m.user_id, { org_name: org.name, org_id: org.id, role: m.role });
+          }
+        }
+      }
+```
+
+REPLACE WITH:
+
+```ts
+      if (memberships) {
+        for (const m of memberships) {
+          const org = m.organization as any;
+          if (org && !orgMap.has(m.user_id)) {
+            orgMap.set(m.user_id, {
+              org_name: org.name,
+              org_id: org.id,
+              role: m.role,
+              onboarding_answers: org.onboarding_answers ?? null,
+            });
+          }
+        }
+      }
+```
+
+Note `?? null` and not `|| null`: the value is jsonb, and `||` would convert a
+legitimately falsy-but-present value into null. `??` only replaces null/undefined.
+
+
+--- EDIT 4 of 5. Lines 127-136. Store it from the staff branch too.
+
+CURRENTLY:
+
+```ts
+      // Fill gaps from staff table (cleaners/staff who aren't in org_memberships)
+      if (staffRecords) {
+        for (const s of staffRecords) {
+          if (s.user_id && !orgMap.has(s.user_id)) {
+            const org = s.organization as any;
+            if (org) {
+              orgMap.set(s.user_id, { org_name: org.name, org_id: org.id, role: 'staff' });
+            }
+          }
+        }
+      }
+```
+
+REPLACE WITH:
+
+```ts
+      // Fill gaps from staff table (cleaners/staff who aren't in org_memberships)
+      if (staffRecords) {
+        for (const s of staffRecords) {
+          if (s.user_id && !orgMap.has(s.user_id)) {
+            const org = s.organization as any;
+            if (org) {
+              orgMap.set(s.user_id, {
+                org_name: org.name,
+                org_id: org.id,
+                role: 'staff',
+                onboarding_answers: org.onboarding_answers ?? null,
+              });
+            }
+          }
+        }
+      }
+```
+
+The `!orgMap.has(s.user_id)` guard and the `role: 'staff'` literal are unchanged.
+A staff member's org may well have onboarding answers — the answers belong to the
+ORGANISATION, not to the person who signed up — so this branch reports them too.
+
+
+--- EDIT 5 of 5. Lines 138-146. Put it in the response.
+--- Without this edit the other three change nothing observable.
+
+CURRENTLY:
+
+```ts
+      for (const signup of recentSignups) {
+        const orgInfo = orgMap.get(signup.id);
+        enrichedSignups.push({
+          ...signup,
+          org_name: orgInfo?.org_name || null,
+          org_id: orgInfo?.org_id || null,
+          role: orgInfo?.role || null,
+        });
+      }
+```
+
+REPLACE WITH:
+
+```ts
+      for (const signup of recentSignups) {
+        const orgInfo = orgMap.get(signup.id);
+        enrichedSignups.push({
+          ...signup,
+          org_name: orgInfo?.org_name || null,
+          org_id: orgInfo?.org_id || null,
+          role: orgInfo?.role || null,
+          onboarding_answers: orgInfo?.onboarding_answers ?? null,
+        });
+      }
+```
+
+The three existing lines keep `|| null` exactly as they are — do not "tidy" them
+to `??`. Changing them is out of scope and would alter behaviour for empty
+strings. The new line uses `??` for the reason given in Edit 2.
+
+
+=== SANITY CHECK BEFORE YOU DEPLOY ===
+
+Read the finished file and confirm all five:
+
+  - The raw string `onboarding_answers` appears exactly TEN times, broken down as:
+        1  the org_memberships .select() (already there, unchanged)
+        1  the staff .select()                          (Edit 1)
+        1  the explanatory comment                      (Edit 2)
+        1  the orgMap type declaration                  (Edit 2)
+        2  the membership orgMap.set — key + org.onboarding_answers   (Edit 3)
+        2  the staff orgMap.set — key + org.onboarding_answers        (Edit 4)
+        2  the pushed object — key + orgInfo?.onboarding_answers      (Edit 5)
+    Ten is the correct number. If you count fewer, an edit did not land; if you
+    count more, something was added that this prompt did not ask for.
+  - `orgMap.set(` appears exactly twice, and BOTH now pass four properties.
+  - The pushed object in the enrichedSignups loop has exactly four added keys:
+    org_name, org_id, role, onboarding_answers.
+  - No `.from('organizations')` call was added inside the signup enrichment block.
+  - The file is still 410 lines plus whatever these edits add, and no other
+    section was touched.
+
+Then deploy the function. Do not call it.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm you changed ONE file and created none. Give its final line count.
+
+b) Paste the finished orgMap declaration line and BOTH orgMap.set blocks in full.
+
+c) Paste the finished enrichedSignups.push block in full.
+
+d) Give the raw count of the string `onboarding_answers` in the finished file.
+   Expected 10, per the breakdown above. Report the number you actually get, even
+   if it differs — do not adjust the code to reach 10.
+
+e) Confirm you did NOT change the RLS policies on public.organizations, did NOT
+   change the column-level UPDATE grant, and did NOT rename or remove any existing
+   field in the response.
+
+f) Confirm the function is DEPLOYED, not just committed — and confirm you did NOT
+   invoke it or open the Platform Analytics page.
+
+g) List anything you noticed but deliberately did not touch.
