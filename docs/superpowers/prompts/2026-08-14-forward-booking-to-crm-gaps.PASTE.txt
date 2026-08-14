@@ -1,0 +1,471 @@
+=== SCOPE: ONE MIGRATION + ONE EDGE FUNCTION, IN THIS ORDER ===
+
+Repo: the TidyWise cleaning site (tidywise.com), NOT the CRM.
+Files: one new migration, then supabase/functions/forward-booking-to-crm/index.ts
+       (currently 171 lines on main).
+
+The CRM connection was broken and is now working. Do not re-litigate it: the
+shared secret matches, EXTERNAL_BOOKING_ORG_ID is set on the CRM, and a live
+probe returned 200 with a real booking_id. Three gaps remain, and this closes
+all three.
+
+  GAP 1 — the deployed forwarder is a REGRESSION. A richer version once existed
+  with Google geocoding, split city/state/zip and first/last name. It was never
+  pushed and the deployed function was later rewritten without it. Bookings
+  therefore arrive at the CRM with blank city, state and zip columns.
+
+  GAP 2 — stripe_customer_id and stripe_payment_method_id are never forwarded.
+  The CRM now accepts BOTH and stores them on the customer record. Both values
+  already exist on the site's own bookings row. A booking arriving without the
+  card attached is the problem this integration was built to solve.
+
+  GAP 3 — a failed forward is recorded NOWHERE. The function always returns 200
+  (correctly — see below), logs nothing, and writes nothing. There is no way to
+  tell which bookings never reached the CRM.
+
+DO IT IN ORDER: migration first, then the function. Step 2 writes to three
+columns that do not exist yet. Deploying the function first makes every forward
+fail on an unknown column.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. THE FUNCTION MUST ALWAYS RETURN 200 ON THE CRM CALL.
+
+   The existing comment says it and it is correct: "Always 200: CRM forwarding is
+   non-fatal to the booking flow." A customer's booking must never fail because
+   our CRM is down. Both the success path and the catch block return 200 today
+   and must still return 200 after your change. The new crm_sync_status column is
+   how failures become visible — NOT the HTTP status.
+
+2. THE SERVER-SIDE BOOKING LOOKUP.
+
+   The function takes a bookingId, loads that row with the service role, and
+   forwards THOSE values. It does not trust request-body fields. That is
+   deliberate hardening — junk can only reach the CRM if it first passed the real
+   booking flow's validation. Keep it exactly as is.
+
+3. THE RATE LIMIT. Per-IP 10/hour via public.check_rate_limit, and its 429. Not
+   part of this task.
+
+4. THE `x-api-key` HEADER AND ITS VALUE. It is the only header the CRM reads and
+   it is now correct. Do not rename it, do not add a fallback, do not "also try"
+   another name.
+
+5. Do NOT touch the CRM repo. ingest-external-booking already accepts every field
+   this prompt sends. Nothing on that side needs changing.
+
+6. Do NOT alter the bookings table beyond adding the three columns in Step 1. No
+   changes to existing columns, no RLS policy changes, no new indexes.
+
+7. Do NOT "improve" anything else you notice. Report it and leave it.
+
+DO NOT INVOKE THE FUNCTION. Do not call forward-booking-to-crm to "verify", and
+do not submit a test booking through the site. A successful run creates a real
+customer and a real booking in the live CRM. Deploy and stop. I will test it.
+
+
+=== STEP 1 of 2: THE MIGRATION ===
+
+Create one migration:
+
+```sql
+ALTER TABLE public.bookings
+  ADD COLUMN IF NOT EXISTS crm_sync_status text,
+  ADD COLUMN IF NOT EXISTS crm_synced_at   timestamptz,
+  ADD COLUMN IF NOT EXISTS crm_error       text;
+
+COMMENT ON COLUMN public.bookings.crm_sync_status IS
+  'Result of forwarding this booking to the jointidywise CRM: ''synced'' | ''failed'' | ''unreachable''. NULL means the forward was never attempted (e.g. bookings created before 2026-08-14).';
+COMMENT ON COLUMN public.bookings.crm_synced_at IS
+  'When the CRM accepted this booking. NULL unless crm_sync_status = ''synced''.';
+COMMENT ON COLUMN public.bookings.crm_error IS
+  'Why the forward failed, truncated. NULL when crm_sync_status = ''synced''.';
+```
+
+All three NULLABLE with no default and no backfill. NULL is a real state and means
+"never attempted" — distinct from "attempted and failed". Do not add a NOT NULL,
+do not add a DEFAULT, do not backfill existing rows.
+
+Verify against the live database, not the file:
+
+```sql
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema='public' AND table_name='bookings'
+  AND column_name IN ('crm_sync_status','crm_synced_at','crm_error');
+```
+
+Expect three rows, all is_nullable = YES. Do not proceed to Step 2 until you see them.
+
+
+=== STEP 2 of 2: THE FUNCTION — THREE EXACT EDITS ===
+
+Line numbers are from the current 171-line version. Match on the quoted text.
+
+
+--- EDIT 1 of 3. Lines 28-32. Restore the recovered helpers above getClientIp.
+
+CURRENTLY:
+
+```ts
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+```
+
+REPLACE WITH:
+
+```ts
+// Map any TidyWise service label/variant -> the canonical service name the CRM
+// expects. The CRM matches `service` against its own services list, so legacy or
+// reworded labels ("Deep Clean (First Cleaning)", "Move In/Move Out Clean") must
+// be normalized. Unknown labels are forwarded as-is so the CRM can still try.
+function normalizeService(input: unknown): string | null {
+  const raw = String(input ?? "").trim();
+  if (!raw) return null;
+  const v = raw.toLowerCase();
+  if (v.includes("post") && v.includes("construction")) return "Post-Construction";
+  if (v.includes("move")) return "Move In/Out";
+  if (v.includes("carpet")) return "Carpet Cleaning";
+  if (v.includes("upholstery")) return "Upholstery Cleaning";
+  if (v.includes("deep")) return "Deep Cleaning";
+  if (v.includes("standard")) return "Standard Cleaning";
+  return raw;
+}
+
+// Best-effort parse of a free-text US address into street/city/state/zip. The
+// CRM reads city / state / zip_code as SEPARATE fields — sending only the
+// combined `address` string leaves those columns blank in its scheduler, which
+// is exactly the regression this restores. Google-autocompleted addresses look
+// like "65 SW 12th Ave, Deerfield Beach, FL 33441, USA".
+function parseAddress(raw: unknown): { street: string | null; city: string | null; state: string | null; zip: string | null } {
+  const full = String(raw ?? "").trim();
+  if (!full) return { street: null, city: null, state: null, zip: null };
+
+  const parts = full
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p) => p && !/^(usa|united states)$/i.test(p));
+
+  let street: string | null = null;
+  let city: string | null = null;
+  let state: string | null = null;
+  let zip: string | null = null;
+
+  const last = parts[parts.length - 1] ?? "";
+  const stateZip = last.match(/^([A-Za-z]{2})?\s*(\d{5}(?:-\d{4})?)?$/);
+  const hasStateZip = !!last && !!stateZip && (!!stateZip[1] || !!stateZip[2]);
+
+  if (parts.length >= 3 && hasStateZip) {
+    state = stateZip![1]?.toUpperCase() ?? null;
+    zip = stateZip![2] ?? null;
+    city = parts[parts.length - 2] ?? null;
+    street = parts.slice(0, parts.length - 2).join(", ") || null;
+  } else if (parts.length === 2) {
+    street = parts[0] ?? null;
+    city = parts[1] ?? null;
+  } else {
+    street = full || null;
+  }
+
+  return { street, city, state, zip };
+}
+
+// Google Maps geocoding via the Lovable connector gateway. Handles addresses
+// typed without commas ("65 sw 12th ave deerfield beach"), which the string
+// parser above cannot. Returns null on any failure so the caller falls back.
+const MAPS_GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
+
+async function geocodeAddress(
+  raw: unknown,
+): Promise<{ street: string | null; city: string | null; state: string | null; zip: string | null } | null> {
+  const full = String(raw ?? "").trim();
+  if (!full) return null;
+
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const mapsKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
+  if (!lovableKey || !mapsKey) return null;
+
+  try {
+    const res = await fetch(
+      `${MAPS_GATEWAY_URL}/maps/api/geocode/json?address=${encodeURIComponent(full)}&region=us`,
+      { headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data?.results?.[0];
+    if (!result) return null;
+
+    const comps: Array<{ long_name: string; short_name: string; types: string[] }> =
+      result.address_components ?? [];
+    const get = (type: string, short = false) => {
+      const c = comps.find((x) => x.types.includes(type));
+      return c ? (short ? c.short_name : c.long_name) : null;
+    };
+
+    const street = [get("street_number"), get("route")].filter(Boolean).join(" ") || null;
+    const city =
+      get("locality") || get("postal_town") || get("sublocality") ||
+      get("administrative_area_level_3") || null;
+    const state = get("administrative_area_level_1", true);
+    const zip = get("postal_code");
+
+    if (!city && !state && !zip) return null;
+    return { street, city, state, zip };
+  } catch (_e) {
+    return null;
+  }
+}
+
+function getClientIp(req: Request): string {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "unknown";
+}
+```
+
+Both helpers are needed. Geocoding is preferred; parseAddress is the fallback when
+LOVABLE_API_KEY or GOOGLE_MAPS_API_KEY is absent, or geocoding returns nothing.
+Do not drop one for the other.
+
+
+--- EDIT 2 of 3. Lines 125-139. The payload: address components, first/last
+--- name, and the two Stripe ids.
+
+CURRENTLY:
+
+```ts
+  // Map trusted TidyWise booking row -> CRM ingest payload
+  const payload = {
+    name: booking.customer_name,
+    email: booking.customer_email,
+    phone: booking.customer_phone ?? null,
+    address: booking.address ?? null,
+    scheduled_at: scheduledAt,
+    service: booking.service_type ?? null,
+    total_amount: Number.isFinite(+booking.total_price) ? +booking.total_price : 0,
+    frequency: normalizeFrequency(booking.frequency),
+    bathrooms: booking.baths ?? null,
+    square_footage: booking.sqft != null ? String(booking.sqft) : null,
+    extras: Array.isArray(booking.add_ons) ? booking.add_ons : [],
+    notes: booking.special_instructions ?? null,
+  };
+```
+
+REPLACE WITH:
+
+```ts
+  // Split the single stored address into the discrete fields the CRM reads.
+  // Geocoding first (handles comma-less free text), naive parser as fallback.
+  const loc = (await geocodeAddress(booking.address)) ?? parseAddress(booking.address);
+
+  // The CRM accepts name OR first_name/last_name. Send both: it uses `name` for
+  // display and the split parts for its own first/last columns.
+  const fullName = String(booking.customer_name ?? "").trim();
+  const nameParts = fullName.split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] ?? null;
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : null;
+
+  // Map trusted TidyWise booking row -> CRM ingest payload
+  const payload = {
+    name: booking.customer_name,
+    first_name: firstName,
+    last_name: lastName,
+    email: booking.customer_email,
+    phone: booking.customer_phone ?? null,
+    // Street only — city/state/zip go in their own fields below, or the CRM's
+    // columns stay blank.
+    address: loc.street ?? booking.address ?? null,
+    city: loc.city,
+    state: loc.state,
+    zip_code: loc.zip,
+    scheduled_at: scheduledAt,
+    service: normalizeService(booking.service_type),
+    total_amount: Number.isFinite(+booking.total_price) ? +booking.total_price : 0,
+    frequency: normalizeFrequency(booking.frequency),
+    bedrooms: booking.beds ?? null,
+    bathrooms: booking.baths ?? null,
+    square_footage: booking.sqft != null ? String(booking.sqft) : null,
+    extras: Array.isArray(booking.add_ons) ? booking.add_ons : [],
+    notes: booking.special_instructions ?? null,
+    // The whole point of this integration: the card travels with the booking so
+    // the CRM can charge without asking the customer again. Both columns already
+    // exist on public.bookings; they are null until the card is saved.
+    stripe_customer_id: booking.stripe_customer_id ?? null,
+    stripe_payment_method_id: booking.stripe_payment_method_id ?? null,
+  };
+```
+
+Every key above is read by the CRM — verified against its ingest function. Do NOT
+add `apt_suite`, `has_pets` or `duration`: the CRM does not read the first two,
+and omitting duration lets it apply its own 120-minute default.
+
+
+--- EDIT 3 of 3. Lines 141-171 (to the end of the file). Record the outcome on
+--- the booking row, and keep returning 200.
+
+CURRENTLY:
+
+```ts
+  try {
+    const res = await fetch(CRM_INGEST_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": ingestKey,
+        "x-ingest-key": ingestKey,
+        "apikey": ingestKey,
+        "Authorization": `Bearer ${ingestKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+    return new Response(JSON.stringify({ ok: res.ok, status: res.status, crm: data }), {
+      // Always 200: CRM forwarding is non-fatal to the booking flow.
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "Failed to reach CRM", details: String(err) }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
+```
+
+REPLACE WITH:
+
+```ts
+  // Record the outcome on our own booking row. This is the ONLY place a failed
+  // forward becomes visible — the HTTP status is always 200 by design, so
+  // without this a booking that never reached the CRM looks identical to one
+  // that did.
+  const recordOutcome = async (
+    status: "synced" | "failed" | "unreachable",
+    error: string | null,
+  ) => {
+    const { error: updErr } = await supabase
+      .from("bookings")
+      .update({
+        crm_sync_status: status,
+        crm_synced_at: status === "synced" ? new Date().toISOString() : null,
+        // Truncated: this column is for triage, not for storing a CRM stack trace.
+        crm_error: error ? error.slice(0, 500) : null,
+      })
+      .eq("id", bookingId);
+    if (updErr) {
+      // Deliberately only logged. Failing to record the outcome must not itself
+      // break the booking flow — that would be the same mistake one level up.
+      console.error("Failed to record CRM sync status:", updErr);
+    }
+  };
+
+  try {
+    const res = await fetch(CRM_INGEST_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // x-api-key is the ONLY header the CRM reads. The previous version also
+        // sent x-ingest-key, apikey and Authorization: Bearer <secret>; all three
+        // were ignored, and the last one put the shared secret in an Authorization
+        // header for no benefit. A live probe sending x-api-key alone returned 200.
+        "x-api-key": ingestKey,
+      },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+
+    if (res.ok) {
+      await recordOutcome("synced", null);
+    } else {
+      await recordOutcome("failed", `HTTP ${res.status}: ${text}`);
+    }
+
+    return new Response(JSON.stringify({ ok: res.ok, status: res.status, crm: data }), {
+      // Always 200: CRM forwarding is non-fatal to the booking flow.
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    // Network-level failure — the CRM was never reached at all. Distinct from
+    // "failed", which means it answered and refused.
+    await recordOutcome("unreachable", String(err));
+    return new Response(
+      JSON.stringify({ ok: false, error: "Failed to reach CRM", details: String(err) }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
+```
+
+Note both 200s are preserved, and `unreachable` is kept distinct from `failed`:
+"the CRM refused this booking" and "we could not reach the CRM" need different
+responses from a human, so they must not collapse into one status.
+
+
+=== SANITY CHECK BEFORE YOU DEPLOY ===
+
+Report the number you actually get for each. Do NOT adjust the code to reach these
+numbers — if one differs, say so and stop.
+
+  1. `status: 200` appears exactly TWICE — the CRM success path and the catch.
+  2. `status: 502` appears exactly ONCE, and it is the pre-existing "Booking
+     lookup failed" return, which is BEFORE the CRM is ever called. It is not on
+     a CRM path and must be left alone. Do not delete it to make a number tidier.
+  3. `await recordOutcome(` is called exactly THREE times: synced, failed,
+     unreachable.
+  4. As HEADER KEYS in the fetch call: `"x-api-key"` = 1, `"x-ingest-key"` = 0,
+     `"apikey"` = 0, and no `Authorization: \`Bearer ${ingestKey}\``.
+     NOTE: the bare text `x-ingest-key` still appears ONCE, inside the comment
+     explaining why it was removed. That is expected — count header keys, not
+     raw string occurrences.
+  5. `geocodeAddress`, `parseAddress` and `normalizeService` are each defined
+     once and called once.
+  6. The payload object has exactly TWENTY keys: name, first_name, last_name,
+     email, phone, address, city, state, zip_code, scheduled_at, service,
+     total_amount, frequency, bedrooms, bathrooms, square_footage, extras,
+     notes, stripe_customer_id, stripe_payment_method_id.
+  7. The rate-limit block, the bookingId requirement and the server-side booking
+     lookup are byte-identical to before.
+  8. Final file is about 331 lines (from 171).
+
+Then deploy the function. Do not call it.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Paste the result of the information_schema query from Step 1 — three rows,
+   all nullable. Confirm the migration is APPLIED to the live database, not just
+   committed.
+
+b) Give the final line count of forward-booking-to-crm/index.ts.
+
+c) Paste the finished payload object in full.
+
+d) Paste the finished try/catch block in full, so I can see both 200s and all
+   three recordOutcome calls.
+
+e) Confirm the eight sanity-check items above, giving the actual numbers you
+   measured — not the expected ones.
+
+f) Confirm you did NOT touch the CRM repo, did NOT change the rate limit, the
+   booking lookup, or any existing bookings column — and did NOT invoke the
+   function or submit a test booking.
+
+g) List anything you noticed but deliberately did not touch.
