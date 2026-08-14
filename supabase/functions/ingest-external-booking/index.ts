@@ -23,6 +23,8 @@
 //   bathrooms      string
 //   square_footage string
 //   extras         array
+//   stripe_customer_id        string — saved on the customer record, reused across bookings
+//   stripe_payment_method_id  string — saved on the customer record, reused across bookings
 //   organization_id string uuid — only honored if no EXTERNAL_BOOKING_ORG_ID is set
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -83,6 +85,16 @@ Deno.serve(async (req) => {
     { auth: { persistSession: false } }
   );
 
+  // Optional saved-card references (stored on the customer, reused across bookings)
+  const stripeCustomerId: string | null =
+    typeof body.stripe_customer_id === "string" && body.stripe_customer_id.trim()
+      ? body.stripe_customer_id.trim()
+      : null;
+  const stripePaymentMethodId: string | null =
+    typeof body.stripe_payment_method_id === "string" && body.stripe_payment_method_id.trim()
+      ? body.stripe_payment_method_id.trim()
+      : null;
+
   // 1. Find or create customer (scoped to org + email)
   let customerId: string | null = null;
   const { data: existingCustomer } = await supabase
@@ -94,6 +106,18 @@ Deno.serve(async (req) => {
 
   if (existingCustomer?.id) {
     customerId = existingCustomer.id;
+    // Only overwrite card refs when new ones were supplied
+    const cardUpdate: Record<string, string> = {};
+    if (stripeCustomerId) cardUpdate.stripe_customer_id = stripeCustomerId;
+    if (stripePaymentMethodId) cardUpdate.stripe_payment_method_id = stripePaymentMethodId;
+    if (Object.keys(cardUpdate).length > 0) {
+      const { error: cardErr } = await supabase
+        .from("customers")
+        .update(cardUpdate)
+        .eq("id", customerId)
+        .eq("organization_id", organization_id);
+      if (cardErr) console.error("[ingest-external-booking] Failed to save card refs:", cardErr.message);
+    }
   } else {
     const { data: newCustomer, error: custErr } = await supabase
       .from("customers")
@@ -107,6 +131,8 @@ Deno.serve(async (req) => {
         city: body.city ?? null,
         state: body.state ?? null,
         zip_code: body.zip_code ?? null,
+        stripe_customer_id: stripeCustomerId,
+        stripe_payment_method_id: stripePaymentMethodId,
       })
       .select("id")
       .single();
