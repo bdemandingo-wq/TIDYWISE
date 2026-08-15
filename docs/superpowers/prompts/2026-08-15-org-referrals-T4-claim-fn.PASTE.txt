@@ -1,21 +1,24 @@
-=== SCOPE: TIDYWISE CRM (jointidywise). ONE NEW EDGE FUNCTION. ===
+=== SCOPE: TIDYWISE CRM (jointidywise). ONE SHARED MODULE, ONE NEW FUNCTION, ONE EDIT. ===
 
 Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
 
-Task 4 of docs/superpowers/plans/2026-08-15-org-referral-programme.md.
+Tasks 4 AND 5 of docs/superpowers/plans/2026-08-15-org-referral-programme.md,
+deliberately combined into one paste: both sides of the signup moment. The
+claim records who referred whom; the discount is what the referred business
+actually gets for it. Shipping the claim alone would attribute referrals that
+deliver nothing to the person who acted on the link.
 
-  CREATE  supabase/functions/_shared/referral-eligibility.ts   (verbatim copy)
-  CREATE  supabase/functions/claim-referral/index.ts           (new)
+  STEP 1  CREATE  supabase/functions/_shared/referral-eligibility.ts  (verbatim copy)
+  STEP 2  CREATE  supabase/functions/claim-referral/index.ts          (new)
+  STEP 3  EDIT    supabase/functions/create-subscription/index.ts     (one insertion)
 
-Then DEPLOY claim-referral. Do NOT touch create-subscription,
-stripe-invoice-webhook, or any table — Task 3 already shipped the schema and
-Tasks 5-9 have their own prompts.
+Then DEPLOY claim-referral AND create-subscription.
 
-The frontend half is already on the branch and calls this function with
+The frontend half is already on the branch and calls claim-referral with
 `{ organization_id, referral_code }` right after onboarding creates the org.
 
 
-=== WHY THIS IS A SERVER FUNCTION AND NOT A CLIENT INSERT ===
+=== WHY THE CLAIM IS A SERVER FUNCTION AND NOT A CLIENT INSERT ===
 
 `public.organizations`' INSERT policy is `(auth.uid() = owner_id)` and does NOT
 enumerate columns, so an authenticated user can already write any column on
@@ -23,8 +26,8 @@ their own org row. If attribution were client-writable a user could name any
 referrer, mark themselves 'qualified', or grant themselves months.
 
 So the four org_referral* tables carry SELECT policies only, and every write
-goes through the service role here. The client sends an org id and a code. This
-function decides everything else.
+goes through the service role. The client sends an org id and a code. These
+functions decide everything else.
 
 
 === STEP 1 of 3 — CREATE supabase/functions/_shared/referral-eligibility.ts ===
@@ -33,11 +36,11 @@ VERBATIM COPY of `src/lib/referralEligibility.ts`, which already exists on the
 branch and is the canonical version. Same arrangement as automation-templates.ts
 and phone.ts: the edge functions run in Deno and cannot import from `src/`.
 
-Copy the file exactly as it is, changing ONLY the KEEP IN SYNC line in the
-header to say this is the copy. Do not re-derive the logic, do not "improve"
-the thresholds, do not change `rejectReason`'s order of checks.
+Copy the file exactly, changing ONLY the KEEP IN SYNC line in the header to say
+this is the copy. Do not re-derive the logic, do not "improve" the thresholds,
+do not change `rejectReason`'s order of checks.
 
-The properties that file's tests pin, so you can see what must not drift:
+The properties its tests pin, so you can see what must not drift:
 
   - Two NULL card fingerprints are NOT a match. Both parties are unpaid at
     claim time, so treating null as equal would reject every referral in the
@@ -53,154 +56,291 @@ Behaviour, in order:
 
 1. POST only. OPTIONS returns corsHeaders.
 
-2. AUTHENTICATE THE CALLER AND CHECK THEY OWN THE ORG. This is the part that
-   must not be skipped: the client supplies `organization_id`, so without this
-   anyone could claim a referral on behalf of someone else's org.
+2. AUTHENTICATE THE CALLER AND CHECK THEY OWN THE ORG. This must not be
+   skipped: the client supplies `organization_id`, so without it anyone could
+   claim a referral on behalf of someone else's org.
 
    Read the Authorization header, resolve the user with an anon-key client
    (`auth.getUser(jwt)`), then confirm that user has an `org_memberships` row
    for the supplied organization_id with role 'owner'. Reject 403 otherwise.
 
    Do NOT add a config.toml entry for this function. With no entry it defaults
-   to `verify_jwt = true`, which is what we want — the gateway rejects an
-   unauthenticated call before it reaches this code.
+   to `verify_jwt = true`, which is what we want.
 
 3. Normalise the code SERVER-SIDE. Do not trust the client's normalisation:
-   uppercase, strip everything outside A-Z0-9, and treat an empty result as a
-   missing code (400). This must match `normalizeReferralCode` in
+   uppercase, strip everything outside A-Z0-9, treat an empty result as a
+   missing code (400). Must match `normalizeReferralCode` in
    src/lib/referralCode.ts.
 
 4. Resolve the code to a referrer via `org_referral_codes`. No match -> record
-   a rejected row (see step 6) with reason 'invalid_code'.
+   a rejected row (step 6) with reason 'invalid_code'.
 
 5. Load both sides for the eligibility check:
 
    - referrer: `organizations.id, owner_id, plan_type` for the code's org
    - referred: `organizations.id, owner_id, plan_type` for the supplied org
-   - cardFingerprint is NULL for both at this point and that is CORRECT. The
-     card check runs later, in Task 6, at the referred org's first payment —
-     which is the first moment a card exists. Pass null for both here.
+   - cardFingerprint is NULL for both here and that is CORRECT. The card check
+     runs in Task 6, at the referred org's first payment — the first moment a
+     card exists. Pass null for both.
 
    Call `rejectReason(referrer, referred)` from the shared module. Do not
    re-implement its rules inline.
 
-6. Insert exactly ONE row into `public.org_referrals`, whether accepted or
-   rejected:
+6. Insert exactly ONE row into `public.org_referrals`, accepted or rejected:
 
    - accepted:  status 'pending',  rejection_reason null
    - rejected:  status 'rejected', rejection_reason = whatever rejectReason
                 returned (or 'invalid_code')
 
-   Recording rejections is deliberate. It gives an audit trail, and because
-   `org_referrals` has UNIQUE(referred_org_id) it also stops an org retrying
-   with a different code until one is accepted. If a legitimate claim is ever
-   rejected in error, an admin deletes the row to allow a re-claim — say so in
-   a comment so nobody later "fixes" it by skipping the insert.
+   Recording rejections is deliberate: it gives an audit trail, and because
+   `org_referrals` has UNIQUE(referred_org_id) it stops an org retrying
+   different codes until one sticks. If a legitimate claim is ever rejected in
+   error, an admin deletes the row to allow a re-claim — say so in a comment so
+   nobody later "fixes" it by skipping the insert.
 
-7. Handle 23505 on `org_referrals_referred_once` as a NORMAL outcome, not an
-   error: return `{ outcome: 'already_claimed' }` with status 200. The frontend
-   retries are non-fatal and must not surface an error for this.
+7. Handle 23505 on `org_referrals_referred_once` as a NORMAL outcome:
+   return `{ outcome: 'already_claimed' }` with status 200.
 
-   Note the database also enforces `org_referrals_no_self`
-   (referrer_org_id <> referred_org_id). If rejectReason somehow let a
-   self-referral through, that CHECK raises 23514 — return
-   `{ outcome: 'rejected', reason: 'self_referral_same_org' }` rather than a
-   500. Two layers, deliberately.
+   The database also enforces `org_referrals_no_self`. If rejectReason somehow
+   let a self-referral through, that CHECK raises 23514 — return
+   `{ outcome: 'rejected', reason: 'self_referral_same_org' }`, not a 500.
 
 8. Ensure a `public.org_referral_credits` row exists for the REFERRER
    (`insert ... on conflict (organization_id) do nothing`), so Task 7 has a
-   ledger row to update. Zero months at this point.
+   ledger row. Zero months at this point.
 
-9. Always return 200 with a JSON `outcome`. Never a 500 for a business
-   rejection. The outcomes are:
+9. Always return 200 with a JSON `outcome`:
    `claimed` | `already_claimed` | `rejected` | `no_code`
 
-Use the service-role client for every write. Use `corsHeaders` from the shared
-module the other functions use.
+Service-role client for writes, anon client for `auth.getUser`.
+
+
+=== STEP 3 of 3 — create-subscription: THE REFERRED ORG'S 50% FIRST MONTH ===
+
+FIRST, create ONE reusable coupon in Stripe and store its id as a secret named
+`REFERRED_FIRST_MONTH_COUPON`:
+
+    percent_off: 50
+    duration: 'repeating'
+    duration_in_months: 1
+
+Use `repeating` with `duration_in_months: 1`, NOT `duration: 'once'`. Read the
+warning below before deciding otherwise.
+
+THEN edit `create-subscription/index.ts`.
+
+FIRST, a one-word change. At ~line 146 the function already looks the org up,
+but does not select its id:
+
+CURRENTLY:
+
+```ts
+        .select("organizations(plan_type, grandfathered_lifetime)")
+```
+
+REPLACE WITH:
+
+```ts
+        .select("organizations(id, plan_type, grandfathered_lifetime)")
+```
+
+and widen the cast on the line below it to include `id?: string`. That query
+already runs on the service role, so no new round trip and no new privileges.
+
+THEN, immediately BEFORE `stripe.checkout.sessions.create` at ~line 229:
+
+```ts
+// The referred org's half of the programme. Only orgs that arrived through
+// someone's referral link, and only on their first subscription.
+//
+// `org` is resolved inside the `if (user)` block above and is undefined for
+// the anonymous checkout flow — see the KNOWN GAP note below. Capture the id
+// into a variable in the outer scope so it is readable here.
+let referralDiscount: { coupon: string }[] | undefined;
+try {
+  const couponId = Deno.env.get("REFERRED_FIRST_MONTH_COUPON");
+  if (couponId && referredOrgId) {
+    const { data: ref } = await accessAdmin
+      .from("org_referrals")
+      .select("id, status, referred_discount_applied_at")
+      .eq("referred_org_id", referredOrgId)
+      .in("status", ["pending", "qualified"])
+      .maybeSingle();
+    if (ref && !ref.referred_discount_applied_at) {
+      referralDiscount = [{ coupon: couponId }];
+    }
+  }
+} catch (e) {
+  // Never block checkout over a discount lookup.
+  console.error("[referral] discount lookup failed:", e);
+}
+```
+
+Two things you must wire up for that to compile:
+
+  - `referredOrgId` — declare it in the OUTER scope (`let referredOrgId: string
+    | null = null;`) before the `if (user)` block, and assign `org?.id` inside
+    it. Right now `org` is a const scoped to that block and is not visible at
+    the session-creation site.
+  - `accessAdmin` — same problem. It is created inside `if (user)`. Either
+    hoist it or create a second service-role client at the discount lookup.
+    Hoisting is cleaner; do not use the caller's anon client here, because
+    org_referrals has SELECT policies scoped to the REFERRER and the referred
+    org cannot read its own row.
+
+Then add to the `stripe.checkout.sessions.create({...})` call:
+
+```ts
+      ...(referralDiscount ? { discounts: referralDiscount } : {}),
+```
+
+Spread conditionally — passing `discounts: undefined` is not the same as
+omitting it, and Stripe rejects `discounts` alongside `allow_promotion_codes`.
+Confirm this function does not set `allow_promotion_codes`; I read it and it
+does not, but check before you deploy.
+
+Record that it was applied so it cannot be re-used on a second subscription:
+after the session is created successfully, set
+`org_referrals.referred_discount_applied_at = now()` for that referral. If the
+column does not exist yet, ADD IT in this task:
+
+```sql
+alter table public.org_referrals
+  add column if not exists referred_discount_applied_at timestamptz;
+```
+
+(Remember the Task 3 lesson: a new column needs no new grant, but confirm the
+existing GRANT SELECT still covers the table afterwards.)
+
+
+=== KNOWN GAP — THE ANONYMOUS CHECKOUT FLOW ===
+
+`create-subscription` supports checkout with NO logged-in user (it logs
+`flow: user ? "authenticated" : "anonymous"`). In that path no organization
+exists yet, so there is no org_referrals row and NO DISCOUNT CAN BE APPLIED.
+
+This is accepted, not an oversight. The referral itself is not lost — the code
+is still sitting in the browser's storage and claim-referral records it when
+the user later completes onboarding, so the REFERRER still earns their month.
+Only the referred org's 50% is missed, and only for people who subscribe before
+creating their org.
+
+DO NOT try to fix this by passing the referral code through checkout metadata.
+That is a bigger change and I want to see the real frequency first.
+
+REPORT how many of the last 20 checkout sessions took the anonymous path, if
+you can tell from the logs. If it is common, this gap matters more than I think
+and I will scope it as its own task.
+
+
+=== THE TRIAL INTERACTION — READ THIS, IT IS THE RISKY PART ===
+
+`create-subscription` sets `trial_period_days: 14` (line 227). That means the
+FIRST invoice Stripe issues is $0, at subscription creation, before any charge.
+
+I do not know with certainty whether a `duration: 'once'` coupon would be
+consumed by that $0 invoice, leaving the customer with nothing when the real
+charge lands 14 days later. That is exactly why the coupon above is
+`repeating`/`duration_in_months: 1` — it is tied to a billing period rather
+than to "the first invoice".
+
+DO NOT take my word for it, and do not report success from seeing a coupon
+attached to the subscription. The only thing that settles it is the FIRST
+CHARGED invoice. Test it with a Stripe TEST CLOCK:
+
+  1. Create a test customer attached to a test clock.
+  2. Run a referred checkout against it.
+  3. Advance the clock past 14 days.
+  4. Read the first invoice with `amount_due > 0`.
+
+  EXPECT: 50% off. A $49 Basic plan invoices at $24.50.
+
+  IF IT IS FULL PRICE, the coupon was consumed by the $0 trial invoice. STOP
+  and tell me — do not silently switch strategies. The fallback would be to
+  apply the discount when the trial converts rather than at checkout, and that
+  is a different design I want to approve first.
 
 
 === WHAT MUST NOT CHANGE ===
 
 1. `public.referrals` — the CUSTOMER-to-customer table — and
    `process_booking_referral_attribution` are untouched. Different feature.
-2. No schema changes. Task 3 shipped the four tables; this only writes to them.
+2. No other schema changes beyond `referred_discount_applied_at`.
 3. Do NOT add INSERT/UPDATE/DELETE RLS policies to any org_referral* table.
-   The service role bypasses RLS and that is the design.
-4. Do NOT add a config.toml entry. Default verify_jwt = true is correct here.
+4. Do NOT add a config.toml entry for claim-referral.
 5. Do NOT re-implement rejectReason, isVested, or the thresholds inline.
-6. Do not "improve" anything else. Report it and leave it.
-
-
-=== A NOTE ON GRANTS, SINCE THIS BIT US IN TASK 3 ===
-
-Task 3's SQL defined RLS policies but no GRANTs, and you correctly added
-`GRANT SELECT ... TO authenticated` / `GRANT ALL ... TO service_role`, because
-PostgREST errors without table privileges regardless of policy.
-
-No new tables here, so no new grants should be needed. But CONFIRM the four
-tables still carry those grants after this change and report what you find —
-if any are missing, say so rather than silently adding them, because that would
-mean something else dropped them.
+6. Do NOT change `trial_period_days`, `payment_method_collection`,
+   `trial_settings`, the line_items, or the success/cancel URLs in
+   create-subscription. One insertion and one conditional spread.
+7. Do not "improve" anything else. Report it and leave it.
 
 
 === SANITY CHECKS BEFORE YOU DEPLOY ===
 
-Report the number you actually MEASURE. Do not adjust code to reach these.
+Report the number you actually MEASURE.
 
-  1. `_shared/referral-eligibility.ts` differs from `src/lib/referralEligibility.ts`
-     ONLY inside the header comment. Report the diff; it should be 1-3 lines,
-     all inside `/** ... */`.
-  2. `rejectReason` appears in claim-referral exactly ONCE (the call). If it is
-     2+, the rules were re-implemented instead of imported.
-  3. `isVested` appears ZERO times in claim-referral. Vesting is Task 6's job;
-     nothing vests at claim time.
-  4. `supabase/functions/config.toml` has ZERO entries mentioning
-     claim-referral.
-  5. The function inserts into `org_referrals` in exactly ONE place. Two insert
-     sites means the accepted and rejected paths can drift apart.
-  6. `service_role` / `SUPABASE_SERVICE_ROLE_KEY` is used for the writes, and
-     the ANON key is used for `auth.getUser`. Both should appear.
+  1. `_shared/referral-eligibility.ts` differs from
+     `src/lib/referralEligibility.ts` ONLY inside the header comment. Paste the
+     diff; it should be 1-3 lines, all inside `/** ... */`.
+  2. `rejectReason` appears in claim-referral exactly ONCE.
+  3. `isVested` appears ZERO times in claim-referral. Nothing vests at claim.
+  4. `config.toml` has ZERO entries mentioning claim-referral.
+  5. claim-referral inserts into `org_referrals` in exactly ONE place.
+  6. In create-subscription: `discounts` appears exactly ONCE, and
+     `allow_promotion_codes` appears ZERO times.
+  7. In create-subscription: `trial_period_days: TRIAL_DAYS` is unchanged and
+     `TRIAL_DAYS = 14` is unchanged.
+  8. `REFERRED_FIRST_MONTH_COUPON` appears exactly ONCE.
+  9. `organizations(id, plan_type, grandfathered_lifetime)` — the select now
+     includes `id`. Confirm the lifetime-block at ~line 151 still behaves
+     identically; adding a column to that select must not change it.
+ 10. `referredOrgId` and `accessAdmin` are both declared in a scope VISIBLE at
+     the session-creation site. If either is still block-scoped inside
+     `if (user)`, the file will not compile — report it rather than moving the
+     discount lookup inside that block, which would change when it runs.
 
 
-=== LIVE TEST — FOUR CASES, AND THE LAST TWO ARE THE CONTROLS ===
-
-Use test orgs. Report the resulting `org_referrals` row for each.
+=== LIVE TEST — SIX CASES. C, D AND F ARE THE CONTROLS ===
 
   A. VALID CLAIM. Org X (non-lifetime) claims org Y's real code.
-     EXPECT: one row, status 'pending', rejection_reason null,
-     referrer_org_id = Y, referred_org_id = X.
+     EXPECT: one row, status 'pending', referrer Y, referred X.
 
-  B. REPEAT CLAIM. Call it again for org X with any code.
-     EXPECT: outcome 'already_claimed', status 200, and STILL exactly one row
-     for X. Not two, not an error.
+  B. REPEAT CLAIM. Call again for org X.
+     EXPECT: outcome 'already_claimed', 200, STILL exactly one row for X.
 
   C. CONTROL — SELF-REFERRAL. Org X claims its OWN code.
-     EXPECT: rejected with 'self_referral_same_org'. If this is accepted, the
-     eligibility module is not wired up.
+     EXPECT: rejected, 'self_referral_same_org'. If accepted, the eligibility
+     module is not wired up.
 
-  D. CONTROL — WRONG OWNER. Call it with an organization_id the JWT's user is
-     NOT a member of.
-     EXPECT: 403. If this succeeds, anyone can claim referrals on behalf of any
-     org, and every other check in this function is decorative.
+  D. CONTROL — WRONG OWNER. Call with an organization_id the JWT's user is NOT
+     a member of.
+     EXPECT: 403. If this succeeds, anyone can claim referrals for any org and
+     every other check here is decorative.
 
-Case A alone proves nothing: a function that accepted everything would pass it.
-Report all four or the test has not been run.
+  E. DISCOUNT APPLIES. Referred org X checks out (test clock, advance 14 days).
+     EXPECT: first invoice with amount_due > 0 is 50% off, and
+     referred_discount_applied_at is set.
+
+  F. CONTROL — NO DISCOUNT WITHOUT A REFERRAL. An org with NO org_referrals row
+     checks out.
+     EXPECT: NO discount on the session, full price on the first charged
+     invoice. If this gets 50% off, every customer is now half price.
+
+Cases A, B and E alone cannot distinguish a correct implementation from one
+that accepts everything and discounts everyone. Report all six.
 
 
 === REPORT BACK, ALL OF IT IN ONE REPLY ===
 
-a) Confirm claim-referral is DEPLOYED, not just committed.
-
+a) Confirm BOTH claim-referral and create-subscription are DEPLOYED, not just
+   committed.
 b) The header-only diff from sanity check 1, pasted.
-
-c) All six sanity-check numbers you measured.
-
-d) All four live-test cases with the actual org_referrals rows and HTTP codes,
-   including both controls.
-
-e) The grant status of the four org_referral* tables from the grants note.
-
-f) Confirm `public.referrals` and `process_booking_referral_attribution` are
-   untouched, and that no schema changed.
-
-g) Anything you noticed but deliberately did not touch.
+c) All eight sanity-check numbers you measured.
+d) All six live-test cases with actual rows, HTTP codes and invoice amounts,
+   including all three controls.
+e) The test-clock result from case E, stating the actual invoice amount.
+f) Whether `referred_discount_applied_at` already existed or you added it, and
+   the grant status of org_referrals afterwards.
+g) Confirm `public.referrals` and `process_booking_referral_attribution` are
+   untouched and that trial_period_days is unchanged.
+h) Anything you noticed but deliberately did not touch.

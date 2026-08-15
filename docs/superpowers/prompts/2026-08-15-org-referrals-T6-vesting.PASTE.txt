@@ -82,7 +82,7 @@ const paidCount = paidInvoices.data.filter((i) => (i.amount_paid ?? 0) > 0).leng
 Then WRITE that number, never `count + 1`. Idempotent by construction, and it
 self-heals if a webhook was ever missed.
 
-NOTE `amount_paid > 0`, not `billing_reason`. With the 7-day trial Stripe
+NOTE `amount_paid > 0`, not `billing_reason`. With the 14-day trial Stripe
 issues a $0 invoice at subscription creation, so `billing_reason ===
 'subscription_create'` does NOT identify the first real payment. A positive
 amount does, whether or not a trial was involved.
