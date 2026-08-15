@@ -1,0 +1,206 @@
+=== SCOPE: TIDYWISE CRM (jointidywise). ONE NEW EDGE FUNCTION. ===
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Task 4 of docs/superpowers/plans/2026-08-15-org-referral-programme.md.
+
+  CREATE  supabase/functions/_shared/referral-eligibility.ts   (verbatim copy)
+  CREATE  supabase/functions/claim-referral/index.ts           (new)
+
+Then DEPLOY claim-referral. Do NOT touch create-subscription,
+stripe-invoice-webhook, or any table — Task 3 already shipped the schema and
+Tasks 5-9 have their own prompts.
+
+The frontend half is already on the branch and calls this function with
+`{ organization_id, referral_code }` right after onboarding creates the org.
+
+
+=== WHY THIS IS A SERVER FUNCTION AND NOT A CLIENT INSERT ===
+
+`public.organizations`' INSERT policy is `(auth.uid() = owner_id)` and does NOT
+enumerate columns, so an authenticated user can already write any column on
+their own org row. If attribution were client-writable a user could name any
+referrer, mark themselves 'qualified', or grant themselves months.
+
+So the four org_referral* tables carry SELECT policies only, and every write
+goes through the service role here. The client sends an org id and a code. This
+function decides everything else.
+
+
+=== STEP 1 of 3 — CREATE supabase/functions/_shared/referral-eligibility.ts ===
+
+VERBATIM COPY of `src/lib/referralEligibility.ts`, which already exists on the
+branch and is the canonical version. Same arrangement as automation-templates.ts
+and phone.ts: the edge functions run in Deno and cannot import from `src/`.
+
+Copy the file exactly as it is, changing ONLY the KEEP IN SYNC line in the
+header to say this is the copy. Do not re-derive the logic, do not "improve"
+the thresholds, do not change `rejectReason`'s order of checks.
+
+The properties that file's tests pin, so you can see what must not drift:
+
+  - Two NULL card fingerprints are NOT a match. Both parties are unpaid at
+    claim time, so treating null as equal would reject every referral in the
+    system before anyone could pay.
+  - A NULL plan_type is IN SCOPE. A brand-new org has not chosen a plan when
+    the code is claimed.
+  - isVested() is `>= 2`. Not 1.
+
+
+=== STEP 2 of 3 — CREATE supabase/functions/claim-referral/index.ts ===
+
+Behaviour, in order:
+
+1. POST only. OPTIONS returns corsHeaders.
+
+2. AUTHENTICATE THE CALLER AND CHECK THEY OWN THE ORG. This is the part that
+   must not be skipped: the client supplies `organization_id`, so without this
+   anyone could claim a referral on behalf of someone else's org.
+
+   Read the Authorization header, resolve the user with an anon-key client
+   (`auth.getUser(jwt)`), then confirm that user has an `org_memberships` row
+   for the supplied organization_id with role 'owner'. Reject 403 otherwise.
+
+   Do NOT add a config.toml entry for this function. With no entry it defaults
+   to `verify_jwt = true`, which is what we want — the gateway rejects an
+   unauthenticated call before it reaches this code.
+
+3. Normalise the code SERVER-SIDE. Do not trust the client's normalisation:
+   uppercase, strip everything outside A-Z0-9, and treat an empty result as a
+   missing code (400). This must match `normalizeReferralCode` in
+   src/lib/referralCode.ts.
+
+4. Resolve the code to a referrer via `org_referral_codes`. No match -> record
+   a rejected row (see step 6) with reason 'invalid_code'.
+
+5. Load both sides for the eligibility check:
+
+   - referrer: `organizations.id, owner_id, plan_type` for the code's org
+   - referred: `organizations.id, owner_id, plan_type` for the supplied org
+   - cardFingerprint is NULL for both at this point and that is CORRECT. The
+     card check runs later, in Task 6, at the referred org's first payment —
+     which is the first moment a card exists. Pass null for both here.
+
+   Call `rejectReason(referrer, referred)` from the shared module. Do not
+   re-implement its rules inline.
+
+6. Insert exactly ONE row into `public.org_referrals`, whether accepted or
+   rejected:
+
+   - accepted:  status 'pending',  rejection_reason null
+   - rejected:  status 'rejected', rejection_reason = whatever rejectReason
+                returned (or 'invalid_code')
+
+   Recording rejections is deliberate. It gives an audit trail, and because
+   `org_referrals` has UNIQUE(referred_org_id) it also stops an org retrying
+   with a different code until one is accepted. If a legitimate claim is ever
+   rejected in error, an admin deletes the row to allow a re-claim — say so in
+   a comment so nobody later "fixes" it by skipping the insert.
+
+7. Handle 23505 on `org_referrals_referred_once` as a NORMAL outcome, not an
+   error: return `{ outcome: 'already_claimed' }` with status 200. The frontend
+   retries are non-fatal and must not surface an error for this.
+
+   Note the database also enforces `org_referrals_no_self`
+   (referrer_org_id <> referred_org_id). If rejectReason somehow let a
+   self-referral through, that CHECK raises 23514 — return
+   `{ outcome: 'rejected', reason: 'self_referral_same_org' }` rather than a
+   500. Two layers, deliberately.
+
+8. Ensure a `public.org_referral_credits` row exists for the REFERRER
+   (`insert ... on conflict (organization_id) do nothing`), so Task 7 has a
+   ledger row to update. Zero months at this point.
+
+9. Always return 200 with a JSON `outcome`. Never a 500 for a business
+   rejection. The outcomes are:
+   `claimed` | `already_claimed` | `rejected` | `no_code`
+
+Use the service-role client for every write. Use `corsHeaders` from the shared
+module the other functions use.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. `public.referrals` — the CUSTOMER-to-customer table — and
+   `process_booking_referral_attribution` are untouched. Different feature.
+2. No schema changes. Task 3 shipped the four tables; this only writes to them.
+3. Do NOT add INSERT/UPDATE/DELETE RLS policies to any org_referral* table.
+   The service role bypasses RLS and that is the design.
+4. Do NOT add a config.toml entry. Default verify_jwt = true is correct here.
+5. Do NOT re-implement rejectReason, isVested, or the thresholds inline.
+6. Do not "improve" anything else. Report it and leave it.
+
+
+=== A NOTE ON GRANTS, SINCE THIS BIT US IN TASK 3 ===
+
+Task 3's SQL defined RLS policies but no GRANTs, and you correctly added
+`GRANT SELECT ... TO authenticated` / `GRANT ALL ... TO service_role`, because
+PostgREST errors without table privileges regardless of policy.
+
+No new tables here, so no new grants should be needed. But CONFIRM the four
+tables still carry those grants after this change and report what you find —
+if any are missing, say so rather than silently adding them, because that would
+mean something else dropped them.
+
+
+=== SANITY CHECKS BEFORE YOU DEPLOY ===
+
+Report the number you actually MEASURE. Do not adjust code to reach these.
+
+  1. `_shared/referral-eligibility.ts` differs from `src/lib/referralEligibility.ts`
+     ONLY inside the header comment. Report the diff; it should be 1-3 lines,
+     all inside `/** ... */`.
+  2. `rejectReason` appears in claim-referral exactly ONCE (the call). If it is
+     2+, the rules were re-implemented instead of imported.
+  3. `isVested` appears ZERO times in claim-referral. Vesting is Task 6's job;
+     nothing vests at claim time.
+  4. `supabase/functions/config.toml` has ZERO entries mentioning
+     claim-referral.
+  5. The function inserts into `org_referrals` in exactly ONE place. Two insert
+     sites means the accepted and rejected paths can drift apart.
+  6. `service_role` / `SUPABASE_SERVICE_ROLE_KEY` is used for the writes, and
+     the ANON key is used for `auth.getUser`. Both should appear.
+
+
+=== LIVE TEST — FOUR CASES, AND THE LAST TWO ARE THE CONTROLS ===
+
+Use test orgs. Report the resulting `org_referrals` row for each.
+
+  A. VALID CLAIM. Org X (non-lifetime) claims org Y's real code.
+     EXPECT: one row, status 'pending', rejection_reason null,
+     referrer_org_id = Y, referred_org_id = X.
+
+  B. REPEAT CLAIM. Call it again for org X with any code.
+     EXPECT: outcome 'already_claimed', status 200, and STILL exactly one row
+     for X. Not two, not an error.
+
+  C. CONTROL — SELF-REFERRAL. Org X claims its OWN code.
+     EXPECT: rejected with 'self_referral_same_org'. If this is accepted, the
+     eligibility module is not wired up.
+
+  D. CONTROL — WRONG OWNER. Call it with an organization_id the JWT's user is
+     NOT a member of.
+     EXPECT: 403. If this succeeds, anyone can claim referrals on behalf of any
+     org, and every other check in this function is decorative.
+
+Case A alone proves nothing: a function that accepted everything would pass it.
+Report all four or the test has not been run.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm claim-referral is DEPLOYED, not just committed.
+
+b) The header-only diff from sanity check 1, pasted.
+
+c) All six sanity-check numbers you measured.
+
+d) All four live-test cases with the actual org_referrals rows and HTTP codes,
+   including both controls.
+
+e) The grant status of the four org_referral* tables from the grants note.
+
+f) Confirm `public.referrals` and `process_booking_referral_attribution` are
+   untouched, and that no schema changed.
+
+g) Anything you noticed but deliberately did not touch.
