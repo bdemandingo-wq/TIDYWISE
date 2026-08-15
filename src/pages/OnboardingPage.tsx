@@ -33,6 +33,10 @@ import {
   normalizeAnswers,
   primaryPain,
 } from '@/lib/onboardingAnswers';
+import {
+  readCapturedReferral,
+  clearCapturedReferral,
+} from '@/lib/referralAttribution';
 
 function slugify(input: string) {
   return input
@@ -398,6 +402,38 @@ export default function OnboardingPage() {
         });
 
       if (memberError) throw memberError;
+
+      // Record the referral, if this signup arrived via someone's link.
+      //
+      // The client sends the ORG ID and the CODE and nothing else. It does not
+      // name the referrer, set a status, or grant anything — claim-referral
+      // resolves all of that on the service role. That split is deliberate:
+      // organizations' INSERT policy is (auth.uid() = owner_id) with no column
+      // enumeration, so any attribution a client could write, a client could
+      // forge.
+      //
+      // Deliberately non-fatal. A failed claim must never cost someone their
+      // signup, and org_referrals' UNIQUE(referred_org_id) means a retry can
+      // never double-attribute.
+      const capturedCode = readCapturedReferral();
+      if (capturedCode) {
+        try {
+          const { error: refErr } = await supabase.functions.invoke('claim-referral', {
+            body: { organization_id: orgData.id, referral_code: capturedCode },
+          });
+          // invoke() RESOLVES with an error object on non-2xx rather than
+          // throwing, so this branch is the real failure path.
+          if (refErr) {
+            console.error('[referral] claim failed:', refErr);
+          } else {
+            // Clear only on success. Left in place, a second org created from
+            // this browser would attribute to the same referrer again.
+            clearCapturedReferral();
+          }
+        } catch (err) {
+          console.error('[referral] claim threw:', err);
+        }
+      }
 
       // Create default business settings
       await supabase.from('business_settings').insert({
