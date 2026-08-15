@@ -2395,6 +2395,123 @@ export type Database = {
           },
         ]
       }
+      broadcast_recipients: {
+        Row: {
+          attempts: number
+          broadcast_id: string
+          created_at: string
+          email: string
+          error_message: string | null
+          id: string
+          organization_id: string
+          provider_message_id: string | null
+          sent_at: string | null
+          skip_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          broadcast_id: string
+          created_at?: string
+          email: string
+          error_message?: string | null
+          id?: string
+          organization_id: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          broadcast_id?: string
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          id?: string
+          organization_id?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          skip_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_recipients_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "broadcasts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "broadcast_recipients_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broadcasts: {
+        Row: {
+          audience_resolved_at: string | null
+          body_text: string
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          failed_count: number
+          id: string
+          message_class: string
+          recipient_count: number
+          sent_count: number
+          skipped_count: number
+          started_at: string | null
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience_resolved_at?: string | null
+          body_text: string
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          failed_count?: number
+          id?: string
+          message_class: string
+          recipient_count?: number
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          audience_resolved_at?: string | null
+          body_text?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          failed_count?: number
+          id?: string
+          message_class?: string
+          recipient_count?: number
+          sent_count?: number
+          skipped_count?: number
+          started_at?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       business_intelligence: {
         Row: {
           avg_lead_conversion_rate: number | null
@@ -11141,6 +11258,16 @@ export type Database = {
           p_unit_amount_cents: number
         }
         Returns: number
+      }
+      broadcast_audience: {
+        Args: { p_message_class: string }
+        Returns: {
+          eligible: boolean
+          email: string
+          organization_id: string
+          skip_reason: string
+          user_id: string
+        }[]
       }
       campaign_queue_dispatch: { Args: never; Returns: undefined }
       change_client_portal_password: {
