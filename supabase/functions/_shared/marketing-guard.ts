@@ -9,6 +9,7 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { phoneMatchKey } from "./phone.ts";
 
 const OPTED_OUT = "opted_out";
 
