@@ -1,0 +1,186 @@
+=== BEFORE YOU PASTE THIS: ONE THING NEEDS FILLING IN ===
+
+Part 2 replaces a literal "P.O. Box [TODO], FL" that is going out in production
+mail right now. I do not know the real mailing address, and I am not going to
+invent one — a wrong address in an email footer is worse than the TODO, because
+the TODO at least looks like the bug it is.
+
+Search this prompt for <<<FILL IN>>> and do ONE of:
+  (a) replace it with the real postal address, or
+  (b) delete Part 2 entirely and tell Lovable to remove the address line —
+      instructions for that are inside Part 2.
+
+Do not paste with <<<FILL IN>>> still in it.
+
+=== END OF PRE-FLIGHT ===
+
+
+=== SCOPE: TWO FILES, THREE INDEPENDENT PARTS ===
+
+  Part 1 — supabase/functions/send-welcome-email/index.ts: add a "get the app"
+           block to the email body.
+  Part 2 — same file: fix the placeholder postal address in the footer.
+  Part 3 — a migration: add public.user_sessions.platform.
+
+Parts 1 and 2 touch the same file and can be done in one pass. Part 3 is
+unrelated to it. If any part fails, do the others anyway and report which one
+failed — do not roll back the whole thing.
+
+Do NOT:
+  - change how, when, or from where send-welcome-email sends. The sender
+    (support@tidywisecleaning.com via Resend), the subject, the recipient
+    resolution, the error handling and the Resend "domain not verified" branch
+    all stay exactly as they are.
+  - touch the three things that CALL send-welcome-email — SignupPage.tsx,
+    reconcile-checkout-session, or the on_auth_user_created_welcome_email
+    trigger on auth.users. This prompt changes what the email SAYS, not who
+    gets it or how often.
+  - add an App Store or Google Play URL anywhere in the email. The single link
+    is to /get-the-app, which platform-detects and holds every option. There is
+    an Android question still open; routing through that page means the email
+    never needs editing again when it resolves.
+  - restructure, "modernise" or reformat the rest of the email HTML. It is a
+    hand-rolled table layout with inline styles and it works in Outlook. Match
+    the surrounding style, do not improve on it.
+  - convert this function to React Email / @react-email/components. The
+    templates in _shared/email-templates/ are a different lane
+    (auth-email-hook, notify.jointidywise.org). Not this file, not today.
+  - add a default or a backfill to the new column in Part 3. Details in Part 3.
+  - change any RLS policy on public.user_sessions. I checked: the policy is
+    "Users can manage their own sessions", FOR ALL, USING/WITH CHECK
+    (auth.uid() = user_id). It is row-level with no column-level grants, so a
+    new column is writable by the owning user the moment it exists. Nothing
+    needs to change. If you believe otherwise, STOP and tell me why rather
+    than editing a policy.
+  - "improve" anything else you notice in either file. Report it in your reply
+    and leave it alone.
+
+DO NOT SEND A TEST EMAIL. Do not invoke send-welcome-email, do not trigger a
+signup, and do not use Resend's test send. Deploy it and stop — I will trigger
+a real signup myself and read the result.
+
+
+=== PART 1 — the "get the app" block ===
+
+File: supabase/functions/send-welcome-email/index.ts
+
+Inside the emailHtml template string there is a "Book a Demo Card" table
+(it contains the 🎥 emoji and the "Book My Free Demo" button), and immediately
+after it a "Tips Box" div (the 💡 "Quick Tip" one).
+
+Insert this block BETWEEN those two — after the demo card's closing </table>,
+before the <!-- Tips Box --> comment. Verbatim, including the comment line:
+
+              <!-- Get the app -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;margin-bottom:25px;">
+                <tr>
+                  <td style="padding:24px;text-align:center;">
+                    <div style="font-size:28px;margin-bottom:6px;">📱</div>
+                    <h3 style="margin:0 0 8px 0;color:${primaryColor};font-size:18px;font-weight:700;">Take TidyWise with you</h3>
+                    <p style="margin:0 0 16px 0;font-size:14px;color:#4b5563;line-height:1.5;">
+                      Run your day from your phone, or install TidyWise on your Mac or Windows desktop. Same account, same data, wherever you're working.
+                    </p>
+                    <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/get-the-app" style="display:inline-block;background-color:${primaryColor};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">Get the app</a>
+                  </td>
+                </tr>
+              </table>
+
+Notes on that block, so you do not "fix" it:
+  - ${primaryColor} and ${Deno.env.get("APP_URL") || "https://jointidywise.com"}
+    are real interpolations into the existing template literal. Both identifiers
+    already exist in this file and are already used exactly this way elsewhere
+    in the same string. Keep them as interpolations; do not inline the values.
+  - It deliberately uses the flat #f9fafb card style of the "What You Can Do"
+    box rather than the gradient of the demo card. The demo card is the primary
+    CTA and should stay visually louder than this one.
+  - Solid ${primaryColor} button, not the gradient. Same reason.
+
+
+=== PART 2 — the placeholder postal address ===
+
+File: supabase/functions/send-welcome-email/index.ts (footer, near the bottom
+of the emailHtml string)
+
+This is live right now:
+
+              <p style="color:#9ca3af;font-size:11px;margin:0 0 4px;">
+                TidyWise, P.O. Box [TODO], FL
+              </p>
+
+Replace the text content — and ONLY the text content, keep the <p> and its
+inline style exactly as they are — with:
+
+                <<<FILL IN>>>
+
+IF YOU CHOSE OPTION (b) AND HAVE NO ADDRESS TO GIVE: delete that entire <p>
+element instead, and tell Lovable "remove the postal address line from the
+footer of send-welcome-email; leave the copyright line and the unsubscribe /
+support line untouched." Be aware of the trade: US commercial email is expected
+to carry a valid physical postal address, and this email does carry marketing
+content (the demo CTA, and now the app CTA). Removing the line is the honest
+short-term move; supplying a real address is the correct one. A mailbox service
+address is fine. A made-up one is not.
+
+
+=== PART 3 — public.user_sessions.platform ===
+
+Run this migration:
+
+  ALTER TABLE public.user_sessions
+    ADD COLUMN IF NOT EXISTS platform text;
+
+That is the whole migration. Specifically:
+
+  - NO DEFAULT. Not 'web', not anything. A default would stamp a value onto
+    rows nobody measured, and the entire point of this column is to be able to
+    say truthfully who has opened the native app. NULL means "written before we
+    tracked this," which is a real and different answer from "web".
+  - NO BACKFILL for the same reason. Every existing row's platform is genuinely
+    unknown and must stay that way.
+  - NO CHECK constraint. The writer is Capacitor's getPlatform(), which returns
+    'ios' | 'android' | 'web' today; a CHECK would turn a future platform string
+    into a failed INSERT on a session-tracking write, which is a much worse
+    outcome than an unexpected value in an analytics column.
+  - NO index. The table is small and the query that will use this is a
+    once-in-a-while admin question, not a hot path. Deliberate, not an oversight.
+  - NO RLS change — see the Do NOT list above.
+
+Nothing writes to this column yet. That is expected and correct: the frontend
+change that populates it is blocked on this migration existing, because a
+PostgREST insert naming an unknown column fails with 42703 and would silently
+break session tracking for everyone. Migration first, frontend second.
+
+
+=== WHEN YOU ARE DONE, REPORT ===
+
+a) Confirm send-welcome-email is DEPLOYED, not just committed.
+
+b) Paste the ~15 lines of send-welcome-email/index.ts spanning the end of the
+   demo card through the start of the Tips Box, so I can see the new block in
+   position.
+
+c) Give the raw count of the string "get-the-app" in the finished
+   send-welcome-email/index.ts. Expected 1. Report what you actually get, even
+   if it differs — do not adjust the code to reach 1.
+
+d) Confirm the string "[TODO]" no longer appears anywhere in
+   send-welcome-email/index.ts.
+
+e) For Part 3, paste the output of:
+       select column_name, data_type, is_nullable, column_default
+       from information_schema.columns
+       where table_schema = 'public' and table_name = 'user_sessions'
+       order by ordinal_position;
+   I want to see platform present, nullable, with a NULL default — verified
+   against the live database, not inferred from the migration file.
+
+f) Paste the output of:
+       select policyname, cmd, qual, with_check
+       from pg_policies
+       where schemaname = 'public' and tablename = 'user_sessions';
+   so I can confirm the policies are unchanged.
+
+g) Confirm you did NOT send or trigger any email, and did NOT touch
+   SignupPage.tsx, reconcile-checkout-session, or the auth.users trigger.
+
+h) List anything you noticed but deliberately did not touch.

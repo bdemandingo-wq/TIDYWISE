@@ -1,10 +1,12 @@
 import { useSyncExternalStore, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Apple, Check, Download, Loader2, Monitor, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SEOHead } from '@/components/SEOHead';
 import { APP_STORE_URL } from '@/lib/appVersion';
+import { openExternalUrl } from '@/lib/openExternalUrl';
 import {
   getInstallSnapshot,
   isStandalone,
@@ -163,7 +165,27 @@ export default function GetTheAppPage() {
           highlighted={platform === 'ios'}
         >
           <Button asChild variant={platform === 'ios' ? 'default' : 'outline'} className="gap-2">
-            <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                /*
+                  Still an anchor, not a button. `target="_blank"` is silently
+                  ignored inside the iOS WKWebView — no window, no error, the
+                  control just looks dead (the exact failure openExternalUrl
+                  exists to fix), so native has to go through the Capacitor
+                  Browser plugin. But on the web the anchor already works, and
+                  an anchor is what this page is FOR: cmd-click, open in new
+                  tab, and copy-link-address all matter on a page whose job is
+                  handing someone a link. So intercept only where the default
+                  is broken, and leave the browser alone everywhere else.
+                */
+                if (!Capacitor.isNativePlatform()) return;
+                e.preventDefault();
+                void openExternalUrl(APP_STORE_URL);
+              }}
+            >
               <Apple className="h-4 w-4" />
               Get it on the App Store
             </a>
