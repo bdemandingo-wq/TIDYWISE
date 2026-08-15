@@ -14,6 +14,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { isPhoneOptedOut } from "../_shared/marketing-guard.ts";
+import { phoneMatchKey, toE164 } from "../_shared/phone.ts";
 import { greetingNameFromLead } from "../_shared/facebook-lead-mapping.ts";
 import {
   resolveTemplate,
@@ -35,7 +36,9 @@ type Outcome =
   | "skipped_backfilled"
   | "skipped_automation_off"
   | "skipped_no_phone"
+  | "skipped_unusable_phone"
   | "skipped_opted_out"
+  | "skipped_duplicate_phone"
   | "skipped_sms_not_configured"
   | "failed";
 
@@ -138,6 +141,24 @@ serve(async (req: Request) => {
     return done("skipped_no_phone");
   }
 
+  // ── 6b. And a USABLE number ──
+  // toE164 returns null rather than a best effort, so a 9-digit number no
+  // longer reaches OpenPhone as "+405252227". phoneMatchKey is the dedupe key:
+  // the last 10 digits, so "+1 813…", "813…" and "1813…" are one person.
+  const matchKey = phoneMatchKey(phone);
+  const toPhone = toE164(phone);
+  if (!matchKey || !toPhone) {
+    console.error(`[notify-new-lead] lead ${leadId} has an unusable phone, not sending`);
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: "unusable_phone",
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_unusable_phone");
+  }
+
   // ── 7. Consent. Fails closed: any lookup error returns true. ──
   // isPhoneOptedOut rather than isOptedOut because a lead has no customers row,
   // so marketing_status is not reachable by customer id.
@@ -150,6 +171,60 @@ serve(async (req: Request) => {
       completed_at: new Date().toISOString(),
     });
     return done("skipped_opted_out");
+  }
+
+  // ── 7b. Have we already texted this NUMBER for this org? ──
+  // The claim in step 9 is keyed on lead_id, so it cannot see the same person
+  // arriving twice under two lead rows — Facebook plus the booking form, or two
+  // Facebook submissions. This is that check, keyed on the phone instead.
+  //
+  // Both lead rows are KEPT. Both are real. Only the second text is suppressed.
+  //
+  // Only sending/sent/failed suppress. A `skipped` row means no message went
+  // out, so it must not block a later genuine send. `failed` DOES suppress, for
+  // the same reason step 12 refuses to release its claim: OpenPhone may have
+  // accepted the message before the response failed.
+  //
+  // Fails CLOSED. A lookup error skips the send, because a duplicate text to a
+  // real person is worse than a missed one — the same trade-off step 12 already
+  // makes. The two cases get different skip_reasons so they stay tellable apart.
+  const dedupeHours =
+    Number(
+      (automation.settings as { speed_to_lead_dedupe_hours?: unknown } | null)
+        ?.speed_to_lead_dedupe_hours,
+    ) || 24;
+  const since = new Date(Date.now() - dedupeHours * 3600_000).toISOString();
+
+  const { data: recent, error: recentErr } = await supabase
+    .from("lead_notification_sends")
+    .select("lead_id")
+    .eq("organization_id", organizationId)
+    .eq("phone_key", matchKey)
+    .in("status", ["sending", "sent", "failed"])
+    .gte("claimed_at", since)
+    .limit(1)
+    .maybeSingle();
+
+  if (recentErr || recent) {
+    if (recentErr) {
+      console.error(`[notify-new-lead] dedupe lookup failed, failing closed:`, recentErr);
+    } else {
+      console.log(
+        `[notify-new-lead] lead ${leadId} shares a phone with lead ${recent.lead_id} texted within ${dedupeHours}h, not re-sending`,
+      );
+    }
+    await supabase.from("lead_notification_sends").insert({
+      lead_id: leadId,
+      organization_id: organizationId,
+      status: "skipped",
+      skip_reason: recentErr ? "dedupe_lookup_failed" : "duplicate_phone_recent",
+      phone_key: matchKey,
+      completed_at: new Date().toISOString(),
+    });
+    return done("skipped_duplicate_phone", {
+      duplicate_of_lead_id: recent?.lead_id ?? null,
+      dedupe_hours: dedupeHours,
+    });
   }
 
   // ── 8. SMS transport configured? ──
@@ -174,7 +249,7 @@ serve(async (req: Request) => {
   // left no dedupe row, and the customer stayed eligible.
   const { error: claimErr } = await supabase
     .from("lead_notification_sends")
-    .insert({ lead_id: leadId, organization_id: organizationId, status: "sending" });
+    .insert({ lead_id: leadId, organization_id: organizationId, status: "sending", phone_key: matchKey });
 
   if (claimErr) {
     if (claimErr.code === "23505") {
@@ -216,9 +291,8 @@ serve(async (req: Request) => {
       : resolved.text;
 
   // ── 12. Send ──
-  let toPhone = phone.replace(/\D/g, "");
-  if (!toPhone.startsWith("1") && toPhone.length === 10) toPhone = "1" + toPhone;
-  toPhone = "+" + toPhone;
+  // toPhone was resolved in step 6b by toE164, which returns null rather than a
+  // malformed address, so there is nothing to format here.
 
   try {
     const res = await fetch("https://api.openphone.com/v1/messages", {
