@@ -1,0 +1,227 @@
+=== SCOPE: TIDYWISE CRM (jointidywise). ONE NEW EDGE FUNCTION. ===
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Tasks 7 AND 8 of docs/superpowers/plans/2026-08-15-org-referral-programme.md,
+deliberately combined: the plan lists them separately, but both edit the same
+file and shipping Task 7 alone would leave a reward granter that silently never
+pays the bonus. One function, built once.
+
+  CREATE  supabase/functions/grant-referral-reward/index.ts
+  ALSO    regenerate src/integrations/supabase/types.ts  (see the last section)
+
+Then DEPLOY grant-referral-reward.
+
+PREREQUISITES: Task 4 (`claim-referral` + `_shared/referral-eligibility.ts`)
+and Task 6 (vesting in stripe-invoice-webhook) must already be deployed. Task 6
+is what calls this function.
+
+
+=== BEFORE YOU START: CONFIRM ONE STRIPE SETTING ===
+
+Check whether this Stripe account has MULTIPLE DISCOUNTS enabled on
+subscriptions. Report which it is, because it decides the whole design:
+
+  - MULTIPLE DISCOUNTS OFF (the historical default): a subscription carries at
+    most ONE discount. Rewards must therefore be reconciled into a SINGLE
+    coupon whose duration_in_months equals the months still owed. Build it the
+    way described below.
+
+  - MULTIPLE DISCOUNTS ON: you could append a coupon per reward instead, and
+    the ledger reconciliation becomes unnecessary. DO NOT switch to that
+    without telling me first — the ledger is also what makes redemption
+    countable, and I would rather keep it.
+
+Build the single-coupon version unless I say otherwise.
+
+
+=== WHAT THIS FUNCTION DOES ===
+
+Called with a referral id. It:
+
+  1. grants the referrer one month for that referral,
+  2. checks whether they have now reached THREE referrals in good standing and,
+     if so, grants two ADDITIONAL months, once, ever,
+  3. reconciles the total months owed into one Stripe coupon on the referrer's
+     subscription.
+
+Three referrals earns 3 + 2 = 5 months. The bonus is ON TOP of the three
+already earned, not instead of them.
+
+
+=== THE LEDGER ===
+
+`public.org_referral_credits` is the source of truth:
+
+    months_granted   — everything ever awarded to this org
+    months_redeemed  — months actually consumed by a $0 invoice
+    active_coupon_id — the coupon currently on the subscription
+
+Months still owed is `monthsOwed(granted, redeemed)` from
+`_shared/referral-eligibility.ts`. It CLAMPS AT ZERO — do not write your own
+subtraction. Redemption is counted from webhook events, so a double delivery
+can push redeemed past granted, and a negative `duration_in_months` is rejected
+by Stripe outright.
+
+
+=== THE LOGIC, IN ORDER ===
+
+1. Accept `{ referral_id }`. Service role. This is called server-to-server from
+   stripe-invoice-webhook, so require the cron/internal secret the other
+   internal functions use rather than a user JWT.
+
+2. Load the referral. Proceed ONLY if `status = 'qualified'` and
+   `referrer_reward_granted_at IS NULL`. Anything else: return
+   `{ outcome: 'already_granted' }` with 200. This is the idempotency guard —
+   Task 6 may call this more than once for the same referral.
+
+3. Skip a lifetime referrer. Use `isMonthlyPlan(plan_type)` from the shared
+   module. A lifetime org has no subscription to discount. Set the referral to
+   'rewarded' with a note and return `{ outcome: 'referrer_not_monthly' }` —
+   do NOT error, and do NOT leave it 'qualified' forever.
+
+4. Grant the per-referral month: `months_granted = months_granted + 1` on
+   org_referral_credits for the REFERRER. Stamp
+   `referrer_reward_granted_at` and set the referral to 'rewarded' IN THE SAME
+   STEP, so a retry cannot double-grant (step 2 then short-circuits).
+
+5. THE BONUS. Recount from scratch — do not trust a stored counter:
+
+   - load every org_referrals row where referrer_org_id = this org
+   - for each, get the referred org's CURRENT subscription status from
+     `stripe_subscriptions`
+   - call `isInGoodStanding({ status, paidInvoiceCount, subscriptionStatus })`
+     from the shared module for each
+   - count the trues
+   - `bonusMonthsOwed(count, bonusAlreadyGranted)` decides the rest
+
+   Recounting at every vesting event is deliberate: a referral can fall OUT of
+   good standing between converting and the third one arriving, and a stored
+   counter would not notice.
+
+   If it returns 2, insert `org_referral_bonuses` (months 2, and the qualifying
+   referral ids) and add 2 to months_granted. The table has
+   UNIQUE(organization_id), so "once ever" is enforced by the database — treat
+   23505 there as "already granted", not an error.
+
+6. RECONCILE THE COUPON. Compute `monthsOwed(granted, redeemed)`. If zero, do
+   nothing. Otherwise:
+
+   - create a coupon: `percent_off: 100, duration: 'repeating',
+     duration_in_months: <months owed>`
+   - apply it to the referrer's subscription, REPLACING any coupon currently
+     recorded in `active_coupon_id`
+   - store the new coupon id in `active_coupon_id`
+
+   Replacing rather than stacking is why the ledger exists. Do not apply a
+   second coupon.
+
+7. Always return 200 with an `outcome`. Never 500 for a business condition.
+   Outcomes: `granted` | `already_granted` | `referrer_not_monthly` |
+   `nothing_owed`.
+
+
+=== REDEMPTION COUNTING — THE FRAGILE PART, DO NOT SKIP ===
+
+Nothing above increments `months_redeemed`. That happens in
+stripe-invoice-webhook, and without it the ledger drifts and an org keeps a
+coupon it has already spent.
+
+In the SAME `invoice.paid` branch Task 6 edited (~line 893, the SaaS one, NOT
+the tenant-invoicing one at ~818), add: when an invoice for a subscription has
+`amount_paid === 0` AND carries a 100% discount whose coupon id matches that
+org's `active_coupon_id`, increment `months_redeemed` by 1.
+
+Guard it against redelivery the same way Task 6 does — derive rather than blind
+increment where you can, and if you must increment, key it on the invoice id so
+the same invoice cannot count twice. State in your report exactly how you made
+it idempotent.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. `public.referrals` (customer-to-customer) and
+   `process_booking_referral_attribution` are untouched.
+2. No new tables. Task 3 shipped all four.
+3. Do NOT re-implement monthsOwed, isInGoodStanding, bonusMonthsOwed or
+   isMonthlyPlan. Import them from `_shared/referral-eligibility.ts`. Their
+   behaviour is pinned by src/lib/referralEligibility.test.ts.
+4. Do NOT change the bonus threshold (3) or size (2 months) — those come from
+   the economics, where the ceiling is about $90 of giveaway per referral at
+   the observed 2.84 mean paid months.
+5. Do not touch the tenant-invoicing invoice.paid handler at ~818.
+6. Do not "improve" anything else. Report it and leave it.
+
+
+=== SANITY CHECKS BEFORE YOU DEPLOY ===
+
+Report the number you actually MEASURE.
+
+  1. `bonusMonthsOwed(` appears exactly ONCE.
+  2. `isInGoodStanding(` appears exactly ONCE.
+  3. `monthsOwed(` appears at least once and `months_granted -` (a hand-rolled
+     subtraction) appears ZERO times.
+  4. The literal `3` as a bonus threshold and the literal `2` as a bonus size
+     appear ZERO times in this function — both come from the shared module.
+  5. `coupons.create(` appears exactly ONCE.
+  6. `months_redeemed` is incremented in stripe-invoice-webhook, NOT in this
+     function. Confirm zero increments here.
+  7. `duration_in_months` is assigned from the monthsOwed result, never a
+     literal.
+
+
+=== LIVE TEST — SIX CASES, C, E AND F ARE THE CONTROLS ===
+
+  A. FIRST REWARD. One referral reaches 'qualified'.
+     EXPECT: months_granted 0→1, referral 'rewarded',
+     referrer_reward_granted_at set, a coupon with duration_in_months = 1 on
+     the referrer's subscription.
+
+  B. SECOND AND THIRD. Two more qualify.
+     EXPECT: months_granted reaches 3, THEN the bonus fires: one
+     org_referral_bonuses row (months 2), months_granted = 5, and the coupon
+     REPLACED with duration_in_months = 5 — not a second coupon alongside it.
+
+  C. CONTROL — RE-CALL. Invoke it again with a referral id already 'rewarded'.
+     EXPECT: outcome 'already_granted', months_granted UNCHANGED. If it climbs,
+     every retry from Task 6 mints free months.
+
+  D. REDEMPTION. Referrer's next invoice is $0 against the coupon.
+     EXPECT: months_redeemed 0→1, monthsOwed drops by one.
+
+  E. CONTROL — BONUS DOES NOT REPEAT. Referrals four, five and six qualify.
+     EXPECT: months_granted rises by 1 each time and STILL exactly ONE
+     org_referral_bonuses row. A second bonus row means "once ever" is broken.
+
+  F. CONTROL — A LAPSED REFERRAL DOES NOT COUNT. With two good referrals, cancel
+     the third referred org's subscription, then qualify a fourth.
+     EXPECT: NO bonus — good standing is 3 only if all three are still live. If
+     the bonus fires here, isInGoodStanding is not being consulted.
+
+Cases A, B and D alone cannot distinguish a correct implementation from one
+that grants on every call and never checks standing. Report all six.
+
+
+=== ONE MORE THING — REGENERATE THE TYPES ===
+
+`src/integrations/supabase/types.ts` is generated and still predates Task 3, so
+it does not contain org_referral_codes, org_referrals, org_referral_credits or
+org_referral_bonuses. The frontend hook currently carries a documented
+`supabase as any` bridge purely to compile around that.
+
+Please regenerate types.ts from the live schema as part of this task and commit
+it. Then say so in your report, so the bridge can be deleted — the comment in
+`src/hooks/useReferrals.ts` says exactly that.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Which way the MULTIPLE DISCOUNTS setting is configured on this account.
+b) Confirm grant-referral-reward is DEPLOYED, not just committed.
+c) All seven sanity-check numbers you measured.
+d) All six live-test cases with the actual ledger values and coupon state after
+   each, including all three controls.
+e) Exactly how you made the months_redeemed increment idempotent.
+f) Confirm types.ts was regenerated and now contains the four tables.
+g) Confirm public.referrals and the ~818 handler are untouched.
+h) Anything you noticed but deliberately did not touch.

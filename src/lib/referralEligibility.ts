@@ -33,6 +33,21 @@ export interface ReferralParty {
  */
 const NON_MONTHLY_PLANS = new Set(['lifetime']);
 
+/**
+ * Can an org on this plan take part at all?
+ *
+ * Exported so the UI can hide the panel from a lifetime org using the SAME set
+ * that rejectReason gates on, rather than a second copy of the plan list that
+ * has to be kept in step by memory.
+ *
+ * A null plan_type is IN scope: a brand-new org has not chosen a plan yet, and
+ * rejectReason treats null the same way.
+ */
+export function isMonthlyPlan(planType: string | null): boolean {
+  if (!planType) return true;
+  return !NON_MONTHLY_PLANS.has(planType);
+}
+
 /** Subscription states in which a referral still counts toward the bonus. */
 const LIVE_SUBSCRIPTION_STATES = new Set(['active', 'trialing']);
 
