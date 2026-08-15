@@ -7026,6 +7026,159 @@ export type Database = {
           },
         ]
       }
+      org_referral_bonuses: {
+        Row: {
+          granted_at: string
+          id: string
+          months: number
+          organization_id: string
+          qualifying_referral_ids: string[]
+        }
+        Insert: {
+          granted_at?: string
+          id?: string
+          months: number
+          organization_id: string
+          qualifying_referral_ids: string[]
+        }
+        Update: {
+          granted_at?: string
+          id?: string
+          months?: number
+          organization_id?: string
+          qualifying_referral_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_referral_bonuses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          organization_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          organization_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_referral_codes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_referral_credits: {
+        Row: {
+          active_coupon_id: string | null
+          months_granted: number
+          months_redeemed: number
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          active_coupon_id?: string | null
+          months_granted?: number
+          months_redeemed?: number
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          active_coupon_id?: string | null
+          months_granted?: number
+          months_redeemed?: number
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_referral_credits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_referrals: {
+        Row: {
+          created_at: string
+          id: string
+          referral_code: string
+          referred_card_fingerprint: string | null
+          referred_first_payment_at: string | null
+          referred_org_id: string
+          referred_paid_invoice_count: number
+          referred_second_payment_at: string | null
+          referrer_org_id: string
+          referrer_reward_granted_at: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          referral_code: string
+          referred_card_fingerprint?: string | null
+          referred_first_payment_at?: string | null
+          referred_org_id: string
+          referred_paid_invoice_count?: number
+          referred_second_payment_at?: string | null
+          referrer_org_id: string
+          referrer_reward_granted_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referred_card_fingerprint?: string | null
+          referred_first_payment_at?: string | null
+          referred_org_id?: string
+          referred_paid_invoice_count?: number
+          referred_second_payment_at?: string | null
+          referrer_org_id?: string
+          referrer_reward_granted_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_referrals_referred_org_id_fkey"
+            columns: ["referred_org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_referrals_referrer_org_id_fkey"
+            columns: ["referrer_org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_stripe_settings: {
         Row: {
           connected_at: string | null
