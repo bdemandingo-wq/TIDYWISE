@@ -5753,6 +5753,7 @@ export type Database = {
           completed_at: string | null
           lead_id: string
           organization_id: string
+          phone_key: string | null
           skip_reason: string | null
           status: string
         }
@@ -5761,6 +5762,7 @@ export type Database = {
           completed_at?: string | null
           lead_id: string
           organization_id: string
+          phone_key?: string | null
           skip_reason?: string | null
           status?: string
         }
@@ -5769,6 +5771,7 @@ export type Database = {
           completed_at?: string | null
           lead_id?: string
           organization_id?: string
+          phone_key?: string | null
           skip_reason?: string | null
           status?: string
         }

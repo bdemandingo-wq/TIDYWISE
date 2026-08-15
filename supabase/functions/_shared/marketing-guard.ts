@@ -9,6 +9,7 @@
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { phoneMatchKey } from "./phone.ts";
 
 const OPTED_OUT = "opted_out";
 
@@ -100,14 +101,6 @@ export async function filterOptedIn<T extends { id: string }>(
   }
 }
 
-/** Last 10 digits of a phone, or null when it cannot be normalised. */
-function normalizePhone(phone: string | null | undefined): string | null {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 10) return null;
-  return digits.slice(-10);
-}
-
 type PhoneRow = { id: string; phone: string | null; marketing_status: string | null };
 
 /**
@@ -149,7 +142,7 @@ export async function isPhoneOptedOut(
   organizationId: string,
   phone: string | null | undefined,
 ): Promise<boolean> {
-  const target = normalizePhone(phone);
+  const target = phoneMatchKey(phone);
   if (!target) {
     console.error(
       `[marketing-guard] isPhoneOptedOut got an unusable phone — failing closed | org:${organizationId}`,
@@ -159,7 +152,7 @@ export async function isPhoneOptedOut(
 
   try {
     const rows = await loadOrgPhoneRows(supabase, organizationId);
-    const matches = rows.filter((r) => normalizePhone(r.phone) === target);
+    const matches = rows.filter((r) => phoneMatchKey(r.phone) === target);
     // No matching customer record: nothing says this person opted out.
     if (matches.length === 0) return false;
     // Any single opt-out among duplicates is enough.
@@ -184,12 +177,12 @@ export async function findCustomerIdByPhone(
   organizationId: string,
   phone: string | null | undefined,
 ): Promise<string | null> {
-  const target = normalizePhone(phone);
+  const target = phoneMatchKey(phone);
   if (!target) return null;
 
   try {
     const rows = await loadOrgPhoneRows(supabase, organizationId);
-    const matches = rows.filter((r) => normalizePhone(r.phone) === target);
+    const matches = rows.filter((r) => phoneMatchKey(r.phone) === target);
     if (matches.length === 0) return null;
     const optedOut = matches.find((r) => r.marketing_status === OPTED_OUT);
     return (optedOut ?? matches[0]).id;
