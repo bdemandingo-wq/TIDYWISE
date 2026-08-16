@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SEOHead } from '@/components/SEOHead';
+import { AddToDockDiagram } from '@/components/AddToDockDiagram';
 import { APP_STORE_URL } from '@/lib/appVersion';
 import { openExternalUrl } from '@/lib/openExternalUrl';
 import {
@@ -54,7 +55,7 @@ function isSafari(): boolean {
   return /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua);
 }
 
-function DesktopAction() {
+function DesktopAction({ platform }: { platform: Platform }) {
   const { canInstall, isInstalled } = useSyncExternalStore(
     subscribeInstallPrompt,
     getInstallSnapshot,
@@ -94,10 +95,22 @@ function DesktopAction() {
 
   if (isSafari()) {
     return (
-      <p className="text-sm text-muted-foreground">
-        In Safari, choose <span className="font-medium text-foreground">File → Add to Dock</span>.
-        Requires macOS Sonoma or later.
-      </p>
+      <div>
+        <p className="text-sm text-muted-foreground">
+          In Safari, choose <span className="font-medium text-foreground">File → Add to Dock</span>.
+          Requires macOS Sonoma or later.
+        </p>
+        {/*
+          Safari only — Chrome and Edge have the Install button above and never
+          reach this branch. Narrowed to 'mac' on top of that, because this
+          card is visible on every device: mobile Safari also passes
+          isSafari(), and a picture of a macOS menu bar is noise on a phone
+          that has no menu bar to look at. The sentence above still shows
+          there, and it already says "macOS Sonoma or later", so nothing is
+          lost by keeping the drawing off it.
+        */}
+        {platform === 'mac' && <AddToDockDiagram />}
+      </div>
     );
   }
 
@@ -203,7 +216,7 @@ export default function GetTheAppPage() {
           blurb="Install TidyWise as a desktop app — its own window and dock icon, no browser tabs."
           highlighted={platform === 'mac' || platform === 'windows'}
         >
-          <DesktopAction />
+          <DesktopAction platform={platform} />
         </PlatformCard>
       ),
     },
