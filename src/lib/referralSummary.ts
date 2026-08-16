@@ -10,6 +10,28 @@
  * the owner sees a neutral string.
  */
 
+/**
+ * The programme's rules, in the order an owner needs them.
+ *
+ * These live here rather than inline in the panel for one reason: they are the
+ * terms of an offer, and the panel originally stated only two of the three —
+ * the three-referral bonus appeared ONLY after it had already been earned, so
+ * anyone deciding whether to share could not see it.
+ *
+ * The vesting rule is the one that must never be softened. Without "second
+ * payment" stated in as many words, an owner refers someone, sees no free
+ * month, and reasonably concludes the feature is broken. A vague "once they
+ * subscribe" would be worse than silence, because it sets an expectation the
+ * system will not meet.
+ *
+ * referralSummary.test.ts pins all three.
+ */
+export const REFERRAL_TERMS: readonly string[] = [
+  'They get 50% off their first month, straight away.',
+  'You get one free month once they have made their second payment — not their first.',
+  'Refer three businesses that are still active and you get two extra months on top.',
+];
+
 export interface ReferralRow {
   status: string;
   rejection_reason: string | null;

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Check, Gift } from 'lucide-react';
 import { useReferrals } from '@/hooks/useReferrals';
-import { referralLink, referralStatusLabel } from '@/lib/referralSummary';
+import { referralLink, referralStatusLabel, REFERRAL_TERMS } from '@/lib/referralSummary';
 import { formatInOrgTz } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
@@ -78,12 +78,28 @@ const ReferralPanel = () => {
           Refer another business
         </CardTitle>
         <CardDescription>
-          They get 50% off their first month. You get a free month once they've made
-          their second payment.
+          Share your link with another cleaning business. Here's how it works.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">
+        {/* The terms, always visible — including the bonus, which used to
+            appear only once it had already been earned. Nobody shares a
+            programme whose rules they cannot see. */}
+        <ol className="space-y-2 rounded-lg border border-border bg-muted/40 p-4">
+          {REFERRAL_TERMS.map((term, i) => (
+            <li key={term} className="flex gap-3 text-sm">
+              <span
+                className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <span className="text-foreground">{term}</span>
+            </li>
+          ))}
+        </ol>
+
         {link ? (
           <div className="space-y-2">
             <label htmlFor="referral-link" className="text-sm font-medium">

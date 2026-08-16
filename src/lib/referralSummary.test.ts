@@ -17,6 +17,7 @@ import {
   referralLink,
   summariseReferrals,
   referralStatusLabel,
+  REFERRAL_TERMS,
   type ReferralRow,
 } from './referralSummary.ts';
 import { isMonthlyPlan } from './referralEligibility.ts';
@@ -107,6 +108,49 @@ test('the vesting rule is visible, not a surprise', () => {
   // payment is needed, rather than wondering why nothing happened.
   const label = referralStatusLabel(row({ status: 'pending', referred_paid_invoice_count: 1 }));
   assert.match(label, /payment/i);
+});
+
+// ─── the terms an owner reads BEFORE they share ─────────────────────────────
+//
+// These assertions exist because the panel originally stated two of the three
+// rules and revealed the bonus only AFTER it had been earned. Someone deciding
+// whether to share could not see it. Each rule is pinned here so it cannot be
+// dropped or softened without a test failing.
+
+test('all three rules are stated', () => {
+  assert.equal(REFERRAL_TERMS.length, 3);
+});
+
+test('the referred side is told what THEY get', () => {
+  const joined = REFERRAL_TERMS.join(' ');
+  assert.match(joined, /50%/);
+  assert.match(joined, /first month/i);
+});
+
+test('THE VESTING RULE IS STATED PLAINLY — this is the important one', () => {
+  // Without it someone refers a friend, sees no free month, and concludes the
+  // feature is broken. The word "second" is what does the work; a vague
+  // "once they subscribe" would be worse than saying nothing.
+  const joined = REFERRAL_TERMS.join(' ');
+  assert.match(joined, /second payment/i);
+});
+
+test('the three-referral bonus is visible before it is earned', () => {
+  const joined = REFERRAL_TERMS.join(' ');
+  assert.match(joined, /three/i);
+  assert.match(joined, /two (extra |more |additional )?months/i);
+});
+
+test('CONTROL: the three terms are distinct', () => {
+  // A terms array holding the same sentence three times would satisfy every
+  // "joined text mentions X" assertion above.
+  assert.equal(new Set(REFERRAL_TERMS).size, 3);
+});
+
+test('CONTROL: no rule is an empty string', () => {
+  for (const t of REFERRAL_TERMS) {
+    assert.ok(t.trim().length > 10, `term too short to be a real sentence: ${JSON.stringify(t)}`);
+  }
 });
 
 // ─── scope ──────────────────────────────────────────────────────────────────
