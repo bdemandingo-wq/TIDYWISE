@@ -1,25 +1,15 @@
-=== BEFORE YOU PASTE THIS: ONE THING NEEDS FILLING IN ===
+=== READY TO PASTE — no blanks to fill in ===
 
-Part 2 replaces a literal "P.O. Box [TODO], FL" that is going out in production
-mail right now. I do not know the real mailing address, and I am not going to
-invent one — a wrong address in an email footer is worse than the TODO, because
-the TODO at least looks like the bug it is.
-
-Search this prompt for <<<FILL IN>>> and do ONE of:
-  (a) replace it with the real postal address, or
-  (b) delete Part 2 entirely and tell Lovable to remove the address line —
-      instructions for that are inside Part 2.
-
-Do not paste with <<<FILL IN>>> still in it.
-
-=== END OF PRE-FLIGHT ===
-
+One decision is already made and is not open for the agent to re-litigate:
+Part 2 DELETES the placeholder postal address rather than substituting a real
+one. That leaves a known, accepted gap — see the flag inside Part 2 before you
+paste, because it is a thing you are choosing, not a thing you are fixing.
 
 === SCOPE: TWO FILES, THREE INDEPENDENT PARTS ===
 
   Part 1 — supabase/functions/send-welcome-email/index.ts: add a "get the app"
            block to the email body.
-  Part 2 — same file: fix the placeholder postal address in the footer.
+  Part 2 — same file: remove the placeholder postal address from the footer.
   Part 3 — a migration: add public.user_sessions.platform.
 
 Parts 1 and 2 touch the same file and can be done in one pass. Part 3 is
@@ -52,6 +42,10 @@ Do NOT:
     new column is writable by the owning user the moment it exists. Nothing
     needs to change. If you believe otherwise, STOP and tell me why rather
     than editing a policy.
+  - invent, infer, look up or otherwise supply a postal address in Part 2. The
+    line is being deleted, not replaced, and that is a decision that has already
+    been made with the trade-off understood. If you think an address belongs
+    there, say so in your reply — do not put one in the file.
   - "improve" anything else you notice in either file. Report it in your reply
     and leave it alone.
 
@@ -96,30 +90,51 @@ Notes on that block, so you do not "fix" it:
   - Solid ${primaryColor} button, not the gradient. Same reason.
 
 
-=== PART 2 — the placeholder postal address ===
+=== PART 2 — remove the placeholder postal address ===
 
 File: supabase/functions/send-welcome-email/index.ts (footer, near the bottom
 of the emailHtml string)
 
-This is live right now:
+This is going out in production mail right now:
 
               <p style="color:#9ca3af;font-size:11px;margin:0 0 4px;">
                 TidyWise, P.O. Box [TODO], FL
               </p>
 
-Replace the text content — and ONLY the text content, keep the <p> and its
-inline style exactly as they are — with:
+DELETE that entire <p> element — all three lines, opening tag through closing
+tag. Do not replace it. Do not substitute an address of your own, do not infer
+one from the sender domain, the Resend account, the Stripe account, the
+organizations table, or anywhere else, and do not leave a comment standing in
+for one. There is no address to put here yet; that is the point.
 
-                <<<FILL IN>>>
+Leave untouched, immediately above and below it:
+  - the © copyright <p> (margin:0 0 12px)
+  - the unsubscribe / support <p> (margin:0)
 
-IF YOU CHOSE OPTION (b) AND HAVE NO ADDRESS TO GIVE: delete that entire <p>
-element instead, and tell Lovable "remove the postal address line from the
-footer of send-welcome-email; leave the copyright line and the unsubscribe /
-support line untouched." Be aware of the trade: US commercial email is expected
-to carry a valid physical postal address, and this email does carry marketing
-content (the demo CTA, and now the app CTA). Removing the line is the honest
-short-term move; supplying a real address is the correct one. A mailbox service
-address is fine. A made-up one is not.
+No spacing fix is needed after the deletion. The copyright line already carries
+a 12px bottom margin, which becomes the gap above the unsubscribe line.
+
+
+--- FLAG: what this leaves open, deliberately ---
+
+After this change the welcome email carries marketing content — the "Book My
+Free Demo" CTA, and now the "Get the app" block from Part 1 — with no physical
+postal address anywhere in it.
+
+That is the accepted stopgap, not the end state. The reasoning: a placeholder
+reading "P.O. Box [TODO], FL" is not an address, so removing it does not lose
+anything real, and a made-up address would be actively worse than nothing —
+it asserts something false to every customer instead of merely omitting it.
+
+Worth knowing when this gets revisited: the US CAN-SPAM address requirement
+turns on an email's PRIMARY purpose. A welcome email sent because someone just
+created an account has a reasonable claim to being transactional, which would
+exempt it — but every marketing block added to it weakens that claim, and this
+change adds one. So the gap widens slightly here rather than staying flat.
+
+Revisit with a real address — a mailbox service is fine — and restore the <p>
+with its original inline style. Nothing else about the footer needs to change
+when that happens.
 
 
 === PART 3 — public.user_sessions.platform ===
@@ -163,8 +178,15 @@ c) Give the raw count of the string "get-the-app" in the finished
    send-welcome-email/index.ts. Expected 1. Report what you actually get, even
    if it differs — do not adjust the code to reach 1.
 
-d) Confirm the string "[TODO]" no longer appears anywhere in
-   send-welcome-email/index.ts.
+d) For Part 2, paste the finished footer <td> in full — from the
+   <!-- Footer --> comment to its closing </tr>. I want to see, in one block,
+   that the address <p> is gone, that the copyright <p> and the unsubscribe /
+   support <p> are both still there and unchanged, and that nothing was put in
+   the deleted element's place.
+
+   Also confirm all three: the string "[TODO]" no longer appears anywhere in
+   send-welcome-email/index.ts; the string "P.O." no longer appears anywhere in
+   it; and you did not add a postal address of any kind, anywhere in the file.
 
 e) For Part 3, paste the output of:
        select column_name, data_type, is_nullable, column_default
