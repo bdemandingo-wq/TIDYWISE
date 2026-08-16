@@ -63,13 +63,13 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-/** Split on blank lines into paragraphs; single newlines become <br/>. */
+/** Split on blank lines into paragraphs; single newlines become <br>. */
 function paragraphs(bodyText: string): string {
   return bodyText
     .split(/\n{2,}/)
     .map((block) => block.trim())
     .filter(Boolean)
-    .map((block) => `<p style="margin:0 0 16px;line-height:1.6">${escapeHtml(block).replace(/\n/g, '<br/>')}</p>`)
+    .map((block) => `<p style="margin:0 0 16px;line-height:1.6">${escapeHtml(block).replace(/\n/g, '<br>')}</p>`)
     .join('\n');
 }
 
@@ -87,12 +87,14 @@ export function renderBroadcastHtml(args: {
   // from outside. renderBroadcastText already emits the constant unescaped, so
   // this also keeps the two renderers consistent.
   const footer = unsubscribeUrl
-    ? `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
-<p style="color:#9ca3af;font-size:12px;line-height:1.5;margin:0">${UNSUBSCRIBE_SENTENCE}
-<a href="${escapeHtml(unsubscribeUrl)}" style="color:#9ca3af;text-decoration:underline">Unsubscribe</a>.</p>`
+    ? `<hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+<p style="margin:0;font-size:12px;color:#6b7280;line-height:1.5">
+${UNSUBSCRIBE_SENTENCE}
+<a href="${escapeHtml(unsubscribeUrl)}" style="color:#6b7280">Unsubscribe</a>.
+</p>`
     : '';
 
-  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111827;max-width:560px;margin:0 auto;padding:24px">
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;color:#111827;max-width:560px;margin:0 auto;padding:24px">
 ${paragraphs(bodyText)}
 ${footer}
 </div>`;
