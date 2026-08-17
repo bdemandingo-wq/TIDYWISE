@@ -192,60 +192,151 @@ serve(async (req) => {
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
 
-      // Derive the CRM product set from the price-id secrets.
-      const PRICE_ID_ENV_VARS = [
+      // Reuse the single client constructed above (same API version).
+      const stripeForProducts = stripe;
+
+      // Derived, not hardcoded. create-subscription sells exactly these six
+      // prices; resolving each to its product means a new plan appears on this
+      // dashboard as soon as its secret is set, instead of silently dropping
+      // every customer on it until someone remembers to edit this file.
+      const PRICE_ID_SECRETS = [
         "STRIPE_BASIC_MONTHLY_PRICE_ID",
         "STRIPE_BASIC_YEARLY_PRICE_ID",
         "STRIPE_PRO_MONTHLY_PRICE_ID",
         "STRIPE_PRO_YEARLY_PRICE_ID",
         "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
         "STRIPE_CUSTOM_YEARLY_PRICE_ID",
-        "STRIPE_LIFETIME_PRICE_ID",
       ];
-      const TIDYWISE_CRM_PRODUCT_IDS = new Set<string>();
-      for (const envVar of PRICE_ID_ENV_VARS) {
-        const priceId = Deno.env.get(envVar);
+
+      // Products that CANNOT be derived, and must not be "cleaned up".
+      //
+      // Each of these holds live subscribers but has no secret pointing at it,
+      // because there is only one STRIPE_PRO_MONTHLY_PRICE_ID and one
+      // STRIPE_BASIC_MONTHLY_PRICE_ID — a secret can name exactly one price, and
+      // therefore reach exactly one product. Deleting any line below drops those
+      // customers off this dashboard with no error and no symptom.
+      //
+      //   prod_Tg3zSKe9hRHLZy — legacy "TIDYWISE Pro Subscription", $50/mo, 13
+      //     subscribers. A retired product at a retired price. No current secret
+      //     names it and none can, because the Pro secret points at the $97/mo
+      //     product. These are grandfathered customers still paying $50.
+      //
+      //   prod_Uc4rWR3lSym9VN — a DUPLICATE TidyWise Basic product, 5
+      //     subscribers. Same plan as the derived Basic product, separate Stripe
+      //     product record. STRIPE_BASIC_MONTHLY_PRICE_ID reaches the other one.
+      //
+      //   prod_Uc5BhR3ZK0V6M8 — a DUPLICATE TidyWise Pro product, 4 subscribers.
+      //     Same story: STRIPE_PRO_MONTHLY_PRICE_ID reaches the other Pro
+      //     product, so these four are unreachable by derivation.
+      //
+      // The two duplicates are twins, not different plans. Consolidating those 9
+      // subscribers onto the derived products would let two of these three lines
+      // be deleted — until that happens, they stay.
+      const LEGACY_PRODUCT_IDS = new Set<string>([
+        "prod_Tg3zSKe9hRHLZy",
+        "prod_Uc4rWR3lSym9VN",
+        "prod_Uc5BhR3ZK0V6M8",
+      ]);
+
+      const derivedProductIds = new Set<string>();
+      const priceResolution: Array<{ secret: string; price: string | null; product: string | null; error?: string }> = [];
+
+      for (const secretName of PRICE_ID_SECRETS) {
+        const priceId = Deno.env.get(secretName);
         if (!priceId) {
-          console.log(`[PLATFORM-ANALYTICS] Price secret not set: ${envVar}`);
+          priceResolution.push({ secret: secretName, price: null, product: null, error: "secret not set" });
           continue;
         }
         try {
-          const price = await stripe.prices.retrieve(priceId);
-          const productId = typeof price.product === "string" ? price.product : price.product?.id;
-          if (productId) {
-            TIDYWISE_CRM_PRODUCT_IDS.add(productId);
-            console.log(`[PLATFORM-ANALYTICS] ${envVar} -> price ${priceId} -> product ${productId}`);
-          }
+          const price = await stripeForProducts.prices.retrieve(priceId);
+          const productId = typeof price.product === "string" ? price.product : price.product?.id ?? null;
+          if (productId) derivedProductIds.add(productId);
+          priceResolution.push({ secret: secretName, price: priceId, product: productId });
         } catch (e) {
-          console.error(`[PLATFORM-ANALYTICS] Failed to resolve ${envVar} (${priceId}):`, e instanceof Error ? e.message : String(e));
+          // Do NOT swallow this. A price that fails to resolve is a product
+          // missing from the filter, which is a group of paying customers
+          // missing from the dashboard.
+          priceResolution.push({
+            secret: secretName,
+            price: priceId,
+            product: null,
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
-      console.log("[PLATFORM-ANALYTICS] Derived TidyWise CRM products:", [...TIDYWISE_CRM_PRODUCT_IDS]);
+
+      console.log("[PLATFORM-ANALYTICS] price -> product resolution:", JSON.stringify(priceResolution));
+      console.log("[PLATFORM-ANALYTICS] derived product ids:", [...derivedProductIds]);
+      console.log("[PLATFORM-ANALYTICS] legacy product ids:", [...LEGACY_PRODUCT_IDS]);
+
+      // Hard stop, and it checks the DERIVED set specifically — not the union
+      // below. Checking the union would make this unreachable, because the three
+      // legacy ids are unconditional, so the set can never be empty and a total
+      // failure of the six secrets would sail through reporting only legacy
+      // subscribers as if that were the whole business.
+      if (derivedProductIds.size === 0) {
+        throw new Error(
+          "platform-analytics: no CRM product ids could be derived from the six " +
+          "STRIPE_*_PRICE_ID secrets. Refusing to report subscription counts " +
+          "built only from the legacy fallback. Resolution detail: " +
+          JSON.stringify(priceResolution),
+        );
+      }
+
+      const TIDYWISE_CRM_PRODUCT_IDS = new Set<string>([
+        ...derivedProductIds,
+        ...LEGACY_PRODUCT_IDS,
+      ]);
+      console.log("[PLATFORM-ANALYTICS] counted product ids (derived + legacy):", [...TIDYWISE_CRM_PRODUCT_IDS]);
 
       try {
-        // Get all subscriptions (all statuses), paginated so nothing is missed.
-        const allSubscriptionData: Stripe.Subscription[] = [];
-        for await (const sub of stripe.subscriptions.list({ limit: 100, status: 'all' })) {
-          allSubscriptionData.push(sub as Stripe.Subscription);
-        }
-        console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptionData.length);
+        const crmSubscriptions: Stripe.Subscription[] = [];
+        let totalSubscriptionsSeen = 0;
+        let controlMatches = 0;
+        const unmatchedProductCounts: Record<string, number> = {};
 
-        // Filter to only TidyWise CRM subscriptions (products derived from price secrets)
-        const crmSubscriptions = allSubscriptionData.filter((sub: Stripe.Subscription) => {
-          const productId = sub.items.data[0]?.price?.product as string | undefined;
-          return !!productId && TIDYWISE_CRM_PRODUCT_IDS.has(productId);
-        });
-        console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
+        // A product id that cannot exist. If this ever matches anything, the
+        // comparison itself is broken and every other count here is meaningless.
+        const CONTROL_PRODUCT_ID = "prod_thisDoesNotExist000";
 
-        // Report what got excluded, grouped by product id, so a dropped product is visible.
-        const excludedByProduct: Record<string, number> = {};
-        for (const sub of allSubscriptionData) {
-          const productId = (sub.items.data[0]?.price?.product as string | undefined) || "unknown";
-          if (!TIDYWISE_CRM_PRODUCT_IDS.has(productId)) {
-            excludedByProduct[productId] = (excludedByProduct[productId] || 0) + 1;
-          }
+        // Bounded, and the bound is logged. The bug being fixed is a silent
+        // truncation at 100; replacing it with a silent truncation at 5000 would
+        // be the same bug wearing a bigger number.
+        const MAX_SUBSCRIPTIONS_SCANNED = 5000;
+        let truncated = false;
+
+        await stripe.subscriptions
+          .list({ limit: 100, status: "all" })
+          .autoPagingEach((sub: Stripe.Subscription) => {
+            if (totalSubscriptionsSeen >= MAX_SUBSCRIPTIONS_SCANNED) {
+              truncated = true;
+              return false; // returning false stops autoPagingEach
+            }
+            totalSubscriptionsSeen++;
+
+            const productId = sub.items.data[0]?.price?.product as string | undefined;
+            if (!productId) return;
+
+            if (productId === CONTROL_PRODUCT_ID) controlMatches++;
+
+            if (TIDYWISE_CRM_PRODUCT_IDS.has(productId)) {
+              crmSubscriptions.push(sub);
+            } else {
+              unmatchedProductCounts[productId] = (unmatchedProductCounts[productId] ?? 0) + 1;
+            }
+          });
+
+        if (truncated) {
+          console.error(
+            `[PLATFORM-ANALYTICS] TRUNCATED at ${MAX_SUBSCRIPTIONS_SCANNED} subscriptions — counts below are incomplete`,
+          );
         }
-        console.log("[PLATFORM-ANALYTICS] Excluded subscriptions by product:", JSON.stringify(excludedByProduct));
+
+        console.log("[PLATFORM-ANALYTICS] subscriptions scanned:", totalSubscriptionsSeen);
+        console.log("[PLATFORM-ANALYTICS] matched CRM subscriptions:", crmSubscriptions.length);
+        console.log("[PLATFORM-ANALYTICS] CONTROL matches (must be 0):", controlMatches);
+        console.log("[PLATFORM-ANALYTICS] products seen but NOT counted:", JSON.stringify(unmatchedProductCounts));
+
 
 
         // Build a set of emails belonging to staff-only users (not org owners/admins).
