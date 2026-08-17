@@ -55,9 +55,10 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Get subscription plan. plan_type is the live column — subscription_tier
-    // and subscription_status do not exist on organizations, so the old lookup
-    // silently errored and every signup printed the constant "trial (trial)".
+    // Get subscription plan. plan_type is the live column. The two columns this
+    // previously selected do not exist on organizations, so the lookup silently
+    // errored and every signup printed the constant "trial (trial)".
+
     const { data: orgData, error: orgError } = await supabase
       .from("organizations")
       .select("plan_type, owner_id")
