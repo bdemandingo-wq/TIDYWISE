@@ -13,6 +13,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+const ADMIN_PHONES = ["+15615718725", "+18137356859"];
+
 const log = (step: string, details?: unknown) => {
   const s = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[STRIPE-SUB-WEBHOOK] ${step}${s}`);
