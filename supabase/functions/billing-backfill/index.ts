@@ -9,6 +9,7 @@
 //  - Money is integer cents from Stripe, stored as-is. No division, no rounding, no floats.
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -395,13 +396,21 @@ Deno.serve(async (req) => {
     });
 
   try {
-    // --- authorization: platform admin JWT, or the cron/admin shared secret
+    // Authorization, in order: cron secret, admin shared secret, platform-admin JWT.
+    //
+    // requireCronSecret is used as a PREDICATE here, deliberately not as the
+    // usual `const gate = requireCronSecret(req); if (gate) return gate;`
+    // early return. That shape would 401 every platform-admin call this
+    // function already serves from the browser, because an admin request
+    // carries no x-cron-secret header. A request without the header must fall
+    // through to the paths below, not be rejected.
+    let authorized = requireCronSecret(req) === null;
     const provided = req.headers.get("x-admin-secret");
     const accepted = [
       Deno.env.get("BILLING_BACKFILL_ADMIN_SECRET"),
       Deno.env.get("CRON_SECRET"),
     ].filter(Boolean) as string[];
-    let authorized = Boolean(provided && accepted.includes(provided));
+    if (!authorized) authorized = Boolean(provided && accepted.includes(provided));
     if (!authorized) {
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace("Bearer ", "");
@@ -426,6 +435,11 @@ Deno.serve(async (req) => {
     const resource = body.resource as Resource;
     const mode: "count" | "run" = body.mode === "count" ? "count" : "run";
     const maxPages = Math.max(1, Math.min(50, Number(body.maxPages ?? 5)));
+    // Scheduled runs must re-walk from the newest object. Without this the
+    // cursor stays parked on the oldest object from the previous complete run,
+    // every subsequent call returns an empty page, and the job marks itself
+    // complete having imported nothing while refreshing finished_at.
+    const restart = body.restart === true;
     if (!RESOURCES.includes(resource)) {
       return json({ error: `resource must be one of ${RESOURCES.join(", ")}` }, 400);
     }
@@ -441,10 +455,10 @@ Deno.serve(async (req) => {
       .eq("resource", resource)
       .maybeSingle();
 
-    let cursor: string | null = existing?.cursor_after ?? null;
-    let pagesDone = existing?.pages_done ?? 0;
-    let objectsSeen = existing?.objects_seen ?? 0;
-    let rowsWritten = existing?.rows_written ?? 0;
+    let cursor: string | null = restart ? null : (existing?.cursor_after ?? null);
+    let pagesDone = restart ? 0 : (existing?.pages_done ?? 0);
+    let objectsSeen = restart ? 0 : (existing?.objects_seen ?? 0);
+    let rowsWritten = restart ? 0 : (existing?.rows_written ?? 0);
 
     if (mode === "run") {
       await admin.from("billing_backfill_jobs").upsert(

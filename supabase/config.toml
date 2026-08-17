@@ -255,3 +255,9 @@ verify_jwt = true
   [functions.broadcast-dispatch]
     verify_jwt = false
 
+
+  # Nightly Revenue-tab backfill. pg_cron cannot present a user JWT, so the
+  # gateway check is off; the function authorizes internally on all three
+  # paths (x-cron-secret, x-admin-secret, platform-admin JWT).
+  [functions.billing-backfill]
+    verify_jwt = false
