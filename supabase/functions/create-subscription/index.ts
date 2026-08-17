@@ -283,6 +283,10 @@ serve(async (req) => {
         card: { request_three_d_secure: "automatic" },
       },
       metadata: evidenceMetadata,
+      // Spread conditionally — `discounts: undefined` is not the same as
+      // omitting it, and Stripe rejects `discounts` alongside
+      // `allow_promotion_codes` (which this function does not set).
+      ...(referralDiscount ? { discounts: referralDiscount } : {}),
       subscription_data: {
         metadata: evidenceMetadata,
         trial_period_days: TRIAL_DAYS,
@@ -294,10 +298,24 @@ serve(async (req) => {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
+    // Mark the discount consumed so it cannot be re-used on a second
+    // subscription. Only after the session was created successfully.
+    if (referralRowId) {
+      await accessAdmin
+        .from("org_referrals")
+        .update({ referred_discount_applied_at: new Date().toISOString() })
+        .eq("id", referralRowId)
+        .then(({ error }) => {
+          if (error) console.error("[referral] failed to stamp discount:", error);
+        });
+    }
+
     logStep("Checkout session created", {
       sessionId: session.id,
       flow: user ? "authenticated" : "anonymous",
+      referralDiscount: Boolean(referralDiscount),
     });
+
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
