@@ -195,9 +195,6 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="color:#9ca3af;font-size:12px;margin:0 0 12px;">
                 © ${new Date().getFullYear()} ${companyName}. All rights reserved.
               </p>
-              <p style="color:#9ca3af;font-size:11px;margin:0 0 4px;">
-                TidyWise, P.O. Box [TODO], FL
-              </p>
               <p style="color:#9ca3af;font-size:11px;margin:0;">
                 <a href="mailto:support@tidywisecleaning.com?subject=Unsubscribe" style="color:#9ca3af;">Unsubscribe</a>
                 ·
