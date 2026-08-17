@@ -435,6 +435,11 @@ Deno.serve(async (req) => {
     const resource = body.resource as Resource;
     const mode: "count" | "run" = body.mode === "count" ? "count" : "run";
     const maxPages = Math.max(1, Math.min(50, Number(body.maxPages ?? 5)));
+    // Scheduled runs must re-walk from the newest object. Without this the
+    // cursor stays parked on the oldest object from the previous complete run,
+    // every subsequent call returns an empty page, and the job marks itself
+    // complete having imported nothing while refreshing finished_at.
+    const restart = body.restart === true;
     if (!RESOURCES.includes(resource)) {
       return json({ error: `resource must be one of ${RESOURCES.join(", ")}` }, 400);
     }
