@@ -395,13 +395,21 @@ Deno.serve(async (req) => {
     });
 
   try {
-    // --- authorization: platform admin JWT, or the cron/admin shared secret
+    // Authorization, in order: cron secret, admin shared secret, platform-admin JWT.
+    //
+    // requireCronSecret is used as a PREDICATE here, deliberately not as the
+    // usual `const gate = requireCronSecret(req); if (gate) return gate;`
+    // early return. That shape would 401 every platform-admin call this
+    // function already serves from the browser, because an admin request
+    // carries no x-cron-secret header. A request without the header must fall
+    // through to the paths below, not be rejected.
+    let authorized = requireCronSecret(req) === null;
     const provided = req.headers.get("x-admin-secret");
     const accepted = [
       Deno.env.get("BILLING_BACKFILL_ADMIN_SECRET"),
       Deno.env.get("CRON_SECRET"),
     ].filter(Boolean) as string[];
-    let authorized = Boolean(provided && accepted.includes(provided));
+    if (!authorized) authorized = Boolean(provided && accepted.includes(provided));
     if (!authorized) {
       const authHeader = req.headers.get("Authorization") ?? "";
       const token = authHeader.replace("Bearer ", "");
