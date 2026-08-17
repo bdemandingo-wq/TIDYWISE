@@ -249,3 +249,9 @@ verify_jwt = true
   [functions.admin-reset-portal-password]
     verify_jwt = true
 
+  # Cron-driven broadcast send worker. pg_cron cannot present a user JWT and
+  # this project's vault has no service-role secret, so the gateway check is
+  # off and requireCronSecret (x-cron-secret) is the real gate.
+  [functions.broadcast-dispatch]
+    verify_jwt = false
+
