@@ -112,12 +112,11 @@ serve(async (req) => {
     const logBranch = (branch: string, details: Record<string, unknown> = {}) =>
       logStep(`BRANCH ${branch}`, { orgIds, ...details });
 
-    // Bypass subscription check for owner accounts, Apple review, and the
-    // @tidywise1.com creator domain. Keyed off the verified auth.users record
+    // Bypass subscription check for owner accounts and Apple review.
+    // Keyed off the verified auth.users record
     // (NOT user-supplied input). Keep this list short.
-    const isCreatorDomain = normalizedEmail.endsWith("@tidywise1.com");
-    if (FREE_ACCOUNTS.has(normalizedEmail) || isCreatorDomain) {
-      logBranch("free_account_granted", { email: normalizedEmail, isCreatorDomain });
+    if (FREE_ACCOUNTS.has(normalizedEmail)) {
+      logBranch("free_account_granted", { email: normalizedEmail });
       return new Response(JSON.stringify({
         subscribed: true,
         trial_active: false,

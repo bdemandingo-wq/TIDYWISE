@@ -10997,6 +10997,7 @@ export type Database = {
           duration_seconds: number | null
           id: string
           is_active: boolean | null
+          platform: string | null
           session_end: string | null
           session_start: string
           updated_at: string
@@ -11008,6 +11009,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           is_active?: boolean | null
+          platform?: string | null
           session_end?: string | null
           session_start?: string
           updated_at?: string
@@ -11019,6 +11021,7 @@ export type Database = {
           duration_seconds?: number | null
           id?: string
           is_active?: boolean | null
+          platform?: string | null
           session_end?: string | null
           session_start?: string
           updated_at?: string
