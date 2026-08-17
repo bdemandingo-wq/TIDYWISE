@@ -175,15 +175,9 @@ serve(async (req) => {
       .gte('created_at', thirtyDaysAgo.toISOString())
       .order('created_at', { ascending: false });
 
-    // Get subscription data - ONLY TidyWise CRM subscribers (filter by product ID)
-    // Both legacy "TIDYWISE Pro Subscription" and current "TidyWise Pro" products
-    // count as CRM subscribers. Adding a new Pro price requires appending its
-    // product ID here or that customer will silently drop off the dashboard.
-    const TIDYWISE_CRM_PRODUCT_IDS = new Set([
-      "prod_Tg3zSKe9hRHLZy", // legacy TIDYWISE Pro Subscription
-      "prod_Uc5BhR3ZK0V6M8", // current TidyWise Pro ($97/mo)
-    ]);
-    
+    // Get subscription data - ONLY TidyWise CRM subscribers (filter by product ID).
+    // The product set is DERIVED at runtime from the configured price-id secrets,
+    // so adding a new plan price secret automatically includes its product here.
     let activeSubscriptions = 0;
     let trialSubscriptions = 0;
     let canceledSubscriptions = 0;
@@ -195,24 +189,64 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
       console.log("[PLATFORM-ANALYTICS] Fetching Stripe subscription data...");
-      console.log("[PLATFORM-ANALYTICS] Filtering for TidyWise CRM products:", [...TIDYWISE_CRM_PRODUCT_IDS]);
       const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
       const thirtyDaysAgoTimestamp = Math.floor(thirtyDaysAgo.getTime() / 1000);
-      
+
+      // Derive the CRM product set from the price-id secrets.
+      const PRICE_ID_ENV_VARS = [
+        "STRIPE_BASIC_MONTHLY_PRICE_ID",
+        "STRIPE_BASIC_YEARLY_PRICE_ID",
+        "STRIPE_PRO_MONTHLY_PRICE_ID",
+        "STRIPE_PRO_YEARLY_PRICE_ID",
+        "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
+        "STRIPE_CUSTOM_YEARLY_PRICE_ID",
+        "STRIPE_LIFETIME_PRICE_ID",
+      ];
+      const TIDYWISE_CRM_PRODUCT_IDS = new Set<string>();
+      for (const envVar of PRICE_ID_ENV_VARS) {
+        const priceId = Deno.env.get(envVar);
+        if (!priceId) {
+          console.log(`[PLATFORM-ANALYTICS] Price secret not set: ${envVar}`);
+          continue;
+        }
+        try {
+          const price = await stripe.prices.retrieve(priceId);
+          const productId = typeof price.product === "string" ? price.product : price.product?.id;
+          if (productId) {
+            TIDYWISE_CRM_PRODUCT_IDS.add(productId);
+            console.log(`[PLATFORM-ANALYTICS] ${envVar} -> price ${priceId} -> product ${productId}`);
+          }
+        } catch (e) {
+          console.error(`[PLATFORM-ANALYTICS] Failed to resolve ${envVar} (${priceId}):`, e instanceof Error ? e.message : String(e));
+        }
+      }
+      console.log("[PLATFORM-ANALYTICS] Derived TidyWise CRM products:", [...TIDYWISE_CRM_PRODUCT_IDS]);
+
       try {
-        // Get all subscriptions (including all statuses to show full picture)
-        const allSubscriptions = await stripe.subscriptions.list({ 
-          limit: 100,
-          status: 'all' // Get all statuses: active, trialing, canceled, etc.
-        });
-        console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptions.data.length);
-        
-        // Filter to only TidyWise CRM subscriptions (any of the known Pro products)
-        const crmSubscriptions = allSubscriptions.data.filter((sub: Stripe.Subscription) => {
+        // Get all subscriptions (all statuses), paginated so nothing is missed.
+        const allSubscriptionData: Stripe.Subscription[] = [];
+        for await (const sub of stripe.subscriptions.list({ limit: 100, status: 'all' })) {
+          allSubscriptionData.push(sub as Stripe.Subscription);
+        }
+        console.log("[PLATFORM-ANALYTICS] Found total subscriptions:", allSubscriptionData.length);
+
+        // Filter to only TidyWise CRM subscriptions (products derived from price secrets)
+        const crmSubscriptions = allSubscriptionData.filter((sub: Stripe.Subscription) => {
           const productId = sub.items.data[0]?.price?.product as string | undefined;
           return !!productId && TIDYWISE_CRM_PRODUCT_IDS.has(productId);
         });
         console.log("[PLATFORM-ANALYTICS] Filtered to CRM subscriptions:", crmSubscriptions.length);
+
+        // Report what got excluded, grouped by product id, so a dropped product is visible.
+        const excludedByProduct: Record<string, number> = {};
+        for (const sub of allSubscriptionData) {
+          const productId = (sub.items.data[0]?.price?.product as string | undefined) || "unknown";
+          if (!TIDYWISE_CRM_PRODUCT_IDS.has(productId)) {
+            excludedByProduct[productId] = (excludedByProduct[productId] || 0) + 1;
+          }
+        }
+        console.log("[PLATFORM-ANALYTICS] Excluded subscriptions by product:", JSON.stringify(excludedByProduct));
+
 
         // Build a set of emails belonging to staff-only users (not org owners/admins).
         // We hide them from the Subscribers tab because they appear via their
