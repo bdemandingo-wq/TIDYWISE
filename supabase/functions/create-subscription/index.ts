@@ -283,9 +283,10 @@ serve(async (req) => {
         card: { request_three_d_secure: "automatic" },
       },
       metadata: evidenceMetadata,
-      // Spread conditionally — `discounts: undefined` is not the same as
-      // omitting it, and Stripe rejects `discounts` alongside
-      // `allow_promotion_codes` (which this function does not set).
+      // Spread conditionally — passing the key as undefined is not the same
+      // as omitting it, and Stripe rejects it alongside promotion codes
+      // (which this function does not enable).
+
       ...(referralDiscount ? { discounts: referralDiscount } : {}),
       subscription_data: {
         metadata: evidenceMetadata,
