@@ -2,6 +2,71 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { REFUND_POLICY, CANCELLATION_POLICY, POLICY_DISCLOSURE, TOS_VERSION } from "../_shared/policies.ts";
+import { rejectReason, isVested } from "../_shared/referral-eligibility.ts";
+
+/**
+ * Count a redeemed referral month.
+ *
+ * Fires when a subscription invoice settles at $0 against the 100% referral
+ * coupon currently recorded in `org_referral_credits.active_coupon_id`.
+ *
+ * IDEMPOTENT BY INSERT, NOT BY INCREMENT: the invoice id is the primary key of
+ * `org_referral_redemptions`, so a Stripe redelivery of the same invoice hits a
+ * 23505 and the increment is skipped. Never blind-increments.
+ */
+async function countReferralRedemption(supabase: any, inv: any) {
+  try {
+    if (!inv.subscription || (inv.amount_paid ?? 0) !== 0) return;
+
+    const discountCoupons: string[] = [
+      ...((inv.discounts ?? []) as any[]).map((d: any) => (typeof d === "string" ? null : d?.coupon?.id)),
+      (inv.discount as any)?.coupon?.id ?? null,
+    ].filter(Boolean) as string[];
+    if (discountCoupons.length === 0) return;
+
+    const { data: subRow } = await supabase
+      .from("stripe_subscriptions")
+      .select("organization_id")
+      .eq("stripe_subscription_id", inv.subscription as string)
+      .maybeSingle();
+    const orgId = subRow?.organization_id;
+    if (!orgId) return;
+
+    const { data: credits } = await supabase
+      .from("org_referral_credits")
+      .select("months_redeemed, active_coupon_id")
+      .eq("organization_id", orgId)
+      .maybeSingle();
+    if (!credits?.active_coupon_id) return;
+    if (!discountCoupons.includes(credits.active_coupon_id)) return;
+
+    const { error: dupeError } = await supabase.from("org_referral_redemptions").insert({
+      stripe_invoice_id: inv.id,
+      organization_id: orgId,
+      coupon_id: credits.active_coupon_id,
+    });
+    if (dupeError) {
+      if ((dupeError as any).code === "23505") {
+        console.log("[referral] redemption already counted for", inv.id);
+      } else {
+        console.error("[referral] redemption ledger insert failed", dupeError);
+      }
+      return;
+    }
+
+    await supabase
+      .from("org_referral_credits")
+      .update({
+        months_redeemed: (credits.months_redeemed ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("organization_id", orgId);
+    console.log("[referral] redemption counted for", inv.id, orgId);
+  } catch (e) {
+    console.error("[referral] redemption counting failed (swallowed):", e);
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -902,6 +967,135 @@ const handler = async (req: Request): Promise<Response> => {
           const pi = inv.payment_intent ? await stripe.paymentIntents.retrieve(inv.payment_intent as string) : null;
           const charge = pi?.latest_charge ? await stripe.charges.retrieve(pi.latest_charge as string) : null;
           const threeDS = (charge?.payment_method_details as any)?.card?.three_d_secure?.result || null;
+
+          // ── ORG-TO-ORG REFERRAL VESTING ─────────────────────────────────
+          // Own try/catch: a referral bug must NEVER break receipt delivery or
+          // the webhook acknowledgement back to Stripe.
+          try {
+            if (!inv.subscription) {
+              // not a subscription invoice — nothing to vest
+            } else if ((inv.amount_paid ?? 0) <= 0) {
+              // A $0 trial invoice is not a payment. It MAY, however, be a
+              // redemption of a 100% referral coupon — handled below.
+              await countReferralRedemption(supabase, inv);
+              console.log("[referral] skip vesting: zero-amount invoice", inv.id);
+            } else {
+              // Resolve the REFERRED organization.
+              let referredOrgId: string | null = (combined.organization_id as string) || null;
+              if (!referredOrgId) {
+                const { data: subRow } = await supabase
+                  .from("stripe_subscriptions")
+                  .select("organization_id")
+                  .eq("stripe_subscription_id", inv.subscription as string)
+                  .maybeSingle();
+                referredOrgId = subRow?.organization_id ?? null;
+              }
+
+              if (!referredOrgId) {
+                console.log("[referral] skip: could not resolve organization for", inv.id);
+              } else {
+                const { data: referral } = await supabase
+                  .from("org_referrals")
+                  .select("id, status, referrer_org_id, referred_org_id, referred_first_payment_at, referred_card_fingerprint")
+                  .eq("referred_org_id", referredOrgId)
+                  .maybeSingle();
+
+                if (!referral) {
+                  // Common case: this org was not referred.
+                } else if (referral.status === "rewarded" || referral.status === "rejected") {
+                  console.log("[referral] skip: terminal status", referral.status);
+                } else {
+                  // COUNT ABSOLUTELY, NEVER INCREMENT. Stripe may redeliver a
+                  // webhook; an increment would over-count and vest early, and
+                  // would never recover from a missed delivery.
+                  const paidInvoices = await stripe.invoices.list({
+                    subscription: inv.subscription as string,
+                    status: "paid",
+                    limit: 100,
+                  });
+                  const paidCount = paidInvoices.data.filter((i) => (i.amount_paid ?? 0) > 0).length;
+
+                  const patch: Record<string, unknown> = {
+                    referred_paid_invoice_count: paidCount,
+                  };
+                  if (!referral.referred_first_payment_at && paidCount >= 1) {
+                    patch.referred_first_payment_at = new Date().toISOString();
+                  }
+
+                  // First moment a card exists — record the fingerprint and
+                  // re-run eligibility, which is why the card self-referral
+                  // check lives here and not in claim-referral.
+                  const fingerprint = (charge?.payment_method_details as any)?.card?.fingerprint ?? null;
+                  if (fingerprint && !referral.referred_card_fingerprint) {
+                    patch.referred_card_fingerprint = fingerprint;
+                  }
+
+                  const { data: orgs } = await supabase
+                    .from("organizations")
+                    .select("id, owner_id, plan_type")
+                    .in("id", [referral.referrer_org_id, referral.referred_org_id]);
+                  const referrerOrg = orgs?.find((o: any) => o.id === referral.referrer_org_id);
+                  const referredOrg = orgs?.find((o: any) => o.id === referral.referred_org_id);
+
+                  // The referrer's own card fingerprint: recorded on the
+                  // referral where THEY were the referred party, if any.
+                  const { data: referrerAsReferred } = await supabase
+                    .from("org_referrals")
+                    .select("referred_card_fingerprint")
+                    .eq("referred_org_id", referral.referrer_org_id)
+                    .not("referred_card_fingerprint", "is", null)
+                    .order("updated_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                  const reason = referrerOrg && referredOrg
+                    ? rejectReason(
+                        {
+                          orgId: referrerOrg.id,
+                          ownerId: referrerOrg.owner_id,
+                          planType: referrerOrg.plan_type ?? null,
+                          cardFingerprint: referrerAsReferred?.referred_card_fingerprint ?? null,
+                        },
+                        {
+                          orgId: referredOrg.id,
+                          ownerId: referredOrg.owner_id,
+                          planType: referredOrg.plan_type ?? null,
+                          cardFingerprint: fingerprint ?? referral.referred_card_fingerprint ?? null,
+                        },
+                      )
+                    : null;
+
+                  if (reason) {
+                    await supabase
+                      .from("org_referrals")
+                      .update({ ...patch, status: "rejected", rejection_reason: reason })
+                      .eq("id", referral.id);
+                    console.log("[referral] rejected at payment:", referral.id, reason);
+                  } else {
+                    if (isVested(paidCount) && referral.status === "pending") {
+                      patch.status = "qualified";
+                      patch.referred_second_payment_at = new Date().toISOString();
+                    }
+                    await supabase.from("org_referrals").update(patch).eq("id", referral.id);
+
+                    if (patch.status === "qualified") {
+                      console.log("[referral] vested:", referral.id, "paidCount", paidCount);
+                      await supabase.functions
+                        .invoke("grant-referral-reward", {
+                          headers: { "x-cron-secret": Deno.env.get("CRON_SECRET") ?? "" },
+                          body: { referral_id: referral.id },
+                        })
+                        .catch((e) => console.error("[referral] grant invoke failed", e));
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error("[referral] vesting block failed (swallowed):", e);
+          }
+
+
 
           // Look up Supabase user by account_id metadata or customer email
           const customerEmail = inv.customer_email || (combined.email as string) || null;

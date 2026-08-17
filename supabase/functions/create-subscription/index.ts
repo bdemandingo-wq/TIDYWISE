@@ -135,20 +135,26 @@ serve(async (req) => {
     }
 
     let customerId: string | undefined;
+    // Hoisted out of the `if (user)` block: the referral-discount lookup below
+    // runs at the session-creation site and needs both of these. Do not move
+    // that lookup inside this block — it would change when it runs.
+    let referredOrgId: string | null = null;
+    const accessAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
     if (user) {
-      const accessAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } },
-      );
       const { data: existingOrg } = await accessAdmin
         .from("org_memberships")
-        .select("organizations(plan_type, grandfathered_lifetime)")
+        .select("organizations(id, plan_type, grandfathered_lifetime)")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
-      const org = (existingOrg as { organizations?: { plan_type?: string; grandfathered_lifetime?: boolean } } | null)?.organizations;
+      const org = (existingOrg as { organizations?: { id?: string; plan_type?: string; grandfathered_lifetime?: boolean } } | null)?.organizations;
+      referredOrgId = org?.id ?? null;
       if (org?.grandfathered_lifetime || org?.plan_type === "lifetime") {
+
         return new Response(
           JSON.stringify({
             error: "You already have lifetime access — no need to subscribe.",
@@ -226,8 +232,43 @@ serve(async (req) => {
     // they picked at checkout is still what they convert onto.
     const TRIAL_DAYS = 14;
 
+    // The referred org's half of the programme: 50% off their first month.
+    // Only orgs that arrived through someone's referral link, and only on
+    // their first subscription.
+    //
+    // KNOWN GAP: `referredOrgId` is only resolved for the AUTHENTICATED flow.
+    // In anonymous checkout no organization exists yet, so no discount can be
+    // applied. Accepted, not an oversight — the code is still in the browser's
+    // storage and claim-referral records it at onboarding, so the REFERRER
+    // still earns their month.
+    //
+    // The coupon is `repeating`/`duration_in_months: 1`, NOT `once`: with a
+    // 14-day trial Stripe issues a $0 invoice at creation, and a `once` coupon
+    // could be consumed by it, leaving nothing for the first real charge.
+    let referralDiscount: { coupon: string }[] | undefined;
+    let referralRowId: string | null = null;
+    try {
+      const couponId = Deno.env.get("REFERRED_FIRST_MONTH_COUPON");
+      if (couponId && referredOrgId) {
+        const { data: ref } = await accessAdmin
+          .from("org_referrals")
+          .select("id, status, referred_discount_applied_at")
+          .eq("referred_org_id", referredOrgId)
+          .in("status", ["pending", "qualified"])
+          .maybeSingle();
+        if (ref && !ref.referred_discount_applied_at) {
+          referralDiscount = [{ coupon: couponId }];
+          referralRowId = ref.id;
+        }
+      }
+    } catch (e) {
+      // Never block checkout over a discount lookup.
+      console.error("[referral] discount lookup failed:", e);
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+
       customer_email: customerId ? undefined : user?.email,
       // Note: `customer_creation` is only valid in payment mode. In
       // subscription mode Stripe always creates a Customer automatically,
@@ -242,6 +283,10 @@ serve(async (req) => {
         card: { request_three_d_secure: "automatic" },
       },
       metadata: evidenceMetadata,
+      // Spread conditionally — `discounts: undefined` is not the same as
+      // omitting it, and Stripe rejects `discounts` alongside
+      // `allow_promotion_codes` (which this function does not set).
+      ...(referralDiscount ? { discounts: referralDiscount } : {}),
       subscription_data: {
         metadata: evidenceMetadata,
         trial_period_days: TRIAL_DAYS,
@@ -253,10 +298,24 @@ serve(async (req) => {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
+    // Mark the discount consumed so it cannot be re-used on a second
+    // subscription. Only after the session was created successfully.
+    if (referralRowId) {
+      await accessAdmin
+        .from("org_referrals")
+        .update({ referred_discount_applied_at: new Date().toISOString() })
+        .eq("id", referralRowId)
+        .then(({ error }) => {
+          if (error) console.error("[referral] failed to stamp discount:", error);
+        });
+    }
+
     logStep("Checkout session created", {
       sessionId: session.id,
       flow: user ? "authenticated" : "anonymous",
+      referralDiscount: Boolean(referralDiscount),
     });
+
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

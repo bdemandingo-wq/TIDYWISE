@@ -7116,12 +7116,42 @@ export type Database = {
           },
         ]
       }
+      org_referral_redemptions: {
+        Row: {
+          coupon_id: string | null
+          organization_id: string
+          redeemed_at: string
+          stripe_invoice_id: string
+        }
+        Insert: {
+          coupon_id?: string | null
+          organization_id: string
+          redeemed_at?: string
+          stripe_invoice_id: string
+        }
+        Update: {
+          coupon_id?: string | null
+          organization_id?: string
+          redeemed_at?: string
+          stripe_invoice_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_referral_redemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_referrals: {
         Row: {
           created_at: string
           id: string
           referral_code: string
           referred_card_fingerprint: string | null
+          referred_discount_applied_at: string | null
           referred_first_payment_at: string | null
           referred_org_id: string
           referred_paid_invoice_count: number
@@ -7137,6 +7167,7 @@ export type Database = {
           id?: string
           referral_code: string
           referred_card_fingerprint?: string | null
+          referred_discount_applied_at?: string | null
           referred_first_payment_at?: string | null
           referred_org_id: string
           referred_paid_invoice_count?: number
@@ -7152,6 +7183,7 @@ export type Database = {
           id?: string
           referral_code?: string
           referred_card_fingerprint?: string | null
+          referred_discount_applied_at?: string | null
           referred_first_payment_at?: string | null
           referred_org_id?: string
           referred_paid_invoice_count?: number
