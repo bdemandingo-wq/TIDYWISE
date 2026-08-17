@@ -244,15 +244,21 @@ export function useBillingPlanPayers() {
 
       const planTypes = new Map<string, string | null>();
       if (orgIds.length > 0) {
+        /*
+          Via the SECURITY DEFINER RPC, not `organizations` directly: that table's
+          only SELECT policy is owner_id = auth.uid() OR is_org_member(id), with no
+          platform-admin bypass, so a direct read resolved zero plan types and every
+          payer fell into "Other — unrecognised plan". The RPC gates on
+          is_platform_admin() itself and returns zero rows to anyone else.
+        */
         const { data: orgs, error: orgError } = await supabase
-          .from('organizations')
-          .select('id, plan_type')
-          .in('id', orgIds);
+          .rpc('billing_payer_plan_types', { p_org_ids: orgIds });
         if (orgError) throw orgError;
         for (const o of orgs ?? []) {
-          planTypes.set(o.id as string, (o.plan_type as string) ?? null);
+          planTypes.set(o.organization_id as string, (o.plan_type as string) ?? null);
         }
       }
+
 
       return (data ?? []).map((r: Record<string, unknown>) => ({
         organization_id: (r.organization_id as string) ?? null,
