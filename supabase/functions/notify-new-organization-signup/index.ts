@@ -124,7 +124,7 @@ Deno.serve(async (req: Request) => {
       `Owner: ${ownerName}\n` +
       `Email: ${ownerEmail}\n` +
       `Phone: ${ownerPhone}\n` +
-      `Plan: ${plan} (${status})\n` +
+      `Plan: ${plan}\n${trialLine}\n` +
       `Time: ${timestamp} EST\n` +
       `Total Orgs: ${totalOrgs || 0}\n` +
       `This Month: ${monthOrgs || 0}\n\n` +
@@ -197,7 +197,7 @@ Deno.serve(async (req: Request) => {
           owner_email: ownerEmail,
           owner_phone: ownerPhone,
           plan,
-          status,
+          trial_ends_at: trialEndsAt,
           sms_sent: result?.success ?? false,
           sms_error: result?.error || null,
           total_orgs: totalOrgs,
