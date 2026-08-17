@@ -135,20 +135,26 @@ serve(async (req) => {
     }
 
     let customerId: string | undefined;
+    // Hoisted out of the `if (user)` block: the referral-discount lookup below
+    // runs at the session-creation site and needs both of these. Do not move
+    // that lookup inside this block — it would change when it runs.
+    let referredOrgId: string | null = null;
+    const accessAdmin = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } },
+    );
     if (user) {
-      const accessAdmin = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-        { auth: { persistSession: false } },
-      );
       const { data: existingOrg } = await accessAdmin
         .from("org_memberships")
-        .select("organizations(plan_type, grandfathered_lifetime)")
+        .select("organizations(id, plan_type, grandfathered_lifetime)")
         .eq("user_id", user.id)
         .limit(1)
         .maybeSingle();
-      const org = (existingOrg as { organizations?: { plan_type?: string; grandfathered_lifetime?: boolean } } | null)?.organizations;
+      const org = (existingOrg as { organizations?: { id?: string; plan_type?: string; grandfathered_lifetime?: boolean } } | null)?.organizations;
+      referredOrgId = org?.id ?? null;
       if (org?.grandfathered_lifetime || org?.plan_type === "lifetime") {
+
         return new Response(
           JSON.stringify({
             error: "You already have lifetime access — no need to subscribe.",
