@@ -232,8 +232,43 @@ serve(async (req) => {
     // they picked at checkout is still what they convert onto.
     const TRIAL_DAYS = 14;
 
+    // The referred org's half of the programme: 50% off their first month.
+    // Only orgs that arrived through someone's referral link, and only on
+    // their first subscription.
+    //
+    // KNOWN GAP: `referredOrgId` is only resolved for the AUTHENTICATED flow.
+    // In anonymous checkout no organization exists yet, so no discount can be
+    // applied. Accepted, not an oversight — the code is still in the browser's
+    // storage and claim-referral records it at onboarding, so the REFERRER
+    // still earns their month.
+    //
+    // The coupon is `repeating`/`duration_in_months: 1`, NOT `once`: with a
+    // 14-day trial Stripe issues a $0 invoice at creation, and a `once` coupon
+    // could be consumed by it, leaving nothing for the first real charge.
+    let referralDiscount: { coupon: string }[] | undefined;
+    let referralRowId: string | null = null;
+    try {
+      const couponId = Deno.env.get("REFERRED_FIRST_MONTH_COUPON");
+      if (couponId && referredOrgId) {
+        const { data: ref } = await accessAdmin
+          .from("org_referrals")
+          .select("id, status, referred_discount_applied_at")
+          .eq("referred_org_id", referredOrgId)
+          .in("status", ["pending", "qualified"])
+          .maybeSingle();
+        if (ref && !ref.referred_discount_applied_at) {
+          referralDiscount = [{ coupon: couponId }];
+          referralRowId = ref.id;
+        }
+      }
+    } catch (e) {
+      // Never block checkout over a discount lookup.
+      console.error("[referral] discount lookup failed:", e);
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
+
       customer_email: customerId ? undefined : user?.email,
       // Note: `customer_creation` is only valid in payment mode. In
       // subscription mode Stripe always creates a Customer automatically,
