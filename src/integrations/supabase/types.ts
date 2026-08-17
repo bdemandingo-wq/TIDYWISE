@@ -11447,6 +11447,13 @@ export type Database = {
         }
         Returns: number
       }
+      billing_payer_plan_types: {
+        Args: { p_org_ids: string[] }
+        Returns: {
+          organization_id: string
+          plan_type: string
+        }[]
+      }
       broadcast_audience: {
         Args: { p_message_class: string }
         Returns: {

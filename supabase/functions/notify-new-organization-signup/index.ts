@@ -55,15 +55,44 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Get subscription plan
-    const { data: orgData } = await supabase
+    // Get subscription plan. plan_type is the live column. The two columns this
+    // previously selected do not exist on organizations, so the lookup silently
+    // errored and every signup printed the constant "trial (trial)".
+
+    const { data: orgData, error: orgError } = await supabase
       .from("organizations")
-      .select("subscription_tier, subscription_status")
+      .select("plan_type, owner_id")
       .eq("id", org_id)
       .maybeSingle();
 
-    const plan = orgData?.subscription_tier || "trial";
-    const status = orgData?.subscription_status || "trial";
+    if (orgError) {
+      console.error("[notify-new-organization-signup] org lookup failed:", orgError);
+    }
+
+    let trialEndsAt: string | null = null;
+    if (orgData?.owner_id) {
+      const { data: ownerProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("trial_ends_at")
+        .eq("id", orgData.owner_id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("[notify-new-organization-signup] profile lookup failed:", profileError);
+      }
+
+      trialEndsAt = ownerProfile?.trial_ends_at ?? null;
+    }
+
+    // No `|| "trial"` fallback. If the lookup failed we do not know the plan,
+    // and saying "trial" would reproduce the exact bug being fixed: a
+    // confident-looking constant standing in for a missing answer.
+    const plan = orgData?.plan_type ?? "unknown";
+
+    const trialLine = trialEndsAt
+      ? `Trial ends: ${new Date(trialEndsAt).toISOString().slice(0, 10)}`
+      : "Trial end: unknown";
+
 
     // Get total org count
     const { count: totalOrgs } = await supabase
@@ -96,7 +125,7 @@ Deno.serve(async (req: Request) => {
       `Owner: ${ownerName}\n` +
       `Email: ${ownerEmail}\n` +
       `Phone: ${ownerPhone}\n` +
-      `Plan: ${plan} (${status})\n` +
+      `Plan: ${plan}\n${trialLine}\n` +
       `Time: ${timestamp} EST\n` +
       `Total Orgs: ${totalOrgs || 0}\n` +
       `This Month: ${monthOrgs || 0}\n\n` +
@@ -169,7 +198,7 @@ Deno.serve(async (req: Request) => {
           owner_email: ownerEmail,
           owner_phone: ownerPhone,
           plan,
-          status,
+          trial_ends_at: trialEndsAt,
           sms_sent: result?.success ?? false,
           sms_error: result?.error || null,
           total_orgs: totalOrgs,
