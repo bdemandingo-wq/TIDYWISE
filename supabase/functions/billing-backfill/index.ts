@@ -455,10 +455,10 @@ Deno.serve(async (req) => {
       .eq("resource", resource)
       .maybeSingle();
 
-    let cursor: string | null = existing?.cursor_after ?? null;
-    let pagesDone = existing?.pages_done ?? 0;
-    let objectsSeen = existing?.objects_seen ?? 0;
-    let rowsWritten = existing?.rows_written ?? 0;
+    let cursor: string | null = restart ? null : (existing?.cursor_after ?? null);
+    let pagesDone = restart ? 0 : (existing?.pages_done ?? 0);
+    let objectsSeen = restart ? 0 : (existing?.objects_seen ?? 0);
+    let rowsWritten = restart ? 0 : (existing?.rows_written ?? 0);
 
     if (mode === "run") {
       await admin.from("billing_backfill_jobs").upsert(
