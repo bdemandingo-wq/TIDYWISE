@@ -2,6 +2,71 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { REFUND_POLICY, CANCELLATION_POLICY, POLICY_DISCLOSURE, TOS_VERSION } from "../_shared/policies.ts";
+import { rejectReason, isVested } from "../_shared/referral-eligibility.ts";
+
+/**
+ * Count a redeemed referral month.
+ *
+ * Fires when a subscription invoice settles at $0 against the 100% referral
+ * coupon currently recorded in `org_referral_credits.active_coupon_id`.
+ *
+ * IDEMPOTENT BY INSERT, NOT BY INCREMENT: the invoice id is the primary key of
+ * `org_referral_redemptions`, so a Stripe redelivery of the same invoice hits a
+ * 23505 and the increment is skipped. Never blind-increments.
+ */
+async function countReferralRedemption(supabase: any, inv: any) {
+  try {
+    if (!inv.subscription || (inv.amount_paid ?? 0) !== 0) return;
+
+    const discountCoupons: string[] = [
+      ...((inv.discounts ?? []) as any[]).map((d: any) => (typeof d === "string" ? null : d?.coupon?.id)),
+      (inv.discount as any)?.coupon?.id ?? null,
+    ].filter(Boolean) as string[];
+    if (discountCoupons.length === 0) return;
+
+    const { data: subRow } = await supabase
+      .from("stripe_subscriptions")
+      .select("organization_id")
+      .eq("stripe_subscription_id", inv.subscription as string)
+      .maybeSingle();
+    const orgId = subRow?.organization_id;
+    if (!orgId) return;
+
+    const { data: credits } = await supabase
+      .from("org_referral_credits")
+      .select("months_redeemed, active_coupon_id")
+      .eq("organization_id", orgId)
+      .maybeSingle();
+    if (!credits?.active_coupon_id) return;
+    if (!discountCoupons.includes(credits.active_coupon_id)) return;
+
+    const { error: dupeError } = await supabase.from("org_referral_redemptions").insert({
+      stripe_invoice_id: inv.id,
+      organization_id: orgId,
+      coupon_id: credits.active_coupon_id,
+    });
+    if (dupeError) {
+      if ((dupeError as any).code === "23505") {
+        console.log("[referral] redemption already counted for", inv.id);
+      } else {
+        console.error("[referral] redemption ledger insert failed", dupeError);
+      }
+      return;
+    }
+
+    await supabase
+      .from("org_referral_credits")
+      .update({
+        months_redeemed: (credits.months_redeemed ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("organization_id", orgId);
+    console.log("[referral] redemption counted for", inv.id, orgId);
+  } catch (e) {
+    console.error("[referral] redemption counting failed (swallowed):", e);
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
