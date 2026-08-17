@@ -157,6 +157,20 @@ const handler = async (req: Request): Promise<Response> => {
                 </tr>
               </table>
 
+              <!-- Get the app -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f9fafb;border-radius:12px;border:1px solid #e5e7eb;margin-bottom:25px;">
+                <tr>
+                  <td style="padding:24px;text-align:center;">
+                    <div style="font-size:28px;margin-bottom:6px;">📱</div>
+                    <h3 style="margin:0 0 8px 0;color:${primaryColor};font-size:18px;font-weight:700;">Take TidyWise with you</h3>
+                    <p style="margin:0 0 16px 0;font-size:14px;color:#4b5563;line-height:1.5;">
+                      Run your day from your phone, or install TidyWise on your Mac or Windows desktop. Same account, same data, wherever you're working.
+                    </p>
+                    <a href="${Deno.env.get("APP_URL") || "https://jointidywise.com"}/get-the-app" style="display:inline-block;background-color:${primaryColor};color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:15px;font-weight:600;">Get the app</a>
+                  </td>
+                </tr>
+              </table>
+
               <!-- Tips Box -->
               <div style="background-color:#eff6ff;padding:20px;border-radius:8px;border-left:4px solid ${primaryColor};margin-bottom:30px;">
                 <h4 style="margin:0 0 10px 0;color:${primaryColor};font-size:14px;">💡 Quick Tip</h4>
