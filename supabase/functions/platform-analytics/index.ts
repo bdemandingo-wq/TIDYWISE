@@ -206,6 +206,12 @@ serve(async (req) => {
         "STRIPE_PRO_YEARLY_PRICE_ID",
         "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
         "STRIPE_CUSTOM_YEARLY_PRICE_ID",
+        // Lifetime is sold outside create-subscription, which is why it was
+        // missed when this list was derived from that function's six prices.
+        // Its product resolved under the old hardcoded set, so omitting it here
+        // dropped every lifetime business off the dashboard — the exact silent
+        // drop this change was meant to end.
+        "STRIPE_LIFETIME_PRICE_ID",
       ];
 
       // Products that CANNOT be derived, and must not be "cleaned up".
