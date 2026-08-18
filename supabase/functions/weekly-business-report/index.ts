@@ -321,63 +321,133 @@ Give practical advice for a cleaning business owner.`;
       // Send email using organization-specific settings
       const emailSettingsResult = await getOrgEmailSettings(org.id);
       
-      if (emailSettingsResult.success && emailSettingsResult.settings && RESEND_API_KEY) {
-        try {
-          const resend = new Resend(RESEND_API_KEY);
-          const senderFrom = formatEmailFrom(emailSettingsResult.settings);
-          
-          // The SDK returns { data, error } and does not throw on an API
-          // error. Discarding it is why five 403s to regalrestcleaning.com
-          // were recorded as successful sends.
-          const { data: sendData, error: sendError } = await resend.emails.send({
-            from: senderFrom,
+      const orgSettings =
+        emailSettingsResult.success && emailSettingsResult.settings
+          ? emailSettingsResult.settings
+          : null;
+
+      const platformKey = RESEND_API_KEY;
+
+      const resolved = resolveSender({
+        settings: orgSettings,
+        platformFrom: PLATFORM_SENDER_FROM,
+        platformKeyPresent: !!platformKey,
+        allowPlatformFallback: true,   // owner-facing internal report
+      });
+
+      if (!resolved.ok) {
+        console.error(`[weekly-business-report] no sender for org ${org.id}: ${resolved.error}`);
+        await supabase.rpc("log_org_email_send_failure", {
+          _organization_id: org.id,
+          _method: "resend",
+          _fell_back_to: null,
+          _recipient: adminEmail,
+          _subject: wsSubject,
+          _error_message: resolved.error,
+        });
+      } else {
+        // The key must match the address. keySource 'org' means send with the
+        // org's OWN key, which is what makes their own verified domain work —
+        // the previous code always used the platform key and so could never
+        // succeed for an org sending from its own domain.
+        const keyFor = (source: "org" | "platform") =>
+          source === "org" ? (orgSettings?.resend_api_key || platformKey) : platformKey;
+
+        let fromHeader = resolved.sender.from;
+        let resend = new Resend(keyFor(resolved.sender.keySource) as string);
+        let fellBackTo: string | null = resolved.sender.usedFallback ? "platform" : null;
+
+        const attempt = async () => {
+          const { data, error } = await resend.emails.send({
+            from: fromHeader,
             to: [adminEmail],
             subject: wsSubject,
             html: reportHtml,
           });
+          return { data, error };
+        };
 
-          if (sendError) {
-            const detail =
-              typeof sendError === "string"
-                ? sendError
-                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
-            console.error(
-              `[weekly-business-report] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`,
+        let { data: sendData, error: sendError } = await attempt();
+
+        // Escalation. Without this Regal Rest still fails: its settings are
+        // complete, so the first resolve returns the ORG identity, and only a
+        // second resolve carrying priorFailure switches to the platform.
+        if (sendError) {
+          const firstError =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+
+          const escalated = resolveSender({
+            settings: orgSettings,
+            platformFrom: PLATFORM_SENDER_FROM,
+            platformKeyPresent: !!platformKey,
+            allowPlatformFallback: true,
+            priorFailure: firstError,
+          });
+
+          if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+            console.warn(
+              `[weekly-business-report] org ${org.id}: own identity failed (${firstError}); retrying from the platform sender.`,
             );
-            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+            // No backoff. An unverified From or a rejected key is a permanent
+            // validation error — waiting cannot change it, only the identity
+            // swap on the next two lines can.
+            resend = new Resend(platformKey as string);
+            fromHeader = escalated.sender.from;
+            fellBackTo = "platform";
+            ({ data: sendData, error: sendError } = await attempt());
+          }
+        }
+
+        if (sendError) {
+          const detail =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+          console.error(`[weekly-business-report] send FAILED for org ${org.id}: ${detail}`);
+          await supabase.rpc("log_org_email_send_failure", {
+            _organization_id: org.id,
+            _method: "resend",
+            _fell_back_to: fellBackTo,
+            _recipient: adminEmail,
+            _subject: wsSubject,
+            _error_message: detail,
+          });
+          // No automation_fire_log row. Unchanged from the previous paste.
+        } else {
+          console.log(
+            `[weekly-business-report] sent to ${adminEmail} for org ${org.id} ` +
+            `(from=${fromHeader}, fellBackTo=${fellBackTo ?? "none"})`,
+          );
+          if (fellBackTo) {
+            // Not an error, but the owner should eventually be told their own
+            // identity is not working. Logged so it is countable.
+            await supabase.rpc("log_org_email_send_failure", {
               _organization_id: org.id,
               _method: "resend",
-              _fell_back_to: null,
+              _fell_back_to: fellBackTo,
               _recipient: adminEmail,
               _subject: wsSubject,
-              _error_message: detail,
+              _error_message: `weekly report sent via platform sender: ${resolved.sender.fallbackReason ?? "org_send_failed"}`,
             });
-            if (failLogErr) {
-              console.error(`[weekly-business-report] failure-log insert failed for org ${org.id}:`, failLogErr);
-            }
-            // NO automation_fire_log row. A fire-log entry means the owner
-            // received their report; writing one here is the exact lie this
-            // change removes.
-          } else {
-            console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
-            const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
-              organization_id: org.id,
-              automation_type: 'weekly_summary',
-              target_id: org.id,               // one summary email per org per run
-              metadata: {
-                sent_at: new Date().toISOString(),
-                to: adminEmail,
-                provider_message_id: sendData?.id ?? null,
-              },
-            });
-            if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
           }
-        } catch (emailError) {
-          console.error(`[weekly-business-report] Email error for org ${org.id}:`, emailError);
+          const { error: fireLogErr } = await supabase.from("automation_fire_log").insert({
+            organization_id: org.id,
+            automation_type: "weekly_summary",
+            target_id: org.id,
+            metadata: {
+              sent_at: new Date().toISOString(),
+              to: adminEmail,
+              provider_message_id: sendData?.id ?? null,
+              from: fromHeader,
+              fell_back_to: fellBackTo,
+            },
+          });
+          if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
         }
-      } else {
-        console.log(`[weekly-business-report] Skipping email for org ${org.id} - email settings not configured`);
       }
+
 
       reports.push({
         organizationId: org.id,
