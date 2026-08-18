@@ -2467,6 +2467,7 @@ export type Database = {
           created_by: string
           failed_count: number
           id: string
+          last_test_sent_at: string | null
           message_class: string
           recipient_count: number
           sent_count: number
@@ -2484,6 +2485,7 @@ export type Database = {
           created_by: string
           failed_count?: number
           id?: string
+          last_test_sent_at?: string | null
           message_class: string
           recipient_count?: number
           sent_count?: number
@@ -2501,6 +2503,7 @@ export type Database = {
           created_by?: string
           failed_count?: number
           id?: string
+          last_test_sent_at?: string | null
           message_class?: string
           recipient_count?: number
           sent_count?: number

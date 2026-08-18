@@ -1,0 +1,1 @@
+ALTER TABLE public.broadcasts ADD COLUMN IF NOT EXISTS last_test_sent_at timestamptz;
