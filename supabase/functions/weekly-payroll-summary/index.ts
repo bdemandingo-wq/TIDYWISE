@@ -190,42 +190,110 @@ const handler = async (req: Request): Promise<Response> => {
         </html>
       `;
 
-      // Send email if RESEND_API_KEY is configured
-      if (RESEND_API_KEY) {
-        try {
-          const resend = new Resend(RESEND_API_KEY);
-          const wpsSubject = `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`;
-          const { data: sendData, error: sendError } = await resend.emails.send({
-            from: 'TidyWise <noreply@resend.dev>',
+      const wpsSubject = `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`;
+
+      const settingsResult = await getOrgEmailSettings(org.id);
+      const orgSettings =
+        settingsResult.success && settingsResult.settings ? settingsResult.settings : null;
+
+      const platformKey = RESEND_API_KEY;
+
+      const resolved = resolveSender({
+        settings: orgSettings,
+        platformFrom: PLATFORM_SENDER_FROM,
+        platformKeyPresent: !!platformKey,
+        allowPlatformFallback: true,   // owner-facing internal report
+      });
+
+      if (!resolved.ok) {
+        console.error(`[weekly-payroll-summary] no sender for org ${org.id}: ${resolved.error}`);
+        await supabase.rpc("log_org_email_send_failure", {
+          _organization_id: org.id,
+          _method: "resend",
+          _fell_back_to: null,
+          _recipient: adminEmail,
+          _subject: wpsSubject,
+          _error_message: resolved.error,
+        });
+      } else {
+        const keyFor = (source: "org" | "platform") =>
+          source === "org" ? (orgSettings?.resend_api_key || platformKey) : platformKey;
+
+        let fromHeader = resolved.sender.from;
+        let resend = new Resend(keyFor(resolved.sender.keySource) as string);
+        let fellBackTo: string | null = resolved.sender.usedFallback ? "platform" : null;
+
+        const attempt = async () => {
+          const { data, error } = await resend.emails.send({
+            from: fromHeader,
             to: [adminEmail],
             subject: wpsSubject,
             html: summaryHtml,
           });
+          return { data, error };
+        };
 
-          if (sendError) {
-            const detail =
-              typeof sendError === "string"
-                ? sendError
-                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
-            console.error(`[weekly-payroll-summary] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`);
-            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+        let { data: sendData, error: sendError } = await attempt();
+
+        if (sendError) {
+          const firstError =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+
+          const escalated = resolveSender({
+            settings: orgSettings,
+            platformFrom: PLATFORM_SENDER_FROM,
+            platformKeyPresent: !!platformKey,
+            allowPlatformFallback: true,
+            priorFailure: firstError,
+          });
+
+          if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+            console.warn(
+              `[weekly-payroll-summary] org ${org.id}: own identity failed (${firstError}); retrying from the platform sender.`,
+            );
+            // No backoff: an unverified From or a rejected key is permanent.
+            resend = new Resend(platformKey as string);
+            fromHeader = escalated.sender.from;
+            fellBackTo = "platform";
+            ({ data: sendData, error: sendError } = await attempt());
+          }
+        }
+
+        if (sendError) {
+          const detail =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+          console.error(`[weekly-payroll-summary] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`);
+          await supabase.rpc("log_org_email_send_failure", {
+            _organization_id: org.id,
+            _method: "resend",
+            _fell_back_to: fellBackTo,
+            _recipient: adminEmail,
+            _subject: wpsSubject,
+            _error_message: detail,
+          });
+        } else {
+          console.log(
+            `[weekly-payroll-summary] sent to ${adminEmail} for org ${org.id} ` +
+            `(from=${fromHeader}, fellBackTo=${fellBackTo ?? "none"})`,
+          );
+          if (fellBackTo) {
+            await supabase.rpc("log_org_email_send_failure", {
               _organization_id: org.id,
               _method: "resend",
-              _fell_back_to: null,
+              _fell_back_to: fellBackTo,
               _recipient: adminEmail,
               _subject: wpsSubject,
-              _error_message: detail,
+              _error_message: `weekly payroll summary sent via platform sender: ${resolved.sender.fallbackReason ?? "org_send_failed"}`,
             });
-            if (failLogErr) {
-              console.error(`[weekly-payroll-summary] failure-log insert failed for org ${org.id}:`, failLogErr);
-            }
-          } else {
-            console.log(`[weekly-payroll-summary] Email sent to ${adminEmail} (${sendData?.id ?? "no id"})`);
           }
-        } catch (emailError) {
-          console.error(`[weekly-payroll-summary] Email error:`, emailError);
+          void sendData;
         }
       }
+
 
       summaries.push({
         organizationId: org.id,
