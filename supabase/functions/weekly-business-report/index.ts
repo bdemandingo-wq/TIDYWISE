@@ -7,6 +7,10 @@ import { requireCronSecret } from "../_shared/requireCronSecret.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { getOrgEmailSettings, formatEmailFrom } from "../_shared/get-org-email-settings.ts";
+import {
+  resolveSender,
+  PLATFORM_SENDER_FROM,
+} from "../_shared/email-sender-resolution.ts";
 import { anthropicChat, MODEL_SONNET } from "../_shared/anthropic.ts";
 
 const corsHeaders = {
