@@ -19,6 +19,7 @@ import { FinancialRoute } from "@/components/FinancialRoute";
 import { StaffRoute } from "@/components/StaffRoute";
 import { ProtectedPortalRoute } from "@/components/ProtectedPortalRoute";
 import { PlatformAdminRoute } from "@/components/PlatformAdminRoute";
+import { PlatformOwnerRoute } from "@/components/PlatformOwnerRoute";
 import { SessionTrackerProvider } from "@/components/SessionTrackerProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CopilotProvider } from "@/components/copilot/CopilotProvider";
@@ -543,7 +544,7 @@ const App = () => (
                     {/* Per-broadcast drill-down stays a route: a tab has no URL segment to
                         carry the record id, and this is where a send's per-recipient status
                         and retry live. */}
-                    <Route path="/dashboard/broadcasts/:id" element={<PlatformAdminRoute><ErrorBoundary featureName="Broadcast Detail"><BroadcastDetailPage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/dashboard/broadcasts/:id" element={<PlatformOwnerRoute><ErrorBoundary featureName="Broadcast Detail"><BroadcastDetailPage /></ErrorBoundary></PlatformOwnerRoute>} />
 
                     <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/keywords" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Keywords"><BlogKeywordsPage /></ErrorBoundary></PlatformAdminRoute>} />

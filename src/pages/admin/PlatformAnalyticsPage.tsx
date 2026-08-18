@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { PlatformRevenueView } from '@/pages/admin/PlatformRevenuePage';
 import { BroadcastView } from '@/pages/admin/BroadcastPage';
+import { isPlatformOwner } from '@/lib/platformOwner';
 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -307,7 +308,7 @@ export default function PlatformAnalyticsPage() {
         clientPortalStats: allTimeData?.clientPortalStats,
       };
     },
-    enabled: user?.email === 'support@tidywisecleaning.com',
+    enabled: isPlatformOwner(user),
   });
 
 
@@ -369,7 +370,10 @@ export default function PlatformAnalyticsPage() {
   }, []);
 
   // Check if user is platform admin
-  if (user?.email !== 'support@tidywisecleaning.com') {
+  // Same predicate PlatformOwnerRoute guards the broadcast detail page with,
+  // so the composer here and the send it navigates to cannot drift on who may
+  // open them.
+  if (!isPlatformOwner(user)) {
     return (
       <AdminLayout title="Unauthorized" subtitle="You don't have access to this page">
 <div className="portal-v2 portal-v2-scroll overflow-x-clip">
