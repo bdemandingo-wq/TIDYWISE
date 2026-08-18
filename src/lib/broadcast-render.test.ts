@@ -25,6 +25,7 @@ import {
   renderBroadcastHtml,
   renderBroadcastText,
   UNSUBSCRIBE_SENTENCE,
+  MAX_SIGNATURE,
 } from './broadcast-render.ts';
 
 const URL_ = 'https://x.test/u?token=abc';
@@ -131,6 +132,104 @@ test('plain-text alternative carries the same unsubscribe url', () => {
 
 // ─── the two-copy invariant ────────────────────────────────────────────────
 
+// ─── signature ─────────────────────────────────────────────────────────────
+
+test('the signature appears in BOTH classes, unlike the unsubscribe footer', () => {
+  const signature = 'Emmanuel\nTidyWise';
+  for (const unsubscribeUrl of [null, URL_]) {
+    const html = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl, signature });
+    assert.ok(html.includes('Emmanuel'), `signature missing for url=${unsubscribeUrl}`);
+    assert.ok(html.includes('TidyWise'), `signature missing for url=${unsubscribeUrl}`);
+  }
+});
+
+test('CONTROL: the signature is byte-identical across classes', () => {
+  // The failure this kills is wiring the signature off `unsubscribeUrl` — the
+  // parameter that legitimately IS marketing-only. Do that and the signature
+  // silently becomes marketing-only too, which no assertion above would catch
+  // because each class still renders "correctly" on its own.
+  const signature = 'Emmanuel\nTidyWise';
+  const tx = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null, signature });
+  const mk = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: URL_, signature });
+  const footerStart = mk.indexOf('<hr');
+  assert.ok(footerStart > -1, 'marketing render must carry an <hr> footer');
+  // lastIndexOf, not indexOf. The signature block is itself a <div>, so the
+  // FIRST '</div>' is now the signature's own closing tag rather than the
+  // wrapper's — the older CONTROL test above gets away with indexOf only
+  // because it passes no signature. Slicing at the first close silently
+  // compared two truncated strings and reported a difference that was not
+  // there.
+  assert.equal(
+    mk.slice(0, footerStart).trim(),
+    tx.slice(0, tx.lastIndexOf('</div>')).trim(),
+    'signature must render identically in both classes',
+  );
+});
+
+test('the signature sits ABOVE the unsubscribe rule, not below it', () => {
+  const html = renderBroadcastHtml({
+    bodyText: 'Body',
+    unsubscribeUrl: URL_,
+    signature: 'Emmanuel',
+  });
+  assert.ok(html.indexOf('Emmanuel') < html.indexOf('<hr'), 'signature must precede the <hr>');
+});
+
+test('the signature is escaped — it is compose-form input, not a constant we own', () => {
+  // UNSUBSCRIBE_SENTENCE is deliberately emitted unescaped because this module
+  // owns it. The signature is typed by a human into a form, so it gets the same
+  // treatment as bodyText. The cost is that it cannot carry its own markup.
+  const html = renderBroadcastHtml({
+    bodyText: 'Body',
+    unsubscribeUrl: null,
+    signature: '<script>alert(1)</script> & "q"',
+  });
+  assert.ok(!html.includes('<script>'), 'raw script tag survived into the signature');
+  assert.ok(html.includes('&lt;script&gt;'), 'signature must be escaped');
+  assert.ok(html.includes('&amp;'), 'ampersand must be escaped');
+});
+
+test('an absent, blank or whitespace-only signature emits nothing at all', () => {
+  const plain = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null });
+  for (const signature of [undefined, null, '', '   ', '\n\n']) {
+    assert.equal(
+      renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null, signature }),
+      plain,
+      `blank signature ${JSON.stringify(signature)} must not change the output`,
+    );
+  }
+});
+
+test('plain-text carries the signature, ordered body then signature then unsubscribe', () => {
+  const text = renderBroadcastText({
+    bodyText: 'Body',
+    unsubscribeUrl: URL_,
+    signature: 'Emmanuel',
+  });
+  assert.ok(text.indexOf('Body') < text.indexOf('Emmanuel'), 'signature must follow the body');
+  assert.ok(text.indexOf('Emmanuel') < text.indexOf('---'), 'signature must precede the separator');
+  const noUrl = renderBroadcastText({ bodyText: 'Body', unsubscribeUrl: null, signature: 'Emmanuel' });
+  assert.equal(noUrl, 'Body\n\nEmmanuel');
+});
+
+test('a signature over the cap is a validation error; absent is not', () => {
+  const over = validateBroadcastInput({
+    subject: 'S', bodyText: 'B', messageClass: 'transactional',
+    signature: 'x'.repeat(MAX_SIGNATURE + 1),
+  });
+  assert.equal(over.ok, false);
+  assert.ok(over.errors.some((e) => e.includes('signature')), 'must name the field');
+
+  const absent = validateBroadcastInput({ subject: 'S', bodyText: 'B', messageClass: 'transactional' });
+  assert.equal(absent.ok, true, 'a broadcast with no signature is valid');
+
+  const atCap = validateBroadcastInput({
+    subject: 'S', bodyText: 'B', messageClass: 'transactional',
+    signature: 'x'.repeat(MAX_SIGNATURE),
+  });
+  assert.equal(atCap.ok, true, 'exactly at the cap is allowed — off-by-one guard');
+});
+
 test('the Deno copy behaves identically', async () => {
   // src/lib/broadcast-render.ts is canonical and tested here; the edge
   // functions run in Deno and cannot import from src/, so
@@ -143,29 +242,50 @@ test('the Deno copy behaves identically', async () => {
 
   const bodies = ['plain', "it's <b>x</b> & y", 'One\n\nTwo', '', '   '];
   const urls: (string | null)[] = [null, URL_];
+  // The signature dimension is not decoration. This test only catches drift on
+  // inputs it actually exercises — it is a behavioural comparison, not a digest
+  // of the two files — so an unexercised parameter is an unguarded one. Absent,
+  // null, blank, whitespace-only, multi-line and escaping-sensitive are the
+  // shapes where two hand-copied implementations realistically diverge.
+  const signatures: (string | null | undefined)[] = [
+    undefined,
+    null,
+    '',
+    '   ',
+    'Emmanuel',
+    'Emmanuel\nTidyWise\nsupport@tidywisecleaning.com',
+    'Emmanuel\n\nTidyWise',
+    "O'Brien & <Sons>",
+  ];
 
   assert.equal(shared.UNSUBSCRIBE_SENTENCE, UNSUBSCRIBE_SENTENCE, 'constant diverges');
+  assert.equal(shared.MAX_SIGNATURE, MAX_SIGNATURE, 'MAX_SIGNATURE diverges');
 
   for (const bodyText of bodies) {
     for (const unsubscribeUrl of urls) {
-      assert.equal(
-        shared.renderBroadcastHtml({ bodyText, unsubscribeUrl }),
-        renderBroadcastHtml({ bodyText, unsubscribeUrl }),
-        `renderBroadcastHtml diverges on ${JSON.stringify([bodyText, unsubscribeUrl])}`,
-      );
-      assert.equal(
-        shared.renderBroadcastText({ bodyText, unsubscribeUrl }),
-        renderBroadcastText({ bodyText, unsubscribeUrl }),
-        `renderBroadcastText diverges on ${JSON.stringify([bodyText, unsubscribeUrl])}`,
-      );
+      for (const signature of signatures) {
+        const where = JSON.stringify([bodyText, unsubscribeUrl, signature]);
+        assert.equal(
+          shared.renderBroadcastHtml({ bodyText, unsubscribeUrl, signature }),
+          renderBroadcastHtml({ bodyText, unsubscribeUrl, signature }),
+          `renderBroadcastHtml diverges on ${where}`,
+        );
+        assert.equal(
+          shared.renderBroadcastText({ bodyText, unsubscribeUrl, signature }),
+          renderBroadcastText({ bodyText, unsubscribeUrl, signature }),
+          `renderBroadcastText diverges on ${where}`,
+        );
+      }
     }
   }
 
   for (const messageClass of ['transactional', 'marketing', 'promo', undefined]) {
-    assert.deepEqual(
-      shared.validateBroadcastInput({ subject: 'S', bodyText: 'B', messageClass }),
-      validateBroadcastInput({ subject: 'S', bodyText: 'B', messageClass }),
-      `validateBroadcastInput diverges on ${JSON.stringify(messageClass)}`,
-    );
+    for (const signature of [undefined, '', 'ok', 'x'.repeat(MAX_SIGNATURE + 1)]) {
+      assert.deepEqual(
+        shared.validateBroadcastInput({ subject: 'S', bodyText: 'B', messageClass, signature }),
+        validateBroadcastInput({ subject: 'S', bodyText: 'B', messageClass, signature }),
+        `validateBroadcastInput diverges on ${JSON.stringify([messageClass, signature])}`,
+      );
+    }
   }
 });

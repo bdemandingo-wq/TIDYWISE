@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SEOHead } from '@/components/SEOHead';
@@ -20,10 +20,11 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
+import { MAX_SIGNATURE, MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
 import {
   useBroadcasts,
   useBroadcastTested,
+  useLastSignature,
   useCreateBroadcast,
   useStartBroadcast,
   useTestSend,
@@ -74,6 +75,20 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
   // would silently mislabel a service notice as an ad, or an ad as a notice.
   const [messageClass, setMessageClass] = useState<MessageClass | null>(null);
 
+  const [signature, setSignature] = useState('');
+  const { data: lastSignature } = useLastSignature();
+  // One-shot, and guarded by a ref rather than by `signature === ''`. The query
+  // resolves after first paint, so a bare emptiness check would overwrite
+  // whatever had been typed in the meantime; and re-running on every change
+  // would make the field impossible to clear — delete it and the prefill puts
+  // it straight back. Fires once, only into an untouched field.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !lastSignature) return;
+    prefilled.current = true;
+    setSignature((current) => (current === '' ? lastSignature : current));
+  }, [lastSignature]);
+
   const [draftId, setDraftId] = useState<string | null>(null);
   const [createResult, setCreateResult] = useState<CreateBroadcastResult | null>(null);
 
@@ -117,14 +132,20 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
       renderBroadcastHtml({
         bodyText,
         unsubscribeUrl: messageClass === 'marketing' ? PREVIEW_UNSUBSCRIBE_URL : null,
+        signature,
       }),
-    [bodyText, messageClass],
+    [bodyText, messageClass, signature],
   );
 
   function handleCreateDraft() {
     if (!messageClass) return;
     createBroadcast.mutate(
-      { subject: subject.trim(), body_text: bodyText.trim(), message_class: messageClass },
+      {
+        subject: subject.trim(),
+        body_text: bodyText.trim(),
+        message_class: messageClass,
+        signature_text: signature.trim(),
+      },
       {
         onSuccess: (data) => {
           const result = data as CreateBroadcastResult;
@@ -193,6 +214,9 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
     setSubject('');
     setBodyText('');
     setMessageClass(null);
+    // Not cleared to '': the signature is the one field worth carrying into the
+    // next broadcast, which is the whole point of prefilling it.
+    setSignature(lastSignature || signature);
     setDraftId(null);
     setCreateResult(null);
     setTestedDraftId(null);
@@ -252,6 +276,31 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
               rows={10}
               className="mt-1.5"
             />
+          </div>
+
+          <div>
+            <label htmlFor="broadcast-signature" className="text-sm font-medium">
+              Signature <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <Textarea
+              id="broadcast-signature"
+              value={signature}
+              maxLength={MAX_SIGNATURE}
+              disabled={locked}
+              onChange={(e) => setSignature(e.target.value)}
+              placeholder={'Emmanuel\nTidyWise\nsupport@tidywisecleaning.com'}
+              rows={3}
+              className="mt-1.5"
+            />
+            <div className="flex justify-between gap-4 mt-1">
+              <p className="text-xs text-muted-foreground">
+                Appended below the body on every broadcast, both classes. Plain text only —
+                mail clients turn addresses and phone numbers into links by themselves.
+              </p>
+              <p className="text-xs text-muted-foreground text-right tabular-nums shrink-0">
+                {signature.length}/{MAX_SIGNATURE}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

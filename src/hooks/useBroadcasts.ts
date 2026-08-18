@@ -63,8 +63,12 @@ async function callAdmin(payload: Record<string, unknown>) {
 export function useCreateBroadcast() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { subject: string; body_text: string; message_class: MessageClass }) =>
-      callAdmin({ action: 'create', ...v }),
+    mutationFn: (v: {
+      subject: string;
+      body_text: string;
+      message_class: MessageClass;
+      signature_text: string;
+    }) => callAdmin({ action: 'create', ...v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['broadcasts'] }),
   });
 }
@@ -172,6 +176,41 @@ export function useBroadcastTested(broadcastId: string | null | undefined) {
       // too and degrades to the same locked state.
       if (error) return false;
       return !!(data as { last_test_sent_at: string | null } | null)?.last_test_sent_at;
+    },
+  });
+}
+
+/**
+ * The signature used on the most recent broadcast, for pre-filling the compose
+ * form. Empty string when there is nothing to pre-fill.
+ *
+ * Deliberately its own query rather than a column on useBroadcasts(): that list
+ * select drives the history table and the tab itself, and `signature_text` does
+ * not exist until the broadcast-admin migration lands. Adding it there would
+ * 400 the whole list and blank the page. Here a failure costs an empty field.
+ *
+ * This is why the signature is not stored in settings or localStorage: it is
+ * snapshotted onto each broadcast row at create time, so what was previewed is
+ * what sent, and editing your signature later never rewrites what already went
+ * out. Pre-filling from the last row gives the convenience of a stored setting
+ * without giving up that property.
+ */
+export function useLastSignature() {
+  return useQuery({
+    queryKey: ['broadcast-last-signature'],
+    queryFn: async (): Promise<string> => {
+      const { data, error } = await supabase
+        .from('broadcasts')
+        .select('signature_text')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })   // rule 3: unique tiebreaker
+        .limit(1)
+        .maybeSingle();
+      // Swallowed for the same reason useBroadcastTested swallows: pre-migration
+      // this is a 42703, and the honest rendering of "cannot tell" is an empty
+      // field the operator fills in themselves — not a broken compose form.
+      if (error) return '';
+      return (data as { signature_text: string | null } | null)?.signature_text ?? '';
     },
   });
 }
