@@ -296,7 +296,8 @@ async function processPage(
       events.push({
         ...identity,
         event_type: obj.status === "succeeded" ? "charge.succeeded" : "charge.failed",
-        revenue_stream: "plan",
+        revenue_stream: streamFromMetadata(obj.metadata) ?? "plan",
+
         stripe_object_id: obj.id,
         stripe_charge_id: obj.id,
         stripe_invoice_id: typeof obj.invoice === "string" ? obj.invoice : obj.invoice?.id ?? null,
