@@ -160,8 +160,6 @@ project_id = "slwfkaqczvwvvvavkgpr"
     verify_jwt = false
   [functions.weekly-business-report]
     verify_jwt = false
-  [functions.weekly-payroll-summary]
-    verify_jwt = false
   [functions.client-portal-login]
     verify_jwt = false
 
