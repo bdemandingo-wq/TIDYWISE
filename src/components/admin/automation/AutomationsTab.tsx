@@ -15,7 +15,7 @@ import {
   Clock, Star, RotateCcw, Repeat, UserX, Loader2,
   ChevronDown, ChevronUp, Save, Phone, CreditCard,
   PartyPopper, BarChart3, Trophy, Zap,
-  MessageSquare, Plus, Trash2, Pencil,
+  MessageSquare, Plus, Trash2, Pencil, Wallet,
 } from 'lucide-react';
 import { AutomationEditorDialog } from './AutomationEditorDialog';
 
@@ -342,6 +342,12 @@ const activeAutomationsMeta: Record<string, {
     emoji: '📊',
     description: 'Emails you a weekly digest of bookings, revenue, and team stats every Monday',
     color: 'text-blue-500',
+  },
+  payroll_period_report: {
+    icon: Wallet,
+    emoji: '💰',
+    description: 'Emails you a payroll report when each pay period closes — timing follows your payroll week in Settings',
+    color: 'text-emerald-500',
   },
   quote_stale_reengage: {
     icon: MessageSquare,

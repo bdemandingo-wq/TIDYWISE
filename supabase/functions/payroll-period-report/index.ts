@@ -60,7 +60,36 @@ serve(async (req: Request): Promise<Response> => {
   const orgs = (orgsData ?? []) as OrgRow[];
   const results: ProcessOrgResult[] = [];
 
+  // Opt-out, not opt-in: only an explicit is_enabled = false disables.
+  // A missing row means enabled, so an org that was never seeded keeps
+  // receiving its report instead of silently going quiet.
+  const { data: optOutRows, error: optOutErr } = await supabase
+    .from("organization_automations")
+    .select("organization_id")
+    .eq("automation_type", "payroll_period_report")
+    .eq("is_enabled", false);
+
+  if (optOutErr) {
+    // Do NOT swallow this into an empty set. An empty set here means
+    // "nobody opted out", which would mail every org that just asked not to
+    // be mailed. Fail the run instead — a missed report is recoverable, an
+    // unwanted one is not.
+    console.error("[payroll-period-report] opt-out lookup failed:", optOutErr);
+    return new Response(
+      JSON.stringify({ error: "could not load opt-out list", detail: optOutErr.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const optedOut = new Set(
+    (optOutRows ?? []).map((r) => r.organization_id as string),
+  );
+
   for (const org of orgs) {
+    if (optedOut.has(org.id)) {
+      console.log(`[payroll-period-report] org ${org.id} has opted out — skipping`);
+      continue;
+    }
     try {
       const r = await processOrg(org, supabase);
       results.push(r);
