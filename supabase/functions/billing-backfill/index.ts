@@ -320,7 +320,8 @@ async function processPage(
       events.push({
         ...identity,
         event_type: "charge.refunded",
-        revenue_stream: "plan",
+        revenue_stream: streamFromMetadata(obj.metadata) ?? "plan",
+
         stripe_object_id: obj.id,
         stripe_charge_id: typeof obj.charge === "string" ? obj.charge : obj.charge?.id ?? null,
         stripe_payment_intent_id:
