@@ -434,10 +434,24 @@ function PayerList({ planRows, aiCreditsNet }: { planRows: RevenueRow[]; aiCredi
 
 
   const all = payers ?? [];
-  // Not `> 0`: a payer refunded below zero is still a payer, and hiding them in
-  // the trial row would be the same omission this panel exists to prevent.
-  const customers = all.filter((p) => !p.organization_id || !OWN_ORGANIZATION_IDS.has(p.organization_id));
-  const paying = customers.filter((p) => classifyPayer(p) === 'paying');
+  /*
+    A revenue table lists payers. Businesses with ZERO payment events are comped
+    access that was handed out, not customers, and listing them footed a count
+    ("11 on Lifetime") that seven people never paid towards.
+
+    Filtered on payment_events, NOT on net_cash_cents: a business that paid and
+    was then fully refunded nets $0 but did pay, and dropping it would hide a
+    real transaction — and, because the footer money is summed from `all`, would
+    also break the reconciliation. No money figure moves here; only who is
+    listed and the per-plan counts.
+  */
+  const customers = all.filter(
+    (p) =>
+      (!p.organization_id || !OWN_ORGANIZATION_IDS.has(p.organization_id)) &&
+      p.payment_events > 0,
+  );
+  const paying = customers;
+
 
   /*
     Grouped by plan, highest payers first inside each. A business whose
