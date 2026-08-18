@@ -194,13 +194,34 @@ const handler = async (req: Request): Promise<Response> => {
       if (RESEND_API_KEY) {
         try {
           const resend = new Resend(RESEND_API_KEY);
-          await resend.emails.send({
+          const wpsSubject = `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`;
+          const { data: sendData, error: sendError } = await resend.emails.send({
             from: 'TidyWise <noreply@resend.dev>',
             to: [adminEmail],
-            subject: `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`,
+            subject: wpsSubject,
             html: summaryHtml,
           });
-          console.log(`[weekly-payroll-summary] Email sent to ${adminEmail}`);
+
+          if (sendError) {
+            const detail =
+              typeof sendError === "string"
+                ? sendError
+                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+            console.error(`[weekly-payroll-summary] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`);
+            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+              _organization_id: org.id,
+              _method: "resend",
+              _fell_back_to: null,
+              _recipient: adminEmail,
+              _subject: wpsSubject,
+              _error_message: detail,
+            });
+            if (failLogErr) {
+              console.error(`[weekly-payroll-summary] failure-log insert failed for org ${org.id}:`, failLogErr);
+            }
+          } else {
+            console.log(`[weekly-payroll-summary] Email sent to ${adminEmail} (${sendData?.id ?? "no id"})`);
+          }
         } catch (emailError) {
           console.error(`[weekly-payroll-summary] Email error:`, emailError);
         }
