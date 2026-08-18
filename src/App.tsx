@@ -163,6 +163,7 @@ const TrackingPage = lazy(() => import("./pages/admin/TrackingPage"));
 
 // Blog admin (platform-admin only)
 const PlatformRevenuePage = lazy(() => import("./pages/admin/PlatformRevenuePage"));
+const BroadcastDetailPage = lazy(() => import("./pages/admin/BroadcastDetailPage"));
 const PlatformFeedbackPage = lazy(() => import("./pages/admin/PlatformFeedbackPage"));
 
 const BlogAdminListPage = lazy(() => import("./pages/admin/blog/BlogAdminListPage"));
@@ -535,6 +536,14 @@ const App = () => (
                     {/* Platform-admin Blog Editor (must come BEFORE the legacy /admin/* catch-all) */}
                     <Route path="/dashboard/platform-revenue" element={<PlatformAdminRoute><ErrorBoundary featureName="Platform Revenue"><PlatformRevenuePage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/dashboard/platform-feedback" element={<PlatformAdminRoute><ErrorBoundary featureName="Platform Feedback"><PlatformFeedbackPage /></ErrorBoundary></PlatformAdminRoute>} />
+                    {/* The composer lives as a Platform Analytics tab, not its own page.
+                        Redirect rather than drop the path, same as /dashboard/disputes above,
+                        so any bookmark or link already pointing here still lands somewhere. */}
+                    <Route path="/dashboard/broadcasts" element={<Navigate to="/dashboard/platform-analytics?tab=broadcasts" replace />} />
+                    {/* Per-broadcast drill-down stays a route: a tab has no URL segment to
+                        carry the record id, and this is where a send's per-recipient status
+                        and retry live. */}
+                    <Route path="/dashboard/broadcasts/:id" element={<PlatformAdminRoute><ErrorBoundary featureName="Broadcast Detail"><BroadcastDetailPage /></ErrorBoundary></PlatformAdminRoute>} />
 
                     <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/keywords" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Keywords"><BlogKeywordsPage /></ErrorBoundary></PlatformAdminRoute>} />

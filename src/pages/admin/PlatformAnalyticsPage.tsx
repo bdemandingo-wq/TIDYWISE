@@ -12,6 +12,7 @@ import {
   CalendarCheck, Phone, Briefcase, Bell, Search, Gift, DollarSign
 } from 'lucide-react';
 import { PlatformRevenueView } from '@/pages/admin/PlatformRevenuePage';
+import { BroadcastView } from '@/pages/admin/BroadcastPage';
 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,7 +56,7 @@ import { UserSessionEvidence } from '@/components/admin/UserSessionEvidence';
 import { DisputeEvidencePanel } from '@/components/admin/DisputeEvidencePanel';
 import ChurnRetentionTab from '@/components/admin/ChurnRetentionTab';
 import { ErrorsIncidentsPanel } from '@/components/admin/ErrorsIncidentsPanel';
-import { TrendingDown, Bug } from 'lucide-react';
+import { TrendingDown, Bug, Megaphone } from 'lucide-react';
 
 interface Subscriber {
   id: string;
@@ -187,7 +188,7 @@ export default function PlatformAnalyticsPage() {
   // Deep-link support: e.g. /dashboard/platform-analytics?tab=evidence (used by
   // the /dashboard/disputes redirect). Falls back to 'subscribers'.
   const [searchParams] = useSearchParams();
-  const VALID_TABS = ['subscribers', 'signups', 'organizations', 'comped', 'churn', 'activity', 'evidence', 'demos', 'notifications', 'errors'];
+  const VALID_TABS = ['subscribers', 'signups', 'organizations', 'comped', 'churn', 'activity', 'evidence', 'demos', 'notifications', 'errors', 'broadcasts'];
   const requestedTab = searchParams.get('tab') || '';
   const [activeTab, setActiveTab] = useState(VALID_TABS.includes(requestedTab) ? requestedTab : 'subscribers');
 
@@ -557,11 +558,12 @@ export default function PlatformAnalyticsPage() {
                   <SelectItem value="demos">Demos</SelectItem>
                   <SelectItem value="notifications">Feed</SelectItem>
                   <SelectItem value="errors">Errors</SelectItem>
+                  <SelectItem value="broadcasts">Broadcasts</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="hidden md:block md:mx-0 min-w-0 overflow-x-auto overscroll-x-contain scrollbar-none md:flex-1">
-            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-11 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
+            <TabsList className="inline-flex md:grid md:w-full md:grid-cols-12 h-auto gap-1 min-w-max px-1 md:min-w-0 md:px-1">
               <TabsTrigger value="revenue" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <DollarSign className="w-4 h-4" />
                 <span>Revenue</span>
@@ -606,6 +608,10 @@ export default function PlatformAnalyticsPage() {
               <TabsTrigger value="errors" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
                 <Bug className="w-4 h-4" />
                 <span>Errors</span>
+              </TabsTrigger>
+              <TabsTrigger value="broadcasts" className="flex items-center gap-1.5 whitespace-nowrap shrink-0 min-w-max px-3">
+                <Megaphone className="w-4 h-4" />
+                <span>Broadcasts</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -1353,6 +1359,13 @@ export default function PlatformAnalyticsPage() {
           <PlatformNotificationsLog />
           <TabsContent value="errors">
             <ErrorsIncidentsPanel />
+          </TabsContent>
+          {/* The one tab that acts rather than reports. Radix unmounts inactive
+              TabsContent, so an unsaved compose is lost on a tab switch — the
+              send gate deliberately survives that via the broadcast row (see
+              useBroadcastTested) rather than via a live component. */}
+          <TabsContent value="broadcasts">
+            <BroadcastView embedded />
           </TabsContent>
         </Tabs>
       </div>
