@@ -94,7 +94,7 @@ export default function PlatformFeedbackPage() {
   const visible = showRead ? rows : rows.filter((r) => !r.is_read);
 
   return (
-    <AdminLayout>
+    <AdminLayout title="Feedback">
       <SEOHead title="Feedback | TidyWise" description="Product feedback from businesses." noIndex />
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
