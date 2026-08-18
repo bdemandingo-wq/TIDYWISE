@@ -199,6 +199,18 @@ serve(async (req: Request) => {
       }),
     });
     if (!res.ok) return json({ error: `resend ${res.status}: ${await res.text()}` }, 502);
+
+    // Stamped only after Resend accepted it. Stamping before the send
+    // would unlock the real "email every owner" button on a test that
+    // never actually left.
+    const { error: stampErr } = await admin
+      .from("broadcasts")
+      .update({ last_test_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (stampErr) {
+      return json({ error: `test sent, but recording it failed: ${stampErr.message}` }, 500);
+    }
+
     return json({ ok: true, sent_to: to });
   }
 
