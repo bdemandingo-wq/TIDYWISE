@@ -534,6 +534,8 @@ const App = () => (
 
                     {/* Platform-admin Blog Editor (must come BEFORE the legacy /admin/* catch-all) */}
                     <Route path="/dashboard/platform-revenue" element={<PlatformAdminRoute><ErrorBoundary featureName="Platform Revenue"><PlatformRevenuePage /></ErrorBoundary></PlatformAdminRoute>} />
+                    <Route path="/dashboard/platform-feedback" element={<PlatformAdminRoute><ErrorBoundary featureName="Platform Feedback"><PlatformFeedbackPage /></ErrorBoundary></PlatformAdminRoute>} />
+
                     <Route path="/admin/blog" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Admin"><BlogAdminListPage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/keywords" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Keywords"><BlogKeywordsPage /></ErrorBoundary></PlatformAdminRoute>} />
                     <Route path="/admin/blog/new" element={<PlatformAdminRoute><ErrorBoundary featureName="Blog Editor"><BlogAdminEditPage mode="new" /></ErrorBoundary></PlatformAdminRoute>} />
