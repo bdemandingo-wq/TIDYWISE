@@ -206,13 +206,16 @@ async function processPage(
 
   for (const obj of objects) {
     const email = await customerEmail(stripe, obj.customer);
-    const org = await resolveOrg(email);
+    const mdOrgId = (obj.metadata?.organization_id ?? obj.metadata?.org_id ?? null) as string | null;
+    // metadata wins; the email lookup is only a fallback when metadata is absent
+    const org = (await resolveOrgById(mdOrgId)) ?? (await resolveOrg(email));
     const identity = {
       organization_id: org.id,
       organization_name: org.name,
       customer_email: email,
       stripe_customer_id: typeof obj.customer === "string" ? obj.customer : obj.customer?.id ?? null,
     };
+
 
     if (resource === "subscriptions") {
       const item = obj.items?.data?.[0];
