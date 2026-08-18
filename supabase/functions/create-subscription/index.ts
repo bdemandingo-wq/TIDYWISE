@@ -276,6 +276,17 @@ serve(async (req) => {
 
       line_items: [{ price: priceId, quantity: 1 }],
       mode: "subscription",
+      // Subscription checkout uses the Billing Payments configuration, not the
+      // account Default. Link and Cash App are disabled inside that config:
+      // they accounted for 14 of 36 SaaS payment failures (partner_insufficient_funds,
+      // link_connection_closed, cashapp_payment_declined), while cards failed
+      // once in a year. Cards, Apple Pay and Google Pay stay on.
+      //
+      // Scoped here deliberately. Twelve other functions create Checkout
+      // sessions for booking and merchant flows and still use the account
+      // Default, where those methods are wanted. Do not "simplify" this by
+      // changing the account-wide setting instead — that would hit all of them.
+      payment_method_configuration: "pmc_1Q0IjxJv857o86nohXqYdISA",
       // Force card collection even during the trial so the customer
       // is auto-charged when the 14 days end.
       payment_method_collection: "always",
