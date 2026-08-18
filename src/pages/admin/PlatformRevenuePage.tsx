@@ -415,7 +415,8 @@ function TierGroup({
             )}
           </td>
           <td className="py-2 whitespace-nowrap text-muted-foreground">
-            {p.net_cash_cents === 0 ? 'Granted' : period(p)}
+            {p.payment_events === 0 ? 'Granted' : period(p)}
+
           </td>
           <td className="py-2 text-right tabular-nums text-muted-foreground">{p.payment_events}</td>
           <td className="py-2 text-right tabular-nums font-medium">{money(p.net_cash_cents)}</td>
