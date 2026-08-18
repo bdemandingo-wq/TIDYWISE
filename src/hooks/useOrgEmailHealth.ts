@@ -1,6 +1,7 @@
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { isHardFailure } from '@/lib/emailFailureClassification';
 
 export interface OrgEmailFailure {
   id: string;
@@ -21,7 +22,8 @@ const RECENT_LIMIT = 50;
  * - notConfigured: proactive check (no sender identity set). Needed on its own
  *   because a brand-new org has no failure rows yet.
  * - recentFailures: actual send failures logged by sendOrgEmail (last 7 days).
- * - hardFailures: recentFailures that definitely did not deliver (no fallback).
+ * - hardFailures: recentFailures that definitely did not deliver — either no
+ *   fallback was attempted, or one was and it failed too.
  */
 export function useOrgEmailHealth() {
   const { organization, isOwner, isAdmin } = useOrganization();
@@ -69,7 +71,11 @@ export function useOrgEmailHealth() {
     notConfigured: configuredQuery.data === false,
     recentFailures,
     // Hard non-deliveries only — excludes fell-back sends that likely delivered.
-    hardFailures: recentFailures.filter((f) => !f.fell_back_to),
+    // A fallback that ALSO failed delivered nothing, so it belongs here too.
+    // See src/lib/emailFailureClassification.ts — `fell_back_to` records the
+    // attempt, not the outcome, and filtering on it alone hid three real
+    // non-deliveries.
+    hardFailures: recentFailures.filter(isHardFailure),
     isLoading: configuredQuery.isLoading || failuresQuery.isLoading,
   };
 }

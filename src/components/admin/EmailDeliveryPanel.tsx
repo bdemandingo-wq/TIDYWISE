@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useOrgEmailHealth } from '@/hooks/useOrgEmailHealth';
+import { isHardFailure } from '@/lib/emailFailureClassification';
 
 export function EmailDeliveryPanel() {
   const { canView, recentFailures, isLoading } = useOrgEmailHealth();
@@ -39,7 +40,11 @@ export function EmailDeliveryPanel() {
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   <Badge variant="outline" className="text-[10px]">via {f.method}</Badge>
                   {f.fell_back_to && (
-                    <Badge variant="outline" className="text-[10px]">fell back to {f.fell_back_to} (likely delivered)</Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {isHardFailure(f)
+                        ? `fell back to ${f.fell_back_to} — also failed`
+                        : `fell back to ${f.fell_back_to} (likely delivered)`}
+                    </Badge>
                   )}
                 </div>
               </div>

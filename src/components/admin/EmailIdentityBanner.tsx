@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useOrgEmailHealth } from '@/hooks/useOrgEmailHealth';
+import { dominantCause } from '@/lib/emailFailureClassification';
 
 // Per-mode session dismissal so dismissing "set up email" doesn't suppress a
 // later failures warning (and vice versa).
@@ -31,13 +32,38 @@ export function EmailIdentityBanner() {
   };
 
   const n = hardFailures.length;
+
+  // Name the fix when every failure has the same cause. A remedy that names
+  // the WRONG fix is worse than a bare count: the owner changes a setting that
+  // was not the problem, it does not help, and they stop believing the banner.
+  const cause = mode === 'failures' ? dominantCause(hardFailures) : null;
+  const plural = n === 1 ? 'email' : 'emails';
+
   const title = mode === 'not_configured'
     ? 'Your customers aren’t receiving emails'
-    : `${n} recent email ${n === 1 ? 'failure' : 'failures'}`;
+    : cause === 'invalid_key'
+      ? 'Your saved email API key is no longer valid'
+      : cause === 'unverified_domain'
+        ? 'Your sending domain isn’t verified'
+        : cause === 'gmail_auth'
+          ? 'Your Gmail connection has stopped working'
+          : `${n} recent email ${n === 1 ? 'failure' : 'failures'}`;
+
   const body = mode === 'not_configured'
     ? 'You haven’t set up a sender email yet, so booking confirmations, invoices, and receipts aren’t being delivered.'
-    : 'Some customer emails failed to send recently — customers may not be receiving confirmations, invoices, or receipts.';
-  const cta = mode === 'not_configured' ? 'Set up email' : 'View email delivery';
+    : cause === 'invalid_key'
+      ? `The Resend API key saved in your email settings is being rejected, so ${n} customer ${plural} did not send. Replace the key to start sending again.`
+      : cause === 'unverified_domain'
+        ? `Your sending domain has not been verified with your email provider, so ${n} customer ${plural} did not send. Verify the domain, or switch to a sender address on a domain you have already verified.`
+        : cause === 'gmail_auth'
+          ? `Gmail is rejecting the saved app password, so ${n} customer ${plural} did not send. Reconnect Gmail, or switch to sending through Resend.`
+          : 'Some customer emails failed to send recently — customers may not be receiving confirmations, invoices, or receipts.';
+
+  const cta = mode === 'not_configured'
+    ? 'Set up email'
+    : cause
+      ? 'Fix email settings'
+      : 'View email delivery';
 
   return (
     <div
