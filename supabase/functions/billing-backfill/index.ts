@@ -134,6 +134,38 @@ async function resolveOrg(email: string | null) {
   return result;
 }
 
+// Metadata-first attribution: a Stripe customer on a cleaning job is the
+// homeowner, not the tenant. raw.metadata.organization_id is authoritative.
+const idToOrg = new Map<string, { id: string | null; name: string | null }>();
+async function resolveOrgById(orgId: string | null | undefined) {
+  if (!orgId) return null;
+  if (idToOrg.has(orgId)) return idToOrg.get(orgId)!;
+  const { data: org } = await admin
+    .from("organizations")
+    .select("id, name")
+    .eq("id", orgId)
+    .maybeSingle();
+  const result = { id: org?.id ?? orgId, name: org?.name ?? null };
+  idToOrg.set(orgId, result);
+  return result;
+}
+
+// Stream classification from object metadata. Applies to raw charge/refund/
+// dispute objects, which carry no price id of their own.
+function streamFromMetadata(md: Record<string, unknown> | null | undefined): string | null {
+  if (!md) return null;
+  const m = md as Record<string, string | undefined>;
+  const purpose = (m.purpose ?? m.type ?? "").toLowerCase();
+  if (m.booking_id || m.invoice_id || purpose === "booking" || purpose === "additional_charge" || purpose === "tip") {
+    return "merchant_cleaning";
+  }
+  if (purpose.includes("ai_credit") || purpose === "credits" || m.credits) return "ai_credits";
+  if (purpose.includes("lifetime")) return "lifetime";
+  if (purpose.includes("ad_management") || m.ad_platform) return "ad_management";
+  return null;
+}
+
+
 // ------------------------------------------------------------------ writers
 type EventRow = Record<string, unknown>;
 
@@ -174,13 +206,16 @@ async function processPage(
 
   for (const obj of objects) {
     const email = await customerEmail(stripe, obj.customer);
-    const org = await resolveOrg(email);
+    const mdOrgId = (obj.metadata?.organization_id ?? obj.metadata?.org_id ?? null) as string | null;
+    // metadata wins; the email lookup is only a fallback when metadata is absent
+    const org = (await resolveOrgById(mdOrgId)) ?? (await resolveOrg(email));
     const identity = {
       organization_id: org.id,
       organization_name: org.name,
       customer_email: email,
       stripe_customer_id: typeof obj.customer === "string" ? obj.customer : obj.customer?.id ?? null,
     };
+
 
     if (resource === "subscriptions") {
       const item = obj.items?.data?.[0];
@@ -261,7 +296,8 @@ async function processPage(
       events.push({
         ...identity,
         event_type: obj.status === "succeeded" ? "charge.succeeded" : "charge.failed",
-        revenue_stream: "plan",
+        revenue_stream: streamFromMetadata(obj.metadata) ?? "plan",
+
         stripe_object_id: obj.id,
         stripe_charge_id: obj.id,
         stripe_invoice_id: typeof obj.invoice === "string" ? obj.invoice : obj.invoice?.id ?? null,
@@ -284,7 +320,8 @@ async function processPage(
       events.push({
         ...identity,
         event_type: "charge.refunded",
-        revenue_stream: "plan",
+        revenue_stream: streamFromMetadata(obj.metadata) ?? "plan",
+
         stripe_object_id: obj.id,
         stripe_charge_id: typeof obj.charge === "string" ? obj.charge : obj.charge?.id ?? null,
         stripe_payment_intent_id:
@@ -303,7 +340,7 @@ async function processPage(
       events.push({
         ...identity,
         event_type: "charge.dispute",
-        revenue_stream: "plan",
+        revenue_stream: streamFromMetadata(obj.metadata) ?? "plan",
         stripe_object_id: obj.id,
         stripe_charge_id: typeof obj.charge === "string" ? obj.charge : obj.charge?.id ?? null,
         occurred_at: iso(obj.created),
