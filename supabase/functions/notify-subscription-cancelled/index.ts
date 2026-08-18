@@ -82,7 +82,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resend = new Resend(emailSettings.resend_api_key || RESEND_API_KEY);
 
     // Send notification to the organization admin
-    const emailResponse = await resend.emails.send({
+    const { data: sendData, error: sendError } = await resend.emails.send({
       from: senderFrom,
       to: [adminEmail],
       subject: `Subscription Cancelled: ${customerName}`,
@@ -114,9 +114,36 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("[notify-subscription-cancelled] Cancellation notification sent:", emailResponse);
+    if (sendError) {
+      const detail =
+        typeof sendError === "string"
+          ? sendError
+          : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+      console.error("[notify-subscription-cancelled] send FAILED:", detail);
 
-    return new Response(JSON.stringify({ success: true, emailId: emailResponse.data?.id }), {
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { error: failLogErr } = await supabaseAdmin.rpc("log_org_email_send_failure", {
+        _organization_id: organizationId,
+        _method: "resend",
+        _fell_back_to: null,
+        _recipient: adminEmail,
+        _subject: `Subscription Cancelled: ${customerName}`,
+        _error_message: detail,
+      });
+      if (failLogErr) console.error("[notify-subscription-cancelled] failure-log insert failed:", failLogErr);
+
+      return new Response(
+        JSON.stringify({ success: false, error: "notification email failed", detail }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    console.log("[notify-subscription-cancelled] Cancellation notification sent:", sendData?.id);
+
+    return new Response(JSON.stringify({ success: true, emailId: sendData?.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

@@ -326,21 +326,52 @@ Give practical advice for a cleaning business owner.`;
           const resend = new Resend(RESEND_API_KEY);
           const senderFrom = formatEmailFrom(emailSettingsResult.settings);
           
-          await resend.emails.send({
+          // The SDK returns { data, error } and does not throw on an API
+          // error. Discarding it is why five 403s to regalrestcleaning.com
+          // were recorded as successful sends.
+          const { data: sendData, error: sendError } = await resend.emails.send({
             from: senderFrom,
             to: [adminEmail],
             subject: wsSubject,
             html: reportHtml,
           });
-          console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
-          // Log the successful send so Automation Center can show a real fire count.
-          const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
-            organization_id: org.id,
-            automation_type: 'weekly_summary',
-            target_id: org.id,               // one summary email per org per run
-            metadata: { sent_at: new Date().toISOString(), to: adminEmail },
-          });
-          if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
+
+          if (sendError) {
+            const detail =
+              typeof sendError === "string"
+                ? sendError
+                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+            console.error(
+              `[weekly-business-report] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`,
+            );
+            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+              _organization_id: org.id,
+              _method: "resend",
+              _fell_back_to: null,
+              _recipient: adminEmail,
+              _subject: wsSubject,
+              _error_message: detail,
+            });
+            if (failLogErr) {
+              console.error(`[weekly-business-report] failure-log insert failed for org ${org.id}:`, failLogErr);
+            }
+            // NO automation_fire_log row. A fire-log entry means the owner
+            // received their report; writing one here is the exact lie this
+            // change removes.
+          } else {
+            console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
+            const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
+              organization_id: org.id,
+              automation_type: 'weekly_summary',
+              target_id: org.id,               // one summary email per org per run
+              metadata: {
+                sent_at: new Date().toISOString(),
+                to: adminEmail,
+                provider_message_id: sendData?.id ?? null,
+              },
+            });
+            if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
+          }
         } catch (emailError) {
           console.error(`[weekly-business-report] Email error for org ${org.id}:`, emailError);
         }
