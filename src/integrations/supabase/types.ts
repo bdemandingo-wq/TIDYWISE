@@ -8441,6 +8441,62 @@ export type Database = {
           },
         ]
       }
+      product_feedback: {
+        Row: {
+          admin_note: string | null
+          app_area: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          organization_id: string | null
+          reply_email: string | null
+          sender_name: string | null
+          severity: string | null
+          topic: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_note?: string | null
+          app_area?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          organization_id?: string | null
+          reply_email?: string | null
+          sender_name?: string | null
+          severity?: string | null
+          topic: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_note?: string | null
+          app_area?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          organization_id?: string | null
+          reply_email?: string | null
+          sender_name?: string | null
+          severity?: string | null
+          topic?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_feedback_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_tour_events: {
         Row: {
           created_at: string
