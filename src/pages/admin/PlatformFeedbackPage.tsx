@@ -95,7 +95,7 @@ export default function PlatformFeedbackPage() {
 
   return (
     <AdminLayout>
-      <SEOHead title="Feedback | TidyWise" description="Product feedback from businesses." noindex />
+      <SEOHead title="Feedback | TidyWise" description="Product feedback from businesses." noIndex />
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
