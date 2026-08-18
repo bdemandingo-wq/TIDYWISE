@@ -1,0 +1,229 @@
+=== RETIRE A DEAD FUNCTION, AND MAKE THE LIVE ONE OPT-OUT. ONE TURN. ===
+
+  PART 1  delete weekly-payroll-summary — it is superseded and unreachable
+  PART 2  give payroll-period-report an owner-facing opt-out toggle
+
+All verification is at the END. Do not stop between parts.
+
+WHY PART 1 IS A DELETE AND NOT A SCHEDULE. weekly-payroll-summary has no cron
+job, no caller anywhere in src/ or in any other edge function, and computes its
+window as `now - 7 days` in UTC with no reference to an organisation's payroll
+week or timezone. payroll-period-report already does the same job properly: it
+runs daily, and for each org decides whether today is the closing day of THAT
+org's payroll period, in that org's timezone, using business_settings
+payroll_frequency / payroll_start_day / timezone. It is live and delivering —
+22 sends logged, most recently 2026-08-17.
+
+Scheduling the old one would put a second, differently-timed payroll email in
+front of the same owner. Deleting it is the fix.
+
+
+=== PART 1 of 2 — DELETE weekly-payroll-summary ===
+
+1a. Delete the whole directory:
+
+      supabase/functions/weekly-payroll-summary/
+
+1b. Remove its entry from supabase/config.toml. It currently reads:
+
+      [functions.weekly-payroll-summary]
+        verify_jwt = false
+
+    Delete both lines. Leave every other entry in that file untouched.
+
+Nothing imports it, so nothing else needs changing. Git history keeps the code
+if it is ever wanted again.
+
+Do NOT delete weekly-blog-digest. It is in a similar position — no cron job and
+no caller — but that is an open question rather than a settled one, and it is
+out of scope here.
+
+
+=== PART 2 of 2 — OPT-OUT FOR payroll-period-report ===
+
+Today payroll-period-report loops EVERY organisation with no toggle, so an
+owner who does not want the report cannot turn it off. Give it the same opt-out
+shape the other automations use.
+
+THE DEFAULT IS THE WHOLE DESIGN, SO READ THIS BEFORE WRITING ANY CODE. This is
+an OPT-OUT, not an opt-in. Absence of a row MUST mean enabled. If a missing row
+meant disabled, then any organisation that never got seeded — a new signup
+before a trigger fires, a backfill that half-ran — would silently stop
+receiving payroll reports, and nobody would notice because the failure looks
+identical to "no payroll this period". Only an explicit is_enabled = false may
+disable it.
+
+2a. MIGRATION — seed the rows and cover new orgs.
+
+  -- Existing organisations: enabled, preserving today's behaviour exactly.
+  insert into public.organization_automations
+    (organization_id, automation_type, is_enabled, description)
+  select o.id,
+         'payroll_period_report',
+         true,
+         'Emails you a payroll report when each pay period closes'
+  from public.organizations o
+  on conflict (organization_id, automation_type) do nothing;
+
+  -- New organisations: add one line to the existing provisioning trigger.
+  -- Do NOT rewrite the function; add this row to the VALUES list that already
+  -- seeds review_request, appointment_reminder, missed_call_textback,
+  -- rebooking_reminder, recurring_upsell, winback_60day and ai_sms_reply,
+  -- keeping all seven exactly as they are:
+  --
+  --   (NEW.id, 'payroll_period_report', true, 'Emails you a payroll report when each pay period closes'),
+  --
+  -- The function is public.provision_default_automations(). Recreate it with
+  -- CREATE OR REPLACE, preserving its SECURITY DEFINER, its search_path, the
+  -- automated_campaigns insert below it, and the existing
+  -- ON CONFLICT (organization_id, automation_type) DO NOTHING.
+
+2b. EDGE FUNCTION — check the toggle in the loop.
+
+In supabase/functions/payroll-period-report/index.ts, the handler loads every
+organisation and then loops them. Before that loop, load the disabled set once
+rather than querying per org:
+
+    // Opt-out, not opt-in: only an explicit is_enabled = false disables.
+    // A missing row means enabled, so an org that was never seeded keeps
+    // receiving its report instead of silently going quiet.
+    const { data: optOutRows, error: optOutErr } = await supabase
+      .from("organization_automations")
+      .select("organization_id")
+      .eq("automation_type", "payroll_period_report")
+      .eq("is_enabled", false);
+
+    if (optOutErr) {
+      // Do NOT swallow this into an empty set. An empty set here means
+      // "nobody opted out", which would mail every org that just asked not to
+      // be mailed. Fail the run instead — a missed report is recoverable, an
+      // unwanted one is not.
+      console.error("[payroll-period-report] opt-out lookup failed:", optOutErr);
+      return new Response(
+        JSON.stringify({ error: "could not load opt-out list", detail: optOutErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const optedOut = new Set((optOutRows ?? []).map((r) => r.organization_id as string));
+
+Then inside the existing per-org loop, before any period math or sending:
+
+      if (optedOut.has(org.id)) {
+        console.log(`[payroll-period-report] org ${org.id} has opted out — skipping`);
+        continue;
+      }
+
+Change nothing else in that function or in _shared/payroll-period-process.ts.
+Do not touch the period math, the dedupe, the sender resolution, or the
+requireCronSecret gate.
+
+2c. FRONTEND — surface it in the Automation Centre.
+
+In src/components/admin/automation/AutomationsTab.tsx, add an entry to the
+`activeAutomationsMeta` map so the row renders with an icon and an explanation
+rather than a bare formatted name. Match the existing entries' shape:
+
+    payroll_period_report: {
+      icon: Wallet,
+      emoji: '💰',
+      description: 'Emails you a payroll report when each pay period closes — timing follows your payroll week in Settings',
+      color: 'text-emerald-500',
+    },
+
+Import `Wallet` from lucide-react alongside the icons already imported there.
+If `Wallet` is already imported, do not import it twice.
+
+No other frontend change is needed: the tab already renders whatever rows exist
+in organization_automations for the org, splitting them into active and
+inactive by is_enabled, and the toggle is already wired.
+
+
+=== VERIFICATION — AFTER DEPLOYING AND RUNNING THE MIGRATION ===
+
+Deploy payroll-period-report, run the migration, publish the frontend. Confirm
+each is DEPLOYED, not merely committed.
+
+STEP A — Part 1 is gone:
+
+  Confirm supabase/functions/weekly-payroll-summary/ no longer exists and that
+  grep for "weekly-payroll-summary" in supabase/config.toml returns nothing.
+  State whether the deployed function was also removed from the project, or
+  only from the repo — those are different, and if it is still deployed say so.
+
+STEP B — every org has a row, all enabled:
+
+  select count(*) as orgs,
+         count(*) filter (where a.is_enabled) as enabled,
+         count(*) filter (where a.is_enabled = false) as opted_out,
+         count(*) filter (where a.organization_id is null) as missing_row
+  from public.organizations o
+  left join public.organization_automations a
+    on a.organization_id = o.id and a.automation_type = 'payroll_period_report';
+
+  Expect orgs = 97, enabled = 97, opted_out = 0, missing_row = 0.
+
+STEP C — THE CONTROL, and it is the one that matters. Turn one org off, prove
+it is skipped, prove everyone else is not, then turn it back on.
+
+  -- pick a test org, NOT a real customer
+  update public.organization_automations
+  set is_enabled = false
+  where automation_type = 'payroll_period_report'
+    and organization_id = (select id from public.organizations
+                           where name ilike '%QA TEST ORG%' limit 1);
+
+  Then invoke payroll-period-report manually and paste its logs.
+
+  The opted-out org must appear in the logs as "has opted out — skipping".
+  EVERY OTHER ORG MUST STILL BE PROCESSED. If the run suddenly skips everyone,
+  the check has been inverted into an opt-in and 97 organisations have quietly
+  stopped receiving payroll reports — which looks identical to a quiet week and
+  is the single worst outcome of this change. Report the processed count
+  explicitly, not just the skip.
+
+  Then restore it:
+
+  update public.organization_automations
+  set is_enabled = true
+  where automation_type = 'payroll_period_report'
+    and organization_id = (select id from public.organizations
+                           where name ilike '%QA TEST ORG%' limit 1);
+
+STEP D — a missing row still sends. This is the belt-and-braces half of the
+opt-out semantics, and it is easy to get backwards:
+
+  -- delete one test org's row entirely, leaving no record either way
+  delete from public.organization_automations
+  where automation_type = 'payroll_period_report'
+    and organization_id = (select id from public.organizations
+                           where name ilike '%test account%' limit 1);
+
+  Invoke again. That org must STILL be processed — absence means enabled. If it
+  is skipped, the code is treating a missing row as opted out, and any org the
+  seed missed will go silent.
+
+  Then re-insert it:
+
+  insert into public.organization_automations
+    (organization_id, automation_type, is_enabled, description)
+  select id, 'payroll_period_report', true,
+         'Emails you a payroll report when each pay period closes'
+  from public.organizations where name ilike '%test account%' limit 1
+  on conflict (organization_id, automation_type) do nothing;
+
+STEP E — the Automation Centre shows it. Load the Automation Centre as an org
+admin and confirm a "Payroll Period Report" card appears with the 💰 icon and
+its description, in the active list, with a working toggle.
+
+=== REPORT BACK — ONE REPLY ===
+
+  1. Part 1: directory deleted, config.toml entry removed, and whether the
+     deployed function was removed from the project too.
+  2. Step B counts. All four numbers.
+  3. Step C: the opted-out org skipped, AND the number of orgs still processed
+     in the same run.
+  4. Step D: the org with no row was still processed, yes or no.
+  5. Step E: the card renders, yes or no.
+  6. Did you change the period math, the dedupe, the sender resolution, or
+     weekly-blog-digest? Expected answer: no.
