@@ -13,12 +13,18 @@
  * body. This mirrors withStopSentence() on the SMS side, and for the same
  * reason — an operator rewording their copy must not be able to drop it.
  *
- * The signature is appended at render time too, but it is NOT the same kind of
- * value. The unsubscribe sentence is a constant this module owns and emits
- * unescaped; the signature arrives from the compose form, so it is untrusted
- * input and goes through escapeHtml like the body. That is why it cannot carry
- * its own markup — no hand-written <a>, no bold. Mail clients auto-linkify bare
- * addresses and phone numbers, which covers the actual use.
+ * The signature is appended at render time too. It DEFAULTS to
+ * DEFAULT_SIGNATURE below and is only overridden by a stored value, because an
+ * optional signature failed silently: an empty compose box sent 96 owners an
+ * unsigned email and nothing anywhere reported it. There is now no input that
+ * produces an unsigned broadcast.
+ *
+ * It is still escaped, even though the default is a constant we own. A stored
+ * signature_text from the database is not something this module controls, and
+ * having one escaping rule for both paths is what stops the trusted-looking
+ * default from teaching the next reader that the stored path is safe too. The
+ * cost is that it carries no markup — mail clients auto-linkify bare addresses
+ * and phone numbers, which covers the actual use.
  *
  * The signature also applies to BOTH classes, unlike the unsubscribe footer.
  * It is deliberately a separate parameter rather than something derived from
@@ -28,6 +34,25 @@
 export const UNSUBSCRIBE_SENTENCE = "You're receiving this because you own a TidyWise account.";
 
 export const MAX_SUBJECT = 200;
+
+/**
+ * The signature every broadcast carries unless a stored one overrides it.
+ *
+ * Hardcoded rather than typed per send: one person sends these, the text never
+ * varies, and the failure mode of the optional field was invisible — an
+ * unsigned blast looks exactly like a signed one from the sender's side.
+ *
+ * KEEP IN SYNC with the copy in supabase/functions/_shared/broadcast-render.ts.
+ * The parity test asserts this constant directly as well as through rendered
+ * output, so a one-character drift here fails loudly rather than sending two
+ * different signatures depending on which function did the sending.
+ */
+export const DEFAULT_SIGNATURE = [
+  'Emmanuel Forkuoh',
+  'Founder, TidyWise',
+  '561-571-8725',
+  'support@tidywisecleaning.com',
+].join('\n');
 
 // A signature is a name and contact details, not a second body. The cap exists
 // so a paste accident cannot quietly become the bulk of the email.
@@ -85,6 +110,18 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * Stored value wins when it has one; otherwise the default. Blank, whitespace,
+ * null and absent all collapse to the default — there is deliberately no input
+ * that yields no signature at all.
+ *
+ * Shared by both renderers so the HTML and plain-text alternatives can never
+ * disagree about which signature the recipient is looking at.
+ */
+export function resolveSignature(signature?: string | null): string {
+  return signature && signature.trim() ? signature : DEFAULT_SIGNATURE;
+}
+
 /** Split on blank lines into paragraphs; single newlines become <br>. */
 function paragraphs(bodyText: string): string {
   return bodyText
@@ -109,11 +146,9 @@ export function renderBroadcastHtml(args: {
   //
   // paragraphs() rather than a raw interpolation: it is the one place escaping
   // and newline handling live, so the signature cannot drift from the body on
-  // either. A blank or whitespace-only signature yields '' and emits nothing —
-  // no stray margin, no empty block.
-  const signatureBlock = signature && signature.trim()
-    ? `\n<div style="margin-top:24px">\n${paragraphs(signature)}\n</div>`
-    : '';
+  // either.
+  const signatureBlock =
+    `\n<div style="margin-top:24px">\n${paragraphs(resolveSignature(signature))}\n</div>`;
 
   // UNSUBSCRIBE_SENTENCE is NOT escaped. It is a compile-time constant we own,
   // not an injection surface, and escaping it turns "You're" into "You&#39;re"
@@ -143,9 +178,9 @@ export function renderBroadcastText(args: {
 }): string {
   const { bodyText, unsubscribeUrl, signature } = args;
   // Same order as the HTML: body, signature, then the unsubscribe separator.
-  const withSignature = signature && signature.trim()
-    ? `${bodyText.trim()}\n\n${signature.trim()}`
-    : bodyText.trim();
+  // Same resolver as the HTML path, so the two alternatives of one email can
+  // never carry different signatures.
+  const withSignature = `${bodyText.trim()}\n\n${resolveSignature(signature).trim()}`;
   if (!unsubscribeUrl) return withSignature;
   return `${withSignature}\n\n---\n${UNSUBSCRIBE_SENTENCE}\nUnsubscribe: ${unsubscribeUrl}`;
 }
