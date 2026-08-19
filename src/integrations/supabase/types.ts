@@ -5936,6 +5936,7 @@ export type Database = {
           status: string | null
           tags: Json
           updated_at: string
+          updated_by: string | null
           zip_code: string | null
         }
         Insert: {
@@ -5958,6 +5959,7 @@ export type Database = {
           status?: string | null
           tags?: Json
           updated_at?: string
+          updated_by?: string | null
           zip_code?: string | null
         }
         Update: {
@@ -5980,6 +5982,7 @@ export type Database = {
           status?: string | null
           tags?: Json
           updated_at?: string
+          updated_by?: string | null
           zip_code?: string | null
         }
         Relationships: [
