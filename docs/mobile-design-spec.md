@@ -129,6 +129,96 @@ Two of those are **scoped**, with a distinct dark value rather than one hex —
 
 See §6.1 for why, and for the full derivation.
 
+#### 1.1b Colour family decisions — settled 2026-08-19
+
+§1.1a identified three families as genuinely absent from `--pv-*`. **Two are
+adopted, one is rejected.** This section records why, so it is not relitigated.
+
+##### Adopted — AI indigo `#6C5CE7`, loyalty gold `#D69E2E`
+
+Both are real gaps. Nearest-token distance is 60.5 and 95.5 (§1.1a); the closest
+existing token in each case is a different hue family, not the same role at a
+different value. Nothing in `--pv-*` means "AI surface" or "loyalty", so these
+add vocabulary rather than forking it. Adopt both as new families.
+
+**Both are new in dark as well.** There is no `--pv-*` counterpart to inherit a
+dark value from, so each needs its own entry in `.dark .portal-v2`. A single hex
+cannot serve both themes — that is the `--warning` lesson (one gold value, both
+themes, 1.65:1 on the white page) and it applies here for the same reason.
+
+Measured against the surfaces this spec actually places them on. Text tier is
+4.5:1, icon/rail/fill tier is 3:1.
+
+**AI indigo `#6C5CE7`** — `accent.ai`, `event.purple`
+
+| Surface | Ratio | As text (4.5) | As icon/rail (3.0) |
+|---|---|---|---|
+| `surface.card` `#FFFFFF` | 4.86:1 | PASS | PASS |
+| `surface.page` `#F5F6FA` | 4.50:1 | **FAIL** (marginal) | PASS |
+| `accent.aiTint` `#F4F1FF` | 4.37:1 | **FAIL** | PASS |
+| `surface.inverse` light `#101733` | 3.62:1 | **FAIL** | PASS |
+| dark `--pv-bg` `#111318` | 3.82:1 | **FAIL** | PASS |
+| dark `--pv-surface` `#181A21` | 3.58:1 | **FAIL** | PASS |
+| dark `--pv-sunken` `#1D212A` | 3.32:1 | **FAIL** | PASS |
+| `surface.inverse` dark `#2A3C84` | 2.08:1 | **FAIL** | **FAIL** |
+
+The constraint that matters: indigo **fails as text on `aiTint`** — its own card
+background, and the placement the spec names first. It clears the bar only as
+text on white. Treat `#6C5CE7` as an icon, rail and border colour; use
+`text.body` `#3C4250` for AI insight copy, which is what §1.1 already specifies.
+It is unusable on the dark inverse in any role.
+
+**Loyalty gold `#D69E2E`** — `loyalty.gold`, plus `loyalty.text` `#8A6D1F`
+
+| Surface | `#D69E2E` | Verdict | `#8A6D1F` | Verdict |
+|---|---|---|---|---|
+| `surface.card` `#FFFFFF` | 2.39:1 | **FAIL** both tiers | 4.90:1 | PASS text |
+| `surface.inset` `#F5F6FA` (progress track) | 2.21:1 | **FAIL** fill 3:1 | — | — |
+| `loyalty.goldTint` `#FFF9EC` | 2.28:1 | **FAIL** both tiers | 4.67:1 | PASS text |
+| dark `--pv-bg` `#111318` | 7.78:1 | PASS both | 3.79:1 | **FAIL** |
+| dark `--pv-surface` `#181A21` | 7.27:1 | PASS both | 3.55:1 | **FAIL** |
+| dark `--pv-sunken` `#1D212A` | 6.74:1 | PASS both | 3.29:1 | **FAIL** |
+| `surface.inverse` dark `#2A3C84` | 4.23:1 | PASS fill, FAIL text | 2.06:1 | **FAIL** |
+
+**The gold family fails in opposite directions in the two themes.** `#D69E2E`
+is too light for light mode — at 2.21:1 on its own progress track it misses the
+3:1 object bar, and the progress fill is its stated primary use, so the family
+does not currently work for the thing it was added to do. In dark it is
+comfortable everywhere. `#8A6D1F` is the mirror image: fine in light, fails
+every dark surface.
+
+So the gold family needs **two values per role**, not one. Darkening `#D69E2E`
+for light mode and lightening `#8A6D1F` for dark is the shape of the fix; the
+exact values are an implementation decision, but a single hex per role is
+already ruled out by the table above.
+
+##### Rejected — success green `#129E6A`. Use `--pv-success`.
+
+**Two tokens meaning "success" is a duplicate, not an extension.** Unlike indigo
+and gold, this family already exists: `--pv-success` occupies the role, in both
+themes. Adding a second one forks the vocabulary — every new component picks one
+of the two, the choice is arbitrary, and they drift apart. That cost is
+permanent and it buys nothing.
+
+It is also the weaker value. Measured:
+
+| Pair | Ratio | |
+|---|---|---|
+| spec `#129E6A` on `surface.card` `#FFFFFF` | 3.43:1 | **FAIL** |
+| spec `#129E6A` on its own `successBg` `#E9F7F1` | 3.11:1 | **FAIL** |
+| `--pv-success` `#22774F` on `#FFFFFF` | 5.50:1 | PASS |
+| `--pv-success` on `--pv-success-soft` `#E7F8F0` | 5.00:1 | PASS |
+| `--pv-success` dark `#64D8A2` on dark `--pv-surface` | 9.83:1 | PASS |
+
+The spec's green **fails AA in both of the placements the spec itself gives it**,
+including against its own tint. The existing token passes both, and already
+carries a measured dark value (`152 60% 62%`) that `#129E6A` does not have.
+
+Adopting `#129E6A` would mean adding a second token for an occupied role, in a
+worse value, that then needs a dark variant invented for it. Use `--pv-success`
+(`152 55% 30%` light, `152 60% 62%` dark) and drop `status.success` /
+`successBg` from the closed set in §1.1.
+
 ### 1.2 Spacing (4px base)
 
 `space.1`=4 · `space.2`=8 · `space.2_5`=10 · `space.3`=12 · `space.3_5`=14 · `space.4`=16 · `space.4_5`=18 · `space.5`=20 · `space.6`=24 · `space.7`=28
