@@ -2471,6 +2471,7 @@ export type Database = {
           message_class: string
           recipient_count: number
           sent_count: number
+          signature_text: string | null
           skipped_count: number
           started_at: string | null
           status: string
@@ -2489,6 +2490,7 @@ export type Database = {
           message_class: string
           recipient_count?: number
           sent_count?: number
+          signature_text?: string | null
           skipped_count?: number
           started_at?: string | null
           status?: string
@@ -2507,6 +2509,7 @@ export type Database = {
           message_class?: string
           recipient_count?: number
           sent_count?: number
+          signature_text?: string | null
           skipped_count?: number
           started_at?: string | null
           status?: string
