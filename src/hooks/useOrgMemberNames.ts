@@ -40,38 +40,62 @@ export function useOrgMemberNames(organizationId: string | undefined | null) {
     let cancelled = false;
 
     (async () => {
-      // Cast until Lovable regenerates src/integrations/supabase/types.ts: the
-      // function is not in the generated RPC union yet, so the name literal is
-      // rejected. Narrowed to the row shape rather than `any` so the loop below
-      // stays checked. Drop the cast once types are regenerated.
-      type OrgMemberName = { user_id: string; display_name: string | null };
-      const callRpc = supabase.rpc as unknown as (
-        fn: 'get_org_member_names',
-        args: { p_organization_id: string },
-      ) => Promise<{ data: OrgMemberName[] | null; error: unknown }>;
+      // try/catch, not just the { error } field. Those are different failure
+      // channels: `error` is what the server returned, and a throw is what
+      // happens before the request is built at all — a bad client reference, a
+      // network stack failure, a malformed argument. The this-binding bug threw
+      // here and surfaced as an UNCAUGHT promise rejection, so the error branch
+      // below never ran and nothing was logged. Anything that escapes this
+      // function is invisible.
+      try {
+        // Cast the CLIENT, never the method.
+        //
+        // `const callRpc = supabase.rpc` detaches the function from its receiver.
+        // supabase-js's rpc() reads `this.rest` internally, so a detached call
+        // throws "Cannot read properties of undefined (reading 'rest')" BEFORE any
+        // request is sent — which means no network error, no `error` field, and
+        // nothing for the check below to catch. It presents as an empty map, which
+        // is indistinguishable from an org with no members.
+        //
+        // Casting the client keeps `client.rpc(...)` a method call, so `this` is
+        // still the client. The cast exists only because the function is not in
+        // the generated RPC union yet; drop it once types are regenerated.
+        type OrgMemberName = { user_id: string; display_name: string | null };
+        const client = supabase as unknown as {
+          rpc: (
+            fn: 'get_org_member_names',
+            args: { p_organization_id: string },
+          ) => Promise<{ data: OrgMemberName[] | null; error: unknown }>;
+        };
 
-      const { data, error } = await callRpc('get_org_member_names', {
-        p_organization_id: organizationId,
-      });
+        const { data, error } = await client.rpc('get_org_member_names', {
+          p_organization_id: organizationId,
+        });
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      // Non-fatal, but no longer silent. A failed lookup still costs only
-      // initials rather than the page — but swallowing it completely made an
-      // empty map indistinguishable from "this org has no members", which cost
-      // a full debugging round. One warn is what turns that into a two-second
-      // console check.
-      if (error) {
-        console.warn('[useOrgMemberNames] name lookup failed:', error);
-        return;
+        // Non-fatal, but no longer silent. A failed lookup still costs only
+        // initials rather than the page — but swallowing it completely made an
+        // empty map indistinguishable from "this org has no members", which cost
+        // a full debugging round. One warn is what turns that into a two-second
+        // console check.
+        if (error) {
+          console.warn('[useOrgMemberNames] name lookup failed:', error);
+          return;
+        }
+        if (!data) return;
+
+        const map: Record<string, string> = {};
+        for (const row of data) {
+          if (row.user_id && row.display_name) map[row.user_id] = row.display_name;
+        }
+          setNames(map);
+      } catch (err) {
+        // Non-fatal by design — a failed lookup costs initials, never the page.
+        // But it must be SEEN, and an unhandled rejection in a fire-and-forget
+        // effect is the one thing that is not.
+        if (!cancelled) console.warn('[useOrgMemberNames] name lookup threw:', err);
       }
-      if (!data) return;
-
-      const map: Record<string, string> = {};
-      for (const row of data) {
-        if (row.user_id && row.display_name) map[row.user_id] = row.display_name;
-      }
-      setNames(map);
     })();
 
     return () => { cancelled = true; };
