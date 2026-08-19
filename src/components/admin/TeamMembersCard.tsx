@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useAuth } from '@/hooks/useAuth';
 import { useOrgRole } from '@/hooks/useOrgRole';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,10 +36,27 @@ export function TeamMembersCard() {
   const [linkCopied, setLinkCopied] = useState(false);
 
   const orgId = organization?.id;
+  // The session is a precondition, not an assumption. organization?.id can
+  // resolve before the Supabase client has attached the token, and
+  // list_org_members gates on has_org_financial_access(), which reads
+  // auth.uid(). An untokened call therefore returns ZERO ROWS rather than an
+  // error — the function is executable by anon — so it renders as "No members
+  // yet" with nothing in the console and no refetch, because the query key
+  // never changes afterwards.
+  const { session } = useAuth();
+  const accessToken = session?.access_token;
+  // Keyed on the user id, not the token: the token rotates on refresh and would
+  // refetch the list every time. The id goes undefined -> defined exactly once,
+  // when the session lands, which is the transition that needs to trigger.
+  const sessionUserId = session?.user?.id;
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['org-members', orgId],
-    enabled: !!orgId,
+  const {
+    data: members = [],
+    error: membersError,
+    isLoading: membersLoading,
+  } = useQuery({
+    queryKey: ['org-members', orgId, sessionUserId],
+    enabled: !!orgId && !!accessToken,
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_org_members', { _organization_id: orgId! });
       if (error) throw error;
@@ -52,9 +70,12 @@ export function TeamMembersCard() {
     },
   });
 
+  // Same session dependency as the member list above. organization_invites is
+  // RLS-gated on the same owner helper, so an untokened read returns an empty
+  // set rather than an error — pending invites would silently vanish.
   const { data: invites = [] } = useQuery({
-    queryKey: ['org-invites', orgId],
-    enabled: !!orgId,
+    queryKey: ['org-invites', orgId, sessionUserId],
+    enabled: !!orgId && !!accessToken,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('organization_invites')
@@ -268,7 +289,18 @@ export function TeamMembersCard() {
                 </div>
               </div>
             ))}
-            {members.length === 0 && (
+            {/* Three states, not two. An empty list and a failed load rendered
+                identically as "No members yet", which is what made this look
+                like an empty organization for an org with five members. */}
+            {membersLoading && (
+              <p className="text-sm text-muted-foreground">Loading team…</p>
+            )}
+            {!membersLoading && membersError && (
+              <p className="text-sm text-destructive">
+                Could not load the team. {membersError instanceof Error ? membersError.message : ''}
+              </p>
+            )}
+            {!membersLoading && !membersError && members.length === 0 && (
               <p className="text-sm text-muted-foreground">No members yet.</p>
             )}
           </div>
