@@ -63,8 +63,16 @@ export function useOrgQuery<T>(opts: {
    * `?? []` at every call site, written to satisfy the wrapper rather than to
    * express anything. Null is normalised below instead — safe, because errors
    * travel by throwing, so a null result with no error genuinely means no rows.
+   *
+   * `undefined` is deliberately NOT allowed, even though it would be one more
+   * character of tolerance. Nothing in supabase-js returns undefined, so it
+   * buys nothing — while a queryFn that accidentally falls off the end returns
+   * undefined, and allowing it would let that typecheck and then render as
+   * isEmpty. That is precisely the failure this wrapper exists to prevent,
+   * reintroduced through the door widened to fix a different problem. A site
+   * that genuinely needs it can write `?? []` where a reader can see it.
    */
-  query: (organizationId: string) => Promise<T[] | null | undefined>;
+  query: (organizationId: string) => Promise<T[] | null>;
   /** ANDed with the session and organization gates; never replaces them. */
   enabled?: boolean;
   staleTime?: number;
