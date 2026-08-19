@@ -252,11 +252,15 @@ serve(async (req) => {
       if (couponId && referredOrgId) {
         const { data: ref } = await accessAdmin
           .from("org_referrals")
-          .select("id, status, referred_discount_applied_at")
+          .select("id, status, referred_discount_applied_at, referred_first_payment_at")
           .eq("referred_org_id", referredOrgId)
           .in("status", ["pending", "qualified"])
           .maybeSingle();
-        if (ref && !ref.referred_discount_applied_at) {
+        // Gate on an actual PAYMENT, not on a session having been created.
+        // Abandoned checkouts (tab closed, card declined, "cancel" back to
+        // /pricing) used to stamp referred_discount_applied_at and silently
+        // burn the 50% coupon on the first attempt.
+        if (ref && !ref.referred_first_payment_at) {
           referralDiscount = [{ coupon: couponId }];
           referralRowId = ref.id;
         }
