@@ -1138,7 +1138,10 @@ body {
   --pv-success-soft:  152 55% 94%;
   --pv-warn:          32 90% 33%;
   --pv-warn-soft:     36 100% 94%;
-  --pv-danger:        352 72% 50%;
+  /* 48%, not 50%. At 50% (#DB243C) this fails 4.25:1 against --pv-danger-soft,
+     which is the pair the portal's delete buttons use on hover. 48% (#D3223A)
+     measures 4.53:1. Hue and saturation held. */
+  --pv-danger:        352 72% 48%;
   --pv-danger-soft:   352 85% 96%;
 
   /* shadcn semantic aliases inside .portal-v2 */
@@ -1477,7 +1480,7 @@ body {
   --pv-ink:        210 18% 96%;
   --pv-ink-2:      215 14% 80%;
   --pv-ink-3:      218 12% 66%;
-  --pv-ink-4:      220 10% 52%;
+  --pv-ink-4:      220 10% 54%;   /* 54%: 52% measured 4.42:1 on --pv-surface */
 
   /* Hairline borders — low-opacity whites read cleaner than mid-grays */
   --pv-border:         220 15% 100% / 0.08;
@@ -1529,7 +1532,7 @@ body {
     --pv-ink:        210 18% 96%;
     --pv-ink-2:      215 14% 80%;
     --pv-ink-3:      218 12% 66%;
-    --pv-ink-4:      220 10% 52%;
+    --pv-ink-4:      220 10% 54%;   /* 54%: 52% measured 4.42:1 on --pv-surface */
     --pv-border:         220 15% 100% / 0.08;
     --pv-border-strong:  220 15% 100% / 0.14;
     --pv-brand:         222 96% 72%;

@@ -741,7 +741,7 @@ export default function PortalDashboardPage() {
           >
             <Icon className="h-4 w-4 text-[hsl(var(--pv-ink-4))]" />
             <span className="flex-1">{label}</span>
-            <span className="text-[hsl(var(--pv-ink-4))] text-[13px]">→</span>
+            <span className="text-[hsl(var(--pv-ink-3))] text-[13px]">→</span>
           </button>
         ))}
       </CardContent>
@@ -811,7 +811,7 @@ export default function PortalDashboardPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-[13.5px]">{notification.title}</p>
                             <p className="text-[12.5px] text-[hsl(var(--pv-ink-3))]">{notification.message}</p>
-                            <p className="text-[11px] text-[hsl(var(--pv-ink-4))] mt-1">
+                            <p className="text-[11px] text-[hsl(var(--pv-ink-3))] mt-1">
                               {formatInTimezone(notification.created_at, orgTimezone, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true })}
                             </p>
                           </div>
@@ -948,7 +948,7 @@ export default function PortalDashboardPage() {
                           <StatusChip status={request.status} />
                           <button
                             onClick={() => deleteRequest(request.id)}
-                            className="h-11 w-11 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
+                            className="h-11 w-11 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
                             aria-label="Delete request"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1041,7 +1041,7 @@ export default function PortalDashboardPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-[14px] font-medium text-[hsl(var(--pv-ink))]">{notification.title}</p>
                           <p className="text-[13px] text-[hsl(var(--pv-ink-3))]">{notification.message}</p>
-                          <p className="text-[11.5px] text-[hsl(var(--pv-ink-4))] mt-1">
+                          <p className="text-[11.5px] text-[hsl(var(--pv-ink-3))] mt-1">
                             {formatInTimezone(notification.created_at, orgTimezone, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}
                           </p>
                         </div>
@@ -1049,7 +1049,7 @@ export default function PortalDashboardPage() {
                           {!notification.is_read && <div className="h-2 w-2 rounded-full bg-[hsl(var(--pv-brand))]" />}
                           <button
                             onClick={(e) => deleteNotification(notification.id, e)}
-                            className="h-11 w-11 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
+                            className="h-11 w-11 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
                             aria-label="Delete notification"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -1310,7 +1310,7 @@ function BookingRow({
                 </button>
                 <button
                   onClick={onCancel}
-                  className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-4))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
+                  className="h-9 w-9 rounded-full inline-flex items-center justify-center text-[hsl(var(--pv-ink-3))] hover:text-[hsl(var(--pv-danger))] hover:bg-[hsl(var(--pv-danger-soft))] transition-colors"
                   aria-label="Cancel"
                 >
                   <X className="h-4 w-4" />
