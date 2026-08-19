@@ -73,6 +73,18 @@ interface Lead {
   source: string;
   status: string;
   created_at: string;
+  /**
+   * Who last updated this row, set by a database trigger from auth.uid() —
+   * not by the call sites, of which there are four and counting.
+   *
+   * Null on any write with no authenticated user behind it (service-role
+   * inserts, backfills, anything pre-trigger). Null renders as no initials
+   * rather than as a guess.
+   *
+   * Last toucher only. This is not history: an update overwrites it, and
+   * nothing records what changed or what it was before.
+   */
+  updated_by?: string | null;
   tags?: LeadTag[] | unknown;
 }
 
