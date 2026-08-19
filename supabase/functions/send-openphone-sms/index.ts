@@ -12,6 +12,7 @@ interface SMSRequest {
   to: string;
   message: string;
   organizationId: string;
+  conversationId?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
