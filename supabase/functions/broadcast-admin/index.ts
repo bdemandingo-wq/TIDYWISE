@@ -200,8 +200,8 @@ serve(async (req: Request) => {
         from: FROM,
         to: [to],
         subject: `[TEST] ${b.subject}`,
-        html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl }),
-        text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl }),
+        html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
+        text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
       }),
     });
     if (!res.ok) return json({ error: `resend ${res.status}: ${await res.text()}` }, 502);
