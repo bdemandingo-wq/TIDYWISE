@@ -347,6 +347,13 @@ export default function MessagesPage() {
    * nothing else — no email, no role, no phone — so surfacing initials does not
    * require opening profiles to every member of every org.
    *
+   * display_name is NULL for any member with neither a profiles.full_name nor a
+   * staff.name, and those render with no initials at all. That is deliberate:
+   * an email-local-part fallback was considered and rejected, because the owner
+   * account is support@tidywisecleaning.com and would have rendered as "S" —
+   * a confidently wrong name on the heaviest sender. Blank reads as
+   * "unattributed"; "S" reads as a colleague who does not exist.
+   *
    * This replaced a direct read of `staff`, which was the wrong source: only 14
    * of 44 members have staff rows, and the owner and all four managers have
    * none. Those are precisely the people who send SMS, so every message worth
