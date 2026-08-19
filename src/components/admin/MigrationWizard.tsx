@@ -33,6 +33,10 @@ interface ImportResult {
   skipped: number;
   errors: number;
   errorLog: { row_number: number; error: string }[];
+  /** The real count, which may exceed errorLog.length — the function caps the
+   *  list it returns. Optional so an older deployed function still renders. */
+  errorLogTotal?: number;
+  errorLogTruncated?: boolean;
 }
 
 const DATA_TYPE_CONFIG: Record<DataType, { label: string; icon: any; description: string }> = {
@@ -580,6 +584,12 @@ export function MigrationWizard() {
                       <span className="text-muted-foreground">{err.error}</span>
                     </div>
                   ))}
+                {importResult.errorLogTruncated && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Showing {importResult.errorLog.length} of {importResult.errorLogTotal}.
+                    Fix these, re-import, and the rest will be listed.
+                  </p>
+                )}
                 </div>
               </CardContent>
             </Card>

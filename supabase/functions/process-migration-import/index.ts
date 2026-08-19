@@ -442,7 +442,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true, imported, skipped, errors,
+      // Capped for payload size, but the caller is TOLD it was capped. The bare
+      // slice(0,10) showed ten problems from a 500-row import and dropped the
+      // rest with no indication, so an operator fixing ten rows and re-importing
+      // would meet the next thirty one at a time.
       errorLog: errorLog.slice(0, 10),
+      errorLogTotal: errorLog.length,
+      errorLogTruncated: errorLog.length > 10,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error) {
     console.error("process-migration-import error:", error);

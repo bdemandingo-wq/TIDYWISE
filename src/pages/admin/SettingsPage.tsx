@@ -48,6 +48,7 @@ import { FormDisplaySettings } from '@/components/admin/FormDisplaySettings';
 import { SchedulingModeCard } from '@/components/admin/SchedulingModeCard';
 import { SidebarVisibilitySettings } from '@/components/admin/SidebarVisibilitySettings';
 import { TeamMembersCard } from '@/components/admin/TeamMembersCard';
+import { YourProfileCard } from '@/components/admin/YourProfileCard';
 import { MobileBottomNavSettings } from '@/components/admin/MobileBottomNavSettings';
 import { BookingFormShareCard } from '@/components/admin/BookingFormShareCard';
 import { LoyaltyTierEditor } from '@/components/admin/LoyaltyTierEditor';
@@ -693,6 +694,9 @@ export default function SettingsPage() {
 
         {/* General Settings */}
         <TabsContent value="general" className="space-y-6">
+          {/* First on the tab, above the business details: it is about the person,
+              and it is the setting people come to Settings looking for. */}
+          <YourProfileCard />
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

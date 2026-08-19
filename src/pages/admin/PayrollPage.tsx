@@ -25,6 +25,7 @@ import { saveBlob } from '@/lib/fileActions';
 import { matrixToCsv } from '@/lib/orgDataExport';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOrgQuery } from '@/hooks/useOrgQuery';
+import { useOrgRecord } from '@/hooks/useOrgRecord';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3, CreditCard, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -220,23 +221,26 @@ export default function PayrollPage() {
    * to Monday via parseWeekStartDay, so behaviour is unchanged for every org
    * that never set it.
    */
-  const { data: weekStartSetting } = useQuery({
-    queryKey: ['payroll-week-start', organizationId],
-    enabled: !!organizationId,
+  // The old version swallowed a read failure into null and fell back to
+  // Monday, reasoning that an unreadable preference must not take the page
+  // down. The fallback was right; being silent about it was not — on this page
+  // a wrong week start means the wrong bookings are in the pay period, and
+  // nobody sees a default being applied. Now it still falls back, and also
+  // reports, via the banner below.
+  const weekStartRecord = useOrgRecord<string | null>({
+    key: ['payroll-week-start'],
     staleTime: 1000 * 60 * 10,
-    queryFn: async () => {
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('payroll_settings')
         .select('payroll_week_start_day')
-        .eq('organization_id', organizationId!)
+        .eq('organization_id', organizationId)
         .maybeSingle();
-      // Falls back to Monday rather than throwing: an unreadable preference
-      // must not take the payroll page down, and Monday is what this file
-      // hardcoded before the setting was wired up at all.
-      if (error) return null;
+      if (error) throw error;   // throw, never return null — see useOrgRecord
       return data?.payroll_week_start_day ?? null;
     },
   });
+  const weekStartSetting = weekStartRecord.row;
   const weekStartsOn: WeekStartDay = parseWeekStartDay(weekStartSetting);
 
   /**
@@ -282,17 +286,19 @@ export default function PayrollPage() {
   );
 
   // Fetch payroll settings
-  const { data: payrollSettings } = useQuery({
-    queryKey: ['payroll-settings', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return DEFAULT_SETTINGS;
+  const payrollSettingsRecord = useOrgRecord<typeof DEFAULT_SETTINGS>({
+    key: ['payroll-settings'],
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('payroll_settings')
         .select('*')
         .eq('organization_id', organizationId)
         .maybeSingle();
       if (error) throw error;
-      if (!data) return DEFAULT_SETTINGS;
+      // null, not DEFAULT_SETTINGS. Returning the defaults here would make a
+      // genuine miss indistinguishable from a configured row that happens to
+      // match them, and would hide the miss from isMissing entirely.
+      if (!data) return null;
       return {
         processing_fee_mode: data.processing_fee_mode,
         processing_fee_percent: Number(data.processing_fee_percent),
@@ -308,8 +314,13 @@ export default function PayrollPage() {
         margin_percent_good_threshold: Number(data.margin_percent_good_threshold),
       } as PayrollSettings;
     },
-    enabled: !!organizationId,
   });
+  // Defaults applied ONLY on a genuine miss. A failed read leaves
+  // isMissing false, so it surfaces in the banner instead of quietly
+  // becoming "no settings configured".
+  const payrollSettings = payrollSettingsRecord.isMissing
+    ? DEFAULT_SETTINGS
+    : payrollSettingsRecord.row;
 
   const settings = payrollSettings || DEFAULT_SETTINGS;
 
@@ -661,6 +672,11 @@ export default function PayrollPage() {
     ['Forecast assignments', forecastTeamAssignmentsError],
     ['Year-to-date bookings', ytdBookingsError],
     ['Year-to-date assignments', ytdTeamAssignmentsError],
+    // Settings failures belong here too. Both fall back to defaults so the page
+    // still renders — but a defaulted pay week silently changes which bookings
+    // land in the period, which is the kind of wrong that gets paid.
+    ['Pay week setting', weekStartRecord.error],
+    ['Payroll settings', payrollSettingsRecord.error],
   ].filter(([, e]) => e) as [string, Error][];
 
 
@@ -1163,6 +1179,8 @@ export default function PayrollPage() {
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Do not pay from these totals until they load. Failed: {loadFailures.map(([label]) => label).join(', ')}.
+            {(weekStartRecord.error || payrollSettingsRecord.error) &&
+              ' Settings could not be read, so defaults are in use — the pay period may be wrong.'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">{loadFailures[0][1].message}</p>
         </div>
