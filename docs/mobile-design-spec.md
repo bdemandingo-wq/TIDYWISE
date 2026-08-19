@@ -32,6 +32,7 @@ Target: React + existing token pipeline (no raw hex in components). Phone-first 
 | `color.surface.card` | `#FFFFFF` | existing | cards |
 | `color.surface.inverse` | light `#101733` · **dark `#2A3C84`** | **new, scoped** | hero/summary surface, 1 per screen max — see §6.1 |
 | `color.surface.inverseWell` | `rgba(255,255,255,0.10)` | new | stat wells on inverse |
+| `color.border.inverseHero` | **dark only** `rgba(255,255,255,0.26)` | **new, scoped** | 1px edge on the dark hero — see §6.1a |
 | `color.surface.inset` | `#F5F6FA` | = page | wells inside cards |
 | `color.surface.disabledBtn` | `#E5E7ED` | new | disabled primary button bg |
 | `color.text.primary` | `#16181D` | maps existing | titles, stats |
@@ -122,7 +123,8 @@ Two of those are **scoped**, with a distinct dark value rather than one hex —
 
 ```css
 .portal-v2      { --pv-inverse: 228 52% 13%; --pv-on-inverse-disabled: 218 10% 64%; }
-.dark .portal-v2{ --pv-inverse: 228 52% 34%; --pv-on-inverse-disabled: 218 10% 70%; }
+.dark .portal-v2{ --pv-inverse: 228 52% 34%; --pv-on-inverse-disabled: 218 10% 70%;
+                  --pv-inverse-border: 0 0% 100% / 0.26; }   /* dark only */
 ```
 
 See §6.1 for why, and for the full derivation.
@@ -402,11 +404,42 @@ Two rules fall out:
    Actions on a navy hero are white or ghost — which is what 2b already specifies
    ("white Reschedule + ghost Cancel"), so the comps were right and the token
    table simply never justified it.
-2. **1.72:1 is perceptible separation, not a component boundary.** WCAG 1.4.11
-   wants 3:1 for UI component boundaries. If the hero needs to read as a discrete
-   component rather than a tonal area, give it a 1px `--pv-border-strong` edge in
-   dark; the fill alone is deliberately subtle so the surface reads as raised
-   rather than as a second card.
+2. **The dark hero takes a 1px border, and the fill stays subtle on purpose.**
+   See §6.1a.
+
+### 6.1a The dark hero border
+
+`inverseHeroBorder` (dark only) — `rgba(255,255,255,0.26)`, composited over the
+hero fill to `#616FA4`.
+
+| Against | Ratio | |
+|---|---|---|
+| dark card `#181A21` | **3.57:1** | PASS — WCAG 1.4.11 component boundary |
+| dark page `#111318` | **3.82:1** | PASS |
+| hero fill `#2A3C84` | 2.08:1 | edge legibility only, no threshold applies |
+
+White-alpha rather than a solid, matching the existing dark `--pv-border` /
+`--pv-border-strong`, which are both `100%` white at low alpha. Note that
+`--pv-border-strong` itself is not enough here: at `0.14` it composites to
+`#485795` and measures **2.54:1** against the card, so it fails the boundary it
+would be asked to draw. Hence a dedicated value rather than reusing the token.
+
+**This is §3 rule 10, not an exception to it.** That rule says cards are flat and
+"the border does the work". In light mode the navy hero is already several steps
+darker than everything around it, so the fill alone carries the separation and no
+border is needed. In dark mode the fill cannot carry it — the surface has to stay
+close to the page to read as *raised* rather than as a second card stacked on the
+first — so the border does the work instead, exactly as the rule says.
+
+The fill is therefore deliberately subtle: **1.72:1 against the card is a
+deliberate ceiling, not a compromise.** Push the fill brighter and the hero stops
+looking like an illuminated area of the page and starts looking like another
+card with a different background — which is the one thing rule 2's "spotlight,
+max once per screen" cannot afford. Separation comes from the edge; elevation
+comes from the fill staying quiet.
+
+Light mode keeps no border. Adding one there would be decoration: the fill
+already does the work.
 
 ### 6.2 Rules
 
