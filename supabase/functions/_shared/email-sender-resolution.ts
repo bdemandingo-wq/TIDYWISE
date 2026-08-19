@@ -22,9 +22,9 @@
  *
  * tidywisecleaning.com is the domain verified in Resend (confirmed 2026-08-13).
  * That matters more than it looks: a fallback sending from an unverified domain
- * would fail for the exact reason it exists to work around. Note
- * weekly-payroll-summary sends from `noreply@resend.dev`, Resend's sandbox
- * domain — do not copy that one.
+ * would fail for the exact reason it exists to work around. Never fall back to
+ * `noreply@resend.dev`, Resend's sandbox domain — the now-deleted
+ * weekly-payroll-summary used to, and it was not a pattern to copy.
  */
 export const PLATFORM_SENDER_NAME = "TidyWise";
 export const PLATFORM_SENDER_EMAIL = "noreply@tidywisecleaning.com";
