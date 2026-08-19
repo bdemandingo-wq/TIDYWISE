@@ -61,58 +61,59 @@ Target: React + existing token pipeline (no raw hex in components). Phone-first 
 
 Closed set. The build guard should pass every comp value through this table.
 
-#### 1.1a Verified mapping — what actually exists today
+#### 1.1a Verified mapping — against `--pv-*`, the scope that actually applies
 
-The `Status` column above was written from the comps, not from the code. It was
-checked against the repo on 2026-08-19 and is **wrong wherever it says
-"existing"**. Grepping every hex in this table against `src/` and
-`tailwind.config.ts`:
+**Corrected 2026-08-19.** An earlier version of this section reported "13 of 14
+hexes absent". That was measured against `:root`, which is the wrong selector,
+and it is withdrawn.
 
-| Hex | Spec said | Actually in the codebase |
-|---|---|---|
-| `#6B7280` | maps gray-500 | **yes** — 6 occurrences, Tailwind gray-500 |
-| `#2B5CE6` | existing | absent (and superseded by `#3150ED`) |
-| `#6C5CE7` | existing (AI indigo) | absent |
-| `#129E6A` | existing green | absent |
-| `#059669` | existing | absent |
-| `#B45309` / `#FEF3C7` | existing amber | absent |
-| `#DC2626` | existing | absent |
-| `#D69E2E`, `#101733`, `#F5F6FA`, `#16181D`, `#ECEEF4` | new / maps existing | absent |
+`src/index.css:1195` binds `--primary: var(--pv-brand)` inside `.portal-v2`, and
+**73 files apply that scope — 69 of them pages**: admin, landing, pricing, login,
+signup, staff portal, client portal. So `--pv-*` is the palette these screens
+actually read. `:root`'s `--primary` governs only what escapes the wrapper —
+Radix portals to `document.body` (dialogs, toasts, dropdowns, popovers).
 
-**13 of 14 are absent. Treat this palette as new in full.**
+Mapped by RGB distance to the nearest existing token:
 
-The deeper mismatch is format, not value. This spec is written in hex; the
-codebase has no hex tokens at all. `src/index.css` defines ~200 CSS custom
-properties as **HSL triples**, consumed as `hsl(var(--token))` through
-`tailwind.config.ts`. So every value here needs converting before it can enter
-the pipeline, and none of them can be dropped in as written.
+| Spec token | Hex | Nearest `--pv-*` | Its hex | Δ | Verdict |
+|---|---|---|---|---|---|
+| `brand.primary` | `#3150ED` | `--pv-brand` | `#3150ED` | **0** | **already exists — use it** |
+| `surface.card` | `#FFFFFF` | `--pv-surface` | `#FFFFFF` | **0** | **already exists** |
+| `brand.primaryTint` | `#EAF0FD` | `--pv-brand-soft` | `#ECEFFE` | 2.4 | same token, retune |
+| `status.successBg` | `#E9F7F1` | `--pv-success-soft` | `#E7F8F0` | 2.4 | same token, retune |
+| `surface.page` / `inset` | `#F5F6FA` | `--pv-sunken` | `#F3F4F6` | 4.9 | same token, retune |
+| `text.primary` | `#16181D` | `--pv-ink` | `#161A22` | 5.4 | same token, retune |
+| `border.subtle` | `#EEF0F5` | `--pv-sunken` | `#F3F4F6` | 6.5 | same token, retune |
+| `text.disabled` | `#687080` | `--pv-ink-3` | `#666D7A` | 7.0 | same token, retune |
+| `avatar.pinkBg` | `#FCE7F3` | `--pv-danger-soft` | `#FDECEE` | 7.1 | same token, retune |
+| `text.tertiary` | `#6B7280` | `--pv-ink-3` | `#666D7A` | 9.3 | same token, retune |
+| `border.default` | `#ECEEF4` | `--pv-sunken` | `#F3F4F6` | 9.4 | same token, retune |
+| `text.disabledOnInverse` | `#9AA1AD` | `--pv-ink-4` | `#949BA8` | 9.8 | same token, retune |
+| `border.strong` | `#D9DEE9` | `--pv-border` | `#E1E4EA` | 10.0 | same token, retune |
+| `text.secondary` | `#5F6774` | `--pv-ink-3` | `#666D7A` | 11.0 | same token, retune |
+| `status.warnBg` | `#FFF7ED` | `--pv-warn-soft` | `#FFF3E0` | 11.2 | same token, retune |
+| `text.body` | `#3C4250` | `--pv-ink-2` | `#434956` | 11.6 | same token, retune |
+| `status.dangerChipBg` | `#FEE4E2` | `--pv-danger-soft` | `#FDECEE` | 14.5 | near — decide |
+| `surface.inverse` | `#101733` | `--pv-ink` | `#161A22` | 18.3 | near — but see §6.1 |
+| `status.warnChipText` | `#B45309` | `--pv-warn` | `#A05908` | 20.9 | near — decide |
+| `status.danger` | `#DC2626` | `--pv-danger` | `#DB243C` | 22.1 | near — decide |
+| `brand.primaryBorder` | `#CFDDFA` | `--pv-border` | `#E1E4EA` | 25.1 | near — decide |
+| `status.success` | `#129E6A` | `--pv-success` | `#22774F` | 50.1 | **genuinely new** |
+| `accent.ai` / `event.purple` | `#6C5CE7` | — | — | 60.5 | **genuinely new** |
+| `loyalty.gold` | `#D69E2E` | — | — | 95.5 | **genuinely new** |
 
-Where the two palettes overlap in role, they disagree in value:
+**This is an extension, not a replacement.** The brand primary is already exactly
+right; two tokens are byte-identical, fourteen are the same role at a slightly
+different value, and only three families are genuinely absent: the AI indigo, the
+loyalty gold, and this particular success green.
 
-| Role | Codebase today | This spec | Same? |
-|---|---|---|---|
-| primary | `--primary: 230 100% 50%` = `#002BFF` | `#3150ED` | no — the current one is fully saturated |
-| success | `--success: 140 80% 26%` = `#0D7731` | `#129E6A` | no |
-| destructive | `--destructive: 5 90% 45%` = `#DA1D0B` | `#DC2626` | close, not equal |
-| warning | `--warning: 32 90% 33%` = `#A05908` | `#B45309` | no |
-| foreground | `--foreground: 0 0% 6%` = `#0F0F0F` | `#16181D` | no |
-| page bg | `--secondary: 0 0% 96%` = `#F5F5F5` | `#F5F6FA` | near, not equal |
+The remaining real constraint is format: the spec is hex, `--pv-*` is HSL
+triples. Every adopted value still needs converting before it enters the
+pipeline.
 
-Adopting this spec is therefore a **palette replacement**, not a palette
-extension. That is a decision to take deliberately: every existing screen reads
-from those variables, so changing `--primary` restyles the whole app, and adding
-a parallel set of hex tokens splits the system in two. The conversions, for
-whichever route is chosen:
-
-| Token | Hex | HSL for `index.css` |
-|---|---|---|
-| `brand.primary` | `#3150ED` | `230 84% 56%` |
-| `text.primary` | `#16181D` | `223 14% 10%` |
-| `text.disabled` | `#687080` | `220 10% 45%` |
-| `text.disabledOnInverse` | `#9AA1AD` | `218 10% 64%` |
-| `surface.page` | `#F5F6FA` | `228 33% 97%` |
-| `surface.inverse` | `#101733` | `228 52% 13%` |
-| `border.default` | `#ECEEF4` | `225 27% 94%` |
+Not in `--pv-*` at all, and needed: `surface.inverse` and its family
+(`inverseWell`, `onInverseMuted`, `linkOnInverse`), `accent.ai` + tints,
+the loyalty gold family, the avatar hue set, `status.orangeAlert`.
 
 ### 1.2 Spacing (4px base)
 
@@ -310,13 +311,98 @@ Two rules fall out of the table:
 
 ## 6. Accessibility
 
-Contrast figures below are computed, not estimated (WCAG 2.1 relative luminance, 2026-08-19).
+All figures computed 2026-08-19 (WCAG 2.1 relative luminance), **in both scopes**:
+`.portal-v2` light and `.dark .portal-v2`. An earlier version measured light only.
 
-- Text on primaryTint uses `brand.primary`: `#3150ED` on `#EAF0FD` is **5.25:1**, AA normal. (The spec previously said 4.6:1 for the old `#2B5CE6`, which actually measured 4.87:1 — both pass, but the stated number was wrong.)
-- Muted-on-inverse, 65% white composited on `#101733`, is **7.95:1** — comfortably AA at any size, not merely "≥12px/600" as previously claimed.
-- **`text.disabled` now PASSES, and the old note is obsolete.** `#687080` on white is **4.98:1** and on `surface.page` **4.61:1** — both AA normal. The previous `#9AA1AD` measured 2.60:1 on white, which is where "intentionally fails contrast" came from. That justification no longer applies on light surfaces.
-- `text.disabledOnInverse` `#9AA1AD` on `#101733` is **6.77:1** — which is why the old value is kept for the navy surface rather than replaced.
-- Disabled controls still pair with the unlock caption, but now for the reason that matters: a disabled control must say *when* it unlocks. That is information, not a contrast workaround.
+### 6.0 Measured pairs
+
+| Pair | Light | Dark |
+|---|---|---|
+| brand on brand-soft (text on primaryTint) | 5.24:1 PASS | 5.13:1 PASS |
+| ink on surface (body on card) | 17.43:1 PASS | 15.90:1 PASS |
+| ink on bg (body on page) | 16.82:1 PASS | 17.00:1 PASS |
+| ink-3 on surface (`text.tertiary` / `text.disabled`) | 5.21:1 PASS | 7.08:1 PASS |
+| **ink-4 on surface** (icons on quiet surfaces) | **2.80:1 FAIL** | **4.42:1 FAIL** |
+| success on success-soft | 5.00:1 PASS | 6.52:1 PASS |
+| warn on warn-soft | 4.88:1 PASS | 7.19:1 PASS |
+| **danger on danger-soft** | **4.25:1 FAIL** | 4.80:1 PASS |
+| brand-ink on brand (button label) | 6.00:1 PASS | 6.79:1 PASS |
+
+Two pre-existing failures, both in `--pv-*` rather than introduced by this spec:
+
+- **`--pv-ink-4` fails in both modes.** It is used for "icons on quiet surfaces".
+  Fine for a decorative glyph beside a label; not fine for anything carrying
+  meaning alone. Any icon-only control must not use it.
+- **`--pv-danger` on `--pv-danger-soft` fails in light** (4.25:1) and passes in
+  dark. The danger chip is the one place this spec puts text on that pair
+  (`dangerChipText` on `dangerChipBg`), so the spec's own `#B42318` on `#FEE4E2`
+  should be used rather than the `--pv-*` pair, or `--pv-danger` darkened.
+
+### 6.1 The inverse navy has a dark-mode problem — and it is not the text
+
+Text on `surface.inverse` `#101733` passes comfortably, in either mode, because
+the surface is a fixed hex:
+
+| On navy | Ratio |
+|---|---|
+| white | 17.61:1 PASS |
+| `onInverseMuted` (65% white) | 7.95:1 PASS |
+| `linkOnInverse` `#8FB0FF` | 8.24:1 PASS |
+| `disabledOnInverse` `#9AA1AD` | 6.77:1 PASS |
+
+**The surface itself is what fails.** In dark mode the page and cards are already
+near-black, so the navy stops being a spotlight and simply disappears:
+
+| Separation | Ratio |
+|---|---|
+| navy `#101733` vs dark page `#111318` | **1.06:1** |
+| navy `#101733` vs dark card `#181A21` | **1.01:1** |
+
+Rule 2 of §3 says inverse navy is "the headline, max once per screen" — a
+spotlight. At 1.01:1 against the card it sits on, it is invisible: the admin
+revenue hero, the cleaner week summary and the client next-appointment hero all
+lose their entire visual hierarchy in dark mode while remaining perfectly
+readable, which is the worst combination for spotting it in review.
+
+`surface.inverse` therefore cannot be a fixed hex. It needs a dark-scope value
+that stays distinct from `--pv-bg` and `--pv-surface` — either lighter than the
+page (inverting the inversion) or given a border. **This is a design decision, not
+a token conversion, and it should be settled before screen 1b, 2a or 2b is
+built** — all three lead with an inverse hero.
+
+### 6.2 Rules
+
+- Text on primaryTint uses `brand.primary`: `#3150ED` on `#EAF0FD` is **5.25:1**.
+  (An earlier draft claimed 4.6:1 for the superseded `#2B5CE6`, which actually
+  measured 4.87:1 — both pass, but the stated figure was wrong.)
+- **`text.disabled` now PASSES and the old note is obsolete.** `#687080` on white
+  is **4.98:1**, on `surface.page` **4.61:1**. The previous `#9AA1AD` measured
+  2.60:1, which is where "intentionally fails contrast" came from. That
+  justification no longer applies on light surfaces.
+- `text.disabledOnInverse` `#9AA1AD` on navy is **6.77:1** — which is why the old
+  value is kept there rather than replaced.
+- Disabled controls still pair with the unlock caption, but now because a
+  disabled control should say *when* it unlocks. That is information, not a
+  contrast workaround.
 - All icon buttons need labels (bell = "Notifications, 9+ unread").
-- Status pills: tone is also in the label text, never color-only.
+- Status pills: tone is also in the label text, never colour-only.
 - Focus ring: 2px `brand.primary` offset 2px, all interactive elements.
+
+---
+
+## 7. Findings filed, not fixed
+
+### 7.1 `:root` and `.portal-v2` render different blues
+
+`:root` sets `--primary: 230 100% 50%` = `#002BFF`, a fully saturated blue.
+`.portal-v2` rebinds it to `--pv-brand` = `#3150ED`. The 69 pages inside the
+wrapper get `#3150ED`; anything Radix portals to `document.body` — dialogs,
+toasts, dropdowns, popovers — gets `#002BFF`.
+
+So a dialog opened from a page renders a different primary from the page that
+opened it, and a toast confirming an action is a different blue from the button
+that triggered it.
+
+Measured, `#002BFF` on white is 5.90:1 and `#3150ED` is 5.25:1, so both pass —
+this is a consistency defect, not an accessibility one. Not in scope for this
+spec; recorded so it is not rediscovered as a mystery later.
