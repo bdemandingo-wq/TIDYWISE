@@ -7,12 +7,8 @@ import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import { TrackingPixels } from '@/components/TrackingPixels';
-import { orgDateKey } from '@/lib/orgDateRange';
-import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 export default function ReviewPage() {
-  // feedback_date is a DATE column.
-  const orgTimezone = useOrgTimezone();
   const { token } = useParams<{ token: string }>();
   const [searchParams] = useSearchParams();
   const initialRating = parseInt(searchParams.get('rating') || '0');
