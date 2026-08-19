@@ -216,6 +216,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Persist the path server-side; clients no longer have UPDATE on this table.
+    const { data: updatedRows, error: pathUpdateError } = await supabase
+      .from("staff_signatures")
+      .update({ signed_pdf_path: signedPath })
+      .eq("signable_document_id", document_id)
+      .eq("staff_id", staff_id)
+      .eq("organization_id", organization_id)
+      .select("id");
+
+    if (pathUpdateError) {
+      console.error("Failed to persist signed_pdf_path:", pathUpdateError);
+    } else if (!updatedRows || updatedRows.length === 0) {
+      console.warn(
+        `signed_pdf_path not persisted: no staff_signatures row for document ${document_id}, staff ${staff_id}, org ${organization_id}`
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: true, signed_pdf_path: signedPath }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
