@@ -162,11 +162,23 @@ Measured against the surfaces this spec actually places them on. Text tier is
 | dark `--pv-sunken` `#1D212A` | 3.32:1 | **FAIL** | PASS |
 | `surface.inverse` dark `#2A3C84` | 2.08:1 | **FAIL** | **FAIL** |
 
-The constraint that matters: indigo **fails as text on `aiTint`** — its own card
-background, and the placement the spec names first. It clears the bar only as
-text on white. Treat `#6C5CE7` as an icon, rail and border colour; use
-`text.body` `#3C4250` for AI insight copy, which is what §1.1 already specifies.
-It is unusable on the dark inverse in any role.
+**Role, settled: `accent.ai` is an icon, rail and border colour. Never text.**
+
+Indigo fails as text on `aiTint` — its own card background, and the placement
+§1.1 names first. It clears the text bar on exactly one surface, `surface.card`,
+and misses on every other surface in both themes. A token that is legible as
+text on one background out of eight is not a text colour, so it is not used as
+one. **AI insight copy is `text.body` `#3C4250`**, which is what §1.1 already
+specifies; indigo carries the icon, the accent rail and the card border.
+
+**Nothing indigo goes on the dark inverse.** At 2.08:1 on `surface.inverse` dark
+`#2A3C84` it fails the 3:1 object bar as well as the text bar — there is no role
+it can hold there. If an AI surface has to appear on the dark hero, it needs a
+different accent, not a lighter indigo bolted on later.
+
+At the 3:1 object tier it passes every other surface in both themes, so no
+second value is required for indigo. Unlike gold, one hex serves both themes —
+because the role never needs 4.5:1.
 
 **Loyalty gold `#D69E2E`** — `loyalty.gold`, plus `loyalty.text` `#8A6D1F`
 
@@ -187,10 +199,70 @@ does not currently work for the thing it was added to do. In dark it is
 comfortable everywhere. `#8A6D1F` is the mirror image: fine in light, fails
 every dark surface.
 
-So the gold family needs **two values per role**, not one. Darkening `#D69E2E`
-for light mode and lightening `#8A6D1F` for dark is the shape of the fix; the
-exact values are an implementation decision, but a single hex per role is
-already ruled out by the table above.
+So the gold family needs **two values per role**, not one — the same conclusion
+`--warning` reached, for the same reason.
+
+##### Resolved gold family
+
+Hue and saturation held from the spec's originals (`#D69E2E` = `hsl(40 67% 51%)`,
+`#8A6D1F` = `hsl(44 63% 33%)`); only lightness moves. Lightness conventions
+follow the tokens already in `src/index.css`: chromatic tokens sit dark in the
+light theme and light in the dark theme (`--pv-warn` 33% / 66%, `--pv-success`
+30% / 62%), and softs sit at 94% / 18% (`--pv-warn-soft` `36 100% 94%` /
+`36 55% 18%`).
+
+```css
+.portal-v2 {
+  /* Gold is a FILL, not text — the 3:1 object bar, not 4.5:1. 41%, not the
+     spec's 51%: at 51% it was 2.21:1 on --pv-sunken, the progress track it is
+     drawn on, so the loyalty bar failed at the one job the family was added
+     for. 41% clears 3:1 on the track (3.28), the card (3.54) and its own tint
+     (3.27). Same trade the --warning comment describes: the amber darkens
+     until it is legible, and stays recognisably amber. */
+  --pv-gold:       40 67% 41%;
+  --pv-gold-soft:  40 100% 94%;
+  /* Ink for the gold family. 33% is the spec's own #8A6D1F, unchanged — it
+     already clears 4.5:1 on every light surface including the new tint. */
+  --pv-gold-ink:   44 63% 33%;
+}
+.dark .portal-v2 {
+  /* Inverted, like every other chromatic pair here. The spec's #D69E2E is
+     already comfortable on the dark surfaces (7.78:1 on --pv-bg), so dark is
+     not where the fill was broken — but it still needs its own entry, because
+     41% would be 1.9:1 on --pv-surface. 64% sits between --pv-success's 62 and
+     --pv-warn's 66. */
+  --pv-gold:       40 67% 64%;
+  --pv-gold-soft:  40 55% 18%;
+  /* 52%, not 33%: the light ink is 3.55:1 on --pv-surface and 2.06:1 on the
+     dark inverse. 52% clears 4.5:1 on all three dark surfaces and on the dark
+     tint (5.24), with margin — 47% measures 4.45 and does not. */
+  --pv-gold-ink:   44 63% 52%;
+}
+```
+
+Measured:
+
+| Token | Value | Surface | Ratio | Bar | |
+|---|---|---|---|---|---|
+| `--pv-gold` light | `#AF8023` | `--pv-sunken` track `#F5F6FA` | 3.28:1 | 3.0 | PASS |
+| | | `surface.card` `#FFFFFF` | 3.54:1 | 3.0 | PASS |
+| | | `--pv-gold-soft` `#FFF5E0` | 3.27:1 | 3.0 | PASS |
+| `--pv-gold` dark | `#E1B866` | dark `--pv-bg` `#111318` | 9.95:1 | 3.0 | PASS |
+| | | dark `--pv-surface` `#181A21` | 9.31:1 | 3.0 | PASS |
+| | | dark `--pv-sunken` `#1D212A` | 8.63:1 | 3.0 | PASS |
+| `--pv-gold-ink` light | `#8A6D1F` | `surface.card` `#FFFFFF` | 4.90:1 | 4.5 | PASS |
+| | | `--pv-gold-soft` `#FFF5E0` | 4.52:1 | 4.5 | PASS |
+| | | `--pv-sunken` `#F5F6FA` | 4.53:1 | 4.5 | PASS |
+| `--pv-gold-ink` dark | `#D2A937` | `--pv-gold-soft` dark `#473615` | 5.24:1 | 4.5 | PASS |
+| | | dark `--pv-bg` `#111318` | 8.38:1 | 4.5 | PASS |
+| | | dark `--pv-surface` `#181A21` | 7.84:1 | 4.5 | PASS |
+| | | dark `--pv-sunken` `#1D212A` | 7.27:1 | 4.5 | PASS |
+
+One constraint this does not cover: **gold ink is never placed on the gold fill.**
+In both themes the two sit within 1.2:1 of each other, so gold-on-gold is
+illegible. The fill is a progress bar on `--pv-sunken`; the ink is text on
+`--pv-gold-soft`. They never overlap in the components §2 defines
+(`LoyaltyBanner`, `BenefitCard`), and they must not be made to.
 
 ##### Rejected — success green `#129E6A`. Use `--pv-success`.
 
