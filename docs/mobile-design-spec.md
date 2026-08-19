@@ -30,7 +30,7 @@ Target: React + existing token pipeline (no raw hex in components). Phone-first 
 | `color.accent.aiTint` / `aiBorder` | `#F4F1FF` / `#E4DEFB` | new | AI insight card bg/border |
 | `color.surface.page` | `#F5F6FA` | maps existing | app background |
 | `color.surface.card` | `#FFFFFF` | existing | cards |
-| `color.surface.inverse` | `#101733` | new | hero/summary surface, 1 per screen max |
+| `color.surface.inverse` | light `#101733` · **dark `#2A3C84`** | **new, scoped** | hero/summary surface, 1 per screen max — see §6.1 |
 | `color.surface.inverseWell` | `rgba(255,255,255,0.10)` | new | stat wells on inverse |
 | `color.surface.inset` | `#F5F6FA` | = page | wells inside cards |
 | `color.surface.disabledBtn` | `#E5E7ED` | new | disabled primary button bg |
@@ -39,7 +39,7 @@ Target: React + existing token pipeline (no raw hex in components). Phone-first 
 | `color.text.secondary` | `#5F6774` | new | row secondary text |
 | `color.text.tertiary` | `#6B7280` | maps gray-500 | captions, eyebrows |
 | `color.text.disabled` | `#687080` | **new** | locked actions, inactive nav — **on light surfaces only** |
-| `color.text.disabledOnInverse` | `#9AA1AD` | **new** | the same role on `surface.inverse` |
+| `color.text.disabledOnInverse` | light `#9AA1AD` · **dark `#ABB0BA`** | **new, scoped** | the same role on `surface.inverse` |
 | `color.text.onInverse` | `#FFFFFF` | existing | |
 | `color.text.onInverseMuted` | `rgba(255,255,255,0.65)` | new | |
 | `color.text.linkOnInverse` | `#8FB0FF` | new | links on navy |
@@ -112,8 +112,20 @@ triples. Every adopted value still needs converting before it enters the
 pipeline.
 
 Not in `--pv-*` at all, and needed: `surface.inverse` and its family
-(`inverseWell`, `onInverseMuted`, `linkOnInverse`), `accent.ai` + tints,
-the loyalty gold family, the avatar hue set, `status.orangeAlert`.
+(`inverseWell`, `onInverseMuted`, `linkOnInverse`, `disabledOnInverse`),
+`accent.ai` + tints, the loyalty gold family, the avatar hue set,
+`status.orangeAlert`.
+
+Two of those are **scoped**, with a distinct dark value rather than one hex —
+`surface.inverse` and `disabledOnInverse`. They belong in `.portal-v2` and
+`.dark .portal-v2` alongside the existing `--pv-*` tokens, not as constants:
+
+```css
+.portal-v2      { --pv-inverse: 228 52% 13%; --pv-on-inverse-disabled: 218 10% 64%; }
+.dark .portal-v2{ --pv-inverse: 228 52% 34%; --pv-on-inverse-disabled: 218 10% 70%; }
+```
+
+See §6.1 for why, and for the full derivation.
 
 ### 1.2 Spacing (4px base)
 
@@ -338,37 +350,63 @@ Two pre-existing failures, both in `--pv-*` rather than introduced by this spec:
   (`dangerChipText` on `dangerChipBg`), so the spec's own `#B42318` on `#FEE4E2`
   should be used rather than the `--pv-*` pair, or `--pv-danger` darkened.
 
-### 6.1 The inverse navy has a dark-mode problem — and it is not the text
+### 6.1 `surface.inverse` is scoped, and inverts in dark
 
-Text on `surface.inverse` `#101733` passes comfortably, in either mode, because
-the surface is a fixed hex:
+Text on the navy was never the problem — white is 17.61:1 on it, muted 7.95:1,
+link 8.24:1. **The surface was.** As a fixed hex, `#101733` against dark mode's
+page (`#111318`) measured **1.06:1** and against its card (`#181A21`) **1.01:1**.
+§3 rule 2 calls this surface "the headline, max once per screen" — a spotlight.
+At 1.01:1 it was invisible in dark mode *while remaining perfectly readable*,
+which is the combination least likely to be caught in review.
 
-| On navy | Ratio |
-|---|---|
-| white | 17.61:1 PASS |
-| `onInverseMuted` (65% white) | 7.95:1 PASS |
-| `linkOnInverse` `#8FB0FF` | 8.24:1 PASS |
-| `disabledOnInverse` `#9AA1AD` | 6.77:1 PASS |
+So it is a **scoped token, not a hex**, and in dark it goes **lighter than the
+page**. "Inverse" means opposite of the surrounding surface: on a light page the
+spotlight sinks to navy, on a dark page it must rise.
 
-**The surface itself is what fails.** In dark mode the page and cards are already
-near-black, so the navy stops being a spotlight and simply disappears:
+| | Light | Dark |
+|---|---|---|
+| `surface.inverse` | `#101733` — `228 52% 13%` | **`#2A3C84` — `228 52% 34%`** |
+| vs page | (dark on light) | **1.84:1** |
+| vs card | (dark on light) | **1.72:1** — was 1.01:1 |
 
-| Separation | Ratio |
-|---|---|
-| navy `#101733` vs dark page `#111318` | **1.06:1** |
-| navy `#101733` vs dark card `#181A21` | **1.01:1** |
+Same hue and saturation, lightness inverted around the page. It reads as the
+same brand navy in both modes rather than as two unrelated colours.
 
-Rule 2 of §3 says inverse navy is "the headline, max once per screen" — a
-spotlight. At 1.01:1 against the card it sits on, it is invisible: the admin
-revenue hero, the cleaner week summary and the client next-appointment hero all
-lose their entire visual hierarchy in dark mode while remaining perfectly
-readable, which is the worst combination for spotting it in review.
+**Re-derived text-on-inverse for the dark surface.** White-on-light-navy does not
+transfer, as expected — three of the four hold and one does not:
 
-`surface.inverse` therefore cannot be a fixed hex. It needs a dark-scope value
-that stays distinct from `--pv-bg` and `--pv-surface` — either lighter than the
-page (inverting the inversion) or given a border. **This is a design decision, not
-a token conversion, and it should be settled before screen 1b, 2a or 2b is
-built** — all three lead with an inverse hero.
+| Token | Value | On dark `#2A3C84` | |
+|---|---|---|---|
+| `text.onInverse` | `#FFFFFF` | 10.11:1 | PASS |
+| `text.onInverseMuted` | 65% white → `#B4BBD4` | 5.29:1 | PASS |
+| `text.linkOnInverse` | `#8FB0FF` | 4.73:1 | PASS |
+| `text.disabledOnInverse` | `#9AA1AD` | **3.89:1** | **FAIL — needs a dark value** |
+| `text.disabledOnInverse` (dark) | **`#ABB0BA` — `218 10% 70%`** | **4.64:1** | PASS |
+
+`disabledOnInverse` is the only one that had to move, and it is the binding
+constraint on how light the surface can go: above `34%` lightness it fails even
+after retuning, which is what sets the ceiling.
+
+**The rest of the hero family, checked on both:**
+
+| Pair | Light navy | Dark navy |
+|---|---|---|
+| `inverseWell` (10% white) vs its surface | 1.32:1 | 1.33:1 |
+| white on `inverseWell` | 13.36:1 | 7.60:1 |
+| `status.orangeAlert` `#F8A44C` (negative trend) | 8.73:1 | 5.01:1 |
+| `--pv-brand` on the hero | 2.94:1 — **do not place brand-blue on light navy** | 3.80:1 |
+
+Two rules fall out:
+
+1. **Never put `brand.primary` text on `surface.inverse` in light mode** (2.94:1).
+   Actions on a navy hero are white or ghost — which is what 2b already specifies
+   ("white Reschedule + ghost Cancel"), so the comps were right and the token
+   table simply never justified it.
+2. **1.72:1 is perceptible separation, not a component boundary.** WCAG 1.4.11
+   wants 3:1 for UI component boundaries. If the hero needs to read as a discrete
+   component rather than a tonal area, give it a 1px `--pv-border-strong` edge in
+   dark; the fill alone is deliberately subtle so the surface reads as raised
+   rather than as a second card.
 
 ### 6.2 Rules
 
