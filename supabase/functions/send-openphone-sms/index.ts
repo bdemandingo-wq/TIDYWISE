@@ -35,7 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { to, message, organizationId } = await req.json() as SMSRequest;
+    const { to, message, organizationId, conversationId } = await req.json() as SMSRequest;
 
     if (!organizationId) {
       console.error("[send-openphone-sms] Missing organizationId");
