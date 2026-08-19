@@ -88,6 +88,14 @@ serve(async (req: Request): Promise<Response> => {
   for (const org of orgs) {
     if (optedOut.has(org.id)) {
       console.log(`[payroll-period-report] org ${org.id} has opted out — skipping`);
+      // Recorded as skipped so opted-out orgs show up in the response totals
+      // rather than silently vanishing from them.
+      results.push({
+        organizationId: org.id,
+        success: true,
+        skipped: true,
+        error: undefined,
+      });
       continue;
     }
     try {
