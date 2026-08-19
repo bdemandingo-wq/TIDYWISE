@@ -1109,6 +1109,54 @@ body {
   --pv-ink-3:      220 9% 44%;         /* tertiary / meta */
   --pv-ink-4:      220 10% 62%;        /* icons on quiet surfaces */
 
+  /* ── Mobile-spec families — docs/mobile-design-spec.md §1.1a, §1.1b ──────
+     Reasoning lives in the spec; only the values live here.
+
+     Gold is a FILL, measured at the 3:1 object bar rather than 4.5:1. 41%,
+     not the spec's 51%: at 51% it was 2.21:1 on --pv-sunken, the progress
+     track it is drawn on, so the loyalty bar failed the one job the family
+     exists for. 41% clears 3:1 on the track (3.28), card (3.54) and its own
+     tint (3.27). --pv-gold-ink is the spec's #8A6D1F unchanged.
+     Never put --pv-gold-ink on --pv-gold: they sit within 1.2:1. */
+  --pv-gold:           40 67% 41%;
+  --pv-gold-soft:      40 100% 94%;
+  --pv-gold-ink:       44 63% 33%;
+
+  /* AI indigo. Icon, rail and border ONLY — never text. It clears 4.5:1 on
+     --pv-surface alone (4.86) and misses every other surface in both themes,
+     so AI copy is --pv-ink-2. One value serves both themes because the role
+     never needs more than 3:1. §1.1b. */
+  --pv-ai:             247 74% 63%;
+  --pv-ai-soft:        253 100% 97%;
+  --pv-ai-border:      252 78% 93%;
+
+  /* The spotlight surface — max once per screen. Scoped, not a hex: as a
+     fixed #101733 it was 1.01:1 against dark mode's card, invisible while
+     staying perfectly readable. In dark it goes LIGHTER than the page. §6.1 */
+  --pv-inverse:              228 52% 13%;
+  --pv-on-inverse:           0 0% 100%;
+  --pv-on-inverse-muted:     0 0% 100% / 0.65;
+  --pv-on-inverse-disabled:  218 10% 64%;
+  --pv-inverse-well:         0 0% 100% / 0.10;
+  --pv-link-on-inverse:      222 100% 78%;
+
+  /* Pressed state for primary. White label holds at 8.00:1. */
+  --pv-brand-hover:    224 72% 42%;
+
+  /* Disabled control surface + its text. Deliberately legible: cleaners read
+     these screens in sunlight, so this clears 4.5:1 rather than taking WCAG's
+     disabled exemption.
+
+     41%, not the spec's #687080 (45.5%). §1.1b settled that value against
+     --pv-surface, the page and --pv-sunken, and it holds on all three — but
+     the surface a disabled label actually sits on is the disabled BUTTON,
+     and there it measures 4.05:1. The spec names text.disabled and
+     surface.disabledBtn as separate tokens and never measures them against
+     each other. 41% clears the button (4.69) and every other light surface
+     (5.32 sunken, 5.86 card). */
+  --pv-disabled-btn:   225 18% 91%;
+  --pv-ink-disabled:   220 10% 41%;
+
   /* Hairline borders */
   --pv-border:         220 16% 90%;
   --pv-border-strong:  220 14% 82%;
@@ -1496,6 +1544,31 @@ body {
   --pv-success-soft:  152 40% 18%;
   --pv-warn:          38 95% 66%;
   --pv-warn-soft:     36 55% 18%;
+
+  /* Mobile-spec families, dark. Every chromatic pair inverts, as the rest of
+     this block does. Gold: 64% sits between --pv-success's 62 and --pv-warn's
+     66; the ink moves to 52% because the light 33% is 3.55:1 on --pv-surface
+     and 47% measures 4.45 on the dark tint. AI holds one value in both. */
+  --pv-gold:           40 67% 64%;
+  --pv-gold-soft:      40 55% 18%;
+  --pv-gold-ink:       44 63% 52%;
+  --pv-ai:             247 74% 63%;
+  --pv-ai-soft:        253 55% 18%;
+  --pv-ai-border:      247 74% 63%;
+
+  /* Lighter than the page, not darker — see §6.1. The border does the
+     separation here because the fill deliberately cannot: 1.72:1 against the
+     card is the ceiling that keeps this reading as an illuminated area rather
+     than a second card. 26% white composites to #616FA4 = 3.57:1 on the card
+     and 3.81:1 on the page, clearing WCAG 1.4.11. §6.1a */
+  --pv-inverse:              228 52% 34%;
+  --pv-inverse-border:       0 0% 100% / 0.26;
+  --pv-on-inverse-disabled:  218 10% 70%;
+
+  /* Same pairing checked in dark: 62% on the dark button bg is 4.72. */
+  --pv-brand-hover:    224 72% 42%;
+  --pv-disabled-btn:   222 14% 20%;
+  --pv-ink-disabled:   220 10% 62%;
   --pv-danger:        352 85% 68%;
   --pv-danger-soft:   352 55% 20%;
 

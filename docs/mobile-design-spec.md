@@ -258,6 +258,24 @@ Measured:
 | | | dark `--pv-surface` `#181A21` | 7.84:1 | 4.5 | PASS |
 | | | dark `--pv-sunken` `#1D212A` | 7.27:1 | 4.5 | PASS |
 
+##### `text.disabled` against `surface.disabledBtn` — found while implementing
+
+§1.1b settled `text.disabled` at `#687080` by measuring it on `surface.card`,
+`surface.page` and `surface.inset`. It clears 4.5:1 on all three. But the
+surface a disabled label actually sits on is the **disabled button**, and §1.1
+gives that its own token, `surface.disabledBtn` `#E5E7ED`. The two are never
+measured against each other, and together they are **4.05:1** — a fail, on the
+one pairing the token exists for.
+
+Corrected to `220 10% 41%`, which clears the button (4.69) and every other
+light surface (5.32 on inset, 5.86 on card). Dark is `220 10% 62%` against a
+`222 14% 20%` button (4.72). Both verified against rendered pixels in
+`/dashboard/preview/job-detail`.
+
+The general lesson is the one §6.0 already encodes: a token is only verified
+against the surfaces someone actually measured it on. `text.disabled` was
+checked against three surfaces and used on a fourth.
+
 One constraint this does not cover: **gold ink is never placed on the gold fill.**
 In both themes the two sit within 1.2:1 of each other, so gold-on-gold is
 illegible. The fill is a progress bar on `--pv-sunken`; the ink is text on
