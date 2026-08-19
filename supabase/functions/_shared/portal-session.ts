@@ -103,7 +103,10 @@ export type VerifyResult =
 
 export async function verifyPortalSession(
   req: Request,
-  supabaseOverride?: SupabaseClient,
+  // Deliberately loose: callers pin different supabase-js versions and the
+  // structural types are incompatible across them.
+  // deno-lint-ignore no-explicit-any
+  supabaseOverride?: any,
 ): Promise<VerifyResult> {
   const token = req.headers.get("x-portal-session");
   if (!token) return { ok: false, status: 401, error: "Missing portal session" };

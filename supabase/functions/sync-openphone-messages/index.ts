@@ -231,7 +231,7 @@ async function syncOrganization(
         }
 
         conversationId = newConversation.id;
-        conversationByPhone.set(normalizedPhone, conversationId);
+        if (normalizedPhone) conversationByPhone.set(normalizedPhone, conversationId);
       }
 
       const rows = openPhoneMessages.map((msg: any) => {

@@ -251,7 +251,7 @@ const handler = async (req: Request): Promise<Response> => {
     // card may be attached to a duplicate customer record.
     let paymentMethodId: string | undefined;
 
-    const candidates = [customer, ...orgCustomers.filter((c) => c.id !== customer.id)];
+    const candidates = [customer, ...orgCustomers.filter((c: any) => c.id !== customer.id)];
 
     for (const cand of candidates) {
       if (cand.invoice_settings?.default_payment_method) {

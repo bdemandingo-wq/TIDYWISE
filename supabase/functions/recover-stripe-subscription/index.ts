@@ -231,7 +231,7 @@ serve(async (req: Request) => {
       limit: 10,
     });
     allSubs = subs.data;
-    stripeSubscription = subs.data.find((s) =>
+    stripeSubscription = subs.data.find((s: any) =>
       ["active", "trialing", "past_due"].includes(s.status),
     ) || subs.data[0] || null;
   }
