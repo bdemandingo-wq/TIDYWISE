@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SEOHead } from '@/components/SEOHead';
@@ -20,11 +20,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { MAX_SIGNATURE, MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
+import { DEFAULT_SIGNATURE, MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
 import {
   useBroadcasts,
   useBroadcastTested,
-  useLastSignature,
   useCreateBroadcast,
   useStartBroadcast,
   useTestSend,
@@ -75,19 +74,11 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
   // would silently mislabel a service notice as an ad, or an ad as a notice.
   const [messageClass, setMessageClass] = useState<MessageClass | null>(null);
 
-  const [signature, setSignature] = useState('');
-  const { data: lastSignature } = useLastSignature();
-  // One-shot, and guarded by a ref rather than by `signature === ''`. The query
-  // resolves after first paint, so a bare emptiness check would overwrite
-  // whatever had been typed in the meantime; and re-running on every change
-  // would make the field impossible to clear — delete it and the prefill puts
-  // it straight back. Fires once, only into an untouched field.
-  const prefilled = useRef(false);
-  useEffect(() => {
-    if (prefilled.current || !lastSignature) return;
-    prefilled.current = true;
-    setSignature((current) => (current === '' ? lastSignature : current));
-  }, [lastSignature]);
+  // Not state, and not editable. The signature is fixed in the renderer; this
+  // is the exact string the send will use, shown so the preview stays honest.
+  // It was a free-text field until an empty box sent 96 owners an unsigned
+  // email that looked identical to a signed one from this screen.
+  const signature = DEFAULT_SIGNATURE;
 
   const [draftId, setDraftId] = useState<string | null>(null);
   const [createResult, setCreateResult] = useState<CreateBroadcastResult | null>(null);
@@ -214,9 +205,6 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
     setSubject('');
     setBodyText('');
     setMessageClass(null);
-    // Not cleared to '': the signature is the one field worth carrying into the
-    // next broadcast, which is the whole point of prefilling it.
-    setSignature(lastSignature || signature);
     setDraftId(null);
     setCreateResult(null);
     setTestedDraftId(null);
@@ -280,27 +268,20 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
 
           <div>
             <label htmlFor="broadcast-signature" className="text-sm font-medium">
-              Signature <span className="text-muted-foreground font-normal">(optional)</span>
+              Signature <span className="text-muted-foreground font-normal">(fixed)</span>
             </label>
             <Textarea
               id="broadcast-signature"
               value={signature}
-              maxLength={MAX_SIGNATURE}
-              disabled={locked}
-              onChange={(e) => setSignature(e.target.value)}
-              placeholder={'Emmanuel\nTidyWise\nsupport@tidywisecleaning.com'}
-              rows={3}
-              className="mt-1.5"
+              readOnly
+              rows={4}
+              className="mt-1.5 bg-muted/50 text-muted-foreground cursor-default"
             />
-            <div className="flex justify-between gap-4 mt-1">
-              <p className="text-xs text-muted-foreground">
-                Appended below the body on every broadcast, both classes. Plain text only —
-                mail clients turn addresses and phone numbers into links by themselves.
-              </p>
-              <p className="text-xs text-muted-foreground text-right tabular-nums shrink-0">
-                {signature.length}/{MAX_SIGNATURE}
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Appended to every broadcast, both classes. Set in broadcast-render.ts rather
+              than typed per send — an empty box used to go out unsigned and look identical
+              to a signed one from here. Shown so the preview matches what sends.
+            </p>
           </div>
         </CardContent>
       </Card>

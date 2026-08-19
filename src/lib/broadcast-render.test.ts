@@ -26,6 +26,8 @@ import {
   renderBroadcastText,
   UNSUBSCRIBE_SENTENCE,
   MAX_SIGNATURE,
+  DEFAULT_SIGNATURE,
+  resolveSignature,
 } from './broadcast-render.ts';
 
 const URL_ = 'https://x.test/u?token=abc';
@@ -88,9 +90,13 @@ test('CONTROL: the two classes differ ONLY by the footer', () => {
   assert.notEqual(tx, mk, 'marketing and transactional renders must differ');
   const footerStart = mk.indexOf('<hr');
   assert.ok(footerStart > -1, 'marketing render must carry an <hr> footer');
+  // lastIndexOf, not indexOf. The signature block is itself a <div> and is now
+  // always emitted, so the FIRST '</div>' is the signature's rather than the
+  // wrapper's — slicing there compared two truncated strings. This test passed
+  // for months only because nothing had ever rendered a nested div.
   assert.equal(
     mk.slice(0, footerStart).trim(),
-    tx.slice(0, tx.indexOf('</div>')).trim().replace(/<\/div>$/, '').trim(),
+    tx.slice(0, tx.lastIndexOf('</div>')).trim(),
     'the body half must be identical across classes',
   );
 });
@@ -189,14 +195,29 @@ test('the signature is escaped — it is compose-form input, not a constant we o
   assert.ok(html.includes('&amp;'), 'ampersand must be escaped');
 });
 
-test('an absent, blank or whitespace-only signature emits nothing at all', () => {
-  const plain = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null });
+test('absent, blank and whitespace-only all fall back to DEFAULT_SIGNATURE', () => {
+  // INVERTED, not deleted. This test used to assert that a blank signature
+  // emitted nothing, which was the silent failure being removed: an empty
+  // compose box sent 96 owners an unsigned email and looked identical to a
+  // signed one from the sender's side.
+  //
+  // It is worth knowing HOW the old version survived the change and stayed
+  // green. It compared a no-signature render against a blank-signature render.
+  // Once the default was always emitted, both sides carried it, so the two
+  // strings matched and the assertion passed — while its name went on
+  // documenting the rule that had just been removed. A green test asserting
+  // the wrong thing is worse than a red one, because nobody re-reads it.
+  //
+  // The fix is to assert on CONTENT, not on two renders being equal to each
+  // other. Equality between two outputs can be satisfied by both being wrong.
   for (const signature of [undefined, null, '', '   ', '\n\n']) {
-    assert.equal(
-      renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null, signature }),
-      plain,
-      `blank signature ${JSON.stringify(signature)} must not change the output`,
+    const html = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null, signature });
+    assert.ok(
+      html.includes('Emmanuel Forkuoh'),
+      `signature ${JSON.stringify(signature)} must fall back to the default`,
     );
+    assert.ok(html.includes('561-571-8725'), 'phone line must survive the fallback');
+    assert.ok(html.includes('support@tidywisecleaning.com'), 'email line must survive the fallback');
   }
 });
 
@@ -230,6 +251,60 @@ test('a signature over the cap is a validation error; absent is not', () => {
   assert.equal(atCap.ok, true, 'exactly at the cap is allowed — off-by-one guard');
 });
 
+test('there is NO input that produces an unsigned broadcast', () => {
+  // The whole point of hardcoding. If any of these ever renders without the
+  // default, the silent-unsigned-send hole is open again. Both classes, both
+  // renderers, every falsy and whitespace shape.
+  for (const signature of [undefined, null, '', '   ', '\t', '\n', '\n \n']) {
+    for (const unsubscribeUrl of [null, URL_]) {
+      const html = renderBroadcastHtml({ bodyText: 'B', unsubscribeUrl, signature });
+      const text = renderBroadcastText({ bodyText: 'B', unsubscribeUrl, signature });
+      assert.ok(html.includes('Emmanuel Forkuoh'), `html unsigned for ${JSON.stringify(signature)}`);
+      assert.ok(text.includes('Emmanuel Forkuoh'), `text unsigned for ${JSON.stringify(signature)}`);
+    }
+  }
+});
+
+test('a stored signature wins over the default, and the default disappears', () => {
+  // Old broadcasts must re-render as they were sent, so a row carrying a value
+  // is authoritative. Asserting the default is ABSENT matters as much as
+  // asserting the stored one is present — an implementation that appended both
+  // would satisfy a naive "contains the stored text" check.
+  const stored = 'Someone Else\nOld Title\n555-0000';
+  for (const render of [renderBroadcastHtml, renderBroadcastText]) {
+    const out = render({ bodyText: 'Body', unsubscribeUrl: null, signature: stored });
+    assert.ok(out.includes('Someone Else'), 'stored signature must appear');
+    assert.ok(!out.includes('Emmanuel Forkuoh'), 'default must not also appear');
+    assert.ok(!out.includes('561-571-8725'), 'default phone must not leak in');
+  }
+});
+
+test('resolveSignature: the fallback rule in isolation', () => {
+  assert.equal(resolveSignature(undefined), DEFAULT_SIGNATURE);
+  assert.equal(resolveSignature(null), DEFAULT_SIGNATURE);
+  assert.equal(resolveSignature(''), DEFAULT_SIGNATURE);
+  assert.equal(resolveSignature('   '), DEFAULT_SIGNATURE);
+  assert.equal(resolveSignature('Real'), 'Real');
+});
+
+test('DEFAULT_SIGNATURE carries all four lines, in order', () => {
+  assert.deepEqual(DEFAULT_SIGNATURE.split('\n'), [
+    'Emmanuel Forkuoh',
+    'Founder, TidyWise',
+    '561-571-8725',
+    'support@tidywisecleaning.com',
+  ]);
+});
+
+test('the default is still escaped, and still sits above the <hr>', () => {
+  const html = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: URL_ });
+  assert.ok(html.indexOf('Emmanuel Forkuoh') < html.indexOf('<hr'), 'signature must precede the rule');
+  assert.ok(
+    html.includes('<p style="margin:0 0 16px;line-height:1.6">Emmanuel Forkuoh'),
+    'default must render through paragraphs(), not raw interpolation',
+  );
+});
+
 test('the Deno copy behaves identically', async () => {
   // src/lib/broadcast-render.ts is canonical and tested here; the edge
   // functions run in Deno and cannot import from src/, so
@@ -260,6 +335,21 @@ test('the Deno copy behaves identically', async () => {
 
   assert.equal(shared.UNSUBSCRIBE_SENTENCE, UNSUBSCRIBE_SENTENCE, 'constant diverges');
   assert.equal(shared.MAX_SIGNATURE, MAX_SIGNATURE, 'MAX_SIGNATURE diverges');
+  // Asserted directly, not only through rendered output. The matrix below would
+  // catch a drifted default too, but it would report "renderBroadcastHtml
+  // diverges on [...]" and send you reading the renderer instead of the one
+  // character that actually differs. Without this, the two copies agree only by
+  // luck of whoever last edited them both.
+  assert.equal(
+    shared.DEFAULT_SIGNATURE, DEFAULT_SIGNATURE,
+    'DEFAULT_SIGNATURE diverges — the two senders would sign with different text',
+  );
+  for (const probe of [undefined, null, '', '   ', 'Stored']) {
+    assert.equal(
+      shared.resolveSignature(probe), resolveSignature(probe),
+      `resolveSignature diverges on ${JSON.stringify(probe)}`,
+    );
+  }
 
   for (const bodyText of bodies) {
     for (const unsubscribeUrl of urls) {
