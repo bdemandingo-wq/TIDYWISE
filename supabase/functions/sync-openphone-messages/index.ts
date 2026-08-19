@@ -268,19 +268,40 @@ async function syncOrganization(
         for (const existing of existingMessages || []) existingMessageIds.add(existing.openphone_message_id);
       }
 
-      const newlyInserted = rows.filter((row: any) =>
-        row.openphone_message_id && !existingMessageIds.has(row.openphone_message_id)
-      );
+      // Dedupe inside the batch too: OpenPhone can return the same message id
+      // twice in one page, and the pre-check above only removes ids that are
+      // ALREADY in the database.
+      const seenInBatch = new Set<string>();
+      const newlyInserted = rows.filter((row: any) => {
+        if (!row.openphone_message_id) return false;
+        if (existingMessageIds.has(row.openphone_message_id)) return false;
+        if (seenInBatch.has(row.openphone_message_id)) return false;
+        seenInBatch.add(row.openphone_message_id);
+        return true;
+      });
 
+      let actuallyInserted = newlyInserted.length;
       if (newlyInserted.length > 0) {
         const { error: insertError } = await supabase
           .from("sms_messages")
           .insert(newlyInserted);
 
         if (insertError) {
-          console.error("[sync-openphone-messages] message insert error", insertError);
-          summary.errors++;
-          continue;
+          // A concurrent sync run can insert the same id between our SELECT and
+          // this INSERT. Postgres aborts the WHOLE statement on 23505, which
+          // used to drop every genuinely-new message in the batch. Fall back to
+          // per-row inserts and skip only the real duplicates.
+          console.error("[sync-openphone-messages] batch insert failed, retrying row-by-row", insertError);
+          actuallyInserted = 0;
+          for (const row of newlyInserted) {
+            const { error: rowError } = await supabase.from("sms_messages").insert(row);
+            if (!rowError) {
+              actuallyInserted++;
+            } else if ((rowError as any).code !== "23505") {
+              console.error("[sync-openphone-messages] message insert error", rowError);
+              summary.errors++;
+            }
+          }
         }
       }
 
