@@ -305,7 +305,7 @@ async function syncOrganization(
         }
       }
 
-      summary.inserted += newlyInserted.length;
+      summary.inserted += actuallyInserted;
 
       const unreadDelta = newlyInserted.filter((row: any) => row.direction === "inbound").length;
       const latestMessageAt = rows.reduce((latest: string, row: any) => row.sent_at > latest ? row.sent_at : latest, "");
