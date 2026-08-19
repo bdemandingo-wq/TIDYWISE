@@ -314,8 +314,9 @@ serve(async (req) => {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
-    // Mark the discount consumed so it cannot be re-used on a second
-    // subscription. Only after the session was created successfully.
+    // Record that a discounted session was attached. This is informational
+    // only — the eligibility gate above keys off referred_first_payment_at,
+    // so an abandoned session no longer consumes the coupon.
     if (referralRowId) {
       await accessAdmin
         .from("org_referrals")
