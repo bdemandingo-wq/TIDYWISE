@@ -72,12 +72,15 @@ serve(async (req: Request) => {
       subject: body.subject,
       bodyText: body.body_text,
       messageClass: body.message_class,
+      signature: body.signature_text,
     });
     if (!check.ok) return json({ error: "Validation failed", errors: check.errors }, 400);
 
     const subject = (body.subject as string).trim();
     const bodyText = (body.body_text as string).trim();
     const messageClass = body.message_class as string;
+    const signatureText =
+      typeof body.signature_text === "string" ? body.signature_text.trim() : "";
 
     const { data: broadcast, error: insErr } = await admin
       .from("broadcasts")
@@ -85,7 +88,10 @@ serve(async (req: Request) => {
         subject,
         body_text: bodyText,
         message_class: messageClass,
+        // Empty string becomes null so "no signature" has one representation.
+        signature_text: signatureText || null,
         created_by: userData.user.id,
+
         status: "draft",
       })
       .select("id")
@@ -163,7 +169,7 @@ serve(async (req: Request) => {
     // for a missing row instead of a failing database. CLAUDE.md rule 5.
     const { data: b, error: bErr } = await admin
       .from("broadcasts")
-      .select("subject, body_text, message_class")
+      .select("subject, body_text, message_class, signature_text")
       .eq("id", id)
       .maybeSingle();
     if (bErr) return json({ error: `broadcast lookup failed: ${bErr.message}` }, 500);
@@ -194,8 +200,8 @@ serve(async (req: Request) => {
         from: FROM,
         to: [to],
         subject: `[TEST] ${b.subject}`,
-        html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl }),
-        text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl }),
+        html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
+        text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
       }),
     });
     if (!res.ok) return json({ error: `resend ${res.status}: ${await res.text()}` }, 502);

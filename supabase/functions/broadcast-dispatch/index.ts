@@ -33,7 +33,7 @@ serve(async (req: Request) => {
 
   const { data: broadcasts } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_text, message_class")
+    .select("id, subject, body_text, message_class, signature_text")
     .eq("status", "sending")
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });   // rule 3: unique tiebreaker
@@ -96,8 +96,8 @@ serve(async (req: Request) => {
             from: FROM,
             to: [r.email],
             subject: b.subject,
-            html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl }),
-            text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl }),
+            html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
+            text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
           }),
         });
 
