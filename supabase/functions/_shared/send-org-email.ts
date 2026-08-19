@@ -9,6 +9,7 @@
 // Platform / system emails (auth, admin notifications, digests) do NOT use this helper —
 // they call Resend directly with the platform key.
 
+import { parseRecipients } from "./email-address.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import {
@@ -43,9 +44,22 @@ export interface SendOrgEmailResult {
   error?: string;
 }
 
+/**
+ * Normalise a recipient field into deliverable addresses.
+ *
+ * This used to be `Array.isArray(v) ? v : [v]`, which wrapped a stored value
+ * verbatim. Nine customers had typed comma-separated addresses into a
+ * single-value field — accounts plus a person, property-management teams — so
+ * `"a@x.com, b@y.com"` reached the provider as ONE malformed address and the
+ * entire send failed. None of them got mail rather than some of them, silently,
+ * since February.
+ *
+ * parseRecipients splits on commas, trims, drops invalid parts and dedupes. A
+ * list where one address has a typo now delivers to the rest instead of failing
+ * whole — the caller can compare lengths if it wants to report the difference.
+ */
 function toArr(v: string | string[] | undefined): string[] {
-  if (!v) return [];
-  return Array.isArray(v) ? v : [v];
+  return parseRecipients(v);
 }
 
 function gmailDailyLimit(settings: OrgEmailSettings): number {
@@ -214,7 +228,20 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
   const settings = settingsResult.settings;
   const from = opts.fromOverride ?? formatEmailFrom(settings);
   const replyTo = opts.replyTo ?? getReplyTo(settings);
-  const primaryRecipient = toArr(opts.to)[0] ?? "";
+  const recipients = toArr(opts.to);
+  const primaryRecipient = recipients[0] ?? "";
+
+  // Fail here, not at the provider. With validation in toArr an unusable
+  // address parses to [], and sending that yields "Invalid `to` field" from
+  // Resend or "No valid emails provided!" from Gmail — accurate but useless,
+  // since neither names the value or the customer. Those two messages are
+  // exactly what this fix was diagnosed from.
+  if (recipients.length === 0) {
+    const raw = Array.isArray(opts.to) ? opts.to.join(", ") : String(opts.to ?? "");
+    const error = `No valid recipient address. Stored value: ${JSON.stringify(raw)}`;
+    await logFailure(opts.organizationId, "none", null, raw.slice(0, 255), opts.subject, error);
+    return { success: false, method: "none", error };
+  }
 
   const wantsGmail =
     settings.email_send_method === "gmail_smtp" &&

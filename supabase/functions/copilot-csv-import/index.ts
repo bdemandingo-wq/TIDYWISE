@@ -1,4 +1,5 @@
-// copilot-csv-import — bulk customer import from a CSV.
+// copilot-csv-import { isValidEmail } from "../_shared/email-address.ts";
+import — bulk customer import from a CSV.
 //
 // Accepts either:
 //   - { organization_id, csv_text, column_mappings? }   (recommended)
@@ -147,6 +148,10 @@ serve(async (req: Request): Promise<Response> => {
 
   const toInsert: Array<Record<string, unknown>> = [];
   const skippedDuplicates: Array<Record<string, unknown>> = [];
+  // Rows that DO import but lost an unusable email. Kept separate from
+  // flaggedIncomplete, whose rows are not imported at all — reporting a
+  // successful import as "incomplete" would be its own quiet lie.
+  const droppedEmails: Array<Record<string, unknown>> = [];
   const flaggedIncomplete: Array<Record<string, unknown>> = [];
 
   for (const c of candidates) {
@@ -154,7 +159,13 @@ serve(async (req: Request): Promise<Response> => {
     const lastName = (c.last_name ?? "").trim();
     const phone = (c.phone ?? "").trim() || null;
     const emailRaw = (c.email ?? "").trim();
-    const email = emailRaw ? emailRaw.toLowerCase() : null;
+    // Validated, not merely lowercased. This path had no format check, so a
+    // merged email+phone column imported verbatim and every send to that
+    // customer failed silently. Unusable becomes NULL: the customer is
+    // still worth creating from their name and phone.
+    const emailInvalid = emailRaw.length > 0 && !isValidEmail(emailRaw);
+    const email = emailInvalid ? null : (emailRaw ? emailRaw.toLowerCase() : null);
+    if (emailInvalid) droppedEmails.push({ ...c, reason: "invalid_email" });
 
     if (!firstName && !lastName) {
       flaggedIncomplete.push({ ...c, reason: "missing_name" });
@@ -220,9 +231,11 @@ serve(async (req: Request): Promise<Response> => {
     would_insert: toInsert.length,
     skipped_duplicates: skippedDuplicates.length,
     flagged_incomplete: flaggedIncomplete.length,
+    dropped_emails: droppedEmails.length,
     mappings,
     mapping_source: mappingSource,
     flagged_samples: flaggedIncomplete.slice(0, 5),
+    dropped_email_samples: droppedEmails.slice(0, 5),
     skipped_samples: skippedDuplicates.slice(0, 5),
     insert_error: insertError,
   });

@@ -1,3 +1,4 @@
+import { isValidEmail } from "../_shared/email-address.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -174,7 +175,12 @@ serve(async (req) => {
           // "n/a", blank) in the email column — those should NOT collapse every
           // imported lead into one duplicate.
           const emailRaw = data.email ? String(data.email).trim() : "";
-          const emailIsReal = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)
+          // Was /^[^\s@]+@[^\s@]+\.[^\s@]+$/, which passed
+          // `chefbschrank@gmail.com+15615830771` — a phone number welded onto
+          // the TLD — because [^\s@]+ accepts anything without a space or an
+          // at-sign. That value was imported and every booking confirmation to
+          // that customer failed silently from February.
+          const emailIsReal = isValidEmail(emailRaw)
             && !emailRaw.toLowerCase().endsWith("@placeholder.local");
           if (emailIsReal) {
             const { data: existing } = await adminClient.from("customers").select("id")
@@ -219,11 +225,27 @@ serve(async (req) => {
 
         } else if (dataType === "staff") {
           const name = `${data.first_name || ""} ${data.last_name || ""}`.trim() || data.full_name || "Imported Staff";
+          // Surfaced via errorLog, which MigrationWizard already renders with a
+          // row badge. Deliberately NOT counted in `skipped` — the UI labels that
+          // counter "Skipped (Duplicates)" and this is not a duplicate. Row imports.
+          if (data.email && !isValidEmail(data.email)) {
+            errorLog.push({
+              row_number: row.row_number,
+              error: `Email not usable, imported without it: ${String(data.email).slice(0, 80)}`,
+            });
+          }
           const isActive = data.is_active === undefined ? true : !/^(false|no|inactive|0)$/i.test(String(data.is_active));
           const { data: created, error: insertErr } = await adminClient
             .from("staff").insert({
               organization_id: organizationId,
-              name, email: data.email || null, phone: data.phone || null,
+              // Validated, not trusted. This insert had no check at all, so a CSV
+              // column holding a phone number, "n/a" or a merged email+phone was
+              // stored verbatim and every later send to that staff member failed.
+              // An unusable value becomes NULL and is reported per row rather than
+              // blocking — the name, phone and rate are still worth keeping.
+              name,
+              email: isValidEmail(data.email) ? String(data.email).trim().toLowerCase() : null,
+              phone: data.phone || null,
               hourly_rate: data.pay_rate ? normalizeMoney(data.pay_rate) : null,
               is_active: isActive,
             }).select("id").single();
