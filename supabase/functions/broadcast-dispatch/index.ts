@@ -33,7 +33,7 @@ serve(async (req: Request) => {
 
   const { data: broadcasts } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_text, message_class")
+    .select("id, subject, body_text, message_class, signature_text")
     .eq("status", "sending")
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });   // rule 3: unique tiebreaker
