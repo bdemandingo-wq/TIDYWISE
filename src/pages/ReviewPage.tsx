@@ -7,12 +7,8 @@ import { SEOHead } from '@/components/SEOHead';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 import { TrackingPixels } from '@/components/TrackingPixels';
-import { orgDateKey } from '@/lib/orgDateRange';
-import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
 export default function ReviewPage() {
-  // feedback_date is a DATE column.
-  const orgTimezone = useOrgTimezone();
   const { token } = useParams<{ token: string }>();
   const [searchParams] = useSearchParams();
   const initialRating = parseInt(searchParams.get('rating') || '0');
@@ -128,29 +124,9 @@ export default function ReviewPage() {
 
       if (error) throw error;
 
-      // Get review data for client_feedback insertion (via the already-loaded data)
-      if (reviewData?.customer_id) {
-        const { data: customerData } = await supabase
-          .from('customers')
-          .select('first_name, last_name, organization_id')
-          .eq('id', reviewData.customer_id)
-          .single();
+      // The client_feedback row is written inside submit_review_by_token, using
+      // the org/customer resolved from the token — never caller-supplied.
 
-        if (customerData) {
-          await supabase
-            .from('client_feedback')
-            .insert({
-              customer_name: `${customerData.first_name} ${customerData.last_name}`,
-              issue_description: feedback || `Customer gave ${rating} star rating`,
-              organization_id: customerData.organization_id,
-              // Was the UTC date, which rolls over mid-afternoon in the Americas, so
-      // an evening review was filed under tomorrow.
-      feedback_date: orgDateKey(new Date(), orgTimezone),
-              is_resolved: false,
-              followup_needed: true
-            });
-        }
-      }
 
       setIsSubmitted(true);
       toast({ title: "Thank you!", description: "Your feedback has been submitted." });
