@@ -20,7 +20,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { DEFAULT_SIGNATURE, MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
+import { defaultSignatureText, MAX_SUBJECT, renderBroadcastHtml } from '@/lib/broadcast-render';
 import {
   useBroadcasts,
   useBroadcastTested,
@@ -78,7 +78,7 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
   // is the exact string the send will use, shown so the preview stays honest.
   // It was a free-text field until an empty box sent 96 owners an unsigned
   // email that looked identical to a signed one from this screen.
-  const signature = DEFAULT_SIGNATURE;
+  const signature = defaultSignatureText();
 
   const [draftId, setDraftId] = useState<string | null>(null);
   const [createResult, setCreateResult] = useState<CreateBroadcastResult | null>(null);
@@ -123,9 +123,13 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
       renderBroadcastHtml({
         bodyText,
         unsubscribeUrl: messageClass === 'marketing' ? PREVIEW_UNSUBSCRIBE_URL : null,
-        signature,
+        // Deliberately not passing `signature`. Passing the default's plain text
+        // would send the renderer down the STORED path, which escapes and emits
+        // no markup — so the preview would show a dead "Emmanuel Forkuoh •
+        // https://..." line instead of the anchor the recipient actually gets.
+        // Omitting it is what makes this preview truthful.
       }),
-    [bodyText, messageClass, signature],
+    [bodyText, messageClass],
   );
 
   function handleCreateDraft() {
@@ -135,7 +139,12 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
         subject: subject.trim(),
         body_text: bodyText.trim(),
         message_class: messageClass,
-        signature_text: signature.trim(),
+        // Empty on purpose. broadcast-admin turns '' into NULL, which is what
+        // sends the renderer down the DEFAULT path — the one with the LinkedIn
+        // anchor. Persisting the default's text here would make every new
+        // broadcast take the stored path and quietly lose the link, while old
+        // broadcasts that already carry a value keep rendering as they were sent.
+        signature_text: '',
       },
       {
         onSuccess: (data) => {
@@ -279,8 +288,8 @@ export function BroadcastView({ embedded = false }: { embedded?: boolean }) {
             />
             <p className="text-xs text-muted-foreground mt-1">
               Appended to every broadcast, both classes. Set in broadcast-render.ts rather
-              than typed per send — an empty box used to go out unsigned and look identical
-              to a signed one from here. Shown so the preview matches what sends.
+              than typed per send. Shown here as plain text; in the email the first line is
+              a LinkedIn link — see the preview below for exactly what sends.
             </p>
           </div>
         </CardContent>

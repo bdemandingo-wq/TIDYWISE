@@ -27,6 +27,7 @@ import {
   UNSUBSCRIBE_SENTENCE,
   MAX_SIGNATURE,
   DEFAULT_SIGNATURE,
+  defaultSignatureText,
   resolveSignature,
 } from './broadcast-render.ts';
 
@@ -280,16 +281,29 @@ test('a stored signature wins over the default, and the default disappears', () 
 });
 
 test('resolveSignature: the fallback rule in isolation', () => {
-  assert.equal(resolveSignature(undefined), DEFAULT_SIGNATURE);
-  assert.equal(resolveSignature(null), DEFAULT_SIGNATURE);
-  assert.equal(resolveSignature(''), DEFAULT_SIGNATURE);
-  assert.equal(resolveSignature('   '), DEFAULT_SIGNATURE);
+  assert.equal(resolveSignature(undefined), defaultSignatureText());
+  assert.equal(resolveSignature(null), defaultSignatureText());
+  assert.equal(resolveSignature(''), defaultSignatureText());
+  assert.equal(resolveSignature('   '), defaultSignatureText());
   assert.equal(resolveSignature('Real'), 'Real');
 });
 
-test('DEFAULT_SIGNATURE carries all four lines, in order', () => {
-  assert.deepEqual(DEFAULT_SIGNATURE.split('\n'), [
-    'Emmanuel Forkuoh',
+test('DEFAULT_SIGNATURE holds every field the renderer needs', () => {
+  assert.deepEqual(DEFAULT_SIGNATURE, {
+    name: 'Emmanuel Forkuoh',
+    linkedInUrl: 'https://www.linkedin.com/in/emmanuel-forkuoh-567724145/',
+    title: 'Founder, TidyWise',
+    phone: '561-571-8725',
+    email: 'support@tidywisecleaning.com',
+  });
+  // The tracking suffix was stripped from the URL deliberately; assert it stays
+  // stripped, since pasting a fresh LinkedIn link is how it comes back.
+  assert.ok(!DEFAULT_SIGNATURE.linkedInUrl.includes('?trk='), 'tracking suffix must not return');
+});
+
+test('defaultSignatureText flattens to four lines, URL bare on the first', () => {
+  assert.deepEqual(defaultSignatureText().split('\n'), [
+    'Emmanuel Forkuoh \u2022 https://www.linkedin.com/in/emmanuel-forkuoh-567724145/',
     'Founder, TidyWise',
     '561-571-8725',
     'support@tidywisecleaning.com',
@@ -303,6 +317,47 @@ test('the default is still escaped, and still sits above the <hr>', () => {
     html.includes('<p style="margin:0 0 16px;line-height:1.6">Emmanuel Forkuoh'),
     'default must render through paragraphs(), not raw interpolation',
   );
+});
+
+test('the default renders a real LinkedIn anchor in HTML', () => {
+  const html = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null });
+  assert.ok(
+    html.includes('<a href="https://www.linkedin.com/in/emmanuel-forkuoh-567724145/"'),
+    'the href must be the bare profile URL',
+  );
+  assert.ok(html.includes('>LinkedIn</a>'), 'LinkedIn must be the anchor text');
+  assert.ok(html.includes('Emmanuel Forkuoh \u2022 <a href='), 'name, bullet, then the anchor');
+  assert.ok(!html.includes('?trk='), 'the tracking suffix must never render');
+});
+
+test('plain text gets the bare URL and no markup at all', () => {
+  const text = renderBroadcastText({ bodyText: 'Body', unsubscribeUrl: null });
+  assert.ok(text.includes('https://www.linkedin.com/in/emmanuel-forkuoh-567724145/'), 'bare URL');
+  assert.ok(!text.includes('<a'), 'anchors do not exist in text/plain');
+  assert.ok(!text.includes('</a>'), 'no closing tag either');
+});
+
+test('a stored signature NEVER produces markup, anchor or otherwise', () => {
+  // The reason the default is structured rather than exempt from escaping. If
+  // this ever passes markup through, the carve-out has leaked to the untrusted
+  // path and a stored signature_text becomes an injection vector.
+  const hostile = 'Someone <a href="https://evil.test">Click</a> <b>bold</b>';
+
+  const html = renderBroadcastHtml({ bodyText: 'Body', unsubscribeUrl: null, signature: hostile });
+  assert.ok(!html.includes('<a href="https://evil.test"'), 'stored anchor must not survive as markup');
+  assert.ok(!html.includes('<b>'), 'stored bold must not survive as markup');
+  assert.ok(html.includes('&lt;a href='), 'escaped, not stripped — the reader still sees what was typed');
+
+  // text/plain has no markup to neutralise: angle brackets there are just
+  // characters, and escaping them would render "&lt;" to the recipient. The
+  // assertion that matters in this alternative is only that the default does
+  // not appear alongside a stored signature.
+  const text = renderBroadcastText({ bodyText: 'Body', unsubscribeUrl: null, signature: hostile });
+  assert.ok(text.includes(hostile), 'plain text passes the stored value through verbatim');
+
+  for (const out of [html, text]) {
+    assert.ok(!out.includes('linkedin.com'), 'the default must not appear alongside a stored one');
+  }
 });
 
 test('the Deno copy behaves identically', async () => {
@@ -340,9 +395,15 @@ test('the Deno copy behaves identically', async () => {
   // diverges on [...]" and send you reading the renderer instead of the one
   // character that actually differs. Without this, the two copies agree only by
   // luck of whoever last edited them both.
-  assert.equal(
+  // deepEqual now that the constant is structured. assert.equal would compare
+  // object identity across two module instances and pass for everything.
+  assert.deepEqual(
     shared.DEFAULT_SIGNATURE, DEFAULT_SIGNATURE,
     'DEFAULT_SIGNATURE diverges — the two senders would sign with different text',
+  );
+  assert.equal(
+    shared.defaultSignatureText(), defaultSignatureText(),
+    'defaultSignatureText diverges',
   );
   for (const probe of [undefined, null, '', '   ', 'Stored']) {
     assert.equal(

@@ -36,28 +36,47 @@ export const UNSUBSCRIBE_SENTENCE = "You're receiving this because you own a Tid
 
 export const MAX_SUBJECT = 200;
 
+// Applies to a STORED signature_text only — the structured default below is
+// ours and is not length-checked. A signature is a name and contact details,
+// not a second body; the cap stops a paste accident becoming the email.
+export const MAX_SIGNATURE = 500;
+
 /**
  * The signature every broadcast carries unless a stored one overrides it.
  *
- * Hardcoded rather than typed per send: one person sends these, the text never
- * varies, and the failure mode of the optional field was invisible — an
- * unsigned blast looks exactly like a signed one from the sender's side.
+ * STRUCTURED, not a blob of text, so the renderer can assemble the markup
+ * itself. The LinkedIn anchor is this module's own HTML; every value below
+ * still goes through escapeHtml when it is rendered.
+ *
+ * The alternative — exempting the default from escaping so one <a> survives —
+ * was rejected on purpose. The escaping rule exists because a stored
+ * signature_text comes from the database and is not trusted, and carving out
+ * an exception for "the one we own" teaches the next reader that the stored
+ * path is safe too. Markup is the module's; values are always escaped.
  *
  * KEEP IN SYNC with the copy in supabase/functions/_shared/broadcast-render.ts.
- * The parity test asserts this constant directly as well as through rendered
- * output, so a one-character drift here fails loudly rather than sending two
- * different signatures depending on which function did the sending.
+ * The parity test deep-equals this object across both modules.
  */
-export const DEFAULT_SIGNATURE = [
-  'Emmanuel Forkuoh',
-  'Founder, TidyWise',
-  '561-571-8725',
-  'support@tidywisecleaning.com',
-].join('\n');
+export const DEFAULT_SIGNATURE = {
+  name: 'Emmanuel Forkuoh',
+  linkedInUrl: 'https://www.linkedin.com/in/emmanuel-forkuoh-567724145/',
+  title: 'Founder, TidyWise',
+  phone: '561-571-8725',
+  email: 'support@tidywisecleaning.com',
+};
 
-// A signature is a name and contact details, not a second body. The cap exists
-// so a paste accident cannot quietly become the bulk of the email.
-export const MAX_SIGNATURE = 500;
+/**
+ * Plain-text rendering of the structured default — the compose form's read-only
+ * field and the plain-text alternative both use this.
+ *
+ * The URL appears bare because anchors do not exist in text/plain. It sits on
+ * the first line with the same bullet the HTML uses, so the two alternatives of
+ * one email say the same things in the same order.
+ */
+export function defaultSignatureText(): string {
+  const d = DEFAULT_SIGNATURE;
+  return [`${d.name} \u2022 ${d.linkedInUrl}`, d.title, d.phone, d.email].join('\n');
+}
 
 export type MessageClass = 'transactional' | 'marketing';
 
@@ -120,7 +139,29 @@ export function escapeHtml(value: string): string {
  * disagree about which signature the recipient is looking at.
  */
 export function resolveSignature(signature?: string | null): string {
-  return signature && signature.trim() ? signature : DEFAULT_SIGNATURE;
+  return signature && signature.trim() ? signature : defaultSignatureText();
+}
+
+/**
+ * The default signature as HTML. This is the ONLY place in the module that
+ * emits markup around a value rather than escaping the value's own markup away.
+ *
+ * Every field still goes through escapeHtml, the href included — a URL is a
+ * value like any other, and an unescaped `&` in a query string is how a href
+ * silently truncates. What makes the anchor safe is not that the URL is
+ * trusted, it is that the <a> tag is ours and the URL is escaped inside it.
+ */
+function defaultSignatureHtml(): string {
+  const d = DEFAULT_SIGNATURE;
+  return (
+    `<p style="margin:0 0 16px;line-height:1.6">` +
+    `${escapeHtml(d.name)} \u2022 ` +
+    `<a href="${escapeHtml(d.linkedInUrl)}" style="color:#111827">LinkedIn</a><br>` +
+    `${escapeHtml(d.title)}<br>` +
+    `${escapeHtml(d.phone)}<br>` +
+    `${escapeHtml(d.email)}` +
+    `</p>`
+  );
 }
 
 /** Split on blank lines into paragraphs; single newlines become <br>. */
@@ -148,8 +189,14 @@ export function renderBroadcastHtml(args: {
   // paragraphs() rather than a raw interpolation: it is the one place escaping
   // and newline handling live, so the signature cannot drift from the body on
   // either.
-  const signatureBlock =
-    `\n<div style="margin-top:24px">\n${paragraphs(resolveSignature(signature))}\n</div>`;
+  // Two paths on purpose. A stored signature_text goes through paragraphs(),
+  // which escapes it and therefore cannot produce markup — unchanged from
+  // before. Only the module's own default gets assembled markup, and only its
+  // values are interpolated, each escaped.
+  const signatureInner = signature && signature.trim()
+    ? paragraphs(signature)
+    : defaultSignatureHtml();
+  const signatureBlock = `\n<div style="margin-top:24px">\n${signatureInner}\n</div>`;
 
   // UNSUBSCRIBE_SENTENCE is NOT escaped. It is a compile-time constant we own,
   // not an injection surface, and escaping it turns "You're" into "You&#39;re"
