@@ -6,7 +6,7 @@
 // all — it's cron-only (Supabase's scheduled-function trigger). Locked to
 // requireCronSecret (x-cron-secret header), matching the established
 // convention for this exact category of function — weekly-business-report,
-// weekly-payroll-summary, and generate-daily-blogs (the function that
+// payroll-period-report, and generate-daily-blogs (the function that
 // actually produces the drafts this digests) all use requireCronSecret,
 // not a service-role Authorization header, so this now matches them
 // rather than guessing at a different pattern that could break the real
