@@ -64,6 +64,19 @@ interface Conversation {
   last_message_preview?: string | null;
 }
 
+/**
+ * "Emmanuel Forkuoh" -> "EF". Single-word names give one letter rather than
+ * two of the same, and anything unresolvable gives '' so the caller can decide
+ * to render nothing instead of a placeholder that looks like a real person.
+ */
+function initialsOf(name: string | undefined): string {
+  if (!name) return '';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
 interface Message {
   id: string;
   direction: 'inbound' | 'outbound';
@@ -71,6 +84,15 @@ interface Message {
   sent_at: string;
   status: string | null;
   media_urls: string[] | null;
+  /**
+   * Which teammate sent this, for outbound messages sent by a person.
+   * Null on every inbound message, and null on outbound ones sent by an
+   * automation — a service-role send has no human actor and inventing one
+   * would be worse than showing nothing. Also null on everything sent before
+   * the column existed, which is why the UI treats absence as "unattributed"
+   * rather than as an error.
+   */
+  sender_user_id?: string | null;
 }
 
 /**
@@ -317,6 +339,43 @@ export default function MessagesPage() {
     await syncOpenPhoneMessages(false, { daysBack: 14, maxConversations: 30 });
   });
 
+  /**
+   * user_id -> display name, for attributing outbound messages to a teammate.
+   *
+   * Sourced from `staff`, not `profiles`. profiles is self-only under RLS as
+   * far as the migrations show, so reading a teammate's row would return
+   * nothing and the initials would silently vanish for everyone but you.
+   * `staff` is organization-scoped and this page already reads it, so it is
+   * known-readable here.
+   *
+   * The gap that leaves: an owner/admin/manager with no staff row cannot be
+   * resolved, and renders unattributed rather than wrong. Failing to a neutral
+   * marker is the right direction — showing the wrong colleague's initials on
+   * a message is worse than showing none.
+   */
+  const [senderNames, setSenderNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!organizationId) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('user_id, name')
+        .eq('organization_id', organizationId)
+        .not('user_id', 'is', null);
+      // Swallowed on purpose: a failed name lookup costs initials, not the
+      // conversation. The messages themselves must still render.
+      if (cancelled || error || !data) return;
+      const map: Record<string, string> = {};
+      for (const row of data) {
+        if (row.user_id && row.name) map[row.user_id] = row.name;
+      }
+      setSenderNames(map);
+    })();
+    return () => { cancelled = true; };
+  }, [organizationId]);
+
   // ─── Fetch contacts ──────────────────────────────
   const fetchContacts = async () => {
     if (!organizationId) return;
@@ -557,7 +616,18 @@ export default function MessagesPage() {
     setSending(true);
     try {
       const response = await supabase.functions.invoke('send-openphone-sms', {
-        body: { to: selectedConversation.customer_phone, message: newMessage.trim(), organizationId }
+        // conversationId is passed so send-openphone-sms can write the outbound
+        // row itself with sender_user_id on it. Without it the function would
+        // have to re-derive the conversation from the phone number, and
+        // sms_messages.conversation_id is NOT NULL so it could not insert at
+        // all on a mismatch — the message would arrive via the webhook
+        // unattributed, which is the case this feature exists to fix.
+        body: {
+          to: selectedConversation.customer_phone,
+          message: newMessage.trim(),
+          organizationId,
+          conversationId: selectedConversation.id,
+        }
       });
       if ((await handleSmsError(response))) return;
       await supabase.from('sms_messages').insert({
@@ -836,8 +906,17 @@ export default function MessagesPage() {
       }
       const prev = messages[i - 1];
       const next = messages[i + 1];
-      const isFirst = !prev || prev.direction !== msg.direction || (new Date(msg.sent_at).getTime() - new Date(prev.sent_at).getTime() > 60000);
-      const isLast = !next || next.direction !== msg.direction || (new Date(next.sent_at).getTime() - new Date(msg.sent_at).getTime() > 60000);
+      // Sender is part of the grouping key, not just direction. Two teammates
+      // replying within the same minute would otherwise merge into one bubble
+      // group carrying a single set of initials — which does not just lose
+      // attribution, it actively misattributes one person's message to the
+      // other. That is the failure this whole feature exists to prevent.
+      const isFirst = !prev || prev.direction !== msg.direction
+        || (prev.sender_user_id ?? null) !== (msg.sender_user_id ?? null)
+        || (new Date(msg.sent_at).getTime() - new Date(prev.sent_at).getTime() > 60000);
+      const isLast = !next || next.direction !== msg.direction
+        || (next.sender_user_id ?? null) !== (msg.sender_user_id ?? null)
+        || (new Date(next.sent_at).getTime() - new Date(msg.sent_at).getTime() > 60000);
       groups.push({ type: 'message', msg, isFirst, isLast });
     });
     return groups;
@@ -1507,6 +1586,16 @@ export default function MessagesPage() {
                     <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">{msg.content}</p>
                     {item.isLast && (
                       <p className={cn("text-[10px] mt-0.5", isOutbound ? 'text-white/60 text-right' : 'text-muted-foreground')}>
+                        {/* Initials, no colour: the bubble is already carrying
+                            direction through colour, and a second colour axis
+                            would compete with it. Rendered only when the name
+                            actually resolves — an automated send has no human
+                            actor, and a placeholder would read as one. */}
+                        {isOutbound && initialsOf(senderNames[msg.sender_user_id ?? '']) && (
+                          <span className="mr-1 font-medium tracking-wide">
+                            {initialsOf(senderNames[msg.sender_user_id ?? ''])}
+                          </span>
+                        )}
                         {format(new Date(msg.sent_at), 'h:mm a')}
                         {isOutbound && msg.status === 'sent' && <span className="ml-1">Sent</span>}
                         {isOutbound && msg.status === 'delivered' && <span className="ml-1">Delivered</span>}
