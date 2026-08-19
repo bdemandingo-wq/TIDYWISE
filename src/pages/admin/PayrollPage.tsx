@@ -24,6 +24,7 @@ import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { saveBlob } from '@/lib/fileActions';
 import { matrixToCsv } from '@/lib/orgDataExport';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useOrgQuery } from '@/hooks/useOrgQuery';
 import { format, startOfMonth, endOfMonth, startOfYear, startOfWeek, addDays } from 'date-fns';
 import { CalendarIcon, Download, AlertTriangle, DollarSign, Clock, Calculator, Briefcase, Check, TrendingUp, TrendingDown, Percent, BarChart3, CreditCard, Banknote, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -313,10 +314,9 @@ export default function PayrollPage() {
   const settings = payrollSettings || DEFAULT_SETTINGS;
 
   // Fetch paid staff for current period
-  const { data: paidPayments = [] } = useQuery({
-    queryKey: ['payroll-payments', organizationId, weekStart],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: paidPayments, error: paidPaymentsError } = useOrgQuery({
+    key: ['payroll-payments', weekStart],
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('payroll_payments')
         .select('staff_id, payment_method, stripe_transfer_id, amount, paid_at')
@@ -325,7 +325,6 @@ export default function PayrollPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!organizationId,
   });
 
   const paidStaffMap = useMemo(() => {
@@ -339,10 +338,9 @@ export default function PayrollPage() {
   const paidStaffIds = new Set(paidPayments.map(p => p.staff_id));
 
   // Fetch staff payout accounts to know who has Stripe set up
-  const { data: payoutAccounts = [] } = useQuery({
-    queryKey: ['staff-payout-accounts', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: payoutAccounts, error: payoutAccountsError } = useOrgQuery({
+    key: ['staff-payout-accounts'],
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('staff_payout_accounts')
         .select('staff_id, account_status, payouts_enabled, stripe_account_id')
@@ -350,7 +348,6 @@ export default function PayrollPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!organizationId,
   });
 
   const payoutAccountMap = useMemo(() => {
@@ -451,10 +448,9 @@ export default function PayrollPage() {
   //                     changes. That is a money decision, not this one.
   //   `payrollRoster` — active, PLUS anyone with work in the selected period.
   //                     Drives who gets a Staff Summary row.
-  const { data: allStaff = [] } = useQuery({
-    queryKey: ['staff-payroll', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: allStaff, error: allStaffError } = useOrgQuery({
+    key: ['staff-payroll'],
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('staff')
         .select('*')
@@ -462,7 +458,6 @@ export default function PayrollPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!organizationId,
   });
 
   const staff = useMemo(() => (allStaff as any[]).filter((s) => s.is_active), [allStaff]);
@@ -486,10 +481,9 @@ export default function PayrollPage() {
   );
 
   // Fetch bookings for selected date range
-  const { data: bookings = [] } = useQuery({
-    queryKey: ['bookings-payroll', dateRange, organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: bookings, error: bookingsError } = useOrgQuery({
+    key: ['bookings-payroll', dateRange],
+    query: async (organizationId) => {
       // dateRange.to is already the org's end-of-month instant. setHours(23,59)
       // re-anchored it to the DEVICE's end of day, which for an admin west of
       // the org pushes the bound hours PAST the period and pulls the next
@@ -505,14 +499,12 @@ export default function PayrollPage() {
       if (error) throw error;
       return data;
     },
-    enabled: !!organizationId,
   });
 
   // Fetch team assignments
-  const { data: teamAssignments = [] } = useQuery({
-    queryKey: ['team-assignments-payroll', dateRange, organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: teamAssignments, error: teamAssignmentsError } = useOrgQuery({
+    key: ['team-assignments-payroll', dateRange],
+    query: async (organizationId) => {
       // dateRange.to is already the org's end-of-month instant. setHours(23,59)
       // re-anchored it to the DEVICE's end of day, which for an admin west of
       // the org pushes the bound hours PAST the period and pulls the next
@@ -535,7 +527,6 @@ export default function PayrollPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organizationId,
   });
 
   // Refetch payroll data when bookings change (deletions, updates, etc.)
@@ -578,10 +569,9 @@ export default function PayrollPage() {
   const nextWeekStart = nextPeriod.start;
   const nextWeekEnd = nextPeriod.end;
 
-  const { data: forecastBookings = [] } = useQuery({
-    queryKey: ['forecast-bookings', organizationId, currentWeekStart.toISOString(), nextWeekEnd.toISOString()],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: forecastBookings, error: forecastBookingsError } = useOrgQuery({
+    key: ['forecast-bookings', currentWeekStart.toISOString(), nextWeekEnd.toISOString()],
+    query: async (organizationId) => {
       // Same as above: nextWeekEnd is org-derived, so its end of day is too.
       const nwEnd = orgEndOfDay(nextWeekEnd, orgTimezone);
       const { data, error } = await supabase
@@ -598,12 +588,12 @@ export default function PayrollPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organizationId,
   });
 
-  const { data: forecastTeamAssignments = [] } = useQuery({
-    queryKey: ['forecast-team-assignments', organizationId],
-    queryFn: async () => {
+  const { rows: forecastTeamAssignments, error: forecastTeamAssignmentsError } = useOrgQuery({
+    key: ['forecast-team-assignments'],
+    enabled: forecastBookings.length > 0,
+    query: async (organizationId) => {
       if (!organizationId || !forecastBookings.length) return [];
       const ids = forecastBookings.map((b: any) => b.id);
       const { data, error } = await supabase
@@ -614,14 +604,12 @@ export default function PayrollPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organizationId && forecastBookings.length > 0,
   });
 
   // Fetch YTD bookings for 1099
-  const { data: ytdBookings = [] } = useQuery({
-    queryKey: ['bookings-ytd', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: ytdBookings, error: ytdBookingsError } = useOrgQuery({
+    key: ['bookings-ytd'],
+    query: async (organizationId) => {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
@@ -633,10 +621,9 @@ export default function PayrollPage() {
     },
   });
 
-  const { data: ytdTeamAssignments = [] } = useQuery({
-    queryKey: ['team-assignments-ytd', organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
+  const { rows: ytdTeamAssignments, error: ytdTeamAssignmentsError } = useOrgQuery({
+    key: ['team-assignments-ytd'],
+    query: async (organizationId) => {
       const { data: bookingIds } = await supabase
         .from('bookings')
         .select('id')
@@ -652,8 +639,30 @@ export default function PayrollPage() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organizationId,
   });
+
+  /**
+   * Payroll is the one page where a partially-failed load is worse than a
+   * failed one. Every figure here is derived by joining these queries together,
+   * so if `bookings` fails while `allStaff` succeeds the page still renders a
+   * total — just a smaller one, with no indication anything is missing. An
+   * understated payroll total is a number someone pays.
+   *
+   * So the failures are collected rather than handled one by one, and the
+   * banner says which loads are incomplete instead of quietly showing less.
+   */
+  const loadFailures = [
+    ['Payments', paidPaymentsError],
+    ['Payout accounts', payoutAccountsError],
+    ['Staff', allStaffError],
+    ['Bookings', bookingsError],
+    ['Team assignments', teamAssignmentsError],
+    ['Forecast bookings', forecastBookingsError],
+    ['Forecast assignments', forecastTeamAssignmentsError],
+    ['Year-to-date bookings', ytdBookingsError],
+    ['Year-to-date assignments', ytdTeamAssignmentsError],
+  ].filter(([, e]) => e) as [string, Error][];
+
 
   // Thin adapter over the one shared resolver (lib/wageCalculation.ts), which
   // mirrors the payout engine. The only thing added here is `actualPay` — the
@@ -1147,6 +1156,17 @@ export default function PayrollPage() {
       }
     >
 <div className="portal-v2 portal-v2-scroll">
+      {loadFailures.length > 0 && (
+        <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+          <p className="text-sm font-medium text-destructive">
+            These figures are incomplete — {loadFailures.length === 1 ? 'one source' : `${loadFailures.length} sources`} failed to load.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Do not pay from these totals until they load. Failed: {loadFailures.map(([label]) => label).join(', ')}.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">{loadFailures[0][1].message}</p>
+        </div>
+      )}
       <PlanFeatureGate feature="payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">

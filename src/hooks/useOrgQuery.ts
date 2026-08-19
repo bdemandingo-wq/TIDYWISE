@@ -50,7 +50,21 @@ export function useOrgQuery<T>(opts: {
   /** Key WITHOUT the organization id or session — both are appended here, so
    *  they cannot be forgotten and cannot drift between call sites. */
   key: QueryKey;
-  query: (organizationId: string) => Promise<T[]>;
+  /**
+   * `T[] | null | undefined` rather than `T[]`, learned from migrating nine real
+   * call sites. supabase-js types its result as `data: T[] | null`, so a queryFn
+   * ending `return data;` — the overwhelmingly common shape here — does not
+   * satisfy `Promise<T[]>`. Inference for T then fails, contextual typing of the
+   * whole callback collapses, and TypeScript reports "Parameter
+   * 'organizationId' implicitly has an 'any' type": a message pointing at the
+   * parameter, which is not the problem, instead of at the return, which is.
+   *
+   * Eight of nine sites hit that. The stricter type would have bought a
+   * `?? []` at every call site, written to satisfy the wrapper rather than to
+   * express anything. Null is normalised below instead — safe, because errors
+   * travel by throwing, so a null result with no error genuinely means no rows.
+   */
+  query: (organizationId: string) => Promise<T[] | null | undefined>;
   /** ANDed with the session and organization gates; never replaces them. */
   enabled?: boolean;
   staleTime?: number;
@@ -73,7 +87,8 @@ export function useOrgQuery<T>(opts: {
     enabled,
     staleTime: opts.staleTime,
     refetchInterval: opts.refetchInterval,
-    queryFn: () => opts.query(organizationId!),
+    // Normalised here, once, instead of at every call site.
+    queryFn: async () => (await opts.query(organizationId!)) ?? [],
   });
 
   return {
