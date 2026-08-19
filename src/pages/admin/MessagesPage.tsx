@@ -342,16 +342,17 @@ export default function MessagesPage() {
   /**
    * user_id -> display name, for attributing outbound messages to a teammate.
    *
-   * Sourced from `staff`, not `profiles`. profiles is self-only under RLS as
-   * far as the migrations show, so reading a teammate's row would return
-   * nothing and the initials would silently vanish for everyone but you.
-   * `staff` is organization-scoped and this page already reads it, so it is
-   * known-readable here.
+   * Sourced from get_org_member_names(), a SECURITY DEFINER function scoped to
+   * the caller's own organization. It returns user_id and a display name and
+   * nothing else — no email, no role, no phone — so surfacing initials does not
+   * require opening profiles to every member of every org.
    *
-   * The gap that leaves: an owner/admin/manager with no staff row cannot be
-   * resolved, and renders unattributed rather than wrong. Failing to a neutral
-   * marker is the right direction — showing the wrong colleague's initials on
-   * a message is worse than showing none.
+   * This replaced a direct read of `staff`, which was the wrong source: only 14
+   * of 44 members have staff rows, and the owner and all four managers have
+   * none. Those are precisely the people who send SMS, so every message worth
+   * attributing rendered blank. Admins are office staff, not cleaners — giving
+   * them staff rows to fix a name lookup would have put them on scheduling and
+   * payroll surfaces they do not belong on.
    */
   const [senderNames, setSenderNames] = useState<Record<string, string>>({});
 
@@ -359,17 +360,26 @@ export default function MessagesPage() {
     if (!organizationId) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('staff')
-        .select('user_id, name')
-        .eq('organization_id', organizationId)
-        .not('user_id', 'is', null);
+      // Cast until Lovable regenerates src/integrations/supabase/types.ts: the
+      // function is not in the generated RPC union yet, so the name literal is
+      // rejected outright. Narrowed to the exact row shape rather than `any` so
+      // the loop below is still checked. Drop the cast once types are regenerated.
+      type OrgMemberName = { user_id: string; display_name: string | null };
+      const callRpc = supabase.rpc as unknown as (
+        fn: 'get_org_member_names',
+        args: { p_organization_id: string },
+      ) => Promise<{ data: OrgMemberName[] | null; error: unknown }>;
+      const { data, error } = await callRpc('get_org_member_names', {
+        p_organization_id: organizationId,
+      });
       // Swallowed on purpose: a failed name lookup costs initials, not the
-      // conversation. The messages themselves must still render.
+      // conversation. It also keeps this safe to ship before the function
+      // exists — the RPC 404s, the map stays empty, messages render as they do
+      // today rather than the page erroring.
       if (cancelled || error || !data) return;
       const map: Record<string, string> = {};
       for (const row of data) {
-        if (row.user_id && row.name) map[row.user_id] = row.name;
+        if (row.user_id && row.display_name) map[row.user_id] = row.display_name;
       }
       setSenderNames(map);
     })();
