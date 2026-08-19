@@ -1,3 +1,5 @@
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgMemberNames, initialsOf } from '@/hooks/useOrgMemberNames';
 import { useState, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +31,18 @@ interface Lead {
   source: string;
   status: string;
   created_at: string;
+  /**
+   * Who last updated this row, set by a database trigger from auth.uid() —
+   * not by the call sites, of which there are four and counting.
+   *
+   * Null on any write with no authenticated user behind it (service-role
+   * inserts, backfills, anything pre-trigger). Null renders as no initials
+   * rather than as a guess.
+   *
+   * Last toucher only. This is not history: an update overwrites it, and
+   * nothing records what changed or what it was before.
+   */
+  updated_by?: string | null;
   tags?: unknown;
 }
 
@@ -62,6 +76,10 @@ export function LeadPipelineBoard({
   maskPhone,
 }: LeadPipelineBoardProps) {
   const isMobile = useIsMobile();
+  // Resolved once for the whole board. Calling this inside LeadCard would fire
+  // one RPC per card, and a busy pipeline renders dozens.
+  const { organization } = useOrganization();
+  const memberNames = useOrgMemberNames(organization?.id);
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
@@ -164,6 +182,7 @@ export function LeadPipelineBoard({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onConvert={onConvert}
+                  memberNames={memberNames}
                   maskName={maskName}
                   maskEmail={maskEmail}
                   maskPhone={maskPhone}
@@ -180,6 +199,7 @@ export function LeadPipelineBoard({
 
 function LeadCard({
   lead,
+  memberNames,
   isDragging,
   onDragStart,
   onDragEnd,
@@ -192,6 +212,7 @@ function LeadCard({
   showDelete,
 }: {
   lead: Lead;
+  memberNames: Record<string, string>;
   isDragging: boolean;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragEnd: () => void;
@@ -296,12 +317,25 @@ function LeadCard({
           </p>
         )}
 
-        {/* Footer: Source + Time */}
+        {/* Footer: Source + last toucher + Time */}
         <div className="flex items-center justify-between pt-1 border-t">
           <Badge variant="secondary" className="text-[10px] h-4 px-1 capitalize">
             {lead.source}
           </Badge>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            {/* Initials, no colour: the column headers already carry stage
+                through colour and a second colour axis would compete with it.
+                Rendered only when the name resolves — a lead last touched by an
+                automated write has no human actor, and a placeholder would read
+                as one. */}
+            {initialsOf(memberNames[lead.updated_by ?? '']) && (
+              <span
+                className="font-medium tracking-wide"
+                title={`Last updated by ${memberNames[lead.updated_by ?? '']}`}
+              >
+                {initialsOf(memberNames[lead.updated_by ?? ''])}
+              </span>
+            )}
             <Clock className="w-2.5 h-2.5" />
             {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
           </div>
