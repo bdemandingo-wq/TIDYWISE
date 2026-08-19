@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/hooks/useAuth';
 
 /**
  * user_id -> display name for members of one organization, for attributing
@@ -22,9 +23,20 @@ import { supabase } from '@/lib/supabase';
  */
 export function useOrgMemberNames(organizationId: string | undefined | null) {
   const [names, setNames] = useState<Record<string, string>>({});
+  // The access token is a dependency, not just a precondition. organizationId
+  // can resolve before the session token is attached to the client, and this
+  // function is REVOKEd from anon — so an early call comes back 42501, hits the
+  // early return, and never retries, because organizationId does not change
+  // again. The map stays empty for the life of the page and nothing is logged.
+  // Keying the effect on the token means the call re-fires the moment the
+  // session lands.
+  const { session } = useAuth();
+  const accessToken = session?.access_token;
 
   useEffect(() => {
-    if (!organizationId) return;
+    // No token means the request would go out as anon and be rejected. Waiting
+    // is not a delay, it is the difference between a result and a dead map.
+    if (!organizationId || !accessToken) return;
     let cancelled = false;
 
     (async () => {
@@ -42,11 +54,18 @@ export function useOrgMemberNames(organizationId: string | undefined | null) {
         p_organization_id: organizationId,
       });
 
-      // Swallowed on purpose. A failed name lookup costs initials, never the
-      // page. It also makes this safe to ship before the function exists: the
-      // RPC 404s, the map stays empty, and every surface renders as it does
-      // today rather than erroring.
-      if (cancelled || error || !data) return;
+      if (cancelled) return;
+
+      // Non-fatal, but no longer silent. A failed lookup still costs only
+      // initials rather than the page — but swallowing it completely made an
+      // empty map indistinguishable from "this org has no members", which cost
+      // a full debugging round. One warn is what turns that into a two-second
+      // console check.
+      if (error) {
+        console.warn('[useOrgMemberNames] name lookup failed:', error);
+        return;
+      }
+      if (!data) return;
 
       const map: Record<string, string> = {};
       for (const row of data) {
@@ -56,7 +75,7 @@ export function useOrgMemberNames(organizationId: string | undefined | null) {
     })();
 
     return () => { cancelled = true; };
-  }, [organizationId]);
+  }, [organizationId, accessToken]);
 
   return names;
 }
