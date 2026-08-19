@@ -252,11 +252,15 @@ serve(async (req) => {
       if (couponId && referredOrgId) {
         const { data: ref } = await accessAdmin
           .from("org_referrals")
-          .select("id, status, referred_discount_applied_at")
+          .select("id, status, referred_discount_applied_at, referred_first_payment_at")
           .eq("referred_org_id", referredOrgId)
           .in("status", ["pending", "qualified"])
           .maybeSingle();
-        if (ref && !ref.referred_discount_applied_at) {
+        // Gate on an actual PAYMENT, not on a session having been created.
+        // Abandoned checkouts (tab closed, card declined, "cancel" back to
+        // /pricing) used to stamp referred_discount_applied_at and silently
+        // burn the 50% coupon on the first attempt.
+        if (ref && !ref.referred_first_payment_at) {
           referralDiscount = [{ coupon: couponId }];
           referralRowId = ref.id;
         }
@@ -310,8 +314,9 @@ serve(async (req) => {
       cancel_url: `${origin}/pricing?canceled=true`,
     });
 
-    // Mark the discount consumed so it cannot be re-used on a second
-    // subscription. Only after the session was created successfully.
+    // Record that a discounted session was attached. This is informational
+    // only — the eligibility gate above keys off referred_first_payment_at,
+    // so an abandoned session no longer consumes the coupon.
     if (referralRowId) {
       await accessAdmin
         .from("org_referrals")

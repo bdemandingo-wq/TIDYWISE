@@ -405,7 +405,21 @@ serve(async (req) => {
       const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       const firstName = name.trim().split(" ")[0] || "there";
 
-      const html = `
+      // Existing users keep their current password; only newly created users
+      // should receive the temporary password entered by this organization.
+      // Built INTO the template rather than string-replaced after the fact —
+      // the old html.replace() never matched (indentation differed by one
+      // space), so linked accounts were emailed a temp password that was
+      // never written to auth.
+      const credentialRows = linkedExistingAccount
+        ? `<tr><td colspan="2" style="padding: 8px;">Use your existing TidyWise email and password to sign in.</td></tr>`
+        : `<tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
+            <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>`;
+      const passwordNotice = linkedExistingAccount
+        ? `<strong>Your existing password has not changed.</strong>`
+        : `<strong>Please change your password</strong> after signing in for the first time.`;
+
+      const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
           <h2 style="color: #1a1a1a; margin: 0 0 12px;">Welcome to ${esc(orgName)}, ${esc(firstName)} 👋</h2>
           <p style="color: #333; line-height: 1.6;">
@@ -413,34 +427,16 @@ serve(async (req) => {
             sign in to your staff portal and start picking up jobs.
           </p>
           <table style="border-collapse: collapse; margin: 16px 0; background: #f5f5f5; padding: 12px; width: 100%; max-width: 400px;">
-            <tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
-            <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>
+            ${credentialRows}
           </table>
           <p style="margin: 16px 0;">
             <a href="${loginUrl}" style="display: inline-block; background: #2563eb; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Sign in to staff portal</a>
           </p>
           <p style="color: #92400e; background: #fff7ed; border-left: 4px solid #f59e0b; padding: 12px 16px; line-height: 1.5;">
-            <strong>Please change your password</strong> after signing in for the first time.
+            ${passwordNotice}
           </p>
           <p style="color: #555; margin-top: 24px;">— ${esc(orgName)}</p>
         </div>`;
-
-      // Existing users keep their current password; only newly created users
-      // should receive the temporary password entered by this organization.
-      const credentialRows = linkedExistingAccount
-        ? `<tr><td colspan="2" style="padding: 8px;">Use your existing TidyWise email and password to sign in.</td></tr>`
-        : `<tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
-             <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>`;
-      const emailHtml = html.replace(
-        `<tr><td style="padding: 8px;"><strong>Email:</strong></td><td style="padding: 8px;">${esc(email)}</td></tr>
-             <tr><td style="padding: 8px;"><strong>Temporary password:</strong></td><td style="padding: 8px; font-family: monospace;">${esc(password!)}</td></tr>`,
-        credentialRows,
-      ).replace(
-        `<strong>Please change your password</strong> after signing in for the first time.`,
-        linkedExistingAccount
-          ? `<strong>Your existing password has not changed.</strong>`
-          : `<strong>Please change your password</strong> after signing in for the first time.`,
-      );
 
       // Try Resend directly with platform key (works regardless of org email setup).
       const resendKey = Deno.env.get("RESEND_API_KEY");

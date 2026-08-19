@@ -126,7 +126,7 @@ var list_bookings_default = defineTool2({
     }
     const take = Math.min(Math.max(limit ?? 25, 1), 100);
     let query = supabase.from("bookings").select(
-      "id, booking_number, scheduled_at, status, service_type, address, city, total_price, payment_status, frequency, is_arrival_window, arrival_window_start, arrival_window_end, customer_id"
+      "id, booking_number, scheduled_at, status, service_id, address, city, total_amount, payment_status, frequency, is_arrival_window, arrival_window_start, arrival_window_end, customer_id"
     ).eq("organization_id", resolved.organizationId).order("scheduled_at", { ascending: true }).order("id", { ascending: true }).limit(take);
     if (from) query = query.gte("scheduled_at", from);
     if (to) query = query.lte("scheduled_at", to);

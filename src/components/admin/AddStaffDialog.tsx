@@ -119,6 +119,12 @@ export function AddStaffDialog({ open, onOpenChange }: AddStaffDialogProps) {
       } else if (data.existingAccount) {
         toast.success('Staff member added. They can use their existing TidyWise login.');
         handleCredentialsDone();
+      } else if (data.reactivated) {
+        // Reactivation does NOT rewrite the auth password, so showing the
+        // typed password here would hand the admin credentials that cannot
+        // sign in.
+        toast.info('They keep their existing TidyWise password.');
+        handleCredentialsDone();
       } else {
         // Only show a temporary password when this request created the login.
         setCredentials({
