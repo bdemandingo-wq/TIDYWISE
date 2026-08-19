@@ -9751,6 +9751,7 @@ export type Database = {
           media_urls: string[] | null
           openphone_message_id: string | null
           organization_id: string
+          sender_user_id: string | null
           sent_at: string
           status: string | null
         }
@@ -9765,6 +9766,7 @@ export type Database = {
           media_urls?: string[] | null
           openphone_message_id?: string | null
           organization_id: string
+          sender_user_id?: string | null
           sent_at?: string
           status?: string | null
         }
@@ -9779,6 +9781,7 @@ export type Database = {
           media_urls?: string[] | null
           openphone_message_id?: string | null
           organization_id?: string
+          sender_user_id?: string | null
           sent_at?: string
           status?: string | null
         }
@@ -11844,6 +11847,13 @@ export type Database = {
           organization_id: string
           updated_at: string
           webhook_url: string
+        }[]
+      }
+      get_org_member_names: {
+        Args: { p_organization_id: string }
+        Returns: {
+          display_name: string
+          user_id: string
         }[]
       }
       get_org_stripe_public_settings: {
