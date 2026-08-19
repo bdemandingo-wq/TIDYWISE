@@ -172,12 +172,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
       );
 
       if (pdfError) throw pdfError;
-
-      const { error: updateError } = await supabase
-        .from('staff_signatures')
-        .update({ signed_pdf_path: result?.signed_pdf_path })
-        .eq('id', sig.id);
-      if (updateError) throw updateError;
+      // The edge function persists signed_pdf_path server-side (service role).
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff-signatures', staffId, organizationId] });
