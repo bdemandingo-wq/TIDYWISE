@@ -169,7 +169,7 @@ serve(async (req: Request) => {
     // for a missing row instead of a failing database. CLAUDE.md rule 5.
     const { data: b, error: bErr } = await admin
       .from("broadcasts")
-      .select("subject, body_text, message_class")
+      .select("subject, body_text, message_class, signature_text")
       .eq("id", id)
       .maybeSingle();
     if (bErr) return json({ error: `broadcast lookup failed: ${bErr.message}` }, 500);
