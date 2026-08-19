@@ -14,7 +14,7 @@
 //
 // WHY THERE IS A BASELINE
 //
-// This pattern is in 96 places. A rule that fails 96 times on its first run
+// This pattern is in 95 places. A rule that fails 95 times on its first run
 // gets switched off, and a switched-off rule protects nothing. So the existing
 // sites are listed and tolerated; only new ones fail.
 //
@@ -23,7 +23,7 @@
 //   - a violation NOT in the list fails, because it is new
 //   - an entry in the list that no longer violates ALSO fails, because a
 //     baseline nobody prunes is just a graveyard. Fixing a site means deleting
-//     its line here, which is how 96 becomes 0.
+//     its line here, which is how 95 becomes 0.
 //
 // TO FIX A SITE rather than baseline it, migrate it to useOrgQuery: it gates on
 // the session, surfaces `error`, and gives you `isEmpty` — true only when a
@@ -106,7 +106,6 @@ const BASELINE = new Set([
   'components/staff/StaffSignatureManager.tsx:signableDocs',
   'components/staff/StaffSignatureManager.tsx:signatures',
   'components/staff/TimeOffRequests.tsx:rows',
-  'hooks/orgQueryState.ts:rows',
   'pages/admin/ChecklistsPage.tsx:services',
   'pages/admin/ChecklistsPage.tsx:templates',
   'pages/admin/ClientFeedbackPage.tsx:entries',
@@ -150,10 +149,36 @@ function walk(dir: string): string[] {
   return out;
 }
 
+/**
+ * Strip comment lines before matching.
+ *
+ * The wrapper's own documentation quotes the banned pattern verbatim, so the
+ * next reader knows what not to write:
+ *
+ *     const { data: rows = [] } = useQuery({ ... });
+ *
+ * Scanning raw text flags that as the defect it warns about. The first version
+ * of this baseline did exactly that and captured `hooks/orgQueryState.ts:rows`
+ * — an entry that could only ever have been "fixed" by deleting the
+ * explanation. Only executable lines can violate anything.
+ */
+function codeOf(src: string): string {
+  const out: string[] = [];
+  let inBlock = false;
+  for (const raw of src.split('\n')) {
+    const t = raw.trim();
+    if (inBlock) { if (t.includes('*/')) inBlock = false; continue; }
+    if (t.startsWith('/*')) { if (!t.includes('*/')) inBlock = true; continue; }
+    if (t.startsWith('//') || t.startsWith('*')) continue;
+    out.push(raw);
+  }
+  return out.join('\n');
+}
+
 function findViolations(): string[] {
   const found: string[] = [];
   for (const file of walk(SRC)) {
-    const src = readFileSync(file, 'utf8');
+    const src = codeOf(readFileSync(file, 'utf8'));
     for (const m of src.matchAll(/const\s*\{([^}]*)\}\s*=\s*useQuery\(\{/g)) {
       const destructure = m[1];
       // Reading `error` means the call site can tell failure from emptiness.
@@ -205,7 +230,7 @@ test('CONTROL: the detector matches the shape it claims to', () => {
 });
 
 test('the baseline is the size it claims, and PayrollPage is out of it', () => {
-  assert.equal(BASELINE.size, 96, 'baseline size changed — was a line added rather than removed?');
+  assert.equal(BASELINE.size, 95, 'baseline size changed — was a line added rather than removed?');
   assert.equal(
     [...BASELINE].filter((b) => b.includes('PayrollPage')).length, 0,
     'PayrollPage was migrated in full; nothing from it belongs in the baseline',
