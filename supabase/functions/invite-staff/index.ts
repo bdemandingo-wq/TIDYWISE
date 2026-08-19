@@ -318,7 +318,7 @@ serve(async (req) => {
         }
       }
 
-      userId = authData!.user.id;
+      userId = authData!.user!.id;
 
       // Only mark for rollback-delete if we actually created the account here.
       if (!linkedExistingUser) {

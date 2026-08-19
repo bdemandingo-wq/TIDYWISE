@@ -1013,7 +1013,7 @@ const handler = async (req: Request): Promise<Response> => {
                     status: "paid",
                     limit: 100,
                   });
-                  const paidCount = paidInvoices.data.filter((i) => (i.amount_paid ?? 0) > 0).length;
+                  const paidCount = paidInvoices.data.filter((i: any) => (i.amount_paid ?? 0) > 0).length;
 
                   const patch: Record<string, unknown> = {
                     referred_paid_invoice_count: paidCount,

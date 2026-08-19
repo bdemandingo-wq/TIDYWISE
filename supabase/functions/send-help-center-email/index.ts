@@ -118,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
 
 
     console.log("[send-help-center-email] Email sent successfully to:", recipientTo);
-    return new Response(JSON.stringify(json), {
+    return new Response(JSON.stringify({ success: true, id: sendResult.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

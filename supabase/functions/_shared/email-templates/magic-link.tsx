@@ -12,7 +12,7 @@ interface Props { siteName?: string; token?: string }
 export const MagicLinkEmail = ({ token }: Props) => (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>Your TidyWise password reset code: {token}</Preview>
+    <Preview>Your TidyWise password reset code: {token ?? ''}</Preview>
     <Body style={styles.main}>
       <Container style={styles.container}>
         <Logo />

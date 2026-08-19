@@ -210,7 +210,7 @@ serve(async (req: Request) => {
       console.error(`[notify-new-lead] dedupe lookup failed, failing closed:`, recentErr);
     } else {
       console.log(
-        `[notify-new-lead] lead ${leadId} shares a phone with lead ${recent.lead_id} texted within ${dedupeHours}h, not re-sending`,
+        `[notify-new-lead] lead ${leadId} shares a phone with lead ${recent?.lead_id} texted within ${dedupeHours}h, not re-sending`,
       );
     }
     await supabase.from("lead_notification_sends").insert({
