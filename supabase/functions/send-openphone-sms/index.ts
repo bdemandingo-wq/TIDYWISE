@@ -262,6 +262,39 @@ const handler = async (req: Request): Promise<Response> => {
     const result = await response.json();
     console.log(`[send-openphone-sms] SMS sent successfully:`, result);
 
+    const openphoneMessageId = result.data?.id as string | undefined;
+
+    // Only a human send gets attributed. isService means an internal edge
+    // function called this and there is no person to name — null is honest.
+    const senderUserId = access.isService ? null : access.callerId;
+
+    if (openphoneMessageId && conversationId) {
+      // upsert, not insert. openphone_message_id carries a partial unique
+      // index (migration 20260304204212), and openphone-webhook also inserts
+      // this row when it has not seen the id. Whichever arrives first wins
+      // the insert and the other updates, so the sender is recorded even if
+      // the webhook beats us and no duplicate can appear either way.
+      const { error: rowErr } = await supabase
+        .from('sms_messages')
+        .upsert({
+          conversation_id: conversationId,
+          organization_id: organizationId,
+          direction: 'outbound',
+          content: message,
+          openphone_message_id: openphoneMessageId,
+          sender_user_id: senderUserId,
+          sent_at: new Date().toISOString(),
+          status: 'sent',
+        }, { onConflict: 'openphone_message_id' });
+
+      // Logged, never fatal. The SMS has already gone out; failing here would
+      // tell the operator it did not send, and they would send it twice.
+      if (rowErr) {
+        console.error('[send-openphone-sms] could not record sender:', rowErr.message);
+      }
+    }
+
+
     // Audit log: successful SMS send
     logAudit({
       action: AuditActions.SMS_GENERIC,
