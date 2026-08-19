@@ -96,8 +96,8 @@ serve(async (req: Request) => {
             from: FROM,
             to: [r.email],
             subject: b.subject,
-            html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl }),
-            text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl }),
+            html: renderBroadcastHtml({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
+            text: renderBroadcastText({ bodyText: b.body_text, unsubscribeUrl, signature: b.signature_text }),
           }),
         });
 
