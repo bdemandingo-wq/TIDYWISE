@@ -5,6 +5,9 @@ import {
   Button,
   DayPicker,
   DetailHeader,
+  OTHER_TIME,
+  formatTime24,
+  isoParts,
   Eyebrow,
   StepCard,
   StepProgressBar,
@@ -25,12 +28,14 @@ import {
 
 type Load = 'ready' | 'error';
 
+const TODAY = '2026-08-20';
+
 const DATES: PickableDate[] = [
-  { id: 'd1', weekday: 'Wed', day: '20' },
-  { id: 'd2', weekday: 'Thu', day: '21' },
-  { id: 'd3', weekday: 'Fri', day: '22' },
-  { id: 'd4', weekday: 'Sat', day: '23', disabled: true },
-  { id: 'd5', weekday: 'Sun', day: '24' },
+  { iso: '2026-08-20' },
+  { iso: '2026-08-21' },
+  { iso: '2026-08-22' },
+  { iso: '2026-08-23', disabled: true },
+  { iso: '2026-08-24' },
 ];
 
 const TIMES: TimeChoice[] = [
@@ -46,10 +51,29 @@ export default function NewBookingPreviewPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<Load>('ready');
   const [active, setActive] = useState(2); // Schedule is the expanded step
-  const [date, setDate] = useState<string | null>('d2');
+  const [date, setDate] = useState<string | null>('2026-08-21');
   const [time, setTime] = useState<string | null>('t2');
+  const [otherTime, setOtherTime] = useState('');
 
-  const summaries = ['Bianca Schrank · (hidden)', 'Deep Clean · 3 bed / 2 bath', '', ''];
+  /* §3 rule 12: a collapsed step has to state what was chosen, and that has to
+     include values that came from the escape hatches — a date picked months out
+     in the calendar, or a time typed into "Other". A summary built from the
+     chips alone would go blank exactly when the user did something unusual. */
+  const timeLabel =
+    time === OTHER_TIME
+      ? otherTime
+        ? formatTime24(otherTime)
+        : null
+      : (TIMES.find((t) => t.id === time)?.label ?? null);
+  const scheduleSummary =
+    date && timeLabel ? `${isoParts(date).label} · ${timeLabel}` : 'Not set';
+
+  const summaries = [
+    'Bianca Schrank · (hidden)',
+    'Deep Clean · 3 bed / 2 bath',
+    scheduleSummary,
+    '',
+  ];
 
   return (
     <main className="portal-v2 flex min-h-dvh flex-col bg-[hsl(var(--pv-bg))]">
@@ -99,6 +123,7 @@ export default function NewBookingPreviewPage() {
                     dates={DATES}
                     value={date}
                     onChange={setDate}
+                    today={TODAY}
                   />
                 </div>
 
@@ -110,6 +135,9 @@ export default function NewBookingPreviewPage() {
                       times={TIMES}
                       value={time}
                       onChange={setTime}
+                      allowOther
+                      otherTime={otherTime}
+                      onOtherTime={setOtherTime}
                     />
                   </div>
                 </div>
@@ -127,6 +155,18 @@ export default function NewBookingPreviewPage() {
                   </div>
                 </div>
               </>
+            )}
+
+            {/* §3 rule 12 is a collapse rule, and a collapse needs something to
+                trigger it. Without a forward action the preview can only ever
+                move backwards through Edit, so a completed step's one-line
+                summary — the whole point of the rule — is never reachable. */}
+            {i === active && i < STEPS.length - 1 && (
+              <div className="mt-3.5 flex justify-end">
+                <Button variant="primary" onClick={() => setActive(i + 1)}>
+                  Continue
+                </Button>
+              </div>
             )}
           </StepCard>
         ))}

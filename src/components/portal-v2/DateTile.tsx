@@ -1,6 +1,11 @@
 import { cn } from '@/lib/utils';
 
 /**
+ * 46px wide, not 52: 1c shows five chips PLUS the calendar tile, and at 390px
+ * a 52px tile pushed the calendar off the right edge behind a scroll. The
+ * escape hatch has to be visible without swiping or nobody finds it. 46px is
+ * still over the 44px tap minimum (§3 rule 14).
+ *
  * §4: DateTile is used by 1c, 2b and 3b, and the three want different things
  * from it — so the variants are here rather than retrofitted later.
  *
@@ -31,7 +36,7 @@ export function DateTile({
   className?: string;
 }) {
   const shell = cn(
-    'flex h-[58px] w-[52px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border',
+    'flex h-[58px] w-[46px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border',
     selected
       ? 'border-transparent bg-[hsl(var(--pv-brand))]'
       : 'border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))]',
@@ -91,24 +96,58 @@ export function DateTile({
   );
 }
 
-/** The trailing "More" tile in 3b's picker. Same footprint, different job. */
+/**
+ * The trailing tile in the picker — it opens the month calendar.
+ *
+ * It doubles as the display for a date chosen OUTSIDE the chip range: without
+ * that, picking 14 October leaves every chip unselected and the row silently
+ * claims nothing is chosen. When `selectedOutside` is set the tile shows that
+ * date and reads as pressed, so the row always accounts for the current value.
+ */
 export function DateTileAction({
   label,
   icon,
+  expanded,
+  selectedOutside,
   onClick,
 }: {
   label: string;
   icon?: React.ReactNode;
+  expanded?: boolean;
+  selectedOutside?: { weekday: string; day: string } | null;
   onClick?: () => void;
 }) {
+  const on = !!selectedOutside;
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[58px] w-[52px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-[hsl(var(--pv-border-strong))] bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-brand))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-bg))]"
+      aria-expanded={expanded}
+      aria-pressed={on || undefined}
+      className={cn(
+        'flex h-[58px] w-[46px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[10px] border',
+        'transition-colors duration-150 ease-out',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-bg))]',
+        on
+          ? 'border-transparent bg-[hsl(var(--pv-brand))]'
+          : 'border-dashed border-[hsl(var(--pv-border-strong))] bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-brand))] active:bg-[hsl(var(--pv-sunken))]',
+      )}
     >
-      {icon}
-      <span className="text-[10px] font-bold uppercase tracking-[0.06em]">{label}</span>
+      {on ? (
+        <>
+          <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-[hsl(var(--pv-brand-ink))]">
+            {selectedOutside!.weekday}
+          </span>
+          <span className="text-[17px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-brand-ink))]">
+            {selectedOutside!.day}
+          </span>
+        </>
+      ) : (
+        <>
+          {icon}
+          <span className="text-[10px] font-bold uppercase tracking-[0.06em]">{label}</span>
+        </>
+      )}
     </button>
   );
 }

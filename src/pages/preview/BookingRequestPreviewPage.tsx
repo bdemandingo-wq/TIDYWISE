@@ -8,6 +8,9 @@ import {
   ChoiceRow,
   DayPicker,
   DetailHeader,
+  OTHER_TIME,
+  formatTime24,
+  isoParts,
   Eyebrow,
   Skeleton,
   StatusBadge,
@@ -28,11 +31,15 @@ import {
 
 type Load = 'ready' | 'loading' | 'error';
 
+/* Passed in rather than read from the clock — keeps the preview deterministic
+   and keeps the date maths out of reach of the device's timezone. */
+const TODAY = '2026-08-20';
+
 const DATES: PickableDate[] = [
-  { id: 'd1', weekday: 'Thu', day: '21' },
-  { id: 'd2', weekday: 'Fri', day: '22' },
-  { id: 'd3', weekday: 'Sat', day: '23', disabled: true },
-  { id: 'd4', weekday: 'Sun', day: '24' },
+  { iso: '2026-08-21' },
+  { iso: '2026-08-22' },
+  { iso: '2026-08-23', disabled: true },
+  { iso: '2026-08-24' },
 ];
 
 const TIMES: TimeChoice[] = [
@@ -48,21 +55,27 @@ const BENEFITS = ['Free oven clean', 'Free interior windows', '$25 off this visi
 export default function BookingRequestPreviewPage() {
   const navigate = useNavigate();
   const [state, setState] = useState<Load>('ready');
-  const [date, setDate] = useState<string | null>('d2');
+  const [date, setDate] = useState<string | null>('2026-08-22');
   const [time, setTime] = useState<string | null>('t2');
+  const [otherTime, setOtherTime] = useState('');
   const [benefit, setBenefit] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
-  const chosenDate = DATES.find((d) => d.id === date);
-  const chosenTime = TIMES.find((t) => t.id === time);
+  /* The chosen slot has to read back whether it came from a chip or from the
+     escape hatch — a date picked in the calendar and a time typed into "Other"
+     are exactly the cases a summary built only from the chips would drop. */
+  const timeLabel =
+    time === OTHER_TIME
+      ? otherTime
+        ? formatTime24(otherTime)
+        : null
+      : (TIMES.find((t) => t.id === time)?.label ?? null);
   const slot =
-    chosenDate && chosenTime
-      ? `${chosenDate.weekday} ${chosenDate.day} · ${chosenTime.label}`
-      : 'Pick a date and time';
+    date && timeLabel ? `${isoParts(date).label} · ${timeLabel}` : 'Pick a date and time';
 
   /* §5.1: submission is blocked while the address is errored — we cannot send
      a cleaner to an address we failed to read. */
-  const blocked = state !== 'ready' || !chosenDate || !chosenTime;
+  const blocked = state !== 'ready' || !date || !timeLabel;
 
   return (
     <main className="portal-v2 flex min-h-dvh flex-col bg-[hsl(var(--pv-bg))]">
@@ -103,13 +116,21 @@ export default function BookingRequestPreviewPage() {
               dates={DATES}
               value={date}
               onChange={setDate}
-              onMore={() => {}}
+              today={TODAY}
             />
           </div>
           <div className="mt-4">
             <Eyebrow>Time</Eyebrow>
             <div className="mt-2">
-              <TimeChipRow label="Available times" times={TIMES} value={time} onChange={setTime} />
+              <TimeChipRow
+                label="Available times"
+                times={TIMES}
+                value={time}
+                onChange={setTime}
+                allowOther
+                otherTime={otherTime}
+                onOtherTime={setOtherTime}
+              />
             </div>
           </div>
         </Card>
