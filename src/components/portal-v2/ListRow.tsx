@@ -30,6 +30,8 @@ import { StatusBadge } from './StatusBadge';
  *   tasks       lead=none    status
  *   notifications lead=none  (timestamp in meta)
  */
+type Badge = { tone: 'info' | 'success' | 'warn' | 'danger'; label: string };
+
 export type ListRowLead =
   | { kind: 'date'; weekday: string; day: string }
   | { kind: 'person'; name: string }
@@ -40,6 +42,7 @@ export function ListRow({
   lead = { kind: 'none' },
   title,
   meta,
+  lines,
   money,
   status,
   onClick,
@@ -48,14 +51,27 @@ export function ListRow({
   lead?: ListRowLead;
   title: string;
   meta?: string;
+  /* Long-form fields that each get their own line rather than joining `meta`.
+     The bookings row needs two — the customer email that sits under the name
+     on desktop, and the staff assignment. Packing them into `meta` pushed
+     "Unassigned" past the ellipsis at 390px, and scanning for unassigned work
+     is the reason that column exists. Same slot name and behaviour as
+     PersonRow.lines. Optional. */
+  lines?: string[];
   /** Pre-formatted. §5.1: a money figure never renders 0 on failure — the
    *  caller passes "—" instead, so this never invents a zero. */
   money?: string;
-  status?: { tone: 'info' | 'success' | 'warn' | 'danger'; label: string };
+  /* One badge or several. The admin bookings row carries two — clean status
+     and payment status — and payment is not decoration there: the status
+     vocabulary itself is money-framed ("pending payment", not "pending"), so
+     dropping the second badge would remove the fact the screen is organised
+     around. Existing callers pass a single object and are unaffected. */
+  status?: Badge | Badge[];
   onClick?: () => void;
   className?: string;
 }) {
   const Root = onClick ? 'button' : 'div';
+  const badges: Badge[] = status ? (Array.isArray(status) ? status : [status]) : [];
 
   return (
     <Root
@@ -91,16 +107,26 @@ export function ListRow({
             {meta}
           </span>
         )}
+        {lines?.map((l) => (
+          <span
+            key={l}
+            className="mt-0.5 block truncate text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]"
+          >
+            {l}
+          </span>
+        ))}
       </span>
 
-      {(money || status) && (
+      {(money || badges.length > 0) && (
         <span className="flex shrink-0 flex-col items-end gap-1">
           {money && (
             <span className="text-[13px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
               {money}
             </span>
           )}
-          {status && <StatusBadge tone={status.tone} label={status.label} />}
+          {badges.map((b, i) => (
+            <StatusBadge key={`${b.label}-${i}`} tone={b.tone} label={b.label} />
+          ))}
         </span>
       )}
 

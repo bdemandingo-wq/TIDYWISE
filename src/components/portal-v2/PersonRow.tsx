@@ -35,6 +35,7 @@ import { StatusBadge } from './StatusBadge';
 export function PersonRow({
   name,
   facts,
+  lines,
   badges,
   inactive,
   state = 'ready',
@@ -47,6 +48,12 @@ export function PersonRow({
   /** Short salient facts — "$28/hr", "3 jobs today". Pre-formatted, so a
    *  redacted value arrives as "$XX/hr" rather than the component deciding. */
   facts?: string[];
+  /* Long-form fields that get their own line instead of joining the wrapped
+     facts row. The desktop customers table has Contact and Address columns;
+     at 390px an email, a phone and a street address dropped into the same
+     wrap row read as one run-on string. Short scannable values —
+     "24 bookings", "$3,180.00" — still belong in `facts`. */
+  lines?: string[];
   badges?: { tone: 'info' | 'success' | 'warn' | 'danger'; label: string }[];
   inactive?: boolean;
   state?: 'ready' | 'error';
@@ -118,6 +125,15 @@ export function PersonRow({
           >
             {name}
           </span>
+
+          {lines?.map((l) => (
+            <span
+              key={l}
+              className="mt-0.5 block truncate text-[11.5px] font-medium text-[hsl(var(--pv-ink-3))]"
+            >
+              {l}
+            </span>
+          ))}
 
           {(facts?.length || badges?.length) && (
             <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
