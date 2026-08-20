@@ -111,6 +111,7 @@ const StaffResetPasswordPage = lazy(() => import("./pages/staff/StaffResetPasswo
 const PortalLoginPage = lazy(() => import("./pages/portal/PortalLoginPage"));
 const PortalDashboardPage = lazy(() => import("./pages/portal/PortalDashboardPage"));
 const JobDetailPreviewPage = lazy(() => import("./pages/preview/JobDetailPreviewPage"));
+const CleanerHomePreviewPage = lazy(() => import("./pages/preview/CleanerHomePreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
 const ReviewPage = lazy(() => import("./pages/ReviewPage"));
@@ -355,6 +356,7 @@ const App = () => (
                       {/* Design-spec preview. Static data, replaces nothing live. */}
                     {/* Design-spec preview (docs/mobile-design-spec.md 3a). Static data, replaces nothing live. */}
                     <Route path="/dashboard/preview/job-detail" element={<JobDetailPreviewPage />} />
+                    <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -503,6 +505,7 @@ const App = () => (
                     {/* Design-spec preview. Static data, replaces nothing live. */}
                     {/* Design-spec preview (docs/mobile-design-spec.md 3a). Static data, replaces nothing live. */}
                     <Route path="/dashboard/preview/job-detail" element={<JobDetailPreviewPage />} />
+                    <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
