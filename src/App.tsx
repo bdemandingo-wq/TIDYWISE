@@ -127,6 +127,7 @@ const BookingsPreviewPage = lazy(() => import("./pages/preview/BookingsPreviewPa
 const CustomersPreviewPage = lazy(() => import("./pages/preview/CustomersPreviewPage"));
 const LeadsPreviewPage = lazy(() => import("./pages/preview/LeadsPreviewPage"));
 const InvoicesPreviewPage = lazy(() => import("./pages/preview/InvoicesPreviewPage"));
+const RecurringPreviewPage = lazy(() => import("./pages/preview/RecurringPreviewPage"));
 const CleanerHomeStatesPreviewPage = lazy(() => import("./pages/preview/CleanerHomeStatesPreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
@@ -388,6 +389,7 @@ const App = () => (
                     <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
                     <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
                     <Route path="/dashboard/preview/invoices" element={<InvoicesPreviewPage />} />
+                    <Route path="/dashboard/preview/recurring" element={<RecurringPreviewPage />} />
                     <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
@@ -553,6 +555,7 @@ const App = () => (
                     <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
                     <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
                     <Route path="/dashboard/preview/invoices" element={<InvoicesPreviewPage />} />
+                    <Route path="/dashboard/preview/recurring" element={<RecurringPreviewPage />} />
                     <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
