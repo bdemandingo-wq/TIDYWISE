@@ -1,6 +1,7 @@
 import { Phone, MapPin, User, Navigation, MapPinned, ClipboardList, Clock } from 'lucide-react';
 import type { CleanerPayResult } from '@/lib/wageCalculation';
 import { describeCleanerPay } from '@/lib/wageCalculation';
+import { bookingStatusBadge } from '@/lib/bookingStatus';
 import { Button } from './Button';
 import { Card, CardTitle, Eyebrow, Skeleton } from './Card';
 import { DetailHeader } from './DetailHeader';
@@ -218,8 +219,8 @@ export function JobDetailView({
   const isTeam = !!team;
   const checkedIn = !!job.cleaner_checkin_at;
   const checkedOut = !!job.cleaner_checkout_at;
-  const statusTone =
-    job.status === 'confirmed' ? 'success' : job.status === 'in_progress' ? 'warn' : 'info';
+  /* The enum is a code, not a label — see lib/bookingStatus. */
+  const statusBadge = bookingStatusBadge(job.status);
 
   return (
     <Shell
@@ -229,7 +230,7 @@ export function JobDetailView({
           ? `${dayLabel(job.scheduled_at, orgTz)}${start ? ` · ${start}` : ''}${end ? ` – ${end}` : ''}`
           : 'Not scheduled'
       }
-      badge={{ tone: statusTone as 'info' | 'success' | 'warn', label: job.status.replace('_', ' ') }}
+      badge={statusBadge}
       onBack={onBack}
     >
       <InverseCard>

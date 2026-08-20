@@ -105,6 +105,7 @@ const DataImportPage = lazy(() => import("./pages/admin/DataImportPage"));
 const BookingPhotosPage = lazy(() => import("./pages/admin/BookingPhotosPage"));
 const StaffPortal = lazy(() => import("./pages/staff/StaffPortal"));
 const StaffJobDetailPage = lazy(() => import("./pages/staff/StaffJobDetailPage"));
+const StaffHomePage = lazy(() => import("./pages/staff/StaffHomePage"));
 const StaffLoginPage = lazy(() => import("./pages/staff/StaffLoginPage"));
 const StaffResetPasswordPage = lazy(() => import("./pages/staff/StaffResetPasswordPage"));
 
@@ -122,6 +123,7 @@ const SettingsGroupPreviewPage = lazy(() => import("./pages/preview/SettingsGrou
 const MediaGridPreviewPage = lazy(() => import("./pages/preview/MediaGridPreviewPage"));
 const PersonRowPreviewPage = lazy(() => import("./pages/preview/PersonRowPreviewPage"));
 const JobDetailStatesPreviewPage = lazy(() => import("./pages/preview/JobDetailStatesPreviewPage"));
+const CleanerHomeStatesPreviewPage = lazy(() => import("./pages/preview/CleanerHomeStatesPreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
 const ReviewPage = lazy(() => import("./pages/ReviewPage"));
@@ -354,6 +356,7 @@ const App = () => (
                       <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                       <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
                       <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
+                      <Route path="/staff/home" element={<StaffRoute><ErrorBoundary featureName="Cleaner home"><StaffHomePage /></ErrorBoundary></StaffRoute>} />
 
                       {/* Client Portal */}
                       <Route path="/portal" element={<PortalLoginPage />} />
@@ -377,6 +380,7 @@ const App = () => (
                     <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
                     <Route path="/dashboard/preview/person-row" element={<PersonRowPreviewPage />} />
                     <Route path="/dashboard/preview/job-detail-states" element={<JobDetailStatesPreviewPage />} />
+                    <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -515,6 +519,7 @@ const App = () => (
                     <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                     <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
                     <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
+                    <Route path="/staff/home" element={<StaffRoute><ErrorBoundary featureName="Cleaner home"><StaffHomePage /></ErrorBoundary></StaffRoute>} />
 
                     {/* Client Portal */}
                     <Route path="/portal" element={<PortalLoginPage />} />
@@ -536,6 +541,7 @@ const App = () => (
                     <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
                     <Route path="/dashboard/preview/person-row" element={<PersonRowPreviewPage />} />
                     <Route path="/dashboard/preview/job-detail-states" element={<JobDetailStatesPreviewPage />} />
+                    <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />

@@ -47,3 +47,5 @@ export { Lightbox } from './Lightbox';
 export { PersonRow, PersonRowMenu } from './PersonRow';
 export { JobDetailView } from './JobDetailView';
 export type { JobDetailMode, JobDetailJob } from './JobDetailView';
+export { CleanerHomeView } from './CleanerHomeView';
+export type { SetupStep, HomeJob, SectionState } from './CleanerHomeView';
