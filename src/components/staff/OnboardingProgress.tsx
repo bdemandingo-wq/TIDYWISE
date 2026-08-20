@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { combinedPhase } from '@/lib/queryState';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,23 +26,31 @@ interface OnboardingStep {
 }
 
 export function OnboardingProgress({ staffId, organizationId, onNavigate, taxClassification }: OnboardingProgressProps) {
+  /*
+    Every read below THROWS on error. It used to destructure only `data`, so a
+    failed query became `[]` / `undefined` / `false` and the checklist rendered
+    steps the cleaner had already finished as "Not Set". §5.1 names this exact
+    case: never render a count on failure, because "1/4 steps complete" reads
+    as a statement about the cleaner rather than about the request.
+  */
   // Check documents status
-  const { data: documents = [] } = useQuery({
+  const docsQ = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('staff_documents')
         .select('id, document_type, status')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId);
-      return data || [];
+      if (error) throw error;
+      return data ?? [];
     },
   });
 
   // Check signatures status
-  const { data: signatures = [] } = useQuery({
+  const sigsQ = useQuery({
     queryKey: ['onboarding-sigs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -49,54 +58,145 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     // the consumer at sigData branches on Array.isArray. Annotated rather
     // than normalised, so this stays a pure typing change.
     queryFn: async (): Promise<{ required: number; signed: number } | []> => {
-      const { data: docs } = await supabase
+      const { data: docs, error: docsErr } = await supabase
         .from('staff_signable_documents')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('is_active', true);
+      if (docsErr) throw docsErr;
 
+      // Genuinely none required — a real "nothing to do", not a failure.
       if (!docs?.length) return [];
 
-      const { data: sigs } = await supabase
+      const { data: sigs, error: sigsErr } = await supabase
         .from('staff_signatures')
         .select('id, signable_document_id')
         .eq('staff_id', staffId)
         .in('signable_document_id', docs.map(d => d.id));
+      if (sigsErr) throw sigsErr;
 
-      return { required: docs.length, signed: sigs?.length || 0 };
+      return { required: docs.length, signed: sigs?.length ?? 0 };
     },
   });
 
   // Check payout status
-  const { data: payoutStatus } = useQuery({
+  const payoutQ = useQuery({
     queryKey: ['onboarding-payout', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('staff_payout_accounts')
         .select('account_status, details_submitted, payouts_enabled')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
 
   // Check availability
-  const { data: hasAvailability } = useQuery({
+  const availQ = useQuery({
     queryKey: ['onboarding-avail', staffId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('working_hours')
         .select('id')
         .eq('staff_id', staffId)
         .limit(1);
-      return (data?.length || 0) > 0;
+      if (error) throw error;
+      return (data?.length ?? 0) > 0;
     },
   });
+
+  const documents = docsQ.data ?? [];
+  const signatures = sigsQ.data ?? [];
+  const payoutStatus = payoutQ.data;
+  const hasAvailability = availQ.data;
+
+  /*
+    A failed read must not become a count. The card hides itself when every
+    step is complete, so on error we cannot know whether to hide — and
+    guessing either way is a claim. Say what happened instead, and keep the
+    reassurance explicit: nothing the cleaner already did has been lost.
+  */
+  const phase = combinedPhase([docsQ, sigsQ, payoutQ, availQ]);
+
+  /*
+    Offline is checked before loading, not folded into it. A PAUSED query has
+    isPending true, so the loading gate below would swallow this case and show
+    a skeleton that never resolves — better than the original bug, which
+    rendered finished steps as "Not Set", but still a lie: an endless spinner
+    says "nearly there" when the honest answer is "no signal".
+  */
+  if (phase === 'offline') {
+    return (
+      <Card className="mb-6 border-primary/20">
+        <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="status">
+          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <p className="text-sm text-muted-foreground mt-1">You&rsquo;re offline.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Your progress is saved. This will load when you have a signal again.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const loadError = phase === 'error';
+  if (loadError) {
+    return (
+      <Card className="mb-6 border-primary/20">
+        <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="alert">
+          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Couldn&rsquo;t load your setup.
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Steps you have already finished are unaffected.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              docsQ.refetch();
+              sigsQ.refetch();
+              payoutQ.refetch();
+              availQ.refetch();
+            }}
+            className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            Retry
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  /*
+    Loading is its own state. While a read is still in flight there is no data
+    to count, so `documents = []` would render finished steps as "Not Set" —
+    the same false claim as the error case, just briefer. A cached result makes
+    the query `success`, not `pending`, so this does not flash on warm loads.
+  */
+  const isLoading = phase === 'loading';
+  if (isLoading) {
+    return (
+      <Card className="mb-6 border-primary/20">
+        <CardContent className="pt-5 pb-4 px-4 sm:px-6">
+          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <div className="mt-2 h-2 w-full rounded-full bg-muted animate-pulse" />
+          <div className="mt-3 space-y-2" aria-hidden="true">
+            <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+            <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
+          </div>
+          <span className="sr-only">Loading your onboarding steps</span>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Build steps
   const isW2 = taxClassification === 'w2';
@@ -116,7 +216,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   const uploadedDocs = groupsWithUpload;
   const requiredDocTypes = requiredDocGroups;
 
-  const sigData = signatures as { required: number; signed: number } | any[];
+  /* The query returns [] when nothing is required and an object otherwise;
+     sigsQ.data is typed, so the `any[]` cast this used to need is gone. */
+  const sigData = signatures;
   const sigsRequired = Array.isArray(sigData) ? 0 : sigData?.required || 0;
   const sigsSigned = Array.isArray(sigData) ? 0 : sigData?.signed || 0;
   const sigsComplete = sigsRequired > 0 ? sigsSigned >= sigsRequired : false;
