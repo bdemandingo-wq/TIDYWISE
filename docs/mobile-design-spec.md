@@ -431,7 +431,7 @@ Numbers always `font-variant-numeric: tabular-nums` in lists/tables.
 
 ## 4. Reusable components
 
-One component, many screens: `PortalHeader` (2a,2b) · `DetailHeader` (1c,3a,3b) · `Card` + `InverseCard` (all) · `StatusBadge` (1b,2a,2b,3a) · `StatBlock`/`StatWell` (1b,2a) · `DateTile` (1c,2b,3b) · `DayPicker` (1c,3b) · `TimeChipRow` (1c,3b) · `NoteWell` (2a,3a) · `PayWell` (2a,3a) · `Button` primary/secondary/ghost/disabled (all) · `ProgressBar` primary/gold (1c,2a,2b) · `ChecklistRow` (2a) · `BookingRow` (2b; dense sibling of `JobCard`) · `InfoRow` (3a, profile screens) · `ShortcutCard` (2b) · `StickyFooterBar` (1c,3b) · `BottomNav` + `FAB` (1b,2a,2b) · `Avatar` (deterministic hue from name) · `SegmentedTabs` (2a) · `TimelineRow` (1b, scheduler) · `AIInsightCard` (1b, AI tab).
+One component, many screens: `PortalHeader` (2a,2b) · `DetailHeader` (1c,3a,3b) · `Card` + `InverseCard` (all) · `StatusBadge` (1b,2a,2b,3a) · `StatBlock`/`StatWell` (1b,2a) · `DateTile` (1c,2b,3b) · `DayPicker` (1c,3b) · `TimeChipRow` (1c,3b) · `NoteWell` (2a,3a) · `PayWell` (2a — 3a shows the pay figure alone; see §1.1b's sibling note in the 3a build, the breakdown was removed because pay is entered, not derived) · `Button` primary/secondary/ghost/disabled (all) · `ProgressBar` primary/gold (1c,2a,2b) · `ChecklistRow` (2a) · `BookingRow` (2b; dense sibling of `JobCard`) · `InfoRow` (3a, profile screens) · `ShortcutCard` (2b) · `StickyFooterBar` (1c,3b) · `BottomNav` + `FAB` (1b,2a,2b) · `Avatar` (deterministic hue from name) · `SegmentedTabs` (2a) · `TimelineRow` (1b, scheduler) · `AIInsightCard` (1b, AI tab).
 
 Prop sketch for the two most-shared:
 

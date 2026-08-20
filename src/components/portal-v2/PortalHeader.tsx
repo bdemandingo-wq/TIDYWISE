@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell, Settings } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { Eyebrow } from './Card';
 
@@ -13,12 +13,17 @@ export function PortalHeader({
   name,
   notifications = 0,
   onBell,
+  trailing = 'avatar',
+  onSettings,
 }: {
   eyebrow: string;
   greeting: string;
   name: string;
   notifications?: number;
   onBell?: () => void;
+  /** 2a ends in the cleaner's avatar; 2b ends in settings. §2. */
+  trailing?: 'avatar' | 'settings';
+  onSettings?: () => void;
 }) {
   const badge = notifications > 9 ? '9+' : String(notifications);
 
@@ -50,7 +55,18 @@ export function PortalHeader({
         )}
       </button>
 
-      <Avatar name={name} />
+      {trailing === 'avatar' ? (
+        <Avatar name={name} />
+      ) : (
+        <button
+          type="button"
+          onClick={onSettings}
+          aria-label="Settings"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-bg))]"
+        >
+          <Settings className="h-[18px] w-[18px]" aria-hidden />
+        </button>
+      )}
     </header>
   );
 }

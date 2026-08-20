@@ -52,7 +52,7 @@ export function JobCard({
         </p>
       </div>
 
-      <PayWell variant="inset" label="Your pay" value={job.pay} className="mt-3" />
+      <PayWell label="Your pay" value={job.pay} className="mt-3" />
 
       {job.note && (
         <div className="mt-2.5">
