@@ -1,9 +1,11 @@
-import { DateTile } from './DateTile';
+import { ListRow } from './ListRow';
 
 /**
- * §4: the dense sibling of JobCard. 2b's UpcomingList uses it; the DateTile is
- * static because the row shows when a booking is, it does not pick a date.
- * §3 rule 13: the tile is the fixed time gutter, so titles align down the list.
+ * §4: the dense sibling of JobCard, used by 2b's UpcomingList.
+ *
+ * A thin binding over ListRow — a booking row IS a date-led list row with an
+ * action. Keeping it as its own component preserves the name §4 uses without
+ * duplicating the slot logic.
  */
 export function BookingRow({
   weekday,
@@ -20,11 +22,7 @@ export function BookingRow({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <DateTile weekday={weekday} day={day} variant="static" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">{title}</p>
-        <p className="truncate text-[11.5px] font-normal text-[hsl(var(--pv-ink-3))]">{meta}</p>
-      </div>
+      <ListRow lead={{ kind: 'date', weekday, day }} title={title} meta={meta} className="flex-1" />
       {action && (
         <button
           type="button"

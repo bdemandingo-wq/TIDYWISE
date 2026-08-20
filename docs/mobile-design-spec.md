@@ -657,3 +657,74 @@ that triggered it.
 Measured, `#002BFF` on white is 5.90:1 and `#3150ED` is 5.25:1, so both pass —
 this is a consistency defect, not an accessibility one. Not in scope for this
 spec; recorded so it is not rediscovered as a mystery later.
+
+---
+
+## 8. The list pattern — `ListShell` + `ListRow`
+
+Roughly ten admin screens are the same screen: a header, a search box, maybe
+tabs, and a list of rows. Written ten times they become ten near-misses,
+and §5.1 is exactly the thing that gets missed — a list is where
+`rows.length === 0` is true while loading, while failed, and when genuinely
+empty. So the shell is written once and the states are not optional.
+
+Preview: `/dashboard/preview/list-shell` renders the shell with every row shape
+side by side.
+
+### 8.1 The row is two axes, not four variants
+
+An earlier cut proposed four variants — date-led, money-led, status-led and
+plain. **The real columns say that is wrong.** Read off the live tables:
+
+| Screen | Columns |
+|---|---|
+| Bookings | Booking, Customer, Service, Schedule, Staff, **Status**, Payment, **Amount** |
+| Recurring | Customer, Service, Frequency, Schedule, **Amount**, **Status**, Next Date, Ends |
+| Invoices | Invoice #, Customer, **Amount**, **Status**, Date, Due Date |
+| Expenses | **Date**, Category, Description, Vendor, **Amount** |
+| Leads | Name, Contact, Interest, Source, **Status**, Notes, Created |
+| Feedback | Customer, **Date**, **Status**, Follow-up, Issue, Resolution |
+
+Four of the six carry a date AND money AND a status at once. "Date-led" and
+"money-led" are not alternatives — they are two slots on one row. Four variants
+would mean four components each reimplementing the other three's slots.
+
+So `ListRow` has **one shape and two axes**:
+
+```
+lead      'date' | 'person' | 'ref' | 'none'    what anchors the left edge
+trailing  money? and/or status?                  what anchors the right
+```
+
+| Screen | lead | trailing |
+|---|---|---|
+| Bookings, Recurring | `date` | money + status |
+| Invoices | `ref` | money + status |
+| Expenses | `date` | money |
+| Leads, Feedback | `person` | status |
+| Tasks | `none` | status |
+| Notifications | `none` | — (timestamp in meta) |
+
+The lead slot is a **fixed 46px gutter** whatever fills it, per §3 rule 13, so
+titles align down the list. Within one screen every row shares a lead kind, so
+the scan line holds; the preview mixes kinds only to show them together.
+
+### 8.2 The shell owns §5.1, structurally
+
+`ListShell` takes `state: 'ready' | 'loading' | 'empty' | 'error'` as a required
+prop. There is no way to render the shell without having decided which of the
+three non-ready states you are in — which is the point. `rows.length === 0`
+cannot reach it.
+
+Two of §5.1's rules are enforced by the shell rather than left to each caller:
+
+1. **Empty and error are never the same component and never the same words.**
+   They are separate branches with separate copy, and only the error branch
+   carries `role="alert"`.
+2. **An error keeps the screen alive.** The title, its action, the search box
+   and the tabs all render in every state, because the failure was the list,
+   not the page. Verified in the browser: `New`, search and tabs stay usable
+   under both `empty` and `error`.
+
+`money` is a pre-formatted string, never a number. A failed read passes `"—"`,
+so the row has no way to invent a zero — §5.1's first rule made structural.
