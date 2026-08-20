@@ -194,7 +194,14 @@ export function useBookings() {
           `)
           .eq('organization_id', organizationId)
           .or('is_draft.is.null,is_draft.eq.false')
+          // `scheduled_at` is not unique — a full Saturday has many bookings at
+          // 11:00 AM — and Postgres does not guarantee order for tied rows.
+          // Without a unique tiebreaker the tie can land differently on each
+          // page request, so a row can appear on both sides of a page boundary
+          // or on neither: duplicated, or silently missing from the list.
+          // `id` is the primary key, so ordering by it makes the sort total.
           .order('scheduled_at', { ascending: true })
+          .order('id', { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
 
         if (error) {
