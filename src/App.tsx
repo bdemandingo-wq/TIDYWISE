@@ -114,6 +114,8 @@ const JobDetailPreviewPage = lazy(() => import("./pages/preview/JobDetailPreview
 const CleanerHomePreviewPage = lazy(() => import("./pages/preview/CleanerHomePreviewPage"));
 const ClientHomePreviewPage = lazy(() => import("./pages/preview/ClientHomePreviewPage"));
 const BookingRequestPreviewPage = lazy(() => import("./pages/preview/BookingRequestPreviewPage"));
+const AdminDashboardPreviewPage = lazy(() => import("./pages/preview/AdminDashboardPreviewPage"));
+const NewBookingPreviewPage = lazy(() => import("./pages/preview/NewBookingPreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
 const ReviewPage = lazy(() => import("./pages/ReviewPage"));
@@ -361,6 +363,8 @@ const App = () => (
                     <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
                     <Route path="/dashboard/preview/client-home" element={<ClientHomePreviewPage />} />
                     <Route path="/dashboard/preview/booking-request" element={<BookingRequestPreviewPage />} />
+                    <Route path="/dashboard/preview/admin-dashboard" element={<AdminDashboardPreviewPage />} />
+                    <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -512,6 +516,8 @@ const App = () => (
                     <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
                     <Route path="/dashboard/preview/client-home" element={<ClientHomePreviewPage />} />
                     <Route path="/dashboard/preview/booking-request" element={<BookingRequestPreviewPage />} />
+                    <Route path="/dashboard/preview/admin-dashboard" element={<AdminDashboardPreviewPage />} />
+                    <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />

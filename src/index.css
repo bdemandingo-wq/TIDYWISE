@@ -1139,6 +1139,9 @@ body {
   --pv-on-inverse-disabled:  218 10% 64%;
   --pv-inverse-well:         0 0% 100% / 0.10;
   --pv-link-on-inverse:      222 100% 78%;
+  /* Negative-trend chip on the hero. One value: it is only ever drawn on
+     --pv-inverse, where it measures 8.73:1 light and 5.01:1 dark (§6.1). */
+  --pv-orange-alert:         31 92% 64%;
 
   /* Pressed state for primary. White label holds at 8.00:1. */
   --pv-brand-hover:    224 72% 42%;

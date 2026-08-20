@@ -33,7 +33,9 @@ export function BottomNav({
   items?: NavItem[];
   active?: string;
   onSelect?: (id: string) => void;
-  fab?: { label: string; onClick?: () => void };
+  /** §2: 2b's FAB is primary; 1b's is navy. §1.4 gives the navy one a black
+   *  25% shadow rather than the primary's blue glow. */
+  fab?: { label: string; onClick?: () => void; tone?: 'primary' | 'inverse' };
 }) {
   const mid = Math.ceil(items.length / 2);
   const groups = fab ? [items.slice(0, mid), items.slice(mid)] : [items];
@@ -78,7 +80,13 @@ export function BottomNav({
             type="button"
             onClick={fab.onClick}
             aria-label={fab.label}
-            className="absolute left-1/2 top-0 flex h-12 w-12 -translate-x-1/2 -translate-y-1/3 items-center justify-center rounded-full bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))] shadow-[0_6px_14px_hsl(var(--pv-brand)/0.35)] transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-surface))]"
+            className={cn(
+              'absolute left-1/2 top-0 flex h-12 w-12 -translate-x-1/2 -translate-y-1/3 items-center justify-center rounded-full',
+              'transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-surface))]',
+              fab.tone === 'inverse'
+                ? 'bg-[hsl(var(--pv-inverse))] text-[hsl(var(--pv-on-inverse))] shadow-[0_6px_14px_rgba(0,0,0,0.25)] focus-visible:ring-[hsl(var(--pv-inverse))]'
+                : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))] shadow-[0_6px_14px_hsl(var(--pv-brand)/0.35)] focus-visible:ring-[hsl(var(--pv-brand))]',
+            )}
           >
             <Plus className="h-5 w-5" aria-hidden />
           </button>
