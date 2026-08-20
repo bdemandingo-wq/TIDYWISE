@@ -6,6 +6,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { orgStartOfWeek, orgEndOfWeek } from '@/lib/orgDateRange';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
 import { bookingStatusBadge } from '@/lib/bookingStatus';
+import { combinedPhase } from '@/lib/queryState';
 import { CleanerHomeView, type HomeJob, type SetupStep } from '@/components/portal-v2';
 
 /**
@@ -212,15 +213,22 @@ export default function StaffHomePage() {
     return { earned: MONEY(earned), jobs: String(weekQ.data.length), hours: hours.toFixed(1) };
   }, [weekQ.data, profile]);
 
-  const mode = rowsQ.error || profileQ.error
+  /* Offline is ruled out before absence is allowed to mean anything — a
+     paused read has no error and isLoading false, so this used to render
+     "No staff record" to a cleaner who simply had no signal. */
+  const phase = combinedPhase([rowsQ, profileQ]);
+
+  const mode = phase === 'error'
     ? 'error'
-    : rowsQ.isLoading
-      ? 'loading'
-      : !rows?.length
-        ? 'noStaff'
-        : !anyActive
-          ? 'deactivated'
-          : 'ready';
+    : phase === 'offline'
+      ? 'offline'
+      : rowsQ.isPending
+        ? 'loading'
+        : !rows?.length
+          ? 'noStaff'
+          : !anyActive
+            ? 'deactivated'
+            : 'ready';
 
   const setupSteps = setupQ.data ?? null;
   const outstanding = setupSteps?.some((s) => !s.done) ?? false;

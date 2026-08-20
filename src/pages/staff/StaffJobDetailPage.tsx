@@ -6,6 +6,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
 import { extrasToLabels } from '@/lib/bookingExtras';
 import { useOrgExtrasCatalogue } from '@/hooks/useOrgExtrasCatalogue';
+import { combinedPhase } from '@/lib/queryState';
 import { JobDetailView, type JobDetailMode } from '@/components/portal-v2';
 
 /**
@@ -131,20 +132,28 @@ export default function StaffJobDetailPage() {
     return resolveCleanerPay(job as never, profileQ.data as never, teamQ.data?.pay_share ?? null);
   }, [job, profileQ.data, teamQ.data]);
 
+  /* phase() before any "no data" branch. A PAUSED query — React Query's
+     offline state — has no error and isLoading false, so the old chain fell
+     through to `!rows?.length` and told a real cleaner "No staff record".
+     Offline has to be ruled out before absence can mean anything. */
+  const phase = combinedPhase([rowsQ, jobQ, teamQ, profileQ]);
+
   const mode: JobDetailMode =
-    rowsQ.error || jobQ.error || teamQ.error || profileQ.error
+    phase === 'error'
       ? 'error'
-      : rowsQ.isLoading
-        ? 'loading'
-        : !rows?.length
-          ? 'noStaff'
-          : !anyActive
-            ? 'deactivated'
-            : jobQ.isLoading || teamQ.isLoading || profileQ.isLoading
-              ? 'loading'
-              : !job
-                ? 'notFound'
-                : 'ready';
+      : phase === 'offline'
+        ? 'offline'
+        : rowsQ.isPending
+          ? 'loading'
+          : !rows?.length
+            ? 'noStaff'
+            : !anyActive
+              ? 'deactivated'
+              : jobQ.isPending || teamQ.isPending || profileQ.isPending
+                ? 'loading'
+                : !job
+                  ? 'notFound'
+                  : 'ready';
 
   return (
     <JobDetailView

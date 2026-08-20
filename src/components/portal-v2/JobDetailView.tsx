@@ -25,6 +25,10 @@ export type JobDetailMode =
   | 'ready'
   | 'loading'
   | 'error'
+  /* Offline with nothing cached. Distinct from 'error' because there is
+     nothing to retry against, and distinct from 'noStaff' because the
+     cleaner's record is fine — this device just cannot reach it. */
+  | 'offline'
   | 'notFound'
   | 'deactivated'
   | 'noStaff';
@@ -126,6 +130,22 @@ export function JobDetailView({
             <CardTitle>No staff record</CardTitle>
             <p className="mt-2 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
               This account isn&rsquo;t set up as a cleaner.
+            </p>
+          </div>
+        </Card>
+      </Shell>
+    );
+  }
+
+  if (mode === 'offline') {
+    return (
+      <Shell title="Job" onBack={onBack}>
+        <Card>
+          <div role="status">
+            <CardTitle>You&rsquo;re offline</CardTitle>
+            <p className="mt-2 text-[12.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+              This job is still assigned to you. It will load as soon as you have
+              a signal again.
             </p>
           </div>
         </Card>
