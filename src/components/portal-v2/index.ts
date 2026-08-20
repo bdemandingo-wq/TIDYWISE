@@ -40,3 +40,7 @@ export { ListShell, ListSectionLabel } from './ListShell';
 export type { ListState } from './ListShell';
 export { SettingsRow } from './SettingsRow';
 export { SettingsGroup } from './SettingsGroup';
+export { MediaTile } from './MediaTile';
+export { MediaGrid } from './MediaGrid';
+export type { MediaItem } from './MediaGrid';
+export { Lightbox } from './Lightbox';

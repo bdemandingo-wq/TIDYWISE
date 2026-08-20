@@ -118,6 +118,7 @@ const AdminDashboardPreviewPage = lazy(() => import("./pages/preview/AdminDashbo
 const NewBookingPreviewPage = lazy(() => import("./pages/preview/NewBookingPreviewPage"));
 const ListShellPreviewPage = lazy(() => import("./pages/preview/ListShellPreviewPage"));
 const SettingsGroupPreviewPage = lazy(() => import("./pages/preview/SettingsGroupPreviewPage"));
+const MediaGridPreviewPage = lazy(() => import("./pages/preview/MediaGridPreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
 const ReviewPage = lazy(() => import("./pages/ReviewPage"));
@@ -369,6 +370,7 @@ const App = () => (
                     <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
                     <Route path="/dashboard/preview/list-shell" element={<ListShellPreviewPage />} />
                     <Route path="/dashboard/preview/settings-group" element={<SettingsGroupPreviewPage />} />
+                    <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
@@ -524,6 +526,7 @@ const App = () => (
                     <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
                     <Route path="/dashboard/preview/list-shell" element={<ListShellPreviewPage />} />
                     <Route path="/dashboard/preview/settings-group" element={<SettingsGroupPreviewPage />} />
+                    <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />

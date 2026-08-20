@@ -1298,7 +1298,12 @@ body {
 }
 
 /* Restyle shadcn Card: hairline border, tiny elevation, generous radius */
-.portal-v2 [data-slot="card"],
+/* [data-slot="card"] was removed from this selector on 2026-08-20: ui/card.tsx
+   never emitted the attribute, so that half matched nothing and only .pv-card
+   was ever styled. Adding the attribute would newly restyle every shadcn Card
+   on all 73 .portal-v2 pages, which is a design decision rather than a
+   side effect of adding a lint — so the dead selector goes and the CSS stops
+   claiming to style something it does not. */
 .portal-v2 .pv-card {
   background: hsl(var(--pv-surface));
   border: 1px solid hsl(var(--pv-border));
@@ -1306,7 +1311,7 @@ body {
   box-shadow: var(--pv-shadow-xs);
   transition: box-shadow .18s ease, border-color .18s ease, transform .18s ease;
 }
-.portal-v2 [data-slot="card"]:hover {
+.portal-v2 .pv-card:hover {
   box-shadow: var(--pv-shadow-sm);
   border-color: hsl(var(--pv-border-strong));
 }
@@ -1344,15 +1349,9 @@ body {
   box-shadow: inset 0 -2px 0 0 hsl(var(--pv-brand)) !important;
 }
 
-/* Badges — soft pill */
-.portal-v2 [data-slot="badge"] {
-  border-radius: 999px;
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0;
-  padding: 3px 9px;
-  border: 1px solid transparent;
-}
+/* The [data-slot="badge"] rule was removed on 2026-08-20 — ui/badge.tsx never
+   emitted the attribute, so it styled nothing at all. Portal badges are styled
+   by StatusBadge in src/components/portal-v2/ instead. */
 
 /* Buttons — refined focus ring, subtle shadow on primary */
 .portal-v2 button:focus-visible,
@@ -1489,33 +1488,30 @@ body {
 /* ─── Density / quiet helpers (visual simplification) ─── */
 
 /* Hero — no card chrome, just breathing space. */
-.portal-v2 [data-slot="card"].pv-hero,
 .portal-v2 .pv-hero {
   background: transparent;
   border: 0;
   box-shadow: none;
   border-radius: 0;
 }
-.portal-v2 [data-slot="card"].pv-hero:hover {
+.portal-v2 .pv-hero:hover {
   box-shadow: none;
   border-color: transparent;
 }
 
 /* Quiet — demoted surface (loyalty, quick actions). No card box. */
-.portal-v2 [data-slot="card"].pv-quiet,
 .portal-v2 .pv-quiet {
   background: transparent;
   border: 0;
   box-shadow: none;
   border-radius: var(--pv-r-md);
 }
-.portal-v2 [data-slot="card"].pv-quiet:hover {
+.portal-v2 .pv-quiet:hover {
   box-shadow: none;
   border-color: transparent;
 }
 
 /* Row — hairline bottom only, no card box */
-.portal-v2 [data-slot="card"].pv-row,
 .portal-v2 .pv-row {
   background: transparent;
   border: 0;
@@ -1523,7 +1519,7 @@ body {
   border-radius: 0;
   box-shadow: none;
 }
-.portal-v2 [data-slot="card"].pv-row:hover {
+.portal-v2 .pv-row:hover {
   box-shadow: none;
   border-color: transparent;
   border-bottom-color: hsl(var(--pv-border-strong));

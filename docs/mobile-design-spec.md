@@ -865,3 +865,61 @@ is correct for any dialog rather than only Radix's.
 it — `src/components/copilot/CopilotPanel.tsx:128` and
 `src/pages/LandingPage.tsx:282`. Narrowing to Radix would let both overflow on a
 phone. A comment in `index.css` now records that.
+
+---
+
+## 11. The media pattern — `MediaGrid` + `MediaTile` + `Lightbox`
+
+Preview: `/dashboard/preview/media-grid`.
+
+### 11.1 What the three screens share, and what they don't
+
+Read before designing:
+
+| | BookingPhotosPage | StaffPhotosTab | PortalPhotoJournalTab |
+|---|---|---|---|
+| lines | 578 | 596 | 291 |
+| role | admin review | capture + upload | view only |
+| grid at 390px | `grid-cols-2` | `grid-cols-2` | `grid-cols-2` |
+| wider | 3 / 4 / 5 | 2 only | 3 / 4 |
+| dialog (lightbox) | 9 refs | 8 refs | 5 refs |
+| upload | 5 | **63** | — |
+| download / delete | **8 / 8** | — | — |
+| before/after | 10 / 9 | 12 / 10 | — |
+| **handles a failed image** | **no** | **no** | **no** |
+
+**Shared** — the tile, the 2-column grid at phone width, the lightbox, and
+before/after as a tile badge.
+
+**Not shared, and deliberately left to the caller via `actions`** — upload and
+capture (staff only), download and delete (admin only). Before/after *pairing*
+is admin-only and is a comparison **layout**, not a grid; folding it in would
+make the shared component carry an admin-only view.
+
+### 11.2 §5.1 applies per tile, not just per grid
+
+None of the three handles `onError` on an image. A photo that 404s or times out
+renders as a broken-image glyph or an empty square — and an empty square is
+indistinguishable from "no photo was taken". That is the same empty-vs-error
+confusion §5.1 exists for, one level down, and on a cleaner's phone over a weak
+connection it is the common case rather than the rare one.
+
+So a tile has three states of its own — loading, loaded, failed — and the failed
+state says "Couldn't load" with a Retry, carries `role="alert"`, and never looks
+like an absence. The grid's own `loading | empty | error` composes with them
+rather than replacing them: **the grid can be `ready` while individual tiles
+fail**, which is exactly what a weak connection produces.
+
+Verified in the browser at 390px: 12 tiles, square at 152×152, one deliberately
+unresolvable source rendering the failure state with a working Retry while the
+other 11 load.
+
+### 11.3 The lightbox
+
+`role="dialog"` is correct and safe here — §10.3 keeps that selector broad, and
+its viewport clamp is exactly what a full-screen viewer wants.
+
+One-handed at 390px: close sits top-right, and prev/next are **full-height edge
+targets** rather than small centred chevrons, so either thumb reaches them. Prev
+and next are hidden at the ends rather than disabled, and Escape closes.
+Verified: counter tracks 1/5 → 2/5, prev appears only after the first item.
