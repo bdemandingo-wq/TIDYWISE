@@ -109,7 +109,7 @@ export default function CustomersPage() {
   const [messageText, setMessageText] = useState('');
   const [messageSending, setMessageSending] = useState(false);
 
-  const { data: customers = [], isLoading } = useCustomers();
+  const { data: customers = [], isLoading, error: customersError, refetch: refetchCustomers } = useCustomers();
   const deleteCustomer = useDeleteCustomer();
   const { maskName, maskEmail, maskPhone, maskAddress, isTestMode, maskAmount } = useTestMode();
   const { organization, isAdmin } = useOrganization();
@@ -956,6 +956,8 @@ export default function CustomersPage() {
                   <Card key={i} className="p-4 animate-pulse"><div className="h-4 w-1/2 bg-muted rounded" /><div className="mt-3 h-3 w-2/3 bg-muted rounded" /></Card>
                 ))}
               </div>
+            ) : customersError ? (
+              <LoadFailedState onRetry={() => refetchCustomers()} />
             ) : filteredCustomers.length === 0 ? (
               <EmptyState onAdd={() => setAddDialogOpen(true)} />
             ) : (
@@ -1057,7 +1059,9 @@ export default function CustomersPage() {
       ) : (
         /* Desktop Table */
         <>
-          {!isLoading && filteredCustomers.length === 0 ? (
+          {customersError ? (
+            <LoadFailedState onRetry={() => refetchCustomers()} />
+          ) : !isLoading && filteredCustomers.length === 0 ? (
             <EmptyState onAdd={() => setAddDialogOpen(true)} />
           ) : (
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-x-auto">
@@ -1418,6 +1422,39 @@ export default function CustomersPage() {
       </Dialog>
     </div>
 </AdminLayout>
+  );
+}
+
+/**
+ * The third branch this screen was missing.
+ *
+ * The list was `isLoading ? skeletons : length === 0 ? <EmptyState/> : rows`,
+ * so a failed read fell through to EmptyState and told an org with thousands
+ * of customers that it had none — with an inviting "Add Your First Customer"
+ * button under it. useCustomers() throws correctly; the page simply never
+ * destructured `error`.
+ *
+ * Deliberately shares no visual language with EmptyState: different icon,
+ * different tone, no primary call to action. An empty list invites you to
+ * add someone; a failed read must not, because the customers are already
+ * there and adding another is the wrong thing to do about it.
+ */
+function LoadFailedState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4" role="alert">
+      <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
+        <AlertTriangle className="w-10 h-10 text-destructive" />
+      </div>
+      <h3 className="text-lg font-semibold mb-2">Couldn&rsquo;t load customers</h3>
+      <p className="text-muted-foreground text-sm text-center max-w-sm mb-6">
+        Your customer list is still there — this device just couldn&rsquo;t fetch it.
+        Check your connection and try again.
+      </p>
+      <Button variant="outline" onClick={onRetry} className="gap-2">
+        <RefreshCw className="w-4 h-4" />
+        Try again
+      </Button>
+    </div>
   );
 }
 
