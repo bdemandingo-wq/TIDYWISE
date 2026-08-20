@@ -10,7 +10,6 @@ import {
   InverseCard,
   NoteWell,
   NoteWellError,
-  PayWell,
   Button,
   Skeleton,
 } from '@/components/portal-v2';
@@ -27,10 +26,6 @@ const JOB = {
   ref: '#1885 · Deep Clean',
   when: 'Sun, Aug 16 · 9:00 AM – 12:00 PM',
   pay: '$100.00',
-  rate: [
-    { label: 'Base rate', value: '$28.00/hr' },
-    { label: 'Hours scheduled', value: '3.0' },
-  ],
   contact: [
     { icon: <User className="h-4 w-4" aria-hidden />, title: 'Bianca Schrank', sub: 'Customer since Mar 2026' },
     /* The number itself is deliberately absent — a cleaner should not be able to
@@ -91,11 +86,6 @@ export default function JobDetailPreviewPage() {
           {state === 'loading' ? (
             <>
               <Skeleton onInverse className="mt-1.5 h-[30px] w-[132px]" />
-              <div className="mt-3 flex flex-col gap-1.5">
-                <Skeleton onInverse className="h-3 w-full" />
-                <Skeleton onInverse className="h-3 w-full" />
-                <Skeleton onInverse className="h-3 w-2/3" />
-              </div>
             </>
           ) : state === 'error' ? (
             /* §5.1: never $0.00 on failure — a cleaner reading zero believes it.
@@ -112,16 +102,13 @@ export default function JobDetailPreviewPage() {
               </button>
             </div>
           ) : (
-            <>
-              <p className="mt-0.5 text-[26px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-on-inverse))]">
-                {JOB.pay}
-              </p>
-              <div className="mt-3 flex flex-col gap-1">
-                {JOB.rate.map((r) => (
-                  <PayWell key={r.label} label={r.label} value={r.value} />
-                ))}
-              </div>
-            </>
+            /* No breakdown. The pay figure is entered by an admin on the booking
+               form — it is not derived from a rate and an hour count, so
+               "$28.00/hr x 3.0" would imply a calculation that does not exist
+               and cannot be made to reconcile. One number, per §3 rule 1. */
+            <p className="mt-0.5 text-[26px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-on-inverse))]">
+              {JOB.pay}
+            </p>
           )}
         </InverseCard>
 
