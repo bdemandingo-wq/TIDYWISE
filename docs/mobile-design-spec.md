@@ -728,3 +728,72 @@ Two of §5.1's rules are enforced by the shell rather than left to each caller:
 
 `money` is a pre-formatted string, never a number. A failed read passes `"—"`,
 so the row has no way to invent a zero — §5.1's first rule made structural.
+
+---
+
+## 9. The settings pattern — `SettingsGroup` + `SettingsRow`
+
+Preview: `/dashboard/preview/settings-group`.
+
+### 9.1 What the live screens actually contain
+
+`SettingsPage.tsx` is 1,424 lines, but it is **not** a wall of toggles. Counted:
+
+| | SettingsPage | Where the controls really are |
+|---|---|---|
+| `<Switch>` | 3 | spread thin — max 5 in any one file |
+| `<Input>` | 17 | the dominant control |
+| `<Label>` | 21 | |
+| `<Button>` | 12 | |
+| `<TabsTrigger>` | 17 | **the page is mostly tab routing** |
+| `Card` + `CardHeader`/`CardTitle`/`CardDescription`/`CardContent` | 10 each | the existing group shape |
+
+So the page is 17 tabs delegating to components, and the real settings content
+lives in `NotificationPreferencesCard`, `AutomationsTab`, `SMSSettingsCard`,
+`PortalSettingsTab` and friends. The grouping convention already exists —
+Card + title + description — and this formalises it rather than inventing one.
+
+### 9.2 Four row kinds, taken from what those files do
+
+| kind | shape | seen in |
+|---|---|---|
+| `toggle` | label + optional description + Switch | `NotificationPreferencesCard`, `AutomationsTab`, `SMSSettingsCard` |
+| `input` | label + optional description + field, optional unit suffix, optional trailing action | `SettingsPage` (17 inputs), `AutomationsTab` (`24` + `hrs`), `PortalSettingsTab` (field + "Update") |
+| `action` | label + description + button | connect/disconnect, destructive actions |
+| `value` | label + current value + chevron | navigates to a sub-screen |
+
+`indent` is a real requirement, not a nicety: `NotificationPreferencesCard`
+nests three deep — a master channel toggle, then a category, then individual
+types — so the row supports nesting instead of each caller inventing padding.
+
+### 9.3 The §5.1 rule this pattern exists to enforce
+
+**A settings group that failed to load must not render as a group of off
+toggles.** This is the same defect as `$0.00` on failure and worse in one way:
+a zero at least looks like a number someone might question, whereas a row of
+off switches looks like a decision the user made. They will switch things back
+on that were never off, or conclude a feature is disabled and stop using it.
+
+So `state` is a prop on the group, and on `error` **the rows are not rendered at
+all** — children of an errored group are dropped. There is no code path where a
+failed read produces a control holding a default value. The group's title and
+description stay visible, so the user can see *what* failed, and the copy adds
+"Your settings are unchanged" because the second question after "did it load" is
+"did I lose anything".
+
+Verified in the browser: in `error`, 0 switches, 0 inputs and 0 value rows
+render across four groups, with 4 alerts and the group titles intact.
+
+### 9.4 One CSS trap, found here, general to the app
+
+`src/index.css:341` sets `min-height: 44px` on **every** `button` under 768px,
+for tap targets. shadcn's `Switch` is a `<button role="switch">`, so it inherits
+that and renders 41×44 — a circle, not a pill.
+
+`SettingsRow` neutralises it with `!min-h-0` on the switch and lets the wrapping
+`<label>` carry the 44px target instead, which is what the rule actually wants.
+**Any compact button-based control in this app hits this**, so it is worth
+checking before assuming a control is styled wrong.
+
+That is the fourth `index.css` collision found while building portal-v2, after
+`[role="tab"]` (§8-era), `[role="dialog"]` and `[role="button"]`.

@@ -38,3 +38,5 @@ export { ListRow } from './ListRow';
 export type { ListRowLead } from './ListRow';
 export { ListShell, ListSectionLabel } from './ListShell';
 export type { ListState } from './ListShell';
+export { SettingsRow } from './SettingsRow';
+export { SettingsGroup } from './SettingsGroup';
