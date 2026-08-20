@@ -3,7 +3,7 @@ import { JobDetailView, type JobDetailJob } from '@/components/portal-v2';
 import type { CleanerPayResult } from '@/lib/wageCalculation';
 
 /**
- * The four states of the wired 3a screen that live data will not produce on
+ * The states of the wired 3a screen that live data will not produce on
  * demand — and one that would mean deactivating a real person to look at.
  *
  * Preview route only. Renders the SAME JobDetailView the live
@@ -67,6 +67,28 @@ const CASES = [
     props: {
       mode: 'ready' as const,
       job: { ...base, address: null, city: null, state: null, zip_code: null, extraLabels: [], customer_notes: null },
+      pay: pay({}),
+      team: null,
+    },
+  },
+  {
+    id: 'completed-no-checkout',
+    label: 'Completed, never checked out',
+    why: 'The regression: the action keyed off cleaner_checkout_at, so a finished job with no GPS check-out rendered "Start job". Status leads now — expect "Job complete".',
+    props: {
+      mode: 'ready' as const,
+      job: { ...base, status: 'completed', cleaner_checkin_at: null, cleaner_checkout_at: null },
+      pay: pay({}),
+      team: null,
+    },
+  },
+  {
+    id: 'cancelled',
+    label: 'Cancelled',
+    why: 'The live My Jobs card offers no control on a cancelled job, so the button is hidden rather than shown disabled.',
+    props: {
+      mode: 'ready' as const,
+      job: { ...base, status: 'cancelled' },
       pay: pay({}),
       team: null,
     },

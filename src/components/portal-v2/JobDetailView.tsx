@@ -1,7 +1,7 @@
 import { Phone, MapPin, User, Navigation, MapPinned, ClipboardList, Clock } from 'lucide-react';
 import type { CleanerPayResult } from '@/lib/wageCalculation';
 import { describeCleanerPay } from '@/lib/wageCalculation';
-import { bookingStatusBadge } from '@/lib/bookingStatus';
+import { bookingStatusBadge, jobActionLabel } from '@/lib/bookingStatus';
 import { Button } from './Button';
 import { Card, CardTitle, Eyebrow, Skeleton } from './Card';
 import { DetailHeader } from './DetailHeader';
@@ -241,6 +241,8 @@ export function JobDetailView({
   const checkedOut = !!job.cleaner_checkout_at;
   /* The enum is a code, not a label — see lib/bookingStatus. */
   const statusBadge = bookingStatusBadge(job.status);
+  /* Status leads, timestamps only refine `confirmed` — see jobActionLabel. */
+  const actionLabel = jobActionLabel(job.status, { checkedIn, checkedOut });
 
   return (
     <Shell
@@ -373,9 +375,11 @@ export function JobDetailView({
             Checklist
           </Button>
         </div>
-        <Button variant="disabled-visible" size="lg" fullWidth className="mt-2.5">
-          {checkedOut ? 'Job complete' : checkedIn ? 'In progress' : 'Start job'}
-        </Button>
+        {actionLabel && (
+          <Button variant="disabled-visible" size="lg" fullWidth className="mt-2.5">
+            {actionLabel}
+          </Button>
+        )}
       </Card>
     </Shell>
   );
