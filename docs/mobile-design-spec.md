@@ -784,16 +784,84 @@ description stay visible, so the user can see *what* failed, and the copy adds
 Verified in the browser: in `error`, 0 switches, 0 inputs and 0 value rows
 render across four groups, with 4 alerts and the group titles intact.
 
-### 9.4 One CSS trap, found here, general to the app
+### 9.4 The CSS trap this exposed — since fixed
 
-`src/index.css:341` sets `min-height: 44px` on **every** `button` under 768px,
-for tap targets. shadcn's `Switch` is a `<button role="switch">`, so it inherits
-that and renders 41×44 — a circle, not a pill.
+`src/index.css` set `min-height: 44px` on **every** `button` under 768px for tap
+targets. Radix renders `Switch`, `Checkbox` and `RadioGroupItem` as
+`<button role="...">` at 24px, 16px and 16px, so all three were stretched to
+44px tall while keeping their width — a checkbox rendered **16×44**, a vertical
+bar rather than a square. That is 66 `Switch`, 46 `Checkbox` and 13
+`RadioGroupItem` call sites.
 
-`SettingsRow` neutralises it with `!min-h-0` on the switch and lets the wrapping
-`<label>` carry the 44px target instead, which is what the rule actually wants.
-**Any compact button-based control in this app hits this**, so it is worth
-checking before assuming a control is styled wrong.
+`SettingsRow` originally worked around it with `!min-h-0`. **That workaround has
+been removed and the rule itself fixed** — see §10.
 
-That is the fourth `index.css` collision found while building portal-v2, after
-`[role="tab"]` (§8-era), `[role="dialog"]` and `[role="button"]`.
+The wider lesson stands: four separate `index.css` rules used broad ARIA-role
+and element selectors to style specific shadcn components, and each one was
+found only by something breaking silently. Check `index.css` before concluding a
+control is styled wrong.
+
+---
+
+## 10. Scoping the global selectors
+
+Four rules in `index.css` were styling specific components through selectors
+broad enough to catch anything. Each was checked against what currently depends
+on it before being narrowed — two were narrowed, one was fixed a different way,
+and one was deliberately left alone.
+
+### 10.1 `[role="tab"]` / `[role="tablist"]` — narrowed
+
+These declared `background: transparent !important`, `border: 0 !important` and
+`border-radius: 0 !important` inside `.portal-v2`. They are styling for the
+shadcn `Tabs` component, but the role selector claimed **every** tab-like
+control in the portal. Anything using the correct ARIA role rendered flat and
+grey with no error, and two components — `SegmentedTabs` and `TimeChipRow` —
+ended up avoiding `role="tab"` to dodge it. The markup was bending around a
+stylesheet, which is the wrong way round.
+
+Now scoped to `[data-slot="tabs-list"]` / `[data-slot="tabs-trigger"]`, with
+those attributes added to `src/components/ui/tabs.tsx`.
+
+**Checked first:** nothing outside shadcn `Tabs` produces `role="tab"` or
+`role="tablist"` anywhere in `src/`, so no existing screen changes. 30 files use
+`TabsList` and all keep their styling.
+
+### 10.2 The 44px tap floor — fixed, not narrowed
+
+This one is **not** shadcn styling and was not narrowed. It is a real
+accessibility floor, and `role="button"` dependents exist in
+`AutomationsTab.tsx` and `InvoicesPage.tsx` that would have lost it.
+
+The defect was narrower than the rule: it applied to controls whose tap target
+is their *container*, not themselves. Now:
+
+```css
+button:not([role="switch"]):not([role="checkbox"]):not([role="radio"]),
+a[role="button"],
+[role="button"] { min-height: 44px; }
+```
+
+Verified in the browser at a 625px viewport with the media query active:
+
+| | before | after |
+|---|---|---|
+| `role="switch"` | 44px | **23px** |
+| `role="checkbox"` | 44px | **15px** |
+| `role="radio"` | 44px | **15px** |
+| plain `<button>` | 44px | **44px** — floor kept |
+| `role="button"` | 44px | **44px** — floor kept |
+
+The compact controls get their 44px target from the wrapping `<label>` or row,
+which is what the guidance actually asks for.
+
+### 10.3 `[role="dialog"]` — deliberately left broad
+
+`[data-radix-popper-content-wrapper], [role="dialog"]` clamps height to the
+viewport minus safe areas. That is **behaviour, not component styling**, and it
+is correct for any dialog rather than only Radix's.
+
+**Checked first, and this is why it stayed:** two hand-rolled dialogs depend on
+it — `src/components/copilot/CopilotPanel.tsx:128` and
+`src/pages/LandingPage.tsx:282`. Narrowing to Radix would let both overflow on a
+phone. A comment in `index.css` now records that.

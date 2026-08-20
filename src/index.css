@@ -339,8 +339,24 @@
 
   /* Mobile touch & input safety */
   @media (max-width: 768px) {
-    /* iOS recommends 44px minimum tap target */
-    button, a[role="button"], [role="button"] {
+    /*
+      iOS recommends a 44px minimum tap target.
+
+      The exclusions are not exceptions to that — they are controls whose tap
+      target is their CONTAINER, not themselves. Radix renders Switch, Checkbox
+      and RadioGroupItem as <button role="...">, sized 24px, 16px and 16px. The
+      blanket rule stretched all of them to 44px tall while leaving their width
+      alone, so a checkbox rendered 16x44: a vertical bar, not a square. That is
+      66 Switch, 46 Checkbox and 13 RadioGroupItem call sites.
+
+      Their 44px target comes from the <label> or row that wraps them, which is
+      what the guidance actually asks for. Verified in the browser at a 625px
+      viewport: without the exclusion a role="checkbox" computes min-height
+      44px; with it, 16px.
+    */
+    button:not([role="switch"]):not([role="checkbox"]):not([role="radio"]),
+    a[role="button"],
+    [role="button"] {
       min-height: 44px;
     }
 
@@ -868,6 +884,13 @@ img {
   }
 }
 
+/*
+  Deliberately still broad. This clamps anything claiming to be a dialog to the
+  viewport minus the safe areas — behaviour, not component styling, and correct
+  for any dialog rather than only Radix's. Two hand-rolled dialogs depend on it:
+  src/components/copilot/CopilotPanel.tsx:128 and src/pages/LandingPage.tsx:282.
+  Narrowing this to Radix would let both overflow on a phone.
+*/
 [data-radix-popper-content-wrapper],
 [role="dialog"] {
   max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
@@ -1288,15 +1311,24 @@ body {
   border-color: hsl(var(--pv-border-strong));
 }
 
-/* Tabs — quieter, underline-driven */
-.portal-v2 [role="tablist"] {
+/* Tabs — quieter, underline-driven.
+
+   Scoped to [data-slot="tabs-*"], not [role="tab"]. These declarations are
+   styling for the shadcn Tabs component, but the role selector claimed EVERY
+   tab-like control in the portal: `background: transparent !important` and
+   `border: 0 !important` silently flattened any new component that used the
+   correct ARIA role, with no error. Two components ended up avoiding the role
+   to dodge it, which is the wrong trade — the markup should not bend around a
+   stylesheet. Nothing outside shadcn Tabs produces role="tab" in src/, so this
+   narrowing changes no existing screen. */
+.portal-v2 [data-slot="tabs-list"] {
   background: transparent !important;
   border-bottom: 1px solid hsl(var(--pv-border));
   border-radius: 0;
   padding: 0 !important;
   gap: 4px;
 }
-.portal-v2 [role="tab"] {
+.portal-v2 [data-slot="tabs-trigger"] {
   border-radius: 0 !important;
   background: transparent !important;
   color: hsl(var(--pv-ink-3)) !important;
@@ -1307,7 +1339,7 @@ body {
   box-shadow: none !important;
   border: 0 !important;
 }
-.portal-v2 [role="tab"][data-state="active"] {
+.portal-v2 [data-slot="tabs-trigger"][data-state="active"] {
   color: hsl(var(--pv-ink)) !important;
   box-shadow: inset 0 -2px 0 0 hsl(var(--pv-brand)) !important;
 }
@@ -1324,7 +1356,7 @@ body {
 
 /* Buttons — refined focus ring, subtle shadow on primary */
 .portal-v2 button:focus-visible,
-.portal-v2 [role="tab"]:focus-visible {
+.portal-v2 [data-slot="tabs-trigger"]:focus-visible {
   outline: 2px solid hsl(var(--pv-brand) / .35);
   outline-offset: 2px;
 }
@@ -1452,7 +1484,7 @@ body {
    Slightly tighter type; existing button sizing preserved so grid cells
    and icon buttons don't inflate. Tabs get the 44px minimum for thumbs. */
 .portal-v2.pv-compact { font-size: 13px; }
-.portal-v2.pv-compact [role="tab"] { min-height: 44px; }
+.portal-v2.pv-compact [data-slot="tabs-trigger"] { min-height: 44px; }
 
 /* ─── Density / quiet helpers (visual simplification) ─── */
 

@@ -72,13 +72,7 @@ export function SettingsRow(
           disabled={disabled}
           onCheckedChange={props.onCheckedChange}
           aria-label={label}
-          /* !min-h-0 is load-bearing. src/index.css:341 sets
-             `min-height: 44px` on EVERY button under 768px for tap targets,
-             and shadcn's Switch is a <button role="switch">. Without this it
-             renders 41x44 instead of 44x24 — a circle, not a pill. The 44px
-             target is still met: the <label> wraps the whole row and is the
-             real tap area. */
-          className="shrink-0 !min-h-0"
+          className="shrink-0"
         />
       </label>
     );
