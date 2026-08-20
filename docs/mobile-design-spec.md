@@ -481,7 +481,7 @@ are true while loading and while failed.
 | 2b Client home | `NextAppointmentHero` | "No upcoming appointments" + Book link | "Couldn't load your appointment" + Retry. Never the empty copy — a client reading it may rebook a visit that exists |
 | 2b | `LoyaltyBanner` | banner omitted when not enrolled | banner renders with "Points unavailable", no progress bar. A zero-width gold bar reads as lost points |
 | 2b | `UpcomingList` | "No upcoming bookings" + Book link | "Couldn't load bookings" + Retry |
-| 3a Job detail | `PayHeroCard` | not possible — a job always has a pay figure. Treat absence as error | "Couldn't load pay" + Retry, navy retained. **Never `$0.00`** |
+| 3a Job detail | `PayHeroCard` | **corrected 2026-08-20** — a job CAN have no pay set. `resolveCleanerPay().isMissingPay` is the authority, and it is a third state, not an error: "Pay not set yet — your admin will confirm it." Never `$0.00`, and never the error copy, which would blame the read | "Couldn't load pay" + Retry, navy retained. **Never `$0.00`** |
 | 3a | `ContactCard` | "No contact details on file" | "Couldn't load contact details" + Retry — a cleaner must not be told the customer has no phone when the read simply failed |
 | 3a | note wells | well omitted when there is no note | well renders in warn tone: "Couldn't load instructions". Missing safety instructions must never look like no instructions |
 | 3b Booking request | `DayPicker` | not possible — dates are computed client-side | n/a |
@@ -493,7 +493,13 @@ Two rules fall out of the table:
 1. **A money figure never renders `0` on failure.** Pay, earnings, revenue and
    totals show "—" and an error. Zero is a claim, and on these screens it is a
    claim someone acts on.
-2. **A safety- or commitment-bearing absence is always an error, never empty.**
+2. **Zero rows can mean "you lost access", not "there is nothing".** Every
+   staff RLS policy on `bookings` requires `s.is_active = true`, so a
+   deactivated cleaner's queries return an empty set rather than a permission
+   error. "No jobs today" is then a lie in the one case where the cleaner most
+   needs to know what happened. Check the staff row before rendering any empty
+   state on a cleaner surface.
+3. **A safety- or commitment-bearing absence is always an error, never empty.**
    Special instructions, contact details and the next appointment: "we couldn't
    load it" and "there isn't one" lead to different actions, so they must never
    share a rendering.

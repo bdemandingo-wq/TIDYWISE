@@ -104,6 +104,7 @@ const AdminCustomWorkRequestsPage = lazy(() => import("./pages/admin/AdminCustom
 const DataImportPage = lazy(() => import("./pages/admin/DataImportPage"));
 const BookingPhotosPage = lazy(() => import("./pages/admin/BookingPhotosPage"));
 const StaffPortal = lazy(() => import("./pages/staff/StaffPortal"));
+const StaffJobDetailPage = lazy(() => import("./pages/staff/StaffJobDetailPage"));
 const StaffLoginPage = lazy(() => import("./pages/staff/StaffLoginPage"));
 const StaffResetPasswordPage = lazy(() => import("./pages/staff/StaffResetPasswordPage"));
 
@@ -351,6 +352,7 @@ const App = () => (
                       <Route path="/staff/login" element={<StaffLoginPage />} />
                       <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                       <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
+                      <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
 
                       {/* Client Portal */}
                       <Route path="/portal" element={<PortalLoginPage />} />
@@ -510,6 +512,7 @@ const App = () => (
                     <Route path="/staff/login" element={<StaffLoginPage />} />
                     <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                     <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
+                    <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
 
                     {/* Client Portal */}
                     <Route path="/portal" element={<PortalLoginPage />} />

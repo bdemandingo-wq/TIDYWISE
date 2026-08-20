@@ -18,6 +18,7 @@ import { useCleanerTracking } from '@/hooks/useCleanerTracking';
 import { supabase } from '@/lib/supabase';
 import { resolveCleanerPay, describeCleanerPay, type WageBooking, type WageStaff } from '@/lib/wageCalculation';
 import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 interface PropertyNote {
@@ -81,6 +82,7 @@ interface Props {
 }
 
 export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
+  const navigate = useNavigate();
   const orgTimezone = useOrgTimezone(organizationId);
   const extraLabels = extrasToLabels(booking.extras, orgExtras);
   const [checklistOpen, setChecklistOpen] = useState(false);
@@ -314,6 +316,15 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
           <div>
             <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
             <p className="text-sm text-muted-foreground">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</p>
+            {/* Entry point to the wired 3a screen. Additive — every control on
+                this card still works exactly as before. */}
+            <button
+              type="button"
+              onClick={() => navigate(`/staff/job/${booking.id}`)}
+              className="mt-1 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              Job details
+            </button>
           </div>
           {getStatusBadge(booking.status)}
         </div>
