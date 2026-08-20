@@ -62,7 +62,7 @@ export function CleanerHomeView({
   onRetryJobs,
   onOpenJob,
 }: {
-  mode: 'ready' | 'loading' | 'noStaff' | 'deactivated' | 'error';
+  mode: 'ready' | 'loading' | 'noStaff' | 'deactivated' | 'error' | 'offline';
   name: string;
   notifications?: number;
   /** null omits the card — §5.1: nothing outstanding is not a slot. */
@@ -80,7 +80,7 @@ export function CleanerHomeView({
   onRetryJobs?: () => void;
   onOpenJob?: (id: string) => void;
 }) {
-  if (mode === 'noStaff' || mode === 'deactivated' || mode === 'error') {
+  if (mode === 'noStaff' || mode === 'deactivated' || mode === 'error' || mode === 'offline') {
     const copy =
       mode === 'deactivated'
         ? {
@@ -89,7 +89,14 @@ export function CleanerHomeView({
           }
         : mode === 'noStaff'
           ? { title: 'No staff record', body: "This account isn't set up as a cleaner." }
-          : { title: "Couldn't load your portal", body: 'Your jobs and pay are unaffected.' };
+          : mode === 'offline'
+            ? {
+                title: "You're offline",
+                /* Never "no jobs": the jobs exist, the device cannot reach
+                   them. Saying otherwise is a claim about their week. */
+                body: 'Your jobs and pay are still there. They will load as soon as you have a signal again.',
+              }
+            : { title: "Couldn't load your portal", body: 'Your jobs and pay are unaffected.' };
     return (
       <main className="portal-v2 flex min-h-dvh flex-col bg-[hsl(var(--pv-bg))]">
         <PortalHeader eyebrow="Cleaner portal" greeting={name} name={name} notifications={0} />
