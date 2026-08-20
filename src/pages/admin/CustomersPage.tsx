@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/tooltip';
 import {
   Search, Plus, Mail, Phone, MessageSquare, Megaphone, Edit, Trash2, CreditCard, Upload, Users,
-  UserX, RefreshCw, MapPin, Download, AlertTriangle, ArrowUpDown,
+  UserX, RefreshCw, MapPin, Download, AlertTriangle, ArrowUpDown, WifiOff,
   ArrowUp, ArrowDown, CalendarDays, DollarSign, FileText, Eye, UserPlus,
   ChevronDown, ChevronUp, GitMerge,
 } from 'lucide-react';
@@ -109,7 +109,22 @@ export default function CustomersPage() {
   const [messageText, setMessageText] = useState('');
   const [messageSending, setMessageSending] = useState(false);
 
-  const { data: customers = [], isLoading } = useCustomers();
+  const { data: customers = [], isLoading, error: customersError, refetch: refetchCustomers, fetchStatus: customersFetchStatus } = useCustomers();
+  /*
+    React Query PAUSES a query when it believes the device is offline, rather
+    than failing it. A paused query has no data, no error, and isLoading
+    false — so it fell through to EmptyState exactly as a thrown error did,
+    and said "No customers yet". Found by looking: forcing the read to fail
+    in the browser produced fetchStatus "paused", not an error, and the empty
+    state stayed on screen. This app is built to work offline
+    (PersistQueryClientProvider), so this is the likelier of the two failures
+    rather than an edge case.
+
+    Only meaningful with nothing cached to show: when the persisted cache has
+    rows they render and the pause is invisible, which is the intended
+    offline behaviour.
+  */
+  const customersOffline = customersFetchStatus === 'paused' && customers.length === 0;
   const deleteCustomer = useDeleteCustomer();
   const { maskName, maskEmail, maskPhone, maskAddress, isTestMode, maskAmount } = useTestMode();
   const { organization, isAdmin } = useOrganization();
@@ -956,6 +971,10 @@ export default function CustomersPage() {
                   <Card key={i} className="p-4 animate-pulse"><div className="h-4 w-1/2 bg-muted rounded" /><div className="mt-3 h-3 w-2/3 bg-muted rounded" /></Card>
                 ))}
               </div>
+            ) : customersOffline ? (
+              <OfflineState />
+            ) : customersError ? (
+              <LoadFailedState onRetry={() => refetchCustomers()} />
             ) : filteredCustomers.length === 0 ? (
               <EmptyState onAdd={() => setAddDialogOpen(true)} />
             ) : (
@@ -1057,7 +1076,11 @@ export default function CustomersPage() {
       ) : (
         /* Desktop Table */
         <>
-          {!isLoading && filteredCustomers.length === 0 ? (
+          {customersOffline ? (
+            <OfflineState />
+          ) : customersError ? (
+            <LoadFailedState onRetry={() => refetchCustomers()} />
+          ) : !isLoading && filteredCustomers.length === 0 ? (
             <EmptyState onAdd={() => setAddDialogOpen(true)} />
           ) : (
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-x-auto">
@@ -1418,6 +1441,62 @@ export default function CustomersPage() {
       </Dialog>
     </div>
 </AdminLayout>
+  );
+}
+
+/**
+ * The third branch this screen was missing.
+ *
+ * The list was `isLoading ? skeletons : length === 0 ? <EmptyState/> : rows`,
+ * so a failed read fell through to EmptyState and told an org with thousands
+ * of customers that it had none — with an inviting "Add Your First Customer"
+ * button under it. useCustomers() throws correctly; the page simply never
+ * destructured `error`.
+ *
+ * Deliberately shares no visual language with EmptyState: different icon,
+ * different tone, no primary call to action. An empty list invites you to
+ * add someone; a failed read must not, because the customers are already
+ * there and adding another is the wrong thing to do about it.
+ */
+/**
+ * Offline with nothing cached to show.
+ *
+ * Distinct from LoadFailedState because the honest advice differs: there is
+ * nothing to retry against, and a "Try again" button that cannot work is a
+ * worse answer than none. The list returns by itself when the connection
+ * does, so this says that instead of offering a dead control.
+ */
+function OfflineState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4" role="status">
+      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-6">
+        <WifiOff className="w-10 h-10 text-muted-foreground" />
+      </div>
+      <h3 className="text-lg font-semibold mb-2">You&rsquo;re offline</h3>
+      <p className="text-muted-foreground text-sm text-center max-w-sm">
+        Your customer list is still there. It will load as soon as you have a
+        connection again.
+      </p>
+    </div>
+  );
+}
+
+function LoadFailedState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4" role="alert">
+      <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
+        <AlertTriangle className="w-10 h-10 text-destructive" />
+      </div>
+      <h3 className="text-lg font-semibold mb-2">Couldn&rsquo;t load customers</h3>
+      <p className="text-muted-foreground text-sm text-center max-w-sm mb-6">
+        Your customer list is still there — this device just couldn&rsquo;t fetch it.
+        Check your connection and try again.
+      </p>
+      <Button variant="outline" onClick={onRetry} className="gap-2">
+        <RefreshCw className="w-4 h-4" />
+        Try again
+      </Button>
+    </div>
   );
 }
 
