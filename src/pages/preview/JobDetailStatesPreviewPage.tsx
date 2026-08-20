@@ -21,7 +21,7 @@ const base: JobDetailJob = {
   city: 'Fort Lauderdale',
   state: 'FL',
   zip_code: '33334',
-  extras: ['Inside oven', 'Interior windows'],
+  extraLabels: ['Inside oven', 'Interior windows'],
   notes: 'Gate code is 4417. The dog is friendly but will bolt — keep the side gate shut.',
   customer_notes: 'Please skip the office, I will be on calls all morning.',
   cleaner_checkin_at: null,
@@ -66,7 +66,7 @@ const CASES = [
     why: 'Directions drops to disabled-visible rather than becoming a dead button.',
     props: {
       mode: 'ready' as const,
-      job: { ...base, address: null, city: null, state: null, zip_code: null, extras: [], customer_notes: null },
+      job: { ...base, address: null, city: null, state: null, zip_code: null, extraLabels: [], customer_notes: null },
       pay: pay({}),
       team: null,
     },

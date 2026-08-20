@@ -37,7 +37,10 @@ export type JobDetailJob = {
   city: string | null;
   state: string | null;
   zip_code: string | null;
-  extras: unknown;
+  /** Already resolved to per-org LABELS by the caller via extrasToLabels().
+   *  Raw `extras` is a Json array of SLUGS and labels vary per org, so a view
+   *  that stringifies them renders "inside_oven" instead of "Inside oven". */
+  extraLabels: string[];
   notes: string | null;
   customer_notes: string | null;
   cleaner_checkin_at: string | null;
@@ -211,7 +214,7 @@ export function JobDetailView({
           orgTz,
         )
       : null;
-  const extras = Array.isArray(job.extras) ? (job.extras as unknown[]) : [];
+  const extras = job.extraLabels ?? [];
   const isTeam = !!team;
   const checkedIn = !!job.cleaner_checkin_at;
   const checkedOut = !!job.cleaner_checkout_at;
@@ -309,7 +312,7 @@ export function JobDetailView({
           <CardTitle>Add-ons</CardTitle>
           <div className="mt-2.5 flex flex-wrap gap-1.5">
             {extras.map((e) => (
-              <StatusBadge key={String(e)} tone="info" label={String(e)} />
+              <StatusBadge key={e} tone="info" label={e} />
             ))}
           </div>
         </Card>

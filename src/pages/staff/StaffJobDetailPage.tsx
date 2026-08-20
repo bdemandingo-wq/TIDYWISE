@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
+import { extrasToLabels } from '@/lib/bookingExtras';
+import { useOrgExtrasCatalogue } from '@/hooks/useOrgExtrasCatalogue';
 import { JobDetailView, type JobDetailMode } from '@/components/portal-v2';
 
 /**
@@ -83,6 +85,8 @@ export default function StaffJobDetailPage() {
   });
 
   const orgTz = useOrgTimezone(staff?.organization_id ?? null);
+  /* extras are slugs; labels are per-org. Same resolver MyJobCard uses. */
+  const { data: orgExtras = [] } = useOrgExtrasCatalogue(staff?.organization_id ?? null);
   const job = jobQ.data;
 
   /* resolveCleanerPay mirrors the payout engine deliberately, so this screen
@@ -109,7 +113,7 @@ export default function StaffJobDetailPage() {
   return (
     <JobDetailView
       mode={mode}
-      job={job as never}
+      job={job ? ({ ...job, extraLabels: extrasToLabels(job.extras, orgExtras) } as never) : null}
       pay={pay}
       team={teamQ.data ?? null}
       orgTz={orgTz}
