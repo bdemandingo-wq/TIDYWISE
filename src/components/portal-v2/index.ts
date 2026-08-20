@@ -45,3 +45,5 @@ export { MediaGrid } from './MediaGrid';
 export type { MediaItem } from './MediaGrid';
 export { Lightbox } from './Lightbox';
 export { PersonRow, PersonRowMenu } from './PersonRow';
+export { JobDetailView } from './JobDetailView';
+export type { JobDetailMode, JobDetailJob } from './JobDetailView';
