@@ -923,3 +923,62 @@ One-handed at 390px: close sits top-right, and prev/next are **full-height edge
 targets** rather than small centred chevrons, so either thumb reaches them. Prev
 and next are hidden at the ends rather than disabled, and Escape closes.
 Verified: counter tracks 1/5 → 2/5, prev appears only after the first item.
+
+---
+
+## 12. The person pattern — `PersonRow`
+
+Preview: `/dashboard/preview/person-row`.
+
+### 12.1 What `/dashboard/staff` actually shows, which is not "avatar + name + role"
+
+Read off `src/pages/admin/StaffPage.tsx:405-478`:
+
+| Element | Detail |
+|---|---|
+| avatar | initials, hue derived from the name via `getColorFromName` |
+| name | passed through `maskName()` |
+| pay rate | `$28/hr` — gated on `hasFinancialAccess`, **and** masked to `$XX/hr` in test mode |
+| tax class | a `1099` / `W-2` badge |
+| inactive | **not a status pill** — the row dims to 60%, the border goes dashed, the avatar goes greyscale |
+| actions | a kebab with four items — View Schedule, Edit, Resend Password Link, Delete |
+
+**There is no role on this screen.** The §-inventory guess that a person row
+"leads with avatar + role" was wrong: role belongs to org members
+(owner / manager), which is a different list with different facts.
+
+That is why `facts` and `badges` are **slots, not named fields**. The screens
+disagree about what a person's two or three salient facts are — pay rate and tax
+class for staff, email and role for team, "Suggested" for an assignee picker —
+and hardcoding staff's choices would make every other caller fight the
+component.
+
+The pay rate is the sharpest case: the row has to render a value it is *not
+allowed to show* (`$XX/hr`) rather than dropping the field, because dropping it
+would make a redacted rate indistinguishable from a cleaner who has no rate set.
+The caller passes the already-masked string; the component does not decide.
+
+### 12.2 Sibling of `ListRow`, not a variant of it
+
+`PersonRow` shares `ListRow`'s fixed **46px lead gutter** (§3 rule 13) so the two
+align inside one list. It is a separate component because the trailing half
+genuinely differs: `ListRow` ends in money and/or a status pill and a chevron,
+`PersonRow` ends in a wrapped set of facts and badges plus an actions slot.
+
+This is the same test applied in §8.1 and it lands the other way — there the
+four proposed "variants" were slots on one row, here the two rows really do
+have different trailing structures.
+
+### 12.3 §5.1 — an errored row must not borrow the inactive look
+
+`inactive` is a real, deliberate state with a distinctive appearance: dimmed,
+struck through, greyscale avatar. So a row whose data **failed** must never fall
+back to it. A greyed-out struck-through row says "this person is deactivated",
+which is a claim about a person's employment, not a loading problem.
+
+`state="error"` therefore renders its own shape — name retained, dashed
+placeholder avatar, "Couldn't load their details", a Retry, `role="alert"` — and
+drops the actions, because acting on a record you failed to read is not safe.
+
+Verified in the browser: in `error`, 8 alerts and **zero** dimmed rows, zero
+greyscale avatars, zero strikethroughs. The two states share no visual language.

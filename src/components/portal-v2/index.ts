@@ -44,3 +44,4 @@ export { MediaTile } from './MediaTile';
 export { MediaGrid } from './MediaGrid';
 export type { MediaItem } from './MediaGrid';
 export { Lightbox } from './Lightbox';
+export { PersonRow, PersonRowMenu } from './PersonRow';
