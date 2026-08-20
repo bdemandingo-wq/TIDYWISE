@@ -426,8 +426,47 @@ export default function CustomersPage() {
     setSelectedIds(newSelected);
   };
 
-  // Compute effective status: override to 'active' if customer has bookings/revenue
+  /**
+   * Effective status: fill in an unset value, never overrule a decision.
+   *
+   * This used to promote ANY customer with bookings or revenue to 'active',
+   * which meant it also overruled 'inactive'. Marking someone inactive —
+   * what the bulk action at the top of this file does by writing
+   * customer_status = 'inactive' — therefore had no visible effect on anyone
+   * with a single booking to their name. The write landed; the badge still
+   * read "Customer"; they stayed in the Customers tab. The action looked
+   * broken because its result was computed away on the next render.
+   *
+   * The schema settles which of the three values is a decision. The column
+   * comment on customers.customer_status reads:
+   *
+   *     'lead (no bookings), active (has bookings), inactive (manually set)'
+   *
+   * `lead` is also the column DEFAULT, so a 'lead' row may mean "nobody has
+   * ever touched this" rather than "someone judged this a lead". `active` is
+   * maintained by a database trigger (auto_activate_customer_on_booking).
+   * Only `inactive` is stated to be a human's choice, and nothing computes
+   * it — so it is the one value that must survive a recompute.
+   *
+   * Hence the asymmetry below: an explicit 'inactive' or 'active' is
+   * returned as stored, and the derivation only runs for 'lead', where it
+   * acts as a safety net for rows the trigger predates or missed.
+   *
+   * The derivation is deliberately left as-is rather than tightened. The DB
+   * trigger was narrowed in a later migration to promote only on a COMPLETED
+   * booking, while this still promotes on any non-cancelled booking or any
+   * revenue. Matching it is not possible here: the stats query selects
+   * `customer_id, total_amount, scheduled_at` and no status column, so the
+   * client cannot tell a completed booking from a scheduled one. Narrowing
+   * the rule needs that query changed, and that is a separate change with
+   * its own blast radius.
+   */
   const getEffectiveStatus = useCallback((customer: any) => {
+    // A human said so. Nothing computed gets to disagree.
+    if (customer.customer_status === 'inactive') return 'inactive';
+    if (customer.customer_status === 'active') return 'active';
+
+    // 'lead' is the default, so it may simply be stale — derive from history.
     const stats = statsMap.get(customer.id);
     if (stats && (stats.total_bookings > 0 || stats.total_revenue > 0)) {
       return 'active';
