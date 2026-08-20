@@ -30,11 +30,17 @@ const JOB = {
   rate: [
     { label: 'Base rate', value: '$28.00/hr' },
     { label: 'Hours scheduled', value: '3.0' },
-    { label: 'Travel bonus', value: '$16.00' },
   ],
   contact: [
     { icon: <User className="h-4 w-4" aria-hidden />, title: 'Bianca Schrank', sub: 'Customer since Mar 2026' },
-    { icon: <Phone className="h-4 w-4" aria-hidden />, title: '(561) 583-0771', sub: 'Mobile', action: { label: 'Call', href: 'tel:+15615830771' } },
+    /* The number itself is deliberately absent — a cleaner should not be able to
+       contact a customer off-platform. Call stays, because that is the thing the
+       cleaner actually needs. It is a button rather than a tel: link on purpose:
+       a tel: href would put the raw number back in the DOM and in the link
+       target, which defeats the removal. Wiring it to a real masked call needs a
+       backend that OpenPhone/Quo cannot currently provide — see the branch
+       notes. Until then this is inert. */
+    { icon: <Phone className="h-4 w-4" aria-hidden />, title: 'Customer phone', sub: 'Number hidden', action: { label: 'Call', onClick: () => {} } },
     { icon: <MapPin className="h-4 w-4" aria-hidden />, title: '4120 NE 12th Terrace', sub: 'Fort Lauderdale, FL 33334', action: { label: 'Map', href: '#' } },
   ],
   instructions:
