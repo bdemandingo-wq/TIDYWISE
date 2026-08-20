@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { combinedPhase } from '@/lib/queryState';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +123,30 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     guessing either way is a claim. Say what happened instead, and keep the
     reassurance explicit: nothing the cleaner already did has been lost.
   */
-  const loadError = docsQ.error || sigsQ.error || payoutQ.error || availQ.error;
+  const phase = combinedPhase([docsQ, sigsQ, payoutQ, availQ]);
+
+  /*
+    Offline is checked before loading, not folded into it. A PAUSED query has
+    isPending true, so the loading gate below would swallow this case and show
+    a skeleton that never resolves — better than the original bug, which
+    rendered finished steps as "Not Set", but still a lie: an endless spinner
+    says "nearly there" when the honest answer is "no signal".
+  */
+  if (phase === 'offline') {
+    return (
+      <Card className="mb-6 border-primary/20">
+        <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="status">
+          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <p className="text-sm text-muted-foreground mt-1">You&rsquo;re offline.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Your progress is saved. This will load when you have a signal again.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const loadError = phase === 'error';
   if (loadError) {
     return (
       <Card className="mb-6 border-primary/20">
@@ -157,7 +181,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     the same false claim as the error case, just briefer. A cached result makes
     the query `success`, not `pending`, so this does not flash on warm loads.
   */
-  const isLoading = docsQ.isPending || sigsQ.isPending || payoutQ.isPending || availQ.isPending;
+  const isLoading = phase === 'loading';
   if (isLoading) {
     return (
       <Card className="mb-6 border-primary/20">
