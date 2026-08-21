@@ -55,3 +55,5 @@ export { SimpleListView, useSimpleSearch } from './SimpleListView';
 export type { SimpleListRow } from './SimpleListView';
 export { BookingsListView, bookingMoney, bookingStaffLine, matchesBookingSearch, useBookingSearch } from './BookingsListView';
 export type { BookingsRow } from './BookingsListView';
+export { CustomersListView, matchesCustomerSearch, useCustomerSearch } from './CustomersListView';
+export type { CustomersRow } from './CustomersListView';
