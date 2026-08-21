@@ -174,6 +174,7 @@ const ChecklistsWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").
 const TasksWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.TasksWiredPage })));
 const FeedbackWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.FeedbackWiredPage })));
 const NotificationsWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.NotificationsWiredPage })));
+const StaffWiredPage = lazy(() => import("./pages/admin/StaffWiredPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -494,6 +495,7 @@ const App = () => (
                     <Route path="/dashboard/tasks-v2" element={<AdminRoute><ErrorBoundary featureName="Tasks v2"><TasksWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/feedback-v2" element={<AdminRoute><ErrorBoundary featureName="Feedback v2"><FeedbackWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/notifications-v2" element={<AdminRoute><ErrorBoundary featureName="Notifications v2"><NotificationsWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/staff-v2" element={<AdminRoute><ErrorBoundary featureName="Staff v2"><StaffWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -712,6 +714,7 @@ const App = () => (
                     <Route path="/dashboard/tasks-v2" element={<AdminRoute><ErrorBoundary featureName="Tasks v2"><TasksWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/feedback-v2" element={<AdminRoute><ErrorBoundary featureName="Feedback v2"><FeedbackWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/notifications-v2" element={<AdminRoute><ErrorBoundary featureName="Notifications v2"><NotificationsWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/staff-v2" element={<AdminRoute><ErrorBoundary featureName="Staff v2"><StaffWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
