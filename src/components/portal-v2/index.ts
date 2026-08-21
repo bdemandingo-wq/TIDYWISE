@@ -50,3 +50,4 @@ export type { JobDetailMode, JobDetailJob } from './JobDetailView';
 export { CleanerHomeView } from './CleanerHomeView';
 export type { SetupStep, HomeJob, SectionState } from './CleanerHomeView';
 export { Sparkline } from './Sparkline';
+export { MessageBubble } from './MessageBubble';
