@@ -155,6 +155,8 @@ const PayrollPreviewPage = lazy(() => import("./pages/preview/PayrollPreviewPage
 const SettingsPreviewPage = lazy(() => import("./pages/preview/SettingsPreviewPage"));
 const ServicesPreviewPage = lazy(() => import("./pages/preview/ServicesPreviewPage"));
 const FinancePreviewPage = lazy(() => import("./pages/preview/FinancePreviewPage"));
+const LeadsWiredPage = lazy(() => import("./pages/admin/LeadsWiredPage"));
+const LeadsStatesPreviewPage = lazy(() => import("./pages/preview/LeadsStatesPreviewPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -459,6 +461,7 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -481,6 +484,7 @@ const App = () => (
                       <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/leads" element={<AdminRoute><ErrorBoundary featureName="Leads"><LeadsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/leads-v2" element={<AdminRoute><ErrorBoundary featureName="Leads v2"><LeadsWiredPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/inventory" element={<AdminRoute><ErrorBoundary featureName="Inventory"><InventoryPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/invoices" element={<AdminRoute><ErrorBoundary featureName="Invoices"><InvoicesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/operations" element={<AdminRoute><ErrorBoundary featureName="Operations Tracker"><OperationsTrackerPage /></ErrorBoundary></AdminRoute>} />
@@ -656,6 +660,7 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -678,6 +683,7 @@ const App = () => (
                     <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/leads" element={<AdminRoute><ErrorBoundary featureName="Leads"><LeadsPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/leads-v2" element={<AdminRoute><ErrorBoundary featureName="Leads v2"><LeadsWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/inventory" element={<AdminRoute><ErrorBoundary featureName="Inventory"><InventoryPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/invoices" element={<AdminRoute><ErrorBoundary featureName="Invoices"><InvoicesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/operations" element={<AdminRoute><ErrorBoundary featureName="Operations Tracker"><OperationsTrackerPage /></ErrorBoundary></AdminRoute>} />
