@@ -12,6 +12,8 @@ const RAILS = {
   brand: 'bg-[hsl(var(--pv-brand-soft))] border-l-[hsl(var(--pv-brand))]',
   success: 'bg-[hsl(var(--pv-success-soft))] border-l-[hsl(var(--pv-success))]',
   warn: 'bg-[hsl(var(--pv-warn-soft))] border-l-[hsl(var(--pv-warn))]',
+  /* 6a colour-codes agenda entries and uses purple as a fourth rail. */
+  ai: 'bg-[hsl(var(--pv-ai-soft))] border-l-[hsl(var(--pv-ai))]',
 } as const;
 
 export function TimelineRow({
@@ -27,17 +29,18 @@ export function TimelineRow({
 }) {
   return (
     <div className="flex items-stretch gap-3">
-      <span className="w-[52px] shrink-0 pt-2 text-right text-[11.5px] font-bold tabular-nums text-[hsl(var(--pv-ink-3))]">
+      <span className="w-[52px] shrink-0 pt-2 text-[11px] font-bold tabular-nums text-[hsl(var(--pv-ink-3))]">
         {time}
       </span>
       <div
         className={cn(
-          'min-w-0 flex-1 rounded-[10px] border-l-[3px] px-3 py-2',
+          /* 6a: radius 8, padding 8/10. */
+          'min-w-0 flex-1 rounded-[8px] border-l-[3px] px-2.5 py-2',
           RAILS[tone],
         )}
       >
-        <p className="truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">{title}</p>
-        <p className="truncate text-[11.5px] font-normal text-[hsl(var(--pv-ink-2))]">{meta}</p>
+        <p className="truncate text-[12.5px] font-bold text-[hsl(var(--pv-ink))]">{title}</p>
+        <p className="truncate text-[10.5px] font-normal text-[hsl(var(--pv-ink-3))]">{meta}</p>
       </div>
     </div>
   );
