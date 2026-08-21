@@ -26,7 +26,14 @@ export function SegmentedTabs<T extends string>({
   label: string;
 }) {
   return (
-    <div role="group" aria-label={label} className="flex gap-2 overflow-x-auto">
+    /* Wraps rather than scrolls. Four tabs with the comps' own words
+       ("Automations · Messages · Health · Suggestions") do not fit one
+       390px line, and a horizontal scroll hides the last one behind a
+       barely-visible bar — the exact failure that made the settings tab
+       strip unusable at this width. Wrapping keeps every label intact and
+       every destination visible, which the comp cares about more than the
+       row count. */
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
       {tabs.map((t) => {
         const active = t.id === value;
         return (
