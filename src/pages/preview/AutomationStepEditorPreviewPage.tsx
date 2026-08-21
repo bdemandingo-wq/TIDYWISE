@@ -90,7 +90,7 @@ export default function AutomationStepEditorPreviewPage() {
                 : b + ' We look forward to seeing you and will text again the morning before your clean so nothing catches you out on the day.',
             )
           }
-          className="rounded-full bg-[hsl(var(--pv-brand))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-on-brand))]"
+          className="rounded-full bg-[hsl(var(--pv-brand))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-brand-ink))]"
         >
           Toggle long message
         </button>
