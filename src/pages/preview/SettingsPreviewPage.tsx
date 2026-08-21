@@ -261,7 +261,27 @@ const SUMMARY: Record<string, Summary> = {
   import: { label: 'Imported so far', value: 'None', wells: [{ value: '2', caption: 'platforms' }] },
   security: { label: 'Password', value: 'Set', wells: [{ value: 'On', caption: 'org isolation' }] },
   feedback: { label: 'Goes to', value: 'The founder', wells: [{ value: 'Every one', caption: 'gets read' }] },
+  /* 5q — Payouts / Stripe Connect health. Owed-to-cleaners leads because it is
+     the number with a deadline attached; "2 blocked" is why it has not moved. */
+  integrations: { label: 'Owed to cleaners', value: '$203.00', wells: [{ value: '2', caption: 'active' }, { value: '2', caption: 'incomplete' }, { value: '9', caption: 'not started' }] },
 };
+
+/* 5q's staff list.
+
+   The comp shows four real cleaners with their real personal email addresses.
+   Those are not going into a git repo — this one is on GitHub, the addresses
+   belong to identifiable people, and a preview screen needs the SHAPE of an
+   email, not a working one. Placeholders below; the statuses and the split
+   (2 active, 2 incomplete, 9 not started) are the comp's.
+
+   Statuses are live's own vocabulary: StripeConnectHealthPanel.tsx:130-132
+   counts 'active', 'pending_verification' and 'onboarding'. */
+const PAYOUT_STAFF: { name: string; email: string; status: 'active' | 'incomplete' }[] = [
+  { name: 'Stephanie P.', email: 's.pickett@example.com', status: 'incomplete' },
+  { name: 'Bruce D.', email: 'b.davis@example.com', status: 'incomplete' },
+  { name: 'Laura G.', email: 'l.gomez@example.com', status: 'active' },
+  { name: 'Antoinette L.', email: 'a.lafrance@example.com', status: 'active' },
+];
 
 function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
   const sum = SUMMARY[id];
@@ -628,6 +648,62 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
               <Button variant="primary" className="rounded-[10px]">Send feedback</Button>
             </div>
           </Card>
+        )}
+
+        {id === 'integrations' && (
+          <>
+            {/* The money is owed to real people and 2 of them are blocked by
+                setup they have not finished, so the blocker is the headline
+                rather than a footnote under a total. */}
+            <Card>
+              <CardTitle>2 cleaners can&rsquo;t be paid yet</CardTitle>
+              <p className="mt-1.5 text-[12.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+                Their Stripe payout setup is incomplete. Money owed to them stays
+                held until they finish it — you can&rsquo;t push it through from
+                here.
+              </p>
+            </Card>
+
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Staff payout status</CardTitle>
+                <button type="button" className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]">
+                  Refresh all →
+                </button>
+              </div>
+              <div className="mt-2.5 flex flex-col gap-2.5">
+                {PAYOUT_STAFF.map(p => (
+                  <div key={p.email} className="flex items-center gap-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">
+                        {p.name}
+                      </p>
+                      <p className="truncate text-[11px] text-[hsl(var(--pv-ink-3))]">
+                        {p.email}
+                      </p>
+                    </div>
+                    <StatusBadge
+                      tone={p.status === 'active' ? 'success' : 'warn'}
+                      label={p.status === 'active' ? 'Active' : 'Incomplete'}
+                    />
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Without payout accounts</CardTitle>
+                <button type="button" className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]">
+                  View all 9 →
+                </button>
+              </div>
+              <p className="mt-0.5 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                Active staff who haven&rsquo;t started setup. They can still be
+                assigned work — they just can&rsquo;t be paid through Stripe.
+              </p>
+            </Card>
+          </>
         )}
 
         {id === 'sms' && (
