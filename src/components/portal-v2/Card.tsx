@@ -71,7 +71,12 @@ export function Eyebrow({
   return (
     <p
       className={cn(
-        'text-[10.5px] font-extrabold uppercase tracking-[0.08em]',
+        /* 7h's section labels: 11px/800 with .05em tracking. The comps use
+           `text-transform` NOWHERE across all 76 — labels are typed in caps —
+           but letter-spacing appears 240 times, so tracked caps are genuinely
+           part of the language. `uppercase` stays so callers can pass normal
+           text; the size and tracking now match the comp. */
+        'text-[11px] font-extrabold uppercase tracking-[0.05em]',
         onInverse
           ? 'text-[hsl(var(--pv-on-inverse-muted))]'
           : 'text-[hsl(var(--pv-ink-3))]',
