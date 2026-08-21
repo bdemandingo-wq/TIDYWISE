@@ -6,7 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase } from '@/lib/queryState';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -130,7 +130,12 @@ export default function PayrollWiredPage() {
 
       for (const t of targets) {
         const staff = staffById.get(t.staffId);
-        const r = resolveCleanerPay(b, staff ?? null, t.payShare);
+        /* teamSize opts into the percentage-only rescue landed in
+           fix/percentage-wage-fallback. No assignment rows means one cleaner
+           staffed via staff_id — solo, so the rescue is allowed to apply.
+           Without this argument the fix is present in the library and never
+           reached by this screen. */
+        const r = resolveCleanerPay(b, staff ?? null, t.payShare, targets.length || 1);
         /* A resolved pay of exactly 0 for someone who HAS a wage configured
            is not a wage of zero — it is a wage that could not be worked out.
            Specifically: a cleaner paid on percentage_rate alone. The computed
@@ -161,20 +166,31 @@ export default function PayrollWiredPage() {
     return out;
   }, [bookingsQ.data, staffById, fmtDay]);
 
-  const rows: SimpleListRow[] = useMemo(
+  /* PersonRow — the 11c payroll comp uses it, and payroll IS a list of
+     people. The `facts` slot carries the pay and its basis; the badge carries
+     whether the figure is locked in or still an estimate. */
+  type Row = {
+    id: string; name: string; facts: string[]; lines: string[];
+    badges: { tone: 'info' | 'success' | 'warn' | 'danger'; label: string }[];
+  };
+
+  const rows: Row[] = useMemo(
     () =>
       payRows.map(r => ({
         id: r.bookingId,
-        title: r.staffName ?? 'Unassigned',
-        meta: `#${r.bookingNumber} · ${r.scheduledLabel}`,
+        name: r.staffName ?? 'Unassigned',
+        facts: [
+          /* §5.1: an unresolved wage shows NO figure at all. */
+          ...(r.unresolved ? [] : [`$${r.pay.toFixed(2)}`]),
+          `#${r.bookingNumber}`,
+          r.scheduledLabel,
+        ],
         lines: r.unresolved
           ? [
               `Set to ${r.percentRate}% of the booking, with no hourly rate`,
               'This booking is priced hourly, so the percentage never applies — payroll would pay nothing.',
             ]
           : [
-              /* Names the basis. "$62.50" alone does not say how it was
-                 arrived at, and four of five staff here are hourly. */
               r.wageType === 'percentage'
                 ? `${r.wageRate}% of the booking`
                 : r.wageType === 'hourly'
@@ -184,8 +200,6 @@ export default function PayrollWiredPage() {
                 ? 'Locked in — this is what payroll will pay'
                 : 'Estimate — rate or hours can still change',
             ],
-        /* Never "$0.00" for an unresolved wage. */
-        money: r.unresolved ? undefined : `$${r.pay.toFixed(2)}`,
         badges: r.unresolved
           ? [{ tone: 'danger' as const, label: 'Wage unresolved' }]
           : r.isExact
@@ -195,7 +209,13 @@ export default function PayrollWiredPage() {
     [payRows],
   );
 
-  const filtered = useSimpleSearch(rows, search);
+  const filtered = useMemo(() => {
+    const qy = search.trim().toLowerCase();
+    if (!qy) return rows;
+    return rows.filter(
+      r => r.name.toLowerCase().includes(qy) || r.facts.some(fa => fa.toLowerCase().includes(qy)),
+    );
+  }, [rows, search]);
 
   const phase = combinedPhase([staffQ, bookingsQ]);
   const listState: ListState =
@@ -247,27 +267,37 @@ export default function PayrollWiredPage() {
           </div>
         )}
 
-        <SimpleListView
+        <ListShell<'all'>
           title="Payroll"
-          phase={listState}
-          rows={filtered}
+          action={{ label: 'Run payroll' }}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by cleaner or booking #..."
-          emptyTitle="Nothing to pay yet"
-          emptyHint="Completed bookings with an assigned cleaner will show here."
+          tabs={[{ id: 'all', label: 'All shifts', count: filtered.length }]}
+          tab="all"
+          onTab={() => undefined}
+          state={listState}
+          empty={{
+            title: 'Nothing to pay yet',
+            hint: 'Completed bookings with an assigned cleaner will show here.',
+            action: { label: 'Run payroll' },
+          }}
           errorLabel="Couldn't load payroll"
-          addLabel="Run payroll"
           onRetry={() => {
             staffQ.refetch();
             bookingsQ.refetch();
           }}
-          sectionLabel={
-            search.trim()
+          skeletonRows={5}
+        >
+          <ListSectionLabel>
+            {search.trim()
               ? `${filtered.length} of ${rows.length}`
-              : `${exactCount} locked in · ${estimated} estimated`
-          }
-        />
+              : `${exactCount} locked in · ${estimated} estimated`}
+          </ListSectionLabel>
+          {filtered.map(r => (
+            <PersonRow key={r.id} name={r.name} facts={r.facts} lines={r.lines} badges={r.badges} />
+          ))}
+        </ListShell>
       </div>
     </AdminLayout>
   );
