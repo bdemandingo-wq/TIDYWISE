@@ -42,7 +42,7 @@ export function MessageBubble({
       <p
         className={cn(
           'text-[12.5px] font-medium leading-[1.5]',
-          out ? 'text-[hsl(var(--pv-on-brand))]' : 'text-[hsl(var(--pv-ink))]',
+          out ? 'text-[hsl(var(--pv-brand-ink))]' : 'text-[hsl(var(--pv-ink))]',
         )}
       >
         {children}
@@ -50,7 +50,7 @@ export function MessageBubble({
       <p
         className={cn(
           'mt-[3px] text-[9.5px] font-medium',
-          out ? 'text-[hsl(var(--pv-on-brand))]/60' : 'text-[hsl(var(--pv-ink-3))]',
+          out ? 'text-[hsl(var(--pv-brand-ink))]/60' : 'text-[hsl(var(--pv-ink-3))]',
           /* A failed send is not a quieter delivered. It reads in danger ink
              on the inbound surface so it cannot be mistaken for sent. */
           status === 'Failed' && 'text-[hsl(var(--pv-danger))]',
