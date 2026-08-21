@@ -162,11 +162,50 @@ function bookingNetRevenue(b: WageBooking): number {
 }
 
 /** Mirrors src/lib/wageCalculation.ts:calculateBookingWage. */
-function calculateBookingWage(b: WageBooking, staff: WageStaff | null): number {
+function calculateBookingWage(
+  b: WageBooking,
+  staff: WageStaff | null,
+  teamSize?: number,
+): number {
   // 1. cleaner_pay_expected is the single source of truth.
   if (b.cleaner_pay_expected != null) return Number(b.cleaner_pay_expected);
   // 2. Legacy: cleaner_actual_payment (admin override).
   if (b.cleaner_actual_payment != null) return Number(b.cleaner_actual_payment);
+
+  // 2b. Percentage-only rescue. SOLO ONLY.
+  //
+  // The chain below is `cleaner_wage ?? base_wage ?? hourly_rate ?? 0`, and
+  // percentage_rate was never in it — this function SELECTs the column (see
+  // the staff query) and then never reads it. A cleaner configured with a
+  // percentage and no hourly rate therefore resolved to a rate of 0 and was
+  // PAID $0.00 by this engine. One of five staff on the live org is
+  // configured exactly that way.
+  //
+  // Solo only, and that restriction is the whole safety of this change.
+  // BookingStepper writes pay_share as
+  // `(jobTotal * percentage_rate / 100) / teamSize` — it DIVIDES by the team.
+  // Applying a percentage here without knowing the team size would give every
+  // member of a three-person team the full percentage and pay out 300% of the
+  // booking. Failing to pay is bad; overpaying threefold is worse, and silent.
+  //
+  // `teamSize === 1` is the only value that opts in: undefined means the
+  // caller does not know, and an unknown team is treated as a team.
+  //
+  // Percentage of NET REVENUE via bookingNetRevenue — not a new base. That
+  // helper already carries the ruling that pay is on the discounted amount
+  // actually charged, and already backs the "percentage" branch below.
+  //
+  // Must stay identical to computePayFromDefaults in
+  // src/lib/wageCalculation.ts.
+  const noExplicitRate =
+    b.cleaner_wage == null &&
+    staff?.base_wage == null &&
+    staff?.hourly_rate == null;
+  const pct = staff?.percentage_rate;
+  if (teamSize === 1 && noExplicitRate && pct != null && Number(pct) > 0) {
+    return (Number(pct) / 100) * bookingNetRevenue(b);
+  }
+
   // 3. Fallback: compute from rate/type. Note percentage uses NET revenue.
   const wageType = (b.cleaner_wage_type || "hourly").toLowerCase();
   const wageRate = Number(
@@ -185,9 +224,10 @@ function calcWage(
   b: WageBooking,
   staff: WageStaff | null,
   payShareOverride: number | null,
+  teamSize?: number,
 ): number {
   if (payShareOverride != null && payShareOverride > 0) return payShareOverride;
-  return calculateBookingWage(b, staff);
+  return calculateBookingWage(b, staff, teamSize);
 }
 
 // ---------------------------------------------------------------------------
@@ -440,13 +480,16 @@ export async function processOrg(
         for (const a of assignments) {
           const member = staffMap.get(a.staff_id) ?? null;
           const ps = a.pay_share != null ? Number(a.pay_share) : null;
-          bookingPayrollSum += calcWage(b, member, ps);
+          bookingPayrollSum += calcWage(b, member, ps, assignments.length);
           cleanerIds.add(a.staff_id);
         }
       } else if (b.staff_id) {
         hasAssignment = true;
         const sm = staffMap.get(b.staff_id) ?? null;
-        bookingPayrollSum += calcWage(b, sm, null);
+        /* No assignment rows means one cleaner, staffed via staff_id — the
+           shape 45 of 47 live bookings have. That is solo, so the percentage
+           rescue is allowed to apply. */
+        bookingPayrollSum += calcWage(b, sm, null, 1);
         cleanerIds.add(b.staff_id);
       }
 
