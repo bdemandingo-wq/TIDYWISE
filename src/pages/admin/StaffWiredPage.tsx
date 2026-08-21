@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { ListShell, ListSectionLabel, PersonRow } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -214,6 +214,26 @@ export default function StaffWiredPage() {
   return (
     <AdminLayout title="Staff" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {/* 10g opens with the head-count and its split. */}
+        <InverseHeader
+          eyebrow="Team"
+          business="Staff"
+          revenueLabel="Team members"
+          revenue={phase === 'ready' ? String(rows.length) : '—'}
+          error={phase !== 'ready'}
+          onRetry={() => staffQ.refetch()}
+          wells={
+            <>
+              <StatWell value={phase === 'ready' ? String(activeCount) : '—'} caption="active" />
+              {/* The wage trap, surfaced in the hero as well as the row —
+                  it is the one thing on this screen that costs somebody money. */}
+              <StatWell
+                value={phase === 'ready' ? String(rows.filter(r => r.badges.some(bd => bd.label === 'Would be paid $0')).length) : '—'}
+                caption="wage unset"
+              />
+            </>
+          }
+        />
         <ListShell<'all'>
           title="Staff"
           action={{ label: 'Add staff' }}
