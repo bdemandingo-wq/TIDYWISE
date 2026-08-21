@@ -50,6 +50,8 @@ const step = (y: number, m: number, delta: number) => {
 };
 
 export function CalendarMonth({
+  events,
+  variant = 'picker',
   value,
   today,
   onChange,
@@ -57,6 +59,16 @@ export function CalendarMonth({
 }: {
   /** Selected date as YYYY-MM-DD, or null. */
   value: string | null;
+  /* 6a marks days that have bookings with up to a few 5px dots, colour-coded
+     by service accent. Optional: the date-picker use (1c, 3b) passes none. */
+  events?: Record<string, Array<'brand' | 'success' | 'ai' | 'orange'>>;
+  /* A picker and a scheduler want opposite things from the same grid.
+     picker    solid brand selection, past days disabled — you cannot book
+               yesterday, and the selection must read at a glance.
+     scheduler brand-SOFT selection and past days live: 6a keeps yesterday
+               readable because it still had three cleans, and a solid fill
+               would hide that day's dots under it. */
+  variant?: 'picker' | 'scheduler';
   /** Today as YYYY-MM-DD. Passed in, never read from the device clock. */
   today: string;
   onChange: (iso: string) => void;
@@ -120,7 +132,7 @@ export function CalendarMonth({
         {cells.map((d, i) => {
           if (d === null) return <span key={`b${i}`} role="gridcell" />;
           const iso = isoOf(view.y, view.m, d);
-          const past = iso < today;
+          const past = variant === 'picker' && iso < today;
           const on = iso === value;
           return (
             <span key={iso} role="gridcell" className="p-[1px]">
@@ -131,17 +143,43 @@ export function CalendarMonth({
                 aria-label={`${MONTHS[view.m - 1]} ${d}, ${view.y}`}
                 onClick={() => onChange(iso)}
                 className={cn(
-                  'flex h-11 w-full items-center justify-center rounded-[8px] text-[13px] font-bold tabular-nums',
+                  'flex h-11 w-full flex-col items-center justify-center rounded-[8px] text-[13px] font-bold tabular-nums',
                   'transition-colors duration-150 ease-out',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]',
                   on
-                    ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
+                    ? variant === 'scheduler'
+                      ? 'bg-[hsl(var(--pv-brand-soft))] text-[hsl(var(--pv-ink))]'
+                      : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
                     : past
                       ? 'cursor-not-allowed text-[hsl(var(--pv-ink-disabled))]'
                       : 'text-[hsl(var(--pv-ink))] active:bg-[hsl(var(--pv-sunken))]',
                 )}
               >
                 {d}
+                {/* 6a: 5px dots under the date, one per booking accent, in a
+                    2px-gap row. A scheduler shows WHICH days have work; a date
+                    picker does not, so this only renders when `events` is
+                    given. Disabled past days keep their dots — the work still
+                    happened. */}
+                {events?.[iso]?.length ? (
+                  <span aria-hidden className="mt-[3px] flex justify-center gap-[2px]">
+                    {events[iso].slice(0, 4).map((tone, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          'h-[5px] w-[5px] rounded-full',
+                          tone === 'brand'
+                            ? 'bg-[hsl(var(--pv-brand))]'
+                            : tone === 'success'
+                              ? 'bg-[hsl(var(--pv-success))]'
+                              : tone === 'ai'
+                                ? 'bg-[hsl(var(--pv-ai))]'
+                                : 'bg-[hsl(var(--pv-orange-alert))]',
+                        )}
+                      />
+                    ))}
+                  </span>
+                ) : null}
               </button>
             </span>
           );
