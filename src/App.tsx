@@ -162,6 +162,7 @@ const CustomersStatesPreviewPage = lazy(() => import("./pages/preview/CustomersS
 const LeadsWiredPage = lazy(() => import("./pages/admin/LeadsWiredPage"));
 const LeadsStatesPreviewPage = lazy(() => import("./pages/preview/LeadsStatesPreviewPage"));
 const RecurringWiredPage = lazy(() => import("./pages/admin/RecurringWiredPage"));
+const PayrollWiredPage = lazy(() => import("./pages/admin/PayrollWiredPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -470,6 +471,7 @@ const App = () => (
                     <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
                     <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
                     <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -676,6 +678,7 @@ const App = () => (
                     <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
                     <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
                     <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
