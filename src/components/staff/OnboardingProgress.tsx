@@ -17,7 +17,7 @@ interface OnboardingProgressProps {
 interface OnboardingStep {
   id: string;
   label: string;
-  description: string;
+  description?: string;
   icon: React.ReactNode;
   tab: string;
   completed: boolean;
@@ -136,7 +136,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     return (
       <Card className="mb-6 border-primary/20">
         <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="status">
-          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <h3 className="font-semibold text-base">Finish setting up</h3>
           <p className="text-sm text-muted-foreground mt-1">You&rsquo;re offline.</p>
           <p className="text-xs text-muted-foreground mt-0.5">
             Your progress is saved. This will load when you have a signal again.
@@ -151,7 +151,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     return (
       <Card className="mb-6 border-primary/20">
         <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="alert">
-          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <h3 className="font-semibold text-base">Finish setting up</h3>
           <p className="text-sm text-muted-foreground mt-1">
             Couldn&rsquo;t load your setup.
           </p>
@@ -186,7 +186,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     return (
       <Card className="mb-6 border-primary/20">
         <CardContent className="pt-5 pb-4 px-4 sm:px-6">
-          <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+          <h3 className="font-semibold text-base">Finish setting up</h3>
           <div className="mt-2 h-2 w-full rounded-full bg-muted animate-pulse" />
           <div className="mt-3 space-y-2" aria-hidden="true">
             <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
@@ -232,8 +232,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   const steps: OnboardingStep[] = [
     {
       id: 'availability',
-      label: 'Set Availability',
-      description: 'Configure your working hours',
+      label: 'Set availability',
+      description: undefined,
       icon: <Clock className="w-5 h-5" />,
       tab: 'availability',
       completed: availComplete,
@@ -242,8 +242,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'documents',
-      label: 'Upload Documents',
-      description: isW2 ? 'Government ID required' : 'W-9 and Government ID required',
+      label: 'Upload documents',
+      description: isW2 ? 'ID' : 'W-9, ID',
       icon: <FileText className="w-5 h-5" />,
       tab: 'documents',
       completed: docsComplete,
@@ -252,7 +252,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'signatures',
-      label: 'Sign Agreements',
+      label: 'Sign agreements',
       description: noSignaturesNeeded ? 'No documents to sign yet' : `${sigsSigned}/${sigsRequired} signed`,
       icon: <PenLine className="w-5 h-5" />,
       tab: 'signatures',
@@ -262,8 +262,11 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'payouts',
-      label: 'Set Up Payouts',
-      description: 'Connect your bank for direct deposits',
+      label: 'Set up payouts',
+      /* 2a shows the live state here rather than a standing blurb — the comp
+         reads "payouts paused", which is what an incomplete account is. Kept
+         state-derived so it cannot say "paused" about an active one. */
+      description: payoutComplete ? undefined : payoutPending ? 'in review' : 'payouts paused',
       icon: <Banknote className="w-5 h-5" />,
       tab: 'payouts',
       completed: payoutComplete,
@@ -284,9 +287,10 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
+            <h3 className="font-semibold text-base">Finish setting up</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {completedCount}/{steps.length} steps complete
+              {/* Mockup 2a: "1 of 4 done", not "1/4 steps complete". */}
+              {completedCount} of {steps.length} done
             </p>
           </div>
           <Badge
