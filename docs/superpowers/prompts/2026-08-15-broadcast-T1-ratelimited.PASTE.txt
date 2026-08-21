@@ -1,0 +1,44 @@
+Two small changes, both in the email pipeline.
+
+1) MIGRATION — widen the email_send_log status vocabulary.
+
+public.email_send_log has:
+  CHECK (status = ANY (ARRAY['pending','sent','suppressed','failed','bounced','complained','dlq']))
+
+But supabase/functions/process-email-queue/index.ts writes status:'rate_limited'
+on every 429 from the email provider. That insert fails with 23514 and the code
+never checks the error, so every rate-limit event has been silently discarded
+since 2026-04-28. Confirmed: zero 'rate_limited' rows exist.
+
+Run this migration:
+
+  ALTER TABLE public.email_send_log DROP CONSTRAINT IF EXISTS email_send_log_status_check;
+  ALTER TABLE public.email_send_log ADD CONSTRAINT email_send_log_status_check
+    CHECK (status IN ('pending','sent','suppressed','failed','bounced',
+                      'complained','dlq','rate_limited'));
+
+2) EDGE FUNCTION — stop swallowing the error.
+
+In supabase/functions/process-email-queue/index.ts, the rate-limit branch does:
+
+  await supabase.from('email_send_log').insert({ ..., status: 'rate_limited', ... })
+
+Capture and log the error so this can never fail silently again:
+
+  const { error: rlLogError } = await supabase.from('email_send_log').insert({
+    message_id: payload.message_id,
+    template_name: payload.label || queue,
+    recipient_email: payload.to,
+    status: 'rate_limited',
+    error_message: errorMsg.slice(0, 1000),
+  })
+  if (rlLogError) {
+    console.error('Failed to log rate_limited event', { queue, msg_id: msg.msg_id, error: rlLogError })
+  }
+
+Do NOT change any other behaviour in that function.
+
+Then: run the migration, deploy process-email-queue, and confirm deployed —
+not just committed. Reply with the psql output of:
+  SELECT pg_get_constraintdef(oid) FROM pg_constraint
+  WHERE conname = 'email_send_log_status_check';
