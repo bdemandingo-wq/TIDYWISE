@@ -135,16 +135,20 @@ export function LeadPipelineBoard({
         return (
           <div
             key={column.id}
-            className="flex-shrink-0 w-[260px] sm:w-[280px] min-h-[400px] sm:min-h-[500px] snap-start"
+            className="flex-shrink-0 w-[250px] min-h-[400px] sm:min-h-[500px] snap-start"
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
             {/* Column Header */}
-            <div className={`rounded-t-lg border-t-4 ${column.borderColor} bg-card p-3 border-x border-b-0`}>
+            {/* Mockup 8h: the header is its OWN card — radius 14px all round,
+                3px accent top border, padding 12/14 — with the lead cards
+                floating beneath it. It was a joined header+body with a tinted
+                well; the comp has no well. */}
+            <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] py-3`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-sm">{column.label}</span>
+                  <span className="text-[13px] font-extrabold">{column.label}</span>
                   <Badge variant="secondary" className="text-xs h-5 px-1.5">
                     {columnLeads.length}
                   </Badge>
@@ -152,7 +156,7 @@ export function LeadPipelineBoard({
                 {(() => {
                   const total = columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
                   return total > 0 ? (
-                    <span className="text-xs font-medium text-muted-foreground">
+                    <span className="text-[12px] font-extrabold text-success">
                       ${total.toLocaleString()}
                     </span>
                   ) : null;
@@ -162,8 +166,8 @@ export function LeadPipelineBoard({
 
             {/* Column Body */}
             <div 
-              className={`rounded-b-lg border bg-muted/30 p-2 space-y-2 min-h-[450px] transition-colors ${
-                isDragOver ? 'bg-primary/5 border-primary/30' : ''
+              className={`mt-2.5 space-y-2.5 min-h-[450px] rounded-[14px] transition-colors ${
+                isDragOver ? 'bg-primary/5 ring-1 ring-primary/30' : ''
               }`}
             >
               {columnLeads.length === 0 && (
@@ -229,16 +233,17 @@ function LeadCard({
       draggable
       onDragStart={(e) => onDragStart(e, lead.id)}
       onDragEnd={onDragEnd}
-      className={`cursor-grab active:cursor-grabbing transition-all ${
+      /* Mockup 8h: radius 14px, padding 13/15. */
+      className={`rounded-[14px] cursor-grab active:cursor-grabbing transition-all ${
         isDragging ? 'opacity-40 scale-95' : 'hover:shadow-md'
       }`}
     >
-      <CardContent className="p-3 space-y-2">
+      <CardContent className="px-[15px] py-[13px] space-y-2">
         {/* Header: Name + Actions */}
         <div className="flex items-start justify-between gap-1">
           <div className="flex items-center gap-1.5 min-w-0">
             <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-            <span className="font-medium text-sm truncate">{maskName(lead.name)}</span>
+            <span className="text-[13px] font-extrabold truncate">{maskName(lead.name)}</span>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
