@@ -41,11 +41,42 @@ export function BottomNav({
   const groups = fab ? [items.slice(0, mid), items.slice(mid)] : [items];
 
   return (
-    <nav
-      aria-label="Portal navigation"
-      className="sticky bottom-0 border-t border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] pb-[env(safe-area-inset-bottom)]"
-    >
-      <div className="relative flex">
+    <>
+      {/* Reserves the flow space the fixed bar covers, so no caller has to add
+          bottom padding and nothing renders underneath it. Same job as
+          .portal-v2-scroll does for the floating pill nav, but scoped to this
+          component so it cannot get out of step with the bar's own height. */}
+      <div
+        aria-hidden
+        className="h-[calc(57px+env(safe-area-inset-bottom,0px))] shrink-0"
+      />
+      <nav
+        aria-label="Portal navigation"
+        /* FIXED, not sticky.
+   
+           `sticky bottom-0` only pins while its containing block still has
+           stickable range. When content barely exceeds the viewport the nav is
+           the last thing in a container that ends where the nav ends, so there
+           is nothing to stick against and it sits below the fold. Measured at a
+           999px viewport before this change: client-home pinned (doc 1032), but
+           dashboard-polish put the nav at 1117 and client-bookings at 1101 —
+           both off-screen until you scroll to the absolute bottom. On a phone
+           that is the primary navigation being invisible.
+   
+           Left/translate rather than inset-x-0: fixed positions against the
+           VIEWPORT, and these screens are a 430px column centred in it. Without
+           this the bar would span a desktop window while its content sits in
+           the middle. Copied from .portal-v2-nav, which solved the same problem.
+   
+           bottom-0, NOT the pill's `bottom: calc(env(...) + 10px)`. That offset
+           is what makes the pill float; on a full-bleed bar with a top border it
+           would leave a 10px strip of page showing underneath, which reads as a
+           rendering fault. The safe-area inset is honoured as bottom PADDING
+           instead, so the bar's background reaches the screen edge while its
+           buttons stay above the home indicator. */
+        className="fixed bottom-0 left-1/2 z-50 w-full max-w-[430px] -translate-x-1/2 border-t border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="relative flex">
         {groups.map((group, gi) => (
           <ul key={gi} className="flex flex-1">
             {group.map(({ id, label, Icon }) => {
@@ -91,7 +122,8 @@ export function BottomNav({
             <Plus className="h-5 w-5" aria-hidden />
           </button>
         )}
-      </div>
-    </nav>
+        </div>
+      </nav>
+    </>
   );
 }
