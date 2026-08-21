@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 
@@ -230,7 +231,15 @@ export function usePushNotifications(staffId?: string) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) {
           const { error: saveError } = await supabase.functions.invoke('register-push-token', {
-            body: { token: nativeToken, platform: 'ios' },
+            // Was hardcoded 'ios', so every row in device_push_tokens claimed
+            // iOS regardless of the device that wrote it. That column is
+            // currently the only server-side evidence that anyone has a native
+            // app at all, and a constant is not evidence of anything.
+            // register-push-token already reads platform from the body (and
+            // defaults to 'ios' only when it's absent), so this needs no
+            // backend change. Returns 'ios' | 'android' | 'web'; we are inside
+            // registerNative(), so it is never 'web' here.
+            body: { token: nativeToken, platform: Capacitor.getPlatform() },
             headers: { Authorization: `Bearer ${session.access_token}` },
           });
           if (saveError) {

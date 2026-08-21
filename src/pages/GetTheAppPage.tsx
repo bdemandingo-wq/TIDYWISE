@@ -1,10 +1,13 @@
 import { useSyncExternalStore, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Apple, Check, Download, Loader2, Monitor, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SEOHead } from '@/components/SEOHead';
+import { AddToDockDiagram } from '@/components/AddToDockDiagram';
 import { APP_STORE_URL } from '@/lib/appVersion';
+import { openExternalUrl } from '@/lib/openExternalUrl';
 import {
   getInstallSnapshot,
   isStandalone,
@@ -52,7 +55,7 @@ function isSafari(): boolean {
   return /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua);
 }
 
-function DesktopAction() {
+function DesktopAction({ platform }: { platform: Platform }) {
   const { canInstall, isInstalled } = useSyncExternalStore(
     subscribeInstallPrompt,
     getInstallSnapshot,
@@ -92,10 +95,22 @@ function DesktopAction() {
 
   if (isSafari()) {
     return (
-      <p className="text-sm text-muted-foreground">
-        In Safari, choose <span className="font-medium text-foreground">File → Add to Dock</span>.
-        Requires macOS Sonoma or later.
-      </p>
+      <div>
+        <p className="text-sm text-muted-foreground">
+          In Safari, choose <span className="font-medium text-foreground">File → Add to Dock</span>.
+          Requires macOS Sonoma or later.
+        </p>
+        {/*
+          Safari only — Chrome and Edge have the Install button above and never
+          reach this branch. Narrowed to 'mac' on top of that, because this
+          card is visible on every device: mobile Safari also passes
+          isSafari(), and a picture of a macOS menu bar is noise on a phone
+          that has no menu bar to look at. The sentence above still shows
+          there, and it already says "macOS Sonoma or later", so nothing is
+          lost by keeping the drawing off it.
+        */}
+        {platform === 'mac' && <AddToDockDiagram />}
+      </div>
     );
   }
 
@@ -163,7 +178,27 @@ export default function GetTheAppPage() {
           highlighted={platform === 'ios'}
         >
           <Button asChild variant={platform === 'ios' ? 'default' : 'outline'} className="gap-2">
-            <a href={APP_STORE_URL} target="_blank" rel="noopener noreferrer">
+            <a
+              href={APP_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                /*
+                  Still an anchor, not a button. `target="_blank"` is silently
+                  ignored inside the iOS WKWebView — no window, no error, the
+                  control just looks dead (the exact failure openExternalUrl
+                  exists to fix), so native has to go through the Capacitor
+                  Browser plugin. But on the web the anchor already works, and
+                  an anchor is what this page is FOR: cmd-click, open in new
+                  tab, and copy-link-address all matter on a page whose job is
+                  handing someone a link. So intercept only where the default
+                  is broken, and leave the browser alone everywhere else.
+                */
+                if (!Capacitor.isNativePlatform()) return;
+                e.preventDefault();
+                void openExternalUrl(APP_STORE_URL);
+              }}
+            >
               <Apple className="h-4 w-4" />
               Get it on the App Store
             </a>
@@ -181,7 +216,7 @@ export default function GetTheAppPage() {
           blurb="Install TidyWise as a desktop app — its own window and dock icon, no browser tabs."
           highlighted={platform === 'mac' || platform === 'windows'}
         >
-          <DesktopAction />
+          <DesktopAction platform={platform} />
         </PlatformCard>
       ),
     },
