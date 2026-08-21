@@ -6,7 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
-import { Card, CardTitle, StatCard, SimpleListView, type SimpleListRow } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SimpleListView, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /* ── Scheduler: one day's agenda ───────────────────────────────────────────
@@ -137,6 +137,30 @@ export function SchedulerWiredPage() {
         )}
 
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Schedule"
+              business="Scheduler"
+              revenueLabel={fmtDayLabel(selected)}
+              revenue={phase === 'ready' ? `${rows.length} job${rows.length === 1 ? '' : 's'}` : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => q.refetch()}
+              wells={
+                <>
+                  <StatWell
+                    value={phase === 'ready' ? String(daysWithWork.length) : '—'}
+                    caption="days with work"
+                  />
+                  {/* Unassigned work is what a scheduler is for — the count
+                      belongs in the hero, not buried in the rows. */}
+                  <StatWell
+                    value={phase === 'ready' ? String(todays.filter((b: any) => !b.staff?.name).length) : '—'}
+                    caption="unassigned today"
+                  />
+                </>
+              }
+            />
+          }
           title="Scheduler"
           phase={listState}
           rows={rows}

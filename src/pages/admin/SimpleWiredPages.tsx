@@ -466,6 +466,35 @@ export function NotificationsWiredPage() {
 
   return (
     <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
+      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {/* 5b opens with the hero too. The wells report the two briefings as
+            three-state, because the columns are nullable and "not set" is not
+            "off" — a brand-new org has chosen neither. */}
+        <InverseHeader
+          eyebrow="Alerts"
+          business="Notifications"
+          revenueLabel="Daily briefings"
+          revenue={
+            phase !== 'ready' || !q.data
+              ? '—'
+              : `${[q.data.notify_morning_brief, q.data.notify_evening_brief].filter(v => v === true).length} of 2 on`
+          }
+          error={phase === 'error' || phase === 'offline'}
+          onRetry={() => q.refetch()}
+          wells={
+            <>
+              <StatWell
+                value={phase !== 'ready' || !q.data ? '—' : q.data.notify_morning_brief === true ? 'On' : q.data.notify_morning_brief === false ? 'Off' : 'Not set'}
+                caption="morning"
+              />
+              <StatWell
+                value={phase !== 'ready' || !q.data ? '—' : q.data.notify_evening_brief === true ? 'On' : q.data.notify_evening_brief === false ? 'Off' : 'Not set'}
+                caption="evening"
+              />
+            </>
+          }
+        />
+      </div>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
         {phase === 'error' || phase === 'offline' ? (
           <div className="rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-[18px]">

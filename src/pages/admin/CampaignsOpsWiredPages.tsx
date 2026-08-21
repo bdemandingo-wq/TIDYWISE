@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase, combinedPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -157,6 +157,24 @@ export function CampaignsWiredPage() {
           </div>
         )}
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Automation"
+              business="Campaigns"
+              revenueLabel="Campaigns"
+              revenue={phase === 'ready' ? String(rows.length) : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => { campaignsQ.refetch(); runsQ.refetch(); }}
+              wells={
+                <>
+                  <StatWell value={phase === 'ready' ? String(enabledCount) : '—'} caption="enabled" />
+                  {/* The number that matters on this screen: enabled is not
+                      running, and five of five have never fired. */}
+                  <StatWell value={phase === 'ready' ? String(neverRunCount) : '—'} caption="never fired" />
+                </>
+              }
+            />
+          }
           title="Campaigns"
           phase={listState}
           rows={filtered}
