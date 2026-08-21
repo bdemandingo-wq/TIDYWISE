@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { SettingsGroup, SettingsRow, PortalHeader } from '@/components/portal-v2';
+import {
+  SettingsGroup,
+  SettingsRow,
+  PortalHeader,
+  DetailHeader,
+  InverseHeader,
+  StatWell,
+  Card,
+  CardTitle,
+  Button,
+  StatusBadge,
+} from '@/components/portal-v2';
 
 /**
  * Screen 4f — /dashboard/settings at 390px.
@@ -132,6 +143,10 @@ const PHASES: { id: HintPhase; label: string; why: string }[] = [
 
 export default function SettingsPreviewPage() {
   const [phase, setPhase] = useState<HintPhase>('ready');
+  /* Sections 5h–5p open behind the index rather than at routes of their
+     own: they are one screen with a drill-in, exactly as the desktop tab
+     strip was one screen with seventeen panels. */
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const hintsUnavailable = phase === 'error' || phase === 'offline';
   const hintFor = (s: Section) => {
@@ -167,6 +182,10 @@ export default function SettingsPreviewPage() {
       </div>
 
       <main className="portal-v2 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col bg-[hsl(var(--pv-bg))]">
+        {openId ? (
+          <SectionBody id={openId} onBack={() => setOpenId(null)} />
+        ) : (
+        <>
         <PortalHeader eyebrow="Admin" greeting="Settings" name="Apple Reviewer" notifications={3} />
 
         <div className="flex flex-col gap-3 px-5 pb-10">
@@ -190,13 +209,295 @@ export default function SettingsPreviewPage() {
                   label={s.leaves ? `${s.label} →` : s.label}
                   description={s.description}
                   value={phase === 'loading' && s.hint ? '…' : hintFor(s)}
-                  onClick={() => undefined}
+                  onClick={() => setOpenId(s.id)}
                 />
               ))}
             </SettingsGroup>
           ))}
         </div>
+        </>
+        )}
       </main>
     </div>
+  );
+}
+
+/**
+ * One settings section, opened from the index. Every section shares the same
+ * frame — a back header, an inverse summary carrying the numbers that section
+ * is about, then its own controls — because the comps do: 5h leads with the
+ * business and its timezone, 5i with the team head-count and its split, 5k
+ * with the max recurring discount. The summary is not decoration; it answers
+ * "what is this currently set to" before you read a single control.
+ */
+type Summary = { label: string; value: string; wells: { value: string; caption: string }[] };
+
+const SUMMARY: Record<string, Summary> = {
+  general: { label: 'Business', value: 'TIDYWISE', wells: [{ value: 'GMT-4', caption: 'timezone' }, { value: 'USD', caption: 'currency' }] },
+  team: { label: 'Team members', value: '11', wells: [{ value: '1', caption: 'owner' }, { value: '1', caption: 'manager' }, { value: '9', caption: 'cleaners' }] },
+  'booking-form': { label: 'Public booking form', value: 'Live', wells: [{ value: 'Light', caption: 'theme' }, { value: 'Slots', caption: 'scheduling' }] },
+  pricing: { label: 'Max recurring discount', value: '20%', wells: [{ value: '0%', caption: 'sales tax' }, { value: '4', caption: 'frequencies' }, { value: '0', caption: 'surge rules' }] },
+  loyalty: { label: 'Loyalty program', value: 'Active', wells: [{ value: '3', caption: 'tiers' }, { value: '$1', caption: '= 1 point' }] },
+  sms: { label: 'SMS via OpenPhone', value: 'Active', wells: [{ value: '742', caption: 'texts this month' }] },
+  emails: { label: 'Sending from', value: 'Gmail', wells: [{ value: '~500', caption: 'per day' }] },
+  reviews: { label: 'Google rating', value: '4.9', wells: [{ value: '138', caption: 'reviews' }, { value: '10', caption: 'requests sent' }, { value: '8%', caption: 'conversion' }] },
+  branding: { label: 'Brand', value: 'TidyWise', wells: [{ value: '#2B5CE6', caption: 'primary' }, { value: '#14B8A6', caption: 'accent' }] },
+};
+
+function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
+  const sum = SUMMARY[id];
+  const title = GROUPS.flatMap(g => g.sections).find(s => s.id === id)?.label ?? 'Settings';
+
+  const [smsOn, setSmsOn] = useState(true);
+  const [gmail, setGmail] = useState(true);
+  const [loyaltyOn, setLoyaltyOn] = useState(true);
+  const [sqft, setSqft] = useState(false);
+
+  if (!sum) {
+    return (
+      <>
+        <DetailHeader title={title} onBack={onBack} />
+        <div className="px-5 pt-4">
+          <Card>
+            <CardTitle>No comp for this section</CardTitle>
+            <p className="mt-1.5 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+              Sidebar, Mobile Nav, Import Data, Security and Feedback have no
+              comp in the set of 76. Saying so is better than inventing one.
+            </p>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <DetailHeader title={title} onBack={onBack} />
+      <InverseHeader
+        eyebrow="Settings"
+        business={title}
+        revenueLabel={sum.label}
+        revenue={sum.value}
+        wells={sum.wells.map((w, i) => (
+          <StatWell key={i} value={w.value} caption={w.caption} />
+        ))}
+      />
+
+      <div className="flex flex-col gap-3.5 px-5 pb-10 pt-4">
+        {id === 'general' && (
+          <SettingsGroup title="Business information" state="ready">
+            <SettingsRow kind="value" label="Business name" value="TIDYWISE" onClick={() => undefined} />
+            <SettingsRow kind="value" label="Business email" value="support@tidywisecleaning.com" onClick={() => undefined} />
+            <SettingsRow kind="value" label="Location" value="Deerfield Beach, FL" onClick={() => undefined} />
+            <SettingsRow kind="value" label="Timezone" value="GMT-4" onClick={() => undefined} />
+            <SettingsRow kind="value" label="Currency" value="USD" onClick={() => undefined} />
+          </SettingsGroup>
+        )}
+
+        {id === 'team' && (
+          <>
+            <Card>
+              <CardTitle>Invite a teammate</CardTitle>
+              <p className="mt-1 text-[11.5px] font-normal text-[hsl(var(--pv-ink-3))]">
+                They&rsquo;ll get an email to create their account.
+              </p>
+              <label className="mt-2.5 flex h-11 items-center rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3">
+                <input
+                  placeholder="coworker@company.com"
+                  className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:outline-none"
+                />
+              </label>
+              <div className="mt-2">
+                <SettingsRow kind="value" label="Role" value="Manager" onClick={() => undefined} />
+                {/* The comp spells out what the role can see. A role name
+                    alone tells you nothing about the money. */}
+                <p className="mt-1 text-[11px] font-normal leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+                  Operations only — no financial data.
+                </p>
+              </div>
+              <div className="mt-2.5">
+                <Button variant="primary" className="rounded-[10px]">Send invite</Button>
+              </div>
+            </Card>
+
+            <SettingsGroup title="Team members" state="ready">
+              <SettingsRow kind="value" label="Apple Reviewer" value="Owner" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Laura Gomez" value="Manager" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Bruce Davis" value="Cleaner" onClick={() => undefined} />
+            </SettingsGroup>
+          </>
+        )}
+
+        {id === 'booking-form' && (
+          <>
+            <Card>
+              <CardTitle>Share booking form</CardTitle>
+              <p className="mt-1 text-[11.5px] font-normal text-[hsl(var(--pv-ink-3))]">
+                Send a direct link or embed it on your site.
+              </p>
+              <p className="mt-2.5 truncate rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3.5 py-3 text-[12px] font-bold text-[hsl(var(--pv-brand))]">
+                jointidywise.com/book/tidywise
+              </p>
+              <div className="mt-2.5 flex gap-2">
+                <Button variant="secondary" fullWidth className="rounded-[10px]">Copy link</Button>
+                <Button variant="secondary" fullWidth className="rounded-[10px]">Preview</Button>
+              </div>
+            </Card>
+            <SettingsGroup title="Form display" state="ready">
+              <SettingsRow kind="value" label="Theme" value="Light" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Scheduling mode" value="Specific time slots" onClick={() => undefined} />
+            </SettingsGroup>
+          </>
+        )}
+
+        {id === 'pricing' && (
+          <>
+            <SettingsGroup title="Pricing & tax" state="ready">
+              <SettingsRow
+                kind="toggle"
+                label="Show square footage on form"
+                description="Off = price from bedroom/bathroom count only."
+                checked={sqft}
+                onCheckedChange={setSqft}
+              />
+              <SettingsRow kind="value" label="State sales tax" value="0%" onClick={() => undefined} />
+            </SettingsGroup>
+            <SettingsGroup title="Recurring discounts" description="Applied automatically to repeat schedules." state="ready">
+              <SettingsRow kind="value" label="Weekly" value="20%" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Every 2 weeks" value="15%" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Monthly" value="10%" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Custom frequencies" value="4" onClick={() => undefined} />
+            </SettingsGroup>
+          </>
+        )}
+
+        {id === 'loyalty' && (
+          <>
+            <SettingsGroup title="Loyalty program" state="ready">
+              <SettingsRow
+                kind="toggle"
+                label="Enable loyalty program"
+                description="Points earned after each completed booking. Tier level is set by lifetime spend."
+                checked={loyaltyOn}
+                onCheckedChange={setLoyaltyOn}
+              />
+            </SettingsGroup>
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Tier benefits</CardTitle>
+                <button type="button" className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]">
+                  Edit tiers →
+                </button>
+              </div>
+              <div className="mt-2">
+                <SettingsRow kind="value" label="Silver" value="$0 – $999" />
+                <SettingsRow kind="value" label="Gold" value="$1,000 – $2,999" />
+                <SettingsRow kind="value" label="Platinum" value="$3,000+" />
+              </div>
+            </Card>
+          </>
+        )}
+
+        {id === 'sms' && (
+          <>
+            <SettingsGroup title="SMS notifications" state="ready">
+              <SettingsRow
+                kind="toggle"
+                label="Enable SMS notifications"
+                description="Confirmations and reminders to customers."
+                checked={smsOn}
+                onCheckedChange={setSmsOn}
+              />
+            </SettingsGroup>
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>API configuration</CardTitle>
+                <button type="button" className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]">
+                  Setup guide →
+                </button>
+              </div>
+              <div className="mt-2">
+                {/* Never the key itself — "key on file" is the whole state
+                    anyone needs, and rendering a secret to show it exists is
+                    a bad trade. */}
+                <SettingsRow kind="value" label="API key" value="•••••••• key on file" onClick={() => undefined} />
+                <SettingsRow kind="value" label="From number" value="+1 813 735 6859" onClick={() => undefined} />
+              </div>
+              <div className="mt-2.5">
+                <Button variant="secondary" className="rounded-[10px]">Send test SMS</Button>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {id === 'emails' && (
+          <>
+            <SettingsGroup title="Email delivery" state="ready">
+              <SettingsRow
+                kind="toggle"
+                label="Send customer emails from Gmail"
+                description="Emails come from your real address; replies land in your inbox."
+                checked={gmail}
+                onCheckedChange={setGmail}
+              />
+            </SettingsGroup>
+            <Card>
+              <CardTitle>Connected account</CardTitle>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-[hsl(var(--pv-ink))]">
+                  support@tidywisecleaning.com
+                </span>
+                <StatusBadge tone="success" label="Connected" />
+              </div>
+              {/* Carried verbatim: it answers "what happens if I turn this
+                  off", which is the question the toggle raises. */}
+              <p className="mt-2 text-[11.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+                System emails always send, whether or not Gmail is connected.
+              </p>
+            </Card>
+          </>
+        )}
+
+        {id === 'reviews' && (
+          <Card>
+            <CardTitle>Review settings</CardTitle>
+            <div className="mt-2">
+              <SettingsRow kind="value" label="Google review URL" value="g.page/r/CR9k…" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Trigger" value="4+ stars" onClick={() => undefined} />
+            </div>
+            <p className="mt-2 text-[11.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+              When customers rate 4+ stars they&rsquo;re sent to Google. Lower
+              ratings come to you instead.
+            </p>
+          </Card>
+        )}
+
+        {id === 'branding' && (
+          <Card>
+            <CardTitle>Brand customization</CardTitle>
+            <div className="mt-2.5 flex items-center gap-3">
+              <span className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[hsl(var(--pv-sunken))] text-[15px] font-extrabold text-[hsl(var(--pv-ink))]">
+                TW
+              </span>
+              <Button variant="secondary" className="rounded-[10px]">Upload logo</Button>
+            </div>
+            <p className="mt-1.5 text-[11px] font-normal text-[hsl(var(--pv-ink-3))]">
+              PNG, JPG up to 2MB.
+            </p>
+            <div className="mt-2">
+              {/* These hexes are DATA, not design tokens — the org picked
+                  them and the screen exists to edit them. #2B5CE6 appearing
+                  here is not the comp's blue leaking into the build. */}
+              <SettingsRow kind="value" label="Primary color" value="#2B5CE6" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Accent color" value="#14B8A6" onClick={() => undefined} />
+            </div>
+            <p className="mt-1 text-[11px] font-normal leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+              Primary is used for buttons and key actions; accent for
+              highlights.
+            </p>
+          </Card>
+        )}
+      </div>
+    </>
   );
 }
