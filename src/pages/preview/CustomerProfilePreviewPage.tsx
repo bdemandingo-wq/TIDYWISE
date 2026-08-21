@@ -86,8 +86,8 @@ export default function CustomerProfilePreviewPage() {
             className={
               'rounded-full px-3 py-1 text-[11px] font-bold transition-colors ' +
               (phase === p.id
-                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-on-brand))]'
-                : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
+                : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
             }
           >
             {p.label}

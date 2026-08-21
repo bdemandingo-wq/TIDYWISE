@@ -148,8 +148,8 @@ export default function FinancePreviewPage() {
             className={
               'rounded-full px-3 py-1 text-[11px] font-bold transition-colors ' +
               (state === s.id
-                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-on-brand))]'
-                : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
+                : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
             }
           >
             {s.label}
@@ -162,7 +162,7 @@ export default function FinancePreviewPage() {
             'rounded-full px-3 py-1 text-[11px] font-bold transition-colors ' +
             (testMode
               ? 'bg-[hsl(var(--pv-gold))] text-[hsl(var(--pv-gold-ink))]'
-              : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+              : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
           }
         >
           Test mode {testMode ? 'on' : 'off'}
