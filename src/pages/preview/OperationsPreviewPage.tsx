@@ -79,8 +79,8 @@ export default function OperationsPreviewPage() {
             className={
               'rounded-full px-3 py-1 text-[11px] font-bold ' +
               (view === v
-                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-on-brand))]'
-                : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
+                : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
             }
           >
             {v === 'tracker' ? '9a tracker' : '9b analytics'}
@@ -92,8 +92,8 @@ export default function OperationsPreviewPage() {
           className={
             'rounded-full px-3 py-1 text-[11px] font-bold ' +
             (hasEntry
-              ? 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]'
-              : 'bg-[hsl(var(--pv-warn))] text-[hsl(var(--pv-on-brand))]')
+              ? 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]'
+              : 'bg-[hsl(var(--pv-warn))] text-[hsl(var(--pv-brand-ink))]')
           }
         >
           {hasEntry ? "Today's entry filed" : 'No entry today'}
@@ -104,8 +104,8 @@ export default function OperationsPreviewPage() {
           className={
             'rounded-full px-3 py-1 text-[11px] font-bold ' +
             (errored
-              ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-on-brand))]'
-              : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+              ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-brand-ink))]'
+              : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
           }
         >
           {errored ? 'Error' : 'Ready'}
