@@ -55,3 +55,8 @@ android/
 # migration files under supabase/migrations/.
 /*.sql
 /*.txt
+
+# Mockup binaries — the HTML in design/mockups/ is the source of truth for
+# measurements and is tracked; the 62MB of PNGs and the zip are not.
+design/mockups/png/
+design/mockups/*.zip
