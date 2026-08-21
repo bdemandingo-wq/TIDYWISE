@@ -51,3 +51,5 @@ export { CleanerHomeView } from './CleanerHomeView';
 export type { SetupStep, HomeJob, SectionState } from './CleanerHomeView';
 export { Sparkline } from './Sparkline';
 export { MessageBubble } from './MessageBubble';
+export { BookingsListView, bookingMoney, bookingStaffLine, matchesBookingSearch, useBookingSearch } from './BookingsListView';
+export type { BookingsRow } from './BookingsListView';
