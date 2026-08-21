@@ -1,0 +1,396 @@
+=== TWO FRONTEND FIXES TO THE EMAIL-HEALTH BANNER. ONE TURN. ===
+
+Both are in src/. No edge functions, no migrations, no database changes.
+
+  FIX 1  a fallback that ALSO failed must count as a hard failure
+  FIX 2  the banner carries the remedy for the dominant cause, not just a count
+
+Structure: one new pure module plus its test, then three small edits that use
+it. The pure module exists so the classification can be tested directly — it is
+the only part with real logic, and a wrong answer there is silent by nature.
+
+  CREATE  src/lib/emailFailureClassification.ts
+  CREATE  src/lib/emailFailureClassification.test.ts
+  EDIT    src/hooks/useOrgEmailHealth.ts
+  EDIT    src/components/admin/EmailIdentityBanner.tsx
+  EDIT    src/components/admin/EmailDeliveryPanel.tsx
+
+
+=== WHY FIX 1 MATTERS, AND WHAT THE DISCRIMINATOR IS ===
+
+useOrgEmailHealth currently computes:
+
+    hardFailures: recentFailures.filter((f) => !f.fell_back_to)
+
+`fell_back_to` records that a fallback was ATTEMPTED, not that it succeeded.
+supabase/functions/_shared/send-org-email.ts logs BOTH outcomes with
+fell_back_to = 'resend' and method = 'gmail_smtp':
+
+  - fallback SUCCEEDED  (line ~246): error_message is the Gmail error alone
+  - fallback ALSO FAILED (line ~249): error_message is
+        `Gmail failed (${gmailError}); Resend fallback also failed: ${...}`
+
+So the only signal separating a delivered email from an undelivered one is the
+substring "Resend fallback also failed" in error_message. That literal is
+constructed in exactly one place. Match on it.
+
+This is deliberately a string match against a message format, which is
+brittle — a column would be better. It is not being added here because that is
+a migration and this paste is frontend-only. The comment in the code must name
+the source file and line so the coupling is findable when it breaks.
+
+Live consequence today: Clean Collective and Charleston Clean Routine each have
+customer emails that reached nobody — a booking confirmation, and a
+confirmation plus a quote — and the banner is silent for all three because the
+rows carry fell_back_to = 'resend'.
+
+
+=== FILE 1 of 5 — CREATE src/lib/emailFailureClassification.ts ===
+
+/**
+ * Did an email actually fail to reach anyone, and if so why?
+ *
+ * Zero imports, no React, no Supabase — the whole point is that this is
+ * testable directly. Tests: src/lib/emailFailureClassification.test.ts
+ *
+ * `fell_back_to` on org_email_send_failures records that a fallback was
+ * ATTEMPTED, not that it worked. Treating it as "probably delivered" hid three
+ * genuine non-deliveries: Clean Collective's booking confirmation and
+ * Charleston Clean Routine's confirmation and quote.
+ */
+
+/** Row shape from org_email_send_failures, narrowed to what matters here. */
+export interface FailureRowLike {
+  fell_back_to: string | null;
+  error_message: string | null;
+}
+
+/**
+ * The exact literal produced by
+ * supabase/functions/_shared/send-org-email.ts (~line 249) when the Gmail
+ * primary fails AND the Resend fallback fails too. Built in one place only.
+ * If that message is ever reworded, this stops matching and the banner goes
+ * quiet again — which is why the string lives here as a named constant rather
+ * than inline, and why the tests below pin both spellings.
+ */
+export const FALLBACK_ALSO_FAILED_MARKER = "Resend fallback also failed";
+
+/**
+ * A hard failure is one where nothing was delivered.
+ *
+ * Two shapes qualify:
+ *   1. No fallback was attempted at all — the single send failed.
+ *   2. A fallback was attempted and it failed as well.
+ *
+ * A row with fell_back_to set and no failure marker is a SUCCESS record: the
+ * primary failed, the fallback carried it, the customer got their email. Those
+ * must not raise a banner. That includes fell_back_to = 'platform' rows, which
+ * weekly-business-report writes on a successful send via the platform sender.
+ */
+export function isHardFailure(row: FailureRowLike): boolean {
+  if (!row.fell_back_to) return true;
+  const msg = row.error_message ?? "";
+  return msg.includes(FALLBACK_ALSO_FAILED_MARKER);
+}
+
+export type FailureCause =
+  | "invalid_key"
+  | "unverified_domain"
+  | "gmail_auth"
+  | "unknown";
+
+/**
+ * Why did it fail? Priority order matters: a compound Gmail-plus-domain
+ * message names two problems, and the domain is the one blocking the fallback
+ * that was supposed to rescue it, so it wins.
+ */
+export function classifyCause(errorMessage: string | null): FailureCause {
+  const m = (errorMessage ?? "").toLowerCase();
+  if (!m) return "unknown";
+  if (m.includes("domain is not verified")) return "unverified_domain";
+  if (m.includes("api key is invalid")) return "invalid_key";
+  if (m.includes("username and password not accepted") || m.includes("535")) return "gmail_auth";
+  return "unknown";
+}
+
+/**
+ * The single cause to write a remedy for, or null when they genuinely differ.
+ *
+ * Unanimity is required on purpose. A remedy that names the wrong fix is worse
+ * than a plain count: it sends the owner to change a setting that was not the
+ * problem, and when that does not help they stop believing the banner.
+ */
+export function dominantCause(rows: FailureRowLike[]): FailureCause | null {
+  if (rows.length === 0) return null;
+  const causes = new Set(rows.map((r) => classifyCause(r.error_message)));
+  if (causes.size !== 1) return null;
+  const only = [...causes][0];
+  return only === "unknown" ? null : only;
+}
+
+
+=== FILE 2 of 5 — CREATE src/lib/emailFailureClassification.test.ts ===
+
+// Runner: node:test, matching src/lib/phone.test.ts. No npm script.
+//   node --experimental-strip-types --test src/lib/emailFailureClassification.test.ts
+//
+// THE CONTROL THIS FILE EXISTS FOR. Widening "hard failure" is the easy half.
+// The half that can go wrong quietly is alarming orgs whose fallback WORKED —
+// their customers got the email, and a banner telling them otherwise trains
+// them to ignore it. There is currently no live org in that state, so it is
+// pinned here as a fixture instead.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  isHardFailure,
+  classifyCause,
+  dominantCause,
+  FALLBACK_ALSO_FAILED_MARKER,
+} from './emailFailureClassification.ts';
+
+test('no fallback attempted is a hard failure', () => {
+  assert.equal(isHardFailure({ fell_back_to: null, error_message: 'API key is invalid' }), true);
+});
+
+test('CONTROL: a fallback that SUCCEEDED is not a hard failure', () => {
+  // Exactly what send-org-email logs on the success path: fell_back_to set,
+  // error_message carrying only the primary's error. The customer got it.
+  assert.equal(
+    isHardFailure({
+      fell_back_to: 'resend',
+      error_message: 'Gmail failed (535: 5.7.8 Username and Password not accepted)',
+    }),
+    false,
+  );
+});
+
+test('CONTROL: a successful platform fallback is not a hard failure', () => {
+  // weekly-business-report writes this on a SUCCESSFUL send via the platform
+  // sender. It must never raise a banner.
+  assert.equal(
+    isHardFailure({
+      fell_back_to: 'platform',
+      error_message: 'weekly report sent via platform sender: org_send_failed',
+    }),
+    false,
+  );
+});
+
+test('a fallback that ALSO failed is a hard failure', () => {
+  assert.equal(
+    isHardFailure({
+      fell_back_to: 'resend',
+      error_message:
+        'Gmail failed (No valid emails provided!); Resend fallback also failed: Invalid `to` field',
+    }),
+    true,
+  );
+});
+
+test('the marker constant is the one actually used', () => {
+  assert.ok(
+    `Gmail failed (x); ${FALLBACK_ALSO_FAILED_MARKER}: y`.includes(FALLBACK_ALSO_FAILED_MARKER),
+  );
+});
+
+test('a null error message with a fallback is treated as delivered', () => {
+  // No evidence of a second failure. Fail quiet rather than alarm.
+  assert.equal(isHardFailure({ fell_back_to: 'resend', error_message: null }), false);
+});
+
+test('classifyCause picks the domain over gmail in a compound message', () => {
+  assert.equal(
+    classifyCause(
+      'Gmail failed (535 Username and Password not accepted); Resend fallback also failed: The charlestoncleanroutine.com domain is not verified.',
+    ),
+    'unverified_domain',
+  );
+});
+
+test('classifyCause recognises an invalid key', () => {
+  assert.equal(classifyCause('API key is invalid'), 'invalid_key');
+});
+
+test('dominantCause returns the cause when every row agrees', () => {
+  const rows = [
+    { fell_back_to: null, error_message: 'API key is invalid' },
+    { fell_back_to: null, error_message: 'API key is invalid' },
+  ];
+  assert.equal(dominantCause(rows), 'invalid_key');
+});
+
+test('CONTROL: dominantCause returns null when causes are mixed', () => {
+  // A specific remedy here would name the wrong fix for half the failures.
+  const rows = [
+    { fell_back_to: null, error_message: 'API key is invalid' },
+    { fell_back_to: null, error_message: 'The example.com domain is not verified' },
+  ];
+  assert.equal(dominantCause(rows), null);
+});
+
+test('dominantCause returns null for an empty list and for unknown causes', () => {
+  assert.equal(dominantCause([]), null);
+  assert.equal(dominantCause([{ fell_back_to: null, error_message: 'something odd' }]), null);
+});
+
+
+=== FILE 3 of 5 — EDIT src/hooks/useOrgEmailHealth.ts ===
+
+Add the import:
+
+    import { isHardFailure } from '@/lib/emailFailureClassification';
+
+Replace this line in the returned object:
+
+    hardFailures: recentFailures.filter((f) => !f.fell_back_to),
+
+with:
+
+    // A fallback that ALSO failed delivered nothing. See
+    // src/lib/emailFailureClassification.ts — fell_back_to alone records the
+    // attempt, not the outcome.
+    hardFailures: recentFailures.filter(isHardFailure),
+
+Change nothing else in this file. Leave RECENT_DAYS at 7, leave the
+notConfigured query, and leave both `if (error) return ...` fallbacks as they
+are — they are deliberate and out of scope.
+
+
+=== FILE 4 of 5 — EDIT src/components/admin/EmailIdentityBanner.tsx ===
+
+Add the import:
+
+    import { dominantCause } from '@/lib/emailFailureClassification';
+
+After the existing `const n = hardFailures.length;` line, add:
+
+    const cause = mode === 'failures' ? dominantCause(hardFailures) : null;
+
+Replace the existing title / body / cta assignments with:
+
+    const title = mode === 'not_configured'
+      ? 'Your customers aren’t receiving emails'
+      : cause === 'invalid_key'
+        ? 'Your saved email API key is no longer valid'
+        : cause === 'unverified_domain'
+          ? 'Your sending domain isn’t verified'
+          : cause === 'gmail_auth'
+            ? 'Your Gmail connection has stopped working'
+            : `${n} recent email ${n === 1 ? 'failure' : 'failures'}`;
+
+    const body = mode === 'not_configured'
+      ? 'You haven’t set up a sender email yet, so booking confirmations, invoices, and receipts aren’t being delivered.'
+      : cause === 'invalid_key'
+        ? `The Resend API key saved in your email settings is being rejected, so ${n} customer ${n === 1 ? 'email' : 'emails'} did not send. Replace the key to start sending again.`
+        : cause === 'unverified_domain'
+          ? `Your sending domain has not been verified with your email provider, so ${n} customer ${n === 1 ? 'email' : 'emails'} did not send. Verify the domain, or switch to a sender address on a domain you have already verified.`
+          : cause === 'gmail_auth'
+            ? `Gmail is rejecting the saved app password, so ${n} customer ${n === 1 ? 'email' : 'emails'} did not send. Reconnect Gmail or switch to sending through Resend.`
+            : 'Some customer emails failed to send recently — customers may not be receiving confirmations, invoices, or receipts.';
+
+    const cta = mode === 'not_configured'
+      ? 'Set up email'
+      : cause
+        ? 'Fix email settings'
+        : 'View email delivery';
+
+Leave everything else exactly as it is — the sessionStorage dismissal, the
+per-mode keys, the alert role, the Link target of
+`/dashboard/settings?tab=emails`, and the notConfigured branch. The generic
+count is still the fallback when causes are mixed, and that is intended.
+
+
+=== FILE 5 of 5 — EDIT src/components/admin/EmailDeliveryPanel.tsx ===
+
+The badge currently reads, for any row with fell_back_to set:
+
+    fell back to {f.fell_back_to} (likely delivered)
+
+That is wrong for a row whose fallback also failed — it is the same conflation
+as FIX 1, in the one place an owner goes to investigate.
+
+Add the import:
+
+    import { isHardFailure } from '@/lib/emailFailureClassification';
+
+Replace the badge so it reflects the outcome rather than the attempt:
+
+    {f.fell_back_to && (
+      <Badge variant="outline" className="text-[10px]">
+        {isHardFailure(f)
+          ? `fell back to ${f.fell_back_to} — also failed`
+          : `fell back to ${f.fell_back_to} (likely delivered)`}
+      </Badge>
+    )}
+
+Keep the panel listing ALL recent failures, including delivered fallbacks.
+Showing a fallback that worked is useful context; mislabelling one that did not
+is the bug.
+
+
+=== VERIFICATION — AFTER PUBLISHING ===
+
+STEP 1 — run the unit tests and paste the full output:
+
+    node --experimental-strip-types --test src/lib/emailFailureClassification.test.ts
+
+Expect 11 tests, all passing. If any fail, stop and paste the failure — the
+classification is the only real logic in this change.
+
+STEP 2 — typecheck and lint:
+
+    npx tsc --noEmit -p tsconfig.app.json
+    npm run lint
+
+The -p flag is required; a bare `npx tsc --noEmit` compiles zero files in this
+repo and always exits clean, so it proves nothing. Lint must add no new issues
+against its existing baseline.
+
+STEP 3 — confirm the live counts against these expected values. Run:
+
+    select o.name,
+           count(*) filter (where f.created_at > now() - interval '7 days'
+                              and f.fell_back_to is null)                    as hard_before,
+           count(*) filter (where f.created_at > now() - interval '7 days'
+                              and (f.fell_back_to is null
+                                or f.error_message ilike '%Resend fallback also failed%')) as hard_after
+    from public.org_email_send_failures f
+    join public.organizations o on o.id = f.organization_id
+    where f.created_at > now() - interval '7 days'
+    group by o.name order by hard_after desc, o.name;
+
+HOW TO READ IT — the two halves fail in opposite directions.
+
+  THE FIX. Clean Collective must go from 0 to 1, and Charleston Clean Routine
+  from 0 to 2. Those are three real customer emails — a booking confirmation,
+  another confirmation, and a quote — that reached nobody while the banner said
+  nothing. They are the reason for this change.
+
+  THE CONTROL, AND IT IS THE HALF THAT MATTERS. Any org whose fallback
+  genuinely succeeded must stay at 0 and must NOT start seeing a banner. In
+  today's data that is QA TEST ORG B and test account 1, whose rows are
+  fell_back_to = 'platform' success notes written by weekly-business-report —
+  those emails ARRIVED. If either moves above 0, the filter is catching
+  successful fallbacks and every org that ever fell back is now being told its
+  email is broken. That is a worse outcome than the bug being fixed, because it
+  is the failure mode that teaches people to ignore the banner.
+
+  Open Arms Cleaning must stay at 8 — unchanged either way. It never fell back,
+  so this change must not touch it.
+
+STEP 4 — say what the banner now reads for Open Arms Cleaning. Their eight
+failures are all "API key is invalid", so the dominant cause is unanimous and
+the title must be "Your saved email API key is no longer valid" — not the
+generic count. If it still shows "8 recent email failures", dominantCause is
+not being reached.
+
+=== REPORT BACK — ONE REPLY ===
+
+  1. Full unit-test output. 11 passing.
+  2. tsc and lint results.
+  3. The query output, before and after columns side by side.
+  4. Clean Collective 0 -> 1 and Charleston 0 -> 2: confirmed or not.
+  5. The control: QA TEST ORG B and test account 1 still at 0, yes or no.
+  6. The exact banner title Open Arms Cleaning would now see.
+  7. Did you change any edge function, migration, or database object?
+     Expected answer: no. This is frontend only.

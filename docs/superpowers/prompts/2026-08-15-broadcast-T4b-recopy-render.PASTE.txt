@@ -1,0 +1,47 @@
+The file you created at supabase/functions/_shared/broadcast-render.ts is
+wrong. Do not edit it by hand — replace it by copying from the repo.
+
+WHY IT IS WRONG
+
+It was supposed to be a byte-identical copy of src/lib/broadcast-render.ts.
+That file was not on main when you were asked, so you reconstructed it from a
+copy pasted into chat, and the chat renderer had stripped the HTML tags out of
+the template strings. The body you produced hashes to c065512c; it should hash
+to 425ebfd5. The module builds HTML emails, so the missing tags are the whole
+point of it.
+
+src/lib/broadcast-render.ts is now on main, commit cb4cb38f. Copy from there.
+
+WHAT TO DO
+
+1. Pull main so you have src/lib/broadcast-render.ts.
+
+2. Overwrite supabase/functions/_shared/broadcast-render.ts with the contents
+   of src/lib/broadcast-render.ts, byte for byte, changing ONLY the KEEP IN
+   SYNC paragraph inside the top comment block so it reads:
+
+    * KEEP IN SYNC: this is a verbatim copy of `src/lib/broadcast-render.ts`
+    * below this header. That copy is canonical and is what
+    * src/lib/broadcast-render.test.ts tests.
+
+   Everything from `export const UNSUBSCRIBE_SENTENCE` to the end of the file
+   must be identical to src/lib/broadcast-render.ts. Do not reformat it, do
+   not "fix" the template strings, do not change quoting or indentation. If
+   anything looks wrong to you, copy it anyway and tell me what you saw.
+
+3. Run this and paste the output back:
+
+     sed -n '/^export const UNSUBSCRIBE_SENTENCE/,$p' \
+       supabase/functions/_shared/broadcast-render.ts | shasum -a 256
+
+   It must be exactly:
+     425ebfd5e38ca798031b0f2487f36fdc30c681f1bbeaf518c3d0cc557511bfb5
+
+   If it is anything else, stop and tell me — do not try to patch the file
+   until it matches.
+
+4. Redeploy broadcast-admin so it picks up the corrected shared module, and
+   confirm it is deployed, not just committed.
+
+Change nothing else. Do not touch broadcast-admin's own code, unsubscribe-token.ts,
+config.toml, or any table.

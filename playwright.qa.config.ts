@@ -44,6 +44,28 @@ export default defineConfig({
       testMatch: /.*\.unit\.spec\.ts/,
     },
     {
+      // broadcast-audience.contract.spec.ts talks to Supabase directly via
+      // supabase-js (its own sign-ins, its own RPC/edge-function calls) and
+      // never touches the app UI, so it needs no storageState and no
+      // dependency on "setup"/"logout-check". Without this project it falls
+      // through to "chromium" by filename (it isn't *.unit.spec.ts), which
+      // DOES depend on that chain — pulling in ~a minute of real production
+      // logins it doesn't need and, worse, silently not running at all in
+      // `npm run test:qa` whenever setup's three QA-role credentials are
+      // absent, even though this spec's own two credentials are present.
+      //
+      // Not folded into "unit" above: "unit" is for pure, network-free
+      // logic (no browser, no live site — see its comment), and this spec
+      // makes real network calls to a live Supabase project. Not widened to
+      // match every *.contract.spec.ts file: the sibling contract specs
+      // (facebook-lead-backfill, facebook-lead-webhook, speed-to-lead) are
+      // unaffected by this fix and stay on "chromium" via their documented
+      // --no-deps invocation; only this one file's project assignment
+      // changes here.
+      name: "broadcast-audience-contract",
+      testMatch: /broadcast-audience\.contract\.spec\.ts$/,
+    },
+    {
       name: "setup",
       testMatch: /global-setup\.ts/,
     },
@@ -69,7 +91,7 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
       dependencies: ["setup", "logout-check"],
-      testIgnore: /global-setup\.ts|logout-check\.spec\.ts|.*\.unit\.spec\.ts/,
+      testIgnore: /global-setup\.ts|logout-check\.spec\.ts|.*\.unit\.spec\.ts|broadcast-audience\.contract\.spec\.ts/,
     },
   ],
 });

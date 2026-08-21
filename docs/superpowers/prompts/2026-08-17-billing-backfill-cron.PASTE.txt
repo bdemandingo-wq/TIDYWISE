@@ -1,0 +1,220 @@
+Schedule billing-backfill so the Revenue tab stops going stale. Three changes:
+the function, its config.toml entry, and a cron migration.
+
+WHY THIS IS NOT JUST A CRON ENTRY — read this first, it changes the work.
+
+billing_backfill_jobs currently shows all six resources 'complete' with no
+errors, finished 2026-08-02. It did not fail. Nothing re-runs it, and there is
+no cron job for it.
+
+But adding a plain nightly invoke would make things WORSE, not better.
+listPage pages with starting_after against Stripe's default newest-first
+ordering, so a completed run leaves cursor_after sitting on the OLDEST object.
+Re-invoking asks Stripe for objects older than the oldest, gets an empty page,
+sees has_more = false, and immediately writes status='complete' with a fresh
+finished_at. The staleness banner would turn green while importing exactly
+nothing — a revenue page that looks authoritative and is weeks out of date,
+which is the precise failure that banner exists to prevent.
+
+So the cursor has to be reset each scheduled run. That is what the new
+`restart` flag below is for. Re-walking is safe: billing_events is upserted
+with onConflict stripe_object_id,event_type and ignoreDuplicates true, so
+re-importing the same objects writes nothing new.
+
+Volume, from the last complete run, so you can see this is cheap: charges 11
+pages / 1011 objects, checkout_sessions 5 / 472, invoices 1 / 89, refunds
+1 / 85, subscriptions 1 / 42, disputes 1 / 18. Roughly 1700 objects and 20
+pages across all six.
+
+
+=== TASK 1 of 4 — EDIT supabase/functions/billing-backfill/index.ts ===
+
+1a. Add the import at the top, alongside the existing imports:
+
+    import { requireCronSecret } from "../_shared/requireCronSecret.ts";
+
+1b. In the Deno.serve handler, the authorization block currently begins:
+
+    const provided = req.headers.get("x-admin-secret");
+    const accepted = [
+      Deno.env.get("BILLING_BACKFILL_ADMIN_SECRET"),
+      Deno.env.get("CRON_SECRET"),
+    ].filter(Boolean) as string[];
+    let authorized = Boolean(provided && accepted.includes(provided));
+
+Replace those five lines with:
+
+    // Authorization, in order: cron secret, admin shared secret, platform-admin JWT.
+    //
+    // requireCronSecret is used as a PREDICATE here, deliberately not as the
+    // usual `const gate = requireCronSecret(req); if (gate) return gate;`
+    // early return. That shape would 401 every platform-admin call this
+    // function already serves from the browser, because an admin request
+    // carries no x-cron-secret header. A request without the header must fall
+    // through to the paths below, not be rejected.
+    let authorized = requireCronSecret(req) === null;
+
+    const provided = req.headers.get("x-admin-secret");
+    const accepted = [
+      Deno.env.get("BILLING_BACKFILL_ADMIN_SECRET"),
+      Deno.env.get("CRON_SECRET"),
+    ].filter(Boolean) as string[];
+    if (!authorized) authorized = Boolean(provided && accepted.includes(provided));
+
+Leave the `if (!authorized) { ... }` JWT block that follows exactly as it is.
+
+1c. Add the restart flag. The body parsing currently reads:
+
+    const body = await req.json().catch(() => ({}));
+    const resource = body.resource as Resource;
+    const mode: "count" | "run" = body.mode === "count" ? "count" : "run";
+    const maxPages = Math.max(1, Math.min(50, Number(body.maxPages ?? 5)));
+
+Add one line after the maxPages line:
+
+    // Scheduled runs must re-walk from the newest object. Without this the
+    // cursor stays parked on the oldest object from the previous complete run,
+    // every subsequent call returns an empty page, and the job marks itself
+    // complete having imported nothing while refreshing finished_at.
+    const restart = body.restart === true;
+
+1d. Apply it where the cursor is read. This currently reads:
+
+    let cursor: string | null = existing?.cursor_after ?? null;
+    let pagesDone = existing?.pages_done ?? 0;
+    let objectsSeen = existing?.objects_seen ?? 0;
+    let rowsWritten = existing?.rows_written ?? 0;
+
+Replace with:
+
+    let cursor: string | null = restart ? null : (existing?.cursor_after ?? null);
+    let pagesDone = restart ? 0 : (existing?.pages_done ?? 0);
+    let objectsSeen = restart ? 0 : (existing?.objects_seen ?? 0);
+    let rowsWritten = restart ? 0 : (existing?.rows_written ?? 0);
+
+Change nothing else in this function. Do not touch processPage, listPage, the
+JWT branch, or the response shape.
+
+
+=== TASK 2 of 4 — ADD THE config.toml ENTRY ===
+
+billing-backfill currently has NO entry, so the default verify_jwt = true
+applies and the gateway would reject every cron tick before the function ran.
+Add:
+
+  [functions.billing-backfill]
+    verify_jwt = false
+
+This does not weaken it. The function authorizes internally on all three paths
+above, which is exactly what a verify_jwt = false function is required to do,
+and it is the same arrangement process-review-sms-queue and
+weekly-business-report already use.
+
+
+=== TASK 3 of 4 — RUN THE CRON MIGRATION ===
+
+One job, one statement, six posts — one per resource, fired concurrently. Each
+resource locks its own billing_backfill_jobs row, so they do not contend.
+
+Daily at 03:00 UTC. The page's own STALE_AFTER_DAYS is 3, so daily keeps it
+green with two days of margin for a missed run.
+
+  select cron.unschedule('billing-backfill-nightly')
+  where exists (select 1 from cron.job where jobname = 'billing-backfill-nightly');
+
+  select cron.schedule(
+    'billing-backfill-nightly',
+    '0 3 * * *',
+    $cron$
+    select net.http_post(
+      url := (select decrypted_secret from vault.decrypted_secrets where name = 'supabase_url')
+             || '/functions/v1/billing-backfill',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
+      ),
+      body := jsonb_build_object('resource', r, 'mode', 'run', 'restart', true, 'maxPages', 50)
+    )
+    from unnest(array[
+      'subscriptions','invoices','charges','refunds','disputes','checkout_sessions'
+    ]) as r;
+    $cron$
+  );
+
+NOTE ON THE SECRET NAME, DO NOT "CORRECT" IT. This sends only cron_secret and
+supabase_url, which are two of the three secrets that actually exist in this
+project's vault. There is deliberately NO Authorization Bearer header. Eight
+existing cron jobs name supabase_service_role_key, which does not exist, so
+they have been sending 'Bearer ' || NULL — a null header — all along. Those
+jobs work only because their functions are verify_jwt = false and really gated
+on x-cron-secret. Copying that Bearer line here would add a header that does
+nothing. See docs/bugs/2026-08-15-cron-bearer-null-vault-secret.md.
+
+maxPages is 50, the function's own ceiling. charges needs 11 today, so there is
+real headroom, but see the status check below.
+
+
+=== TASK 4 of 4 — DEPLOY, THEN PROVE IT IMPORTS ===
+
+Deploy billing-backfill and run the migration. Confirm deployed, not merely
+committed.
+
+Then, in this order:
+
+STEP A — capture the before state:
+
+  select resource, status, finished_at, pages_done, objects_seen, cursor_after
+  from public.billing_backfill_jobs order by resource;
+
+STEP B — negative control, proving the gate is real. Call the deployed function
+with NO x-cron-secret header and no Authorization:
+
+  curl -s -o /dev/null -w '%{http_code}' -X POST \
+    "<SUPABASE_URL>/functions/v1/billing-backfill" \
+    -H 'Content-Type: application/json' \
+    -d '{"resource":"subscriptions","mode":"count"}'
+
+  Expect 401. If this returns 200, the function is now publicly runnable and
+  you must stop and say so — verify_jwt = false removed the gateway check, so
+  the internal gate is the only thing left.
+
+STEP C — trigger one resource by hand with the cron secret, exactly as the cron
+will, rather than waiting for 03:00:
+
+  curl -s -X POST "<SUPABASE_URL>/functions/v1/billing-backfill" \
+    -H 'Content-Type: application/json' \
+    -H 'x-cron-secret: <the cron_secret value from the vault>' \
+    -d '{"resource":"subscriptions","mode":"run","restart":true,"maxPages":50}'
+
+STEP D — capture the after state with the same query as Step A, and paste both.
+
+STEP E — confirm the schedule exists:
+
+  select jobname, schedule, active from cron.job
+  where jobname = 'billing-backfill-nightly';
+
+HOW TO READ THE RESULT. Do not accept a moving finished_at as success.
+
+  The failure this whole change is working around looks EXACTLY like success:
+  status flips to 'complete', finished_at jumps to now, and nothing was
+  imported. So the number that matters is objects_seen.
+
+  For subscriptions, objects_seen must come back at roughly 42 — the count of a
+  full re-walk. If it comes back 0 with a fresh finished_at, the restart flag
+  is not reaching the cursor and the job just marked itself complete over an
+  empty page. That is the false-green outcome; report it and stop.
+
+  cursor_after should be non-null and should DIFFER from the value in Step A,
+  because a fresh walk ends on a different object than the parked one.
+
+  status must be 'complete', not 'running'. 'running' means the resource needed
+  more than 50 pages and the walk truncated — it will never finish, and
+  maxPages needs raising.
+
+  rows_written may legitimately be 0 or small. The upsert ignores duplicates,
+  so a re-walk of already-imported objects writes nothing. rows_written is NOT
+  the success signal here; objects_seen is.
+
+Change nothing else. Do not touch any other function, table, or cron job — in
+particular, do not "fix" the eight jobs with the null Bearer header as part of
+this; that is a separate decision.

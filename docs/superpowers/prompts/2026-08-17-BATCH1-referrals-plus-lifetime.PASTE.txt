@@ -1,0 +1,852 @@
+=== BATCH 1 — FOUR CHANGES, ONE TURN. READ ALL OF IT BEFORE STARTING. ===
+
+This is four separate pieces of work merged into a single turn to conserve
+credits. Do them in the order given: parts 1 to 3 build on each other, and
+part 4 is independent.
+
+Every sanity check and live test has been moved to the END, after part 4.
+Do NOT stop to verify between parts — deploy all four, then work through the
+verification section in one pass and report everything back in one reply.
+
+  PART 1  referral claim: one shared module, one new function, one edit
+  PART 2  vesting: one file, one branch inside it
+  PART 3  grant reward: one new edge function
+  PART 4  one-line regression fix in platform-analytics
+
+If any part cannot be completed, finish the others and say plainly which one
+you stopped on and why. Do not abandon the whole batch for one failure.
+
+
+=== PART 1 of 4 — REFERRAL CLAIM ===
+
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Tasks 4 AND 5 of docs/superpowers/plans/2026-08-15-org-referral-programme.md,
+deliberately combined into one paste: both sides of the signup moment. The
+claim records who referred whom; the discount is what the referred business
+actually gets for it. Shipping the claim alone would attribute referrals that
+deliver nothing to the person who acted on the link.
+
+  STEP 1  CREATE  supabase/functions/_shared/referral-eligibility.ts  (verbatim copy)
+  STEP 2  CREATE  supabase/functions/claim-referral/index.ts          (new)
+  STEP 3  EDIT    supabase/functions/create-subscription/index.ts     (one insertion)
+
+Then DEPLOY claim-referral AND create-subscription.
+
+The frontend half is already on the branch and calls claim-referral with
+`{ organization_id, referral_code }` right after onboarding creates the org.
+
+
+=== WHY THE CLAIM IS A SERVER FUNCTION AND NOT A CLIENT INSERT ===
+
+`public.organizations`' INSERT policy is `(auth.uid() = owner_id)` and does NOT
+enumerate columns, so an authenticated user can already write any column on
+their own org row. If attribution were client-writable a user could name any
+referrer, mark themselves 'qualified', or grant themselves months.
+
+So the four org_referral* tables carry SELECT policies only, and every write
+goes through the service role. The client sends an org id and a code. These
+functions decide everything else.
+
+
+=== STEP 1 of 3 — CREATE supabase/functions/_shared/referral-eligibility.ts ===
+
+VERBATIM COPY of `src/lib/referralEligibility.ts`, which already exists on the
+branch and is the canonical version. Same arrangement as automation-templates.ts
+and phone.ts: the edge functions run in Deno and cannot import from `src/`.
+
+Copy the file exactly, changing ONLY the KEEP IN SYNC line in the header to say
+this is the copy. Do not re-derive the logic, do not "improve" the thresholds,
+do not change `rejectReason`'s order of checks.
+
+The properties its tests pin, so you can see what must not drift:
+
+  - Two NULL card fingerprints are NOT a match. Both parties are unpaid at
+    claim time, so treating null as equal would reject every referral in the
+    system before anyone could pay.
+  - A NULL plan_type is IN SCOPE. A brand-new org has not chosen a plan when
+    the code is claimed.
+  - isVested() is `>= 2`. Not 1.
+
+
+=== STEP 2 of 3 — CREATE supabase/functions/claim-referral/index.ts ===
+
+Behaviour, in order:
+
+1. POST only. OPTIONS returns corsHeaders.
+
+2. AUTHENTICATE THE CALLER AND CHECK THEY OWN THE ORG. This must not be
+   skipped: the client supplies `organization_id`, so without it anyone could
+   claim a referral on behalf of someone else's org.
+
+   Read the Authorization header, resolve the user with an anon-key client
+   (`auth.getUser(jwt)`), then confirm that user has an `org_memberships` row
+   for the supplied organization_id with role 'owner'. Reject 403 otherwise.
+
+   Do NOT add a config.toml entry for this function. With no entry it defaults
+   to `verify_jwt = true`, which is what we want.
+
+3. Normalise the code SERVER-SIDE. Do not trust the client's normalisation:
+   uppercase, strip everything outside A-Z0-9, treat an empty result as a
+   missing code (400). Must match `normalizeReferralCode` in
+   src/lib/referralCode.ts.
+
+4. Resolve the code to a referrer via `org_referral_codes`. No match -> record
+   a rejected row (step 6) with reason 'invalid_code'.
+
+5. Load both sides for the eligibility check:
+
+   - referrer: `organizations.id, owner_id, plan_type` for the code's org
+   - referred: `organizations.id, owner_id, plan_type` for the supplied org
+   - cardFingerprint is NULL for both here and that is CORRECT. The card check
+     runs in Task 6, at the referred org's first payment — the first moment a
+     card exists. Pass null for both.
+
+   Call `rejectReason(referrer, referred)` from the shared module. Do not
+   re-implement its rules inline.
+
+6. Insert exactly ONE row into `public.org_referrals`, accepted or rejected:
+
+   - accepted:  status 'pending',  rejection_reason null
+   - rejected:  status 'rejected', rejection_reason = whatever rejectReason
+                returned (or 'invalid_code')
+
+   Recording rejections is deliberate: it gives an audit trail, and because
+   `org_referrals` has UNIQUE(referred_org_id) it stops an org retrying
+   different codes until one sticks. If a legitimate claim is ever rejected in
+   error, an admin deletes the row to allow a re-claim — say so in a comment so
+   nobody later "fixes" it by skipping the insert.
+
+7. Handle 23505 on `org_referrals_referred_once` as a NORMAL outcome:
+   return `{ outcome: 'already_claimed' }` with status 200.
+
+   The database also enforces `org_referrals_no_self`. If rejectReason somehow
+   let a self-referral through, that CHECK raises 23514 — return
+   `{ outcome: 'rejected', reason: 'self_referral_same_org' }`, not a 500.
+
+8. Ensure a `public.org_referral_credits` row exists for the REFERRER
+   (`insert ... on conflict (organization_id) do nothing`), so Task 7 has a
+   ledger row. Zero months at this point.
+
+9. Always return 200 with a JSON `outcome`:
+   `claimed` | `already_claimed` | `rejected` | `no_code`
+
+Service-role client for writes, anon client for `auth.getUser`.
+
+
+=== STEP 3 of 3 — create-subscription: THE REFERRED ORG'S 50% FIRST MONTH ===
+
+FIRST, create ONE reusable coupon in Stripe and store its id as a secret named
+`REFERRED_FIRST_MONTH_COUPON`:
+
+    percent_off: 50
+    duration: 'repeating'
+    duration_in_months: 1
+
+Use `repeating` with `duration_in_months: 1`, NOT `duration: 'once'`. Read the
+warning below before deciding otherwise.
+
+THEN edit `create-subscription/index.ts`.
+
+FIRST, a one-word change. At ~line 146 the function already looks the org up,
+but does not select its id:
+
+CURRENTLY:
+
+```ts
+        .select("organizations(plan_type, grandfathered_lifetime)")
+```
+
+REPLACE WITH:
+
+```ts
+        .select("organizations(id, plan_type, grandfathered_lifetime)")
+```
+
+and widen the cast on the line below it to include `id?: string`. That query
+already runs on the service role, so no new round trip and no new privileges.
+
+THEN, immediately BEFORE `stripe.checkout.sessions.create` at ~line 229:
+
+```ts
+// The referred org's half of the programme. Only orgs that arrived through
+// someone's referral link, and only on their first subscription.
+//
+// `org` is resolved inside the `if (user)` block above and is undefined for
+// the anonymous checkout flow — see the KNOWN GAP note below. Capture the id
+// into a variable in the outer scope so it is readable here.
+let referralDiscount: { coupon: string }[] | undefined;
+try {
+  const couponId = Deno.env.get("REFERRED_FIRST_MONTH_COUPON");
+  if (couponId && referredOrgId) {
+    const { data: ref } = await accessAdmin
+      .from("org_referrals")
+      .select("id, status, referred_discount_applied_at")
+      .eq("referred_org_id", referredOrgId)
+      .in("status", ["pending", "qualified"])
+      .maybeSingle();
+    if (ref && !ref.referred_discount_applied_at) {
+      referralDiscount = [{ coupon: couponId }];
+    }
+  }
+} catch (e) {
+  // Never block checkout over a discount lookup.
+  console.error("[referral] discount lookup failed:", e);
+}
+```
+
+Two things you must wire up for that to compile:
+
+  - `referredOrgId` — declare it in the OUTER scope (`let referredOrgId: string
+    | null = null;`) before the `if (user)` block, and assign `org?.id` inside
+    it. Right now `org` is a const scoped to that block and is not visible at
+    the session-creation site.
+  - `accessAdmin` — same problem. It is created inside `if (user)`. Either
+    hoist it or create a second service-role client at the discount lookup.
+    Hoisting is cleaner; do not use the caller's anon client here, because
+    org_referrals has SELECT policies scoped to the REFERRER and the referred
+    org cannot read its own row.
+
+Then add to the `stripe.checkout.sessions.create({...})` call:
+
+```ts
+      ...(referralDiscount ? { discounts: referralDiscount } : {}),
+```
+
+Spread conditionally — passing `discounts: undefined` is not the same as
+omitting it, and Stripe rejects `discounts` alongside `allow_promotion_codes`.
+Confirm this function does not set `allow_promotion_codes`; I read it and it
+does not, but check before you deploy.
+
+Record that it was applied so it cannot be re-used on a second subscription:
+after the session is created successfully, set
+`org_referrals.referred_discount_applied_at = now()` for that referral. If the
+column does not exist yet, ADD IT in this task:
+
+```sql
+alter table public.org_referrals
+  add column if not exists referred_discount_applied_at timestamptz;
+```
+
+(Remember the Task 3 lesson: a new column needs no new grant, but confirm the
+existing GRANT SELECT still covers the table afterwards.)
+
+
+=== KNOWN GAP — THE ANONYMOUS CHECKOUT FLOW ===
+
+`create-subscription` supports checkout with NO logged-in user (it logs
+`flow: user ? "authenticated" : "anonymous"`). In that path no organization
+exists yet, so there is no org_referrals row and NO DISCOUNT CAN BE APPLIED.
+
+This is accepted, not an oversight. The referral itself is not lost — the code
+is still sitting in the browser's storage and claim-referral records it when
+the user later completes onboarding, so the REFERRER still earns their month.
+Only the referred org's 50% is missed, and only for people who subscribe before
+creating their org.
+
+DO NOT try to fix this by passing the referral code through checkout metadata.
+That is a bigger change and I want to see the real frequency first.
+
+REPORT how many of the last 20 checkout sessions took the anonymous path, if
+you can tell from the logs. If it is common, this gap matters more than I think
+and I will scope it as its own task.
+
+
+=== THE TRIAL INTERACTION — READ THIS, IT IS THE RISKY PART ===
+
+`create-subscription` sets `trial_period_days: 14` (line 227). That means the
+FIRST invoice Stripe issues is $0, at subscription creation, before any charge.
+
+I do not know with certainty whether a `duration: 'once'` coupon would be
+consumed by that $0 invoice, leaving the customer with nothing when the real
+charge lands 14 days later. That is exactly why the coupon above is
+`repeating`/`duration_in_months: 1` — it is tied to a billing period rather
+than to "the first invoice".
+
+DO NOT take my word for it, and do not report success from seeing a coupon
+attached to the subscription. The only thing that settles it is the FIRST
+CHARGED invoice. Test it with a Stripe TEST CLOCK:
+
+  1. Create a test customer attached to a test clock.
+  2. Run a referred checkout against it.
+  3. Advance the clock past 14 days.
+  4. Read the first invoice with `amount_due > 0`.
+
+  EXPECT: 50% off. A $49 Basic plan invoices at $24.50.
+
+  IF IT IS FULL PRICE, the coupon was consumed by the $0 trial invoice. STOP
+  and tell me — do not silently switch strategies. The fallback would be to
+  apply the discount when the trial converts rather than at checkout, and that
+  is a different design I want to approve first.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. `public.referrals` — the CUSTOMER-to-customer table — and
+   `process_booking_referral_attribution` are untouched. Different feature.
+2. No other schema changes beyond `referred_discount_applied_at`.
+3. Do NOT add INSERT/UPDATE/DELETE RLS policies to any org_referral* table.
+4. Do NOT add a config.toml entry for claim-referral.
+5. Do NOT re-implement rejectReason, isVested, or the thresholds inline.
+6. Do NOT change `trial_period_days`, `payment_method_collection`,
+   `trial_settings`, the line_items, or the success/cancel URLs in
+   create-subscription. One insertion and one conditional spread.
+7. Do not "improve" anything else. Report it and leave it.
+
+
+=== PART 2 of 4 — VESTING ===
+
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Task 6 of docs/superpowers/plans/2026-08-15-org-referral-programme.md.
+
+  EDIT  supabase/functions/stripe-invoice-webhook/index.ts   (one insertion)
+
+Then redeploy stripe-invoice-webhook. Nothing else changes — no schema, no
+other function, no frontend.
+
+PREREQUISITE: Task 4's `claim-referral` and `_shared/referral-eligibility.ts`
+must already be deployed. This prompt imports that shared module. If it is not
+there yet, stop and do Task 4 first.
+
+
+=== WHAT THIS DOES ===
+
+Counts the referred org's successful payments and vests the referrer's free
+month on the SECOND one. This is the whole anti-abuse design: of the 13
+subscriptions in the only cohort old enough to have completed, 3 (23%) never
+reached a second payment. Vesting on the first payment would pay out on every
+one of those.
+
+Nothing here grants anything. It marks the referral 'qualified' and calls
+`grant-referral-reward`, which is Task 7.
+
+
+=== WHERE THE CODE GOES ===
+
+`stripe-invoice-webhook/index.ts` already has the right branch. Around line 893
+there is a SECOND `invoice.paid` handler (distinct from the earlier one at ~818,
+which is for TENANT invoicing and keys on `metadata.invoice_id` — do NOT touch
+that one). It opens:
+
+```ts
+    if (event.type === "invoice.paid") {
+      const inv = event.data.object as Stripe.Invoice;
+      const meta = (inv.metadata || {}) as Record<string, string>;
+      const subMeta = ((inv.subscription_details?.metadata as any) || {}) as Record<string, string>;
+      const combined = { ...subMeta, ...meta };
+
+      if (combined.purpose === "tidywise_saas_subscription" || inv.subscription) {
+        try {
+          const stripe = new Stripe(...);
+          const pi = inv.payment_intent ? await stripe.paymentIntents.retrieve(...) : null;
+          const charge = pi?.latest_charge ? await stripe.charges.retrieve(...) : null;
+          const threeDS = (charge?.payment_method_details as any)?.card?.three_d_secure?.result || null;
+```
+
+This branch is already the right place and already does most of the work:
+
+  - it gates on SaaS subscription invoices specifically
+  - it already retrieves `pi` AND `charge`, and `charge` is where the card
+    fingerprint lives — so the self-referral check needs no extra Stripe call
+
+INSERT the referral block AFTER `threeDS` is computed, inside the same `try`.
+Do not restructure the branch, do not move the existing receipt logic, do not
+add a second `invoice.paid` handler.
+
+
+=== COUNT ABSOLUTELY, DO NOT INCREMENT ===
+
+This is a correction to the plan, which said "increment
+referred_paid_invoice_count". THAT IS WRONG and must not be implemented.
+
+Stripe explicitly may deliver the same webhook more than once. An increment
+would over-count on a redelivery and vest the reward early — on what is really
+the first payment. It would also never recover from a missed delivery.
+
+Instead, ASK STRIPE for the absolute count each time:
+
+```ts
+const paidInvoices = await stripe.invoices.list({
+  subscription: inv.subscription as string,
+  status: "paid",
+  limit: 100,
+});
+const paidCount = paidInvoices.data.filter((i) => (i.amount_paid ?? 0) > 0).length;
+```
+
+Then WRITE that number, never `count + 1`. Idempotent by construction, and it
+self-heals if a webhook was ever missed.
+
+NOTE `amount_paid > 0`, not `billing_reason`. With the 14-day trial Stripe
+issues a $0 invoice at subscription creation, so `billing_reason ===
+'subscription_create'` does NOT identify the first real payment. A positive
+amount does, whether or not a trial was involved.
+
+
+=== THE LOGIC, IN ORDER ===
+
+1. Skip immediately unless `inv.subscription` exists AND `(inv.amount_paid ?? 0) > 0`.
+   A $0 trial invoice is not a payment.
+
+2. Resolve the REFERRED organization id. Prefer `combined.organization_id` from
+   the invoice/subscription metadata; fall back to looking up
+   `stripe_subscriptions` by `stripe_subscription_id`. If neither resolves, log
+   and skip — do not guess.
+
+3. Load the `org_referrals` row where `referred_org_id` = that org. No row means
+   this org was not referred: skip silently, this is the common case.
+
+4. If the row's status is already 'rewarded' or 'rejected', skip. Nothing to do.
+
+5. Compute `paidCount` as above and write it to `referred_paid_invoice_count`.
+   Stamp `referred_first_payment_at` when it is still null and paidCount >= 1.
+
+6. On the FIRST payment, record the card fingerprint and re-check eligibility.
+   This is the first moment a card exists, which is why the self-referral card
+   check lives here and not in claim-referral:
+
+```ts
+const fingerprint = (charge?.payment_method_details as any)?.card?.fingerprint ?? null;
+```
+
+   Write it to `referred_card_fingerprint`. Then load the REFERRER's fingerprint
+   (the most recent non-null `referred_card_fingerprint` for any referral where
+   that org was the referred party, or null if it has none) and call
+   `rejectReason` from `_shared/referral-eligibility.ts` with both parties.
+
+   If it returns a reason, set status 'rejected' with that
+   `rejection_reason` and stop. Do NOT re-implement the comparison inline —
+   two NULL fingerprints must not count as a match, and that rule is already
+   pinned by tests in src/lib/referralEligibility.test.ts.
+
+7. VEST. If `isVested(paidCount)` is true and status is still 'pending':
+   set status 'qualified', stamp `referred_second_payment_at`, then invoke
+   `grant-referral-reward` with the referral id. Use `isVested` from the shared
+   module — do not write `>= 2` inline.
+
+8. Wrap the whole referral block in its own try/catch that logs and swallows.
+   A referral bug must never break receipt delivery or webhook acknowledgement
+   to Stripe. Log with a `[referral]` prefix so it can be grepped.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. The `invoice.paid` handler at ~818 (tenant invoicing, keys on
+   `metadata.invoice_id`) is UNTOUCHED. Different feature entirely.
+2. The receipt logic, 3DS capture, `tos_acceptances` lookup and everything else
+   already inside the ~893 branch is UNTOUCHED. You are ADDING to it.
+3. No schema changes. Task 3's tables are already live.
+4. Do NOT grant any reward here. Marking 'qualified' and calling
+   grant-referral-reward is the whole job.
+5. Do NOT re-implement `rejectReason` or `isVested`. Import them.
+6. Do not "improve" anything else. Report it and leave it.
+
+
+=== PART 3 of 4 — GRANT REWARD ===
+
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Tasks 7 AND 8 of docs/superpowers/plans/2026-08-15-org-referral-programme.md,
+deliberately combined: the plan lists them separately, but both edit the same
+file and shipping Task 7 alone would leave a reward granter that silently never
+pays the bonus. One function, built once.
+
+  CREATE  supabase/functions/grant-referral-reward/index.ts
+  ALSO    regenerate src/integrations/supabase/types.ts  (see the last section)
+
+Then DEPLOY grant-referral-reward.
+
+PREREQUISITES: Task 4 (`claim-referral` + `_shared/referral-eligibility.ts`)
+and Task 6 (vesting in stripe-invoice-webhook) must already be deployed. Task 6
+is what calls this function.
+
+
+=== BEFORE YOU START: CONFIRM ONE STRIPE SETTING ===
+
+Check whether this Stripe account has MULTIPLE DISCOUNTS enabled on
+subscriptions. Report which it is, because it decides the whole design:
+
+  - MULTIPLE DISCOUNTS OFF (the historical default): a subscription carries at
+    most ONE discount. Rewards must therefore be reconciled into a SINGLE
+    coupon whose duration_in_months equals the months still owed. Build it the
+    way described below.
+
+  - MULTIPLE DISCOUNTS ON: you could append a coupon per reward instead, and
+    the ledger reconciliation becomes unnecessary. DO NOT switch to that
+    without telling me first — the ledger is also what makes redemption
+    countable, and I would rather keep it.
+
+Build the single-coupon version unless I say otherwise.
+
+
+=== WHAT THIS FUNCTION DOES ===
+
+Called with a referral id. It:
+
+  1. grants the referrer one month for that referral,
+  2. checks whether they have now reached THREE referrals in good standing and,
+     if so, grants two ADDITIONAL months, once, ever,
+  3. reconciles the total months owed into one Stripe coupon on the referrer's
+     subscription.
+
+Three referrals earns 3 + 2 = 5 months. The bonus is ON TOP of the three
+already earned, not instead of them.
+
+
+=== THE LEDGER ===
+
+`public.org_referral_credits` is the source of truth:
+
+    months_granted   — everything ever awarded to this org
+    months_redeemed  — months actually consumed by a $0 invoice
+    active_coupon_id — the coupon currently on the subscription
+
+Months still owed is `monthsOwed(granted, redeemed)` from
+`_shared/referral-eligibility.ts`. It CLAMPS AT ZERO — do not write your own
+subtraction. Redemption is counted from webhook events, so a double delivery
+can push redeemed past granted, and a negative `duration_in_months` is rejected
+by Stripe outright.
+
+
+=== THE LOGIC, IN ORDER ===
+
+1. Accept `{ referral_id }`. Service role. This is called server-to-server from
+   stripe-invoice-webhook, so require the cron/internal secret the other
+   internal functions use rather than a user JWT.
+
+2. Load the referral. Proceed ONLY if `status = 'qualified'` and
+   `referrer_reward_granted_at IS NULL`. Anything else: return
+   `{ outcome: 'already_granted' }` with 200. This is the idempotency guard —
+   Task 6 may call this more than once for the same referral.
+
+3. Skip a lifetime referrer. Use `isMonthlyPlan(plan_type)` from the shared
+   module. A lifetime org has no subscription to discount. Set the referral to
+   'rewarded' with a note and return `{ outcome: 'referrer_not_monthly' }` —
+   do NOT error, and do NOT leave it 'qualified' forever.
+
+4. Grant the per-referral month: `months_granted = months_granted + 1` on
+   org_referral_credits for the REFERRER. Stamp
+   `referrer_reward_granted_at` and set the referral to 'rewarded' IN THE SAME
+   STEP, so a retry cannot double-grant (step 2 then short-circuits).
+
+5. THE BONUS. Recount from scratch — do not trust a stored counter:
+
+   - load every org_referrals row where referrer_org_id = this org
+   - for each, get the referred org's CURRENT subscription status from
+     `stripe_subscriptions`
+   - call `isInGoodStanding({ status, paidInvoiceCount, subscriptionStatus })`
+     from the shared module for each
+   - count the trues
+   - `bonusMonthsOwed(count, bonusAlreadyGranted)` decides the rest
+
+   Recounting at every vesting event is deliberate: a referral can fall OUT of
+   good standing between converting and the third one arriving, and a stored
+   counter would not notice.
+
+   If it returns 2, insert `org_referral_bonuses` (months 2, and the qualifying
+   referral ids) and add 2 to months_granted. The table has
+   UNIQUE(organization_id), so "once ever" is enforced by the database — treat
+   23505 there as "already granted", not an error.
+
+6. RECONCILE THE COUPON. Compute `monthsOwed(granted, redeemed)`. If zero, do
+   nothing. Otherwise:
+
+   - create a coupon: `percent_off: 100, duration: 'repeating',
+     duration_in_months: <months owed>`
+   - apply it to the referrer's subscription, REPLACING any coupon currently
+     recorded in `active_coupon_id`
+   - store the new coupon id in `active_coupon_id`
+
+   Replacing rather than stacking is why the ledger exists. Do not apply a
+   second coupon.
+
+7. Always return 200 with an `outcome`. Never 500 for a business condition.
+   Outcomes: `granted` | `already_granted` | `referrer_not_monthly` |
+   `nothing_owed`.
+
+
+=== REDEMPTION COUNTING — THE FRAGILE PART, DO NOT SKIP ===
+
+Nothing above increments `months_redeemed`. That happens in
+stripe-invoice-webhook, and without it the ledger drifts and an org keeps a
+coupon it has already spent.
+
+In the SAME `invoice.paid` branch Task 6 edited (~line 893, the SaaS one, NOT
+the tenant-invoicing one at ~818), add: when an invoice for a subscription has
+`amount_paid === 0` AND carries a 100% discount whose coupon id matches that
+org's `active_coupon_id`, increment `months_redeemed` by 1.
+
+Guard it against redelivery the same way Task 6 does — derive rather than blind
+increment where you can, and if you must increment, key it on the invoice id so
+the same invoice cannot count twice. State in your report exactly how you made
+it idempotent.
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. `public.referrals` (customer-to-customer) and
+   `process_booking_referral_attribution` are untouched.
+2. No new tables. Task 3 shipped all four.
+3. Do NOT re-implement monthsOwed, isInGoodStanding, bonusMonthsOwed or
+   isMonthlyPlan. Import them from `_shared/referral-eligibility.ts`. Their
+   behaviour is pinned by src/lib/referralEligibility.test.ts.
+4. Do NOT change the bonus threshold (3) or size (2 months) — those come from
+   the economics, where the ceiling is about $90 of giveaway per referral at
+   the observed 2.84 mean paid months.
+5. Do not touch the tenant-invoicing invoice.paid handler at ~818.
+6. Do not "improve" anything else. Report it and leave it.
+
+
+=== PART 4 of 4 — ONE-LINE REGRESSION FIX IN platform-analytics ===
+
+Independent of parts 1 to 3. This repairs a regression introduced by the
+product-derivation change that just shipped.
+
+In supabase/functions/platform-analytics/index.ts, the PRICE_ID_SECRETS array
+currently lists six secrets:
+
+    const PRICE_ID_SECRETS = [
+      "STRIPE_BASIC_MONTHLY_PRICE_ID",
+      "STRIPE_BASIC_YEARLY_PRICE_ID",
+      "STRIPE_PRO_MONTHLY_PRICE_ID",
+      "STRIPE_PRO_YEARLY_PRICE_ID",
+      "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
+      "STRIPE_CUSTOM_YEARLY_PRICE_ID",
+    ];
+
+Add STRIPE_LIFETIME_PRICE_ID as a seventh entry:
+
+    const PRICE_ID_SECRETS = [
+      "STRIPE_BASIC_MONTHLY_PRICE_ID",
+      "STRIPE_BASIC_YEARLY_PRICE_ID",
+      "STRIPE_PRO_MONTHLY_PRICE_ID",
+      "STRIPE_PRO_YEARLY_PRICE_ID",
+      "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
+      "STRIPE_CUSTOM_YEARLY_PRICE_ID",
+      // Lifetime is sold outside create-subscription, which is why it was
+      // missed when this list was derived from that function's six prices.
+      // Its product resolved under the old hardcoded set, so omitting it here
+      // dropped every lifetime business off the dashboard — the exact silent
+      // drop this change was meant to end.
+      "STRIPE_LIFETIME_PRICE_ID",
+    ];
+
+Change nothing else in that file. Do not touch LEGACY_PRODUCT_IDS, the
+derivation loop, the hard stop, or the pagination.
+
+
+=== VERIFICATION — ALL FOUR PARTS, AFTER EVERYTHING IS DEPLOYED ===
+
+Work through every block below and report the results together at the end.
+The controls are the point: a number that looks right but would look identical
+with the logic broken proves nothing.
+
+
+--- PART 1 VERIFICATION ---
+
+=== SANITY CHECKS ===
+
+Report the number you actually MEASURE.
+
+  1. `_shared/referral-eligibility.ts` differs from
+     `src/lib/referralEligibility.ts` ONLY inside the header comment. Paste the
+     diff; it should be 1-3 lines, all inside `/** ... */`.
+  2. `rejectReason` appears in claim-referral exactly ONCE.
+  3. `isVested` appears ZERO times in claim-referral. Nothing vests at claim.
+  4. `config.toml` has ZERO entries mentioning claim-referral.
+  5. claim-referral inserts into `org_referrals` in exactly ONE place.
+  6. In create-subscription: `discounts` appears exactly ONCE, and
+     `allow_promotion_codes` appears ZERO times.
+  7. In create-subscription: `trial_period_days: TRIAL_DAYS` is unchanged and
+     `TRIAL_DAYS = 14` is unchanged.
+  8. `REFERRED_FIRST_MONTH_COUPON` appears exactly ONCE.
+  9. `organizations(id, plan_type, grandfathered_lifetime)` — the select now
+     includes `id`. Confirm the lifetime-block at ~line 151 still behaves
+     identically; adding a column to that select must not change it.
+ 10. `referredOrgId` and `accessAdmin` are both declared in a scope VISIBLE at
+     the session-creation site. If either is still block-scoped inside
+     `if (user)`, the file will not compile — report it rather than moving the
+     discount lookup inside that block, which would change when it runs.
+
+
+=== LIVE TEST — SIX CASES. C, D AND F ARE THE CONTROLS ===
+
+  A. VALID CLAIM. Org X (non-lifetime) claims org Y's real code.
+     EXPECT: one row, status 'pending', referrer Y, referred X.
+
+  B. REPEAT CLAIM. Call again for org X.
+     EXPECT: outcome 'already_claimed', 200, STILL exactly one row for X.
+
+  C. CONTROL — SELF-REFERRAL. Org X claims its OWN code.
+     EXPECT: rejected, 'self_referral_same_org'. If accepted, the eligibility
+     module is not wired up.
+
+  D. CONTROL — WRONG OWNER. Call with an organization_id the JWT's user is NOT
+     a member of.
+     EXPECT: 403. If this succeeds, anyone can claim referrals for any org and
+     every other check here is decorative.
+
+  E. DISCOUNT APPLIES. Referred org X checks out (test clock, advance 14 days).
+     EXPECT: first invoice with amount_due > 0 is 50% off, and
+     referred_discount_applied_at is set.
+
+  F. CONTROL — NO DISCOUNT WITHOUT A REFERRAL. An org with NO org_referrals row
+     checks out.
+     EXPECT: NO discount on the session, full price on the first charged
+     invoice. If this gets 50% off, every customer is now half price.
+
+Cases A, B and E alone cannot distinguish a correct implementation from one
+that accepts everything and discounts everyone. Report all six.
+
+
+--- PART 2 VERIFICATION ---
+
+=== SANITY CHECKS ===
+
+Report the number you actually MEASURE.
+
+  1. `event.type === "invoice.paid"` still appears exactly TWICE in the file —
+     the tenant-invoicing one and the SaaS one. If it is 3, a second handler
+     was added instead of extending the existing branch.
+  2. `referred_paid_invoice_count` is written in exactly ONE place, and the
+     assigned value is `paidCount` — NOT any expression containing `+ 1`.
+  3. `+ 1` does not appear anywhere near the referral block.
+  4. `isVested(` appears exactly ONCE. `>= 2` appears ZERO times in the
+     referral block.
+  5. `rejectReason(` appears exactly ONCE.
+  6. `stripe.invoices.list(` appears exactly ONCE.
+  7. `[referral]` log prefix appears at least 3 times (skip, reject, vest).
+
+
+=== LIVE TEST — FOUR CASES, THE LAST TWO ARE THE CONTROLS ===
+
+Use test orgs with a real referral row from Task 4.
+
+  A. FIRST PAYMENT. Referred org pays once.
+     EXPECT: referred_paid_invoice_count = 1, referred_first_payment_at set,
+     referred_card_fingerprint set, status STILL 'pending',
+     referrer_reward_granted_at STILL null.
+
+  B. SECOND PAYMENT. Same org pays again.
+     EXPECT: count = 2, status 'qualified', referred_second_payment_at set,
+     grant-referral-reward invoked.
+
+  C. CONTROL — REDELIVERY. Re-send the SAME `invoice.paid` event from the
+     Stripe dashboard after case A.
+     EXPECT: count STILL 1, status STILL 'pending'. If the count moves to 2 the
+     implementation is incrementing, and every referral vests one payment early.
+
+  D. CONTROL — NO REFERRAL. A paying org with no org_referrals row.
+     EXPECT: no rows touched, no errors, receipt still sent. If this errors,
+     every non-referred customer's webhook is now broken.
+
+Case A and B alone cannot distinguish a correct implementation from an
+incrementing one. Report all four.
+
+
+--- PART 3 VERIFICATION ---
+
+=== SANITY CHECKS ===
+
+Report the number you actually MEASURE.
+
+  1. `bonusMonthsOwed(` appears exactly ONCE.
+  2. `isInGoodStanding(` appears exactly ONCE.
+  3. `monthsOwed(` appears at least once and `months_granted -` (a hand-rolled
+     subtraction) appears ZERO times.
+  4. The literal `3` as a bonus threshold and the literal `2` as a bonus size
+     appear ZERO times in this function — both come from the shared module.
+  5. `coupons.create(` appears exactly ONCE.
+  6. `months_redeemed` is incremented in stripe-invoice-webhook, NOT in this
+     function. Confirm zero increments here.
+  7. `duration_in_months` is assigned from the monthsOwed result, never a
+     literal.
+
+
+=== LIVE TEST — SIX CASES, C, E AND F ARE THE CONTROLS ===
+
+  A. FIRST REWARD. One referral reaches 'qualified'.
+     EXPECT: months_granted 0→1, referral 'rewarded',
+     referrer_reward_granted_at set, a coupon with duration_in_months = 1 on
+     the referrer's subscription.
+
+  B. SECOND AND THIRD. Two more qualify.
+     EXPECT: months_granted reaches 3, THEN the bonus fires: one
+     org_referral_bonuses row (months 2), months_granted = 5, and the coupon
+     REPLACED with duration_in_months = 5 — not a second coupon alongside it.
+
+  C. CONTROL — RE-CALL. Invoke it again with a referral id already 'rewarded'.
+     EXPECT: outcome 'already_granted', months_granted UNCHANGED. If it climbs,
+     every retry from Task 6 mints free months.
+
+  D. REDEMPTION. Referrer's next invoice is $0 against the coupon.
+     EXPECT: months_redeemed 0→1, monthsOwed drops by one.
+
+  E. CONTROL — BONUS DOES NOT REPEAT. Referrals four, five and six qualify.
+     EXPECT: months_granted rises by 1 each time and STILL exactly ONE
+     org_referral_bonuses row. A second bonus row means "once ever" is broken.
+
+  F. CONTROL — A LAPSED REFERRAL DOES NOT COUNT. With two good referrals, cancel
+     the third referred org's subscription, then qualify a fourth.
+     EXPECT: NO bonus — good standing is 3 only if all three are still live. If
+     the bonus fires here, isInGoodStanding is not being consulted.
+
+Cases A, B and D alone cannot distinguish a correct implementation from one
+that grants on every call and never checks standing. Report all six.
+
+
+=== ONE MORE THING — REGENERATE THE TYPES ===
+
+`src/integrations/supabase/types.ts` is generated and still predates Task 3, so
+it does not contain org_referral_codes, org_referrals, org_referral_credits or
+org_referral_bonuses. The frontend hook currently carries a documented
+`supabase as any` bridge purely to compile around that.
+
+Please regenerate types.ts from the live schema as part of this task and commit
+it. Then say so in your report, so the bridge can be deleted — the comment in
+`src/hooks/useReferrals.ts` says exactly that.
+
+
+--- PART 4 VERIFICATION ---
+
+Call platform-analytics as support@tidywisecleaning.com and paste back:
+
+  subscriptions.active
+  subscriptions.trialing
+  subscriptions.canceled
+
+and these log lines:
+
+  price -> product resolution:
+  derived product ids:
+  counted product ids (derived + legacy):
+  products seen but NOT counted:
+
+HOW TO READ IT. The seventh secret must appear in "price -> product
+resolution" with a non-null product, and that product must then appear in
+"derived product ids". If STRIPE_LIFETIME_PRICE_ID comes back with
+error "secret not set", say so and stop — the secret is named differently and
+guessing at the name would re-introduce the same silent drop.
+
+The lifetime product must NOT appear in "products seen but NOT counted".
+
+
+=== REPORT BACK — ONE REPLY, ALL FOUR PARTS ===
+
+For each part, state plainly: deployed or not, and the verification output
+requested above. Then answer these three:
+
+  1. Did every control behave as its section says it must? Name any that did
+     not, rather than reporting the headline number alone.
+
+  2. Did you change any file, table, config.toml entry or cron job that these
+     instructions did not name? List them. "No" is a valid and expected answer.
+
+  3. Is anything left in a half-applied state — a function deployed but its
+     migration not run, or the reverse? Be specific about which.
+
+Confirm each function is DEPLOYED, not merely committed.

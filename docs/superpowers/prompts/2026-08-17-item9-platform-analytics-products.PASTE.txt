@@ -1,0 +1,288 @@
+Two changes to supabase/functions/platform-analytics/index.ts, both in the
+Stripe subscription block. Do not change anything else in that function — in
+particular do not touch the per-subscription loop body, the staff/owner email
+filtering, or the response shape.
+
+Read all of this before starting. Step 1 must happen BEFORE you deploy, and it
+cannot be recovered afterwards.
+
+
+=== STEP 1 of 4 — CAPTURE THE BEFORE NUMBER, BEFORE DEPLOYING ANYTHING ===
+
+Call the deployed platform-analytics function as support@tidywisecleaning.com
+and paste back these three values from its JSON response, exactly as they are
+today:
+
+  subscriptions.active
+  subscriptions.trialing
+  subscriptions.canceled
+
+Also run this SQL and paste the output:
+
+  select status, count(*) as subs
+  from public.stripe_subscriptions
+  group by status
+  order by subs desc;
+
+Do not proceed until you have pasted both. Once the function is redeployed the
+old numbers are gone, and without them the after-numbers prove nothing.
+
+
+=== STEP 2 of 4 — DERIVE THE PRODUCT SET FROM THE PRICE SECRETS ===
+
+Lines 182-185 currently hardcode the product set:
+
+    const TIDYWISE_CRM_PRODUCT_IDS = new Set([
+      "prod_Tg3zSKe9hRHLZy", // legacy TIDYWISE Pro Subscription
+      "prod_Uc5BhR3ZK0V6M8", // current TidyWise Pro ($97/mo)
+    ]);
+
+Its own comment admits the trap: "Adding a new Pro price requires appending its
+product ID here or that customer will silently drop off the dashboard."
+
+Replace those four lines with the block below, which derives the same set from
+the six price-ID secrets create-subscription already uses, so a new plan shows
+up on the dashboard the moment its secret is set.
+
+    // Derived, not hardcoded. create-subscription sells exactly these six
+    // prices; resolving each to its product means a new plan appears on this
+    // dashboard as soon as its secret is set, instead of silently dropping
+    // every customer on it until someone remembers to edit this file.
+    const PRICE_ID_SECRETS = [
+      "STRIPE_BASIC_MONTHLY_PRICE_ID",
+      "STRIPE_BASIC_YEARLY_PRICE_ID",
+      "STRIPE_PRO_MONTHLY_PRICE_ID",
+      "STRIPE_PRO_YEARLY_PRICE_ID",
+      "STRIPE_CUSTOM_MONTHLY_PRICE_ID",
+      "STRIPE_CUSTOM_YEARLY_PRICE_ID",
+    ];
+
+    // Products that CANNOT be derived, and must not be "cleaned up".
+    //
+    // Each of these holds live subscribers but has no secret pointing at it,
+    // because there is only one STRIPE_PRO_MONTHLY_PRICE_ID and one
+    // STRIPE_BASIC_MONTHLY_PRICE_ID — a secret can name exactly one price, and
+    // therefore reach exactly one product. Deleting any line below drops those
+    // customers off this dashboard with no error and no symptom.
+    //
+    //   prod_Tg3zSKe9hRHLZy — legacy "TIDYWISE Pro Subscription", $50/mo, 13
+    //     subscribers. A retired product at a retired price. No current secret
+    //     names it and none can, because the Pro secret points at the $97/mo
+    //     product. These are grandfathered customers still paying $50.
+    //
+    //   prod_Uc4rWR3lSym9VN — a DUPLICATE TidyWise Basic product, 5
+    //     subscribers. Same plan as the derived Basic product, separate Stripe
+    //     product record. STRIPE_BASIC_MONTHLY_PRICE_ID reaches the other one.
+    //
+    //   prod_Uc5BhR3ZK0V6M8 — a DUPLICATE TidyWise Pro product, 4 subscribers.
+    //     Same story: STRIPE_PRO_MONTHLY_PRICE_ID reaches the other Pro
+    //     product, so these four are unreachable by derivation.
+    //
+    // The two duplicates are twins, not different plans. Consolidating those 9
+    // subscribers onto the derived products would let two of these three lines
+    // be deleted — until that happens, they stay.
+    const LEGACY_PRODUCT_IDS = new Set<string>([
+      "prod_Tg3zSKe9hRHLZy",
+      "prod_Uc4rWR3lSym9VN",
+      "prod_Uc5BhR3ZK0V6M8",
+    ]);
+
+    const derivedProductIds = new Set<string>();
+    const priceResolution: Array<{ secret: string; price: string | null; product: string | null; error?: string }> = [];
+
+    for (const secretName of PRICE_ID_SECRETS) {
+      const priceId = Deno.env.get(secretName);
+      if (!priceId) {
+        priceResolution.push({ secret: secretName, price: null, product: null, error: "secret not set" });
+        continue;
+      }
+      try {
+        const price = await stripeForProducts.prices.retrieve(priceId);
+        const productId = typeof price.product === "string" ? price.product : price.product?.id ?? null;
+        if (productId) derivedProductIds.add(productId);
+        priceResolution.push({ secret: secretName, price: priceId, product: productId });
+      } catch (e) {
+        // Do NOT swallow this. A price that fails to resolve is a product
+        // missing from the filter, which is a group of paying customers
+        // missing from the dashboard.
+        priceResolution.push({
+          secret: secretName,
+          price: priceId,
+          product: null,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    console.log("[PLATFORM-ANALYTICS] price -> product resolution:", JSON.stringify(priceResolution));
+    console.log("[PLATFORM-ANALYTICS] derived product ids:", [...derivedProductIds]);
+    console.log("[PLATFORM-ANALYTICS] legacy product ids:", [...LEGACY_PRODUCT_IDS]);
+
+    // Hard stop, and it checks the DERIVED set specifically — not the union
+    // below. Checking the union would make this unreachable, because the three
+    // legacy ids are unconditional, so the set can never be empty and a total
+    // failure of the six secrets would sail through reporting only legacy
+    // subscribers as if that were the whole business.
+    if (derivedProductIds.size === 0) {
+      throw new Error(
+        "platform-analytics: no CRM product ids could be derived from the six " +
+        "STRIPE_*_PRICE_ID secrets. Refusing to report subscription counts " +
+        "built only from the legacy fallback. Resolution detail: " +
+        JSON.stringify(priceResolution),
+      );
+    }
+
+    const TIDYWISE_CRM_PRODUCT_IDS = new Set<string>([
+      ...derivedProductIds,
+      ...LEGACY_PRODUCT_IDS,
+    ]);
+    console.log("[PLATFORM-ANALYTICS] counted product ids (derived + legacy):", [...TIDYWISE_CRM_PRODUCT_IDS]);
+
+The block above needs a Stripe client before the one currently constructed at
+line ~199. Move the client construction up so it exists before this block, and
+name the variable stripeForProducts, or reuse the existing client by hoisting
+its construction — either is fine, but the derivation must run inside the
+`if (stripeKey)` guard, because it needs the key. Do not construct a second
+client with a different API version.
+
+
+=== STEP 3 of 4 — PAGINATE INSTEAD OF STOPPING AT 100 ===
+
+Lines ~204-214 currently read, in effect:
+
+    const allSubscriptions = await stripe.subscriptions.list({
+      limit: 100,
+      status: 'all'
+    });
+    const crmSubscriptions = allSubscriptions.data.filter((sub) => { ... });
+
+With status 'all', canceled subscriptions accumulate forever, so this silently
+stops at the 100 most recent and under-reports every counter below it.
+
+Replace that with the block below. It keeps the existing `crmSubscriptions`
+array and the existing `for (const sub of crmSubscriptions)` loop that follows
+completely unchanged — only how the array gets filled changes.
+
+    const crmSubscriptions: Stripe.Subscription[] = [];
+    let totalSubscriptionsSeen = 0;
+    let controlMatches = 0;
+    const unmatchedProductCounts: Record<string, number> = {};
+
+    // A product id that cannot exist. If this ever matches anything, the
+    // comparison itself is broken and every other count here is meaningless.
+    const CONTROL_PRODUCT_ID = "prod_thisDoesNotExist000";
+
+    // Bounded, and the bound is logged. The bug being fixed is a silent
+    // truncation at 100; replacing it with a silent truncation at 5000 would
+    // be the same bug wearing a bigger number.
+    const MAX_SUBSCRIPTIONS_SCANNED = 5000;
+    let truncated = false;
+
+    await stripe.subscriptions
+      .list({ limit: 100, status: "all" })
+      .autoPagingEach((sub: Stripe.Subscription) => {
+        if (totalSubscriptionsSeen >= MAX_SUBSCRIPTIONS_SCANNED) {
+          truncated = true;
+          return false; // returning false stops autoPagingEach
+        }
+        totalSubscriptionsSeen++;
+
+        const productId = sub.items.data[0]?.price?.product as string | undefined;
+        if (!productId) return;
+
+        if (productId === CONTROL_PRODUCT_ID) controlMatches++;
+
+        if (TIDYWISE_CRM_PRODUCT_IDS.has(productId)) {
+          crmSubscriptions.push(sub);
+        } else {
+          unmatchedProductCounts[productId] = (unmatchedProductCounts[productId] ?? 0) + 1;
+        }
+      });
+
+    if (truncated) {
+      console.error(
+        `[PLATFORM-ANALYTICS] TRUNCATED at ${MAX_SUBSCRIPTIONS_SCANNED} subscriptions — counts below are incomplete`,
+      );
+    }
+
+    console.log("[PLATFORM-ANALYTICS] subscriptions scanned:", totalSubscriptionsSeen);
+    console.log("[PLATFORM-ANALYTICS] matched CRM subscriptions:", crmSubscriptions.length);
+    console.log("[PLATFORM-ANALYTICS] CONTROL matches (must be 0):", controlMatches);
+    console.log("[PLATFORM-ANALYTICS] products seen but NOT counted:", JSON.stringify(unmatchedProductCounts));
+
+Leave everything after this untouched. The `for (const sub of crmSubscriptions)`
+loop, the resolvedStatus counters at lines ~276-278, and the response shape at
+lines ~396-401 all stay exactly as they are.
+
+
+=== STEP 4 of 4 — DEPLOY, THEN PROVE IT ===
+
+Deploy platform-analytics. Confirm deployed, not merely committed.
+
+Then call it again as support@tidywisecleaning.com and paste back:
+
+a) The same three response values as Step 1:
+     subscriptions.active
+     subscriptions.trialing
+     subscriptions.canceled
+
+b) These eight log lines from the invocation, verbatim:
+     price -> product resolution:
+     derived product ids:
+     legacy product ids:
+     counted product ids (derived + legacy):
+     subscriptions scanned:
+     matched CRM subscriptions:
+     CONTROL matches (must be 0):
+     products seen but NOT counted:
+
+HOW TO READ THE RESULT — do not just check that the numbers look plausible.
+
+  CONTROL matches must be exactly 0. If it is anything else, the product
+  comparison is broken and every other number on this page is meaningless.
+  This is the whole point of the control: a trialing count of 3 proves nothing
+  on its own, because a filter that matched everything, or a filter that was
+  being ignored entirely, would also produce a number that looks like an
+  answer.
+
+  matched CRM subscriptions must be LESS than subscriptions scanned. If they
+  are equal, the filter is not discriminating — either it is inert, or every
+  subscription in the account genuinely belongs to a CRM product. The
+  "products seen but NOT counted" line tells you which: if it is an empty
+  object AND the two counts are equal, treat the filter as unproven and say so
+  rather than accepting the number.
+
+  derived product ids must be non-empty, and must NOT be just the three legacy
+  ids — those live in their own set and are unioned in afterwards. If the
+  function threw instead of returning, the six secrets are not set under the
+  names above; paste the error rather than working around it by moving those
+  products into the legacy list, which would hide a broken configuration behind
+  a fallback built for a different problem.
+
+  counted product ids should be the derived ids plus exactly the three legacy
+  ids. If a legacy id also appears in the derived list, that product has become
+  reachable by a secret and its line in LEGACY_PRODUCT_IDS can be deleted — say
+  so rather than leaving a redundant entry to rot.
+
+  The after-numbers may be HIGHER than the before-numbers. That is the
+  expected outcome if the account holds more than 100 subscriptions, because
+  the old code was silently discarding everything past the first page. A rise
+  is evidence the fix worked. A FALL is a problem — see below.
+
+  "products seen but NOT counted" is the important line, and it should NOT
+  now name prod_Tg3zSKe9hRHLZy, prod_Uc4rWR3lSym9VN or prod_Uc5BhR3ZK0V6M8 —
+  those three are explicitly counted via LEGACY_PRODUCT_IDS. If one of them
+  still appears there, the union is not being applied and roughly 22
+  subscribers are missing from every figure on the page.
+
+  Any OTHER product id on that line is a genuine finding: a paying product this
+  dashboard does not know about. Paste it and stop rather than adding it to the
+  legacy list yourself — the legacy list is for three specific products with a
+  known reason, and quietly growing it is how it stops meaning anything.
+
+  Sanity check on the counts, given what those three products hold today:
+  roughly 13 + 5 + 4 = 22 subscribers sit on the legacy and duplicate products.
+  If matched CRM subscriptions is at least that, the union is working. If it
+  is close to zero, it is not.
+
+Change nothing else. Do not touch config.toml, any table, any other function.

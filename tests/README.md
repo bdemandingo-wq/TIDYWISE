@@ -37,6 +37,36 @@ Sessions are cached in `tests/.auth/*.json` (gitignored) after the first
 | `seo-static.spec.ts` | 12.1, 12.4 |
 | `security.spec.ts` | 13.2, 13.5, + 8 spoofed-value regression checks |
 | `NEEDS_ANOTHER_TOOL.md` | everything explicitly out of Playwright's scope |
+| `broadcast-audience.contract.spec.ts` | contract test, not from the checklist — see below |
+
+## Extra credentials for broadcast-audience.contract.spec.ts
+
+This spec needs two accounts that aren't part of the `setup` project's three
+QA roles, so it authenticates them itself (via the Supabase JS client, not a
+browser session). It never touches the app UI, so it runs under its own
+dependency-free Playwright project, `broadcast-audience-contract` (see
+`playwright.qa.config.ts`), not `chromium` — it does not wait on
+`setup`/`logout-check`, and it runs automatically as part of
+`npm run test:qa`. To run just this file:
+
+```bash
+npx playwright test -c playwright.qa.config.ts --project=broadcast-audience-contract
+```
+
+- `PLATFORM_ADMIN_EMAIL` / `PLATFORM_ADMIN_PASSWORD` — must specifically be
+  `support@tidywisecleaning.com`. `is_platform_admin()` allows two addresses,
+  but this spec's oracle (the `platform-analytics` edge function) gates on
+  that one address only — the other admin address gets a 403 from the oracle
+  itself, for a reason unrelated to the audience it's checking.
+- `QA_ORG_OWNER_EMAIL` / `QA_ORG_OWNER_PASSWORD` — an ordinary org owner who
+  is genuinely NOT a platform admin. Deliberately a separate identity from
+  `QA_OWNER` above, not a reuse of it: this spec's non-platform-admin test is
+  only meaningful if the account really isn't a platform admin, and nothing
+  in the repo asserts that about `QA_OWNER`.
+
+Both live in `.env.test` alongside the other three pairs (see
+`.env.test.example`). Missing either throws immediately with a fix-it
+message when the spec tries to sign in — it does not skip.
 
 ## Known, currently-blocking finding (read before triaging red tests)
 

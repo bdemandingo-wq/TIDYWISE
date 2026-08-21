@@ -1,0 +1,297 @@
+=== TWO FIXES, ONE TURN. READ ALL OF IT BEFORE STARTING. ===
+
+Two unrelated fixes merged to conserve credits. All verification is at the END.
+Do not stop to verify between them — apply both, then work through the
+verification section in one pass and report back in one reply.
+
+  FIX 1  the signup notification prints a constant, plus a new conversion alert
+  FIX 2  the "Who's paying" table reads 0 for every plan
+
+If one cannot be completed, finish the other and say which you stopped on.
+Do not leave either half-applied.
+
+A vocabulary note before you touch any plan name, because there are three
+columns here and two of them are traps:
+
+  organizations.plan_type   basic | pro | custom | lifetime | trial | free
+                            THE LIVE ONE. create-subscription writes it and the
+                            access checks read it. Use this.
+
+  organizations.plan_tier   Stale. Reads 'custom' for all 79 lifetime orgs and
+                            'trial' for orgs that have actually paid.
+                            src/pages/admin/PlatformRevenuePage.tsx carries an
+                            explicit "grouped on plan_type and NEVER plan_tier"
+                            rule for exactly this reason. Do not use it.
+
+  profiles.subscription_tier   starter | pro | business, enforced by the
+                            validate_subscription_fields trigger on profiles.
+                            All 424 rows read 'starter'. It is vestigial and
+                            has nothing to do with which plan anyone is on.
+                            Do not use it, and do not "reconcile" the two
+                            vocabularies — they belong to different tables.
+
+
+=== FIX 1a — notify-new-organization-signup PRINTS A CONSTANT ===
+
+supabase/functions/notify-new-organization-signup/index.ts line 61 reads:
+
+    .select("subscription_tier, subscription_status")
+
+Neither column exists on organizations. The error is discarded, orgData comes
+back null, and lines 65-66 fall through to their defaults:
+
+    const plan = orgData?.subscription_tier || "trial";
+    const status = orgData?.subscription_status || "trial";
+
+So line 99 prints "Plan: trial (trial)" for every signup, unconditionally. It
+is not reporting a trial — it is reporting nothing, in the shape of an answer.
+
+Replace the lookup with organizations.plan_type plus the owner's trial end
+date, and CHECK THE ERROR this time:
+
+    const { data: orgData, error: orgError } = await supabase
+      .from("organizations")
+      .select("plan_type, owner_id")
+      .eq("id", organizationId)
+      .maybeSingle();
+
+    if (orgError) {
+      console.error("[notify-new-organization-signup] org lookup failed:", orgError);
+    }
+
+    let trialEndsAt: string | null = null;
+    if (orgData?.owner_id) {
+      const { data: ownerProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("trial_ends_at")
+        .eq("id", orgData.owner_id)
+        .maybeSingle();
+      if (profileError) {
+        console.error("[notify-new-organization-signup] profile lookup failed:", profileError);
+      }
+      trialEndsAt = ownerProfile?.trial_ends_at ?? null;
+    }
+
+    // No `|| "trial"` fallback. If the lookup failed we do not know the plan,
+    // and saying "trial" would reproduce the exact bug being fixed: a
+    // confident-looking constant standing in for a missing answer.
+    const plan = orgData?.plan_type ?? "unknown";
+    const trialLine = trialEndsAt
+      ? `Trial ends: ${new Date(trialEndsAt).toISOString().slice(0, 10)}`
+      : "Trial end: unknown";
+
+Then change line 99 from:
+
+      `Plan: ${plan} (${status})\n` +
+
+to:
+
+      `Plan: ${plan}\n${trialLine}\n` +
+
+and delete the now-unused `status` variable.
+
+ON THE TRIAL DATE, and do not "fix" this: profiles.trial_ends_at is set to
+signup + 7 days, while a paid Stripe trial is 14. At signup there is no Stripe
+subscription yet, so 7 days is the only figure that exists. Report it as-is.
+The mismatch between the two numbers is real and pre-existing; it is not this
+notification's job to paper over it, and inventing 14 here would be a guess.
+
+
+=== FIX 1b — A SECOND NOTIFICATION WHEN A TRIAL CONVERTS ===
+
+Nothing currently tells you when someone starts paying. Add it to
+supabase/functions/stripe-subscription-webhook/index.ts, which already handles
+customer.subscription.updated and already resolves the organization.
+
+Detect the trial-to-paid transition. On an updated event Stripe includes
+event.data.previous_attributes; the transition is previous status 'trialing'
+and current status 'active':
+
+    const previousStatus =
+      (event.data.previous_attributes as { status?: string } | undefined)?.status;
+    const converted = previousStatus === "trialing" && sub.status === "active";
+
+Read the plan and the price OFF THE SUBSCRIPTION OBJECT. Do not import
+ChoosePlanPage's constants and do not hardcode amounts — two price lists drift,
+and the one on this side would be the one nobody notices is wrong:
+
+    const item = sub.items.data[0];
+    const price = item?.price;
+    const amount =
+      typeof price?.unit_amount === "number"
+        ? `${(price.unit_amount / 100).toFixed(2)} ${String(price.currency).toUpperCase()}`
+        : "unknown amount";
+    const interval = price?.recurring?.interval ?? "unknown interval";
+
+    // create-subscription stamps tidywise_plan on the subscription's metadata.
+    // Fall back to the price nickname rather than to a plan-name table.
+    const planName =
+      (sub.metadata as Record<string, string> | undefined)?.tidywise_plan ??
+      price?.nickname ??
+      "unknown plan";
+
+Send it the same way the signup notification does — an SMS through OpenPhone,
+to the same platform-admin number, using the same org SMS settings lookup.
+Do NOT invent an email path; a second channel is a second thing to maintain.
+
+Message body:
+
+    `TidyWise: trial converted to paid\n` +
+    `Org: ${organizationName}\n` +
+    `Plan: ${planName}\n` +
+    `Price: ${amount} / ${interval}\n` +
+    `Subscription: ${sub.id}`
+
+Fire it only when `converted` is true, and make it non-fatal: wrap the send in
+try/catch and log failures. A notification that fails must never roll back or
+block the plan_tier sync that this webhook exists to perform.
+
+Do not change updateOrgPlanTier, subscriptionToPlanTier, the tier resolution,
+or the created/deleted branches.
+
+
+=== FIX 2 — "WHO'S PAYING" READS 0 FOR EVERY PLAN ===
+
+src/hooks/useBillingRevenue.ts, inside useBillingPlanPayers, resolves plan_type
+with a client-side join:
+
+    supabase.from('organizations').select('id, plan_type').in('id', orgIds)
+
+organizations has exactly one SELECT policy — owner_id = auth.uid() OR
+is_org_member(id) — and no platform-admin bypass. So that call returns only
+orgs the viewer personally belongs to: one, for either platform admin. And that
+one org is excluded from this table by design, so ZERO plan types resolve and
+all 14 payers land in "Other — unrecognised plan". Server-side the data is
+correct: lifetime 12, pro 1, basic 1.
+
+The join is not wrong, its route is. Give it a path that is not RLS-limited.
+
+2a. MIGRATION — a gated resolver, same shape as broadcast_audience:
+
+  create or replace function public.billing_payer_plan_types(p_org_ids uuid[])
+  returns table (organization_id uuid, plan_type text)
+  language sql
+  stable
+  security definer
+  set search_path = public
+  as $$
+    -- SECURITY DEFINER because organizations' RLS has no platform-admin
+    -- bypass, which is the whole bug. It therefore authorizes the caller
+    -- itself: a non-platform-admin gets zero rows, not a cross-tenant read of
+    -- who pays for TidyWise.
+    select o.id, o.plan_type
+    from public.organizations o
+    where o.id = any(p_org_ids)
+      and public.is_platform_admin();
+  $$;
+
+  revoke all on function public.billing_payer_plan_types(uuid[]) from public, anon;
+  grant execute on function public.billing_payer_plan_types(uuid[]) to authenticated;
+
+2b. HOOK — call it instead of the table.
+
+Replace the organizations lookup inside useBillingPlanPayers with:
+
+      const { data: orgs, error: orgError } = await supabase
+        .rpc('billing_payer_plan_types', { p_org_ids: orgIds });
+      if (orgError) throw orgError;
+      for (const o of orgs ?? []) {
+        planTypes.set(o.organization_id as string, (o.plan_type as string) ?? null);
+      }
+
+Note the key is organization_id, not id — the RPC returns the column under that
+name. Everything else in the hook stays: the orgIds collection, the throw on
+error, the plain-object return. Do not widen billing_plan_payers itself; that
+view is the ledger and should not learn about access tiers.
+
+
+=== VERIFICATION — BOTH FIXES, AFTER EVERYTHING IS DEPLOYED ===
+
+--- FIX 1 VERIFICATION ---
+
+The trap here is that a brand-new org IS on trial, so a still-broken lookup and
+a working one both print something with "trial" in it. The control is to run the
+resolution against an org that is NOT on trial and prove it differs.
+
+Run this and paste the output:
+
+  select o.name, o.plan_type, p.trial_ends_at
+  from public.organizations o
+  left join public.profiles p on p.id = o.owner_id
+  where o.plan_type in ('pro', 'lifetime', 'basic')
+  order by o.plan_type
+  limit 3;
+
+CONTROL: for each of those rows, state what the new notification code would
+print on the "Plan:" line. It must be that row's plan_type — 'pro', 'lifetime',
+'basic'. If any of them would print "trial", the lookup is still reading a
+column that does not exist and the fix has not landed. If any would print
+"unknown", the query errored and you should paste the error.
+
+Then confirm by inspection, and say so explicitly: the strings
+"subscription_tier" and "subscription_status" no longer appear anywhere in
+notify-new-organization-signup/index.ts.
+
+For 1b, state which line in stripe-subscription-webhook now reads
+previous_attributes, and confirm the send is inside a try/catch that cannot
+block updateOrgPlanTier.
+
+--- FIX 2 VERIFICATION ---
+
+Run all three and paste the output:
+
+  -- 1. The RPC returns the payers' plan types. Expect 14 rows.
+  select count(*) as rows_returned
+  from public.billing_payer_plan_types(
+    array(select organization_id from public.billing_plan_payers
+          where organization_id is not null)
+  );
+
+  -- 2. The distribution the table should now render. Expect lifetime 12,
+  --    pro 1, basic 1.
+  select plan_type, count(*) as businesses
+  from public.billing_payer_plan_types(
+    array(select organization_id from public.billing_plan_payers
+          where organization_id is not null)
+  )
+  group by plan_type order by businesses desc;
+
+  -- 3. CONTROL: the gate is real. Run this as an ORDINARY ORG OWNER, not as
+  --    a platform admin — any account that is not one of the two addresses in
+  --    is_platform_admin(). Expect 0 rows.
+  select count(*) as rows_for_non_admin
+  from public.billing_payer_plan_types(
+    array(select organization_id from public.billing_plan_payers
+          where organization_id is not null)
+  );
+
+Query 3 is the one that matters. Queries 1 and 2 returning 12/1/1 would look
+identical if the function ignored its gate and returned every org to everyone —
+so a non-zero result there means this fix has replaced an RLS bug with a
+cross-tenant leak, and you should say so loudly rather than reporting the
+headline numbers.
+
+Then load /dashboard/platform-revenue as the platform admin and confirm:
+"Other — unrecognised plan" now holds 0 businesses, not 14, and the Lifetime,
+Pro and Basic rows carry 12, 1 and 1. If Other still holds 14, the hook is
+still calling the table rather than the RPC.
+
+
+=== REPORT BACK — ONE REPLY, BOTH FIXES ===
+
+  1. FIX 1: the three-row query output, and for each row the exact "Plan:" line
+     the code would print. Plus confirmation that the two dead column names are
+     gone from that file.
+
+  2. FIX 1b: the conversion path — which line detects it, and confirmation the
+     price comes off the subscription object rather than any constant.
+
+  3. FIX 2: all three query outputs. Query 3 must be 0.
+
+  4. Did you change any file, table, config.toml entry or cron job these
+     instructions did not name? List them. "No" is expected.
+
+  5. Is anything half-applied — a migration run without its hook edit, or the
+     reverse? Say which.
+
+Confirm each function is DEPLOYED, not merely committed.

@@ -1,0 +1,301 @@
+=== CLOSE THREE SILENT EMAIL FAILURES. ONE TURN. READ ALL OF IT FIRST. ===
+
+Three edge functions send email through the Resend SDK and throw the result
+away. The SDK returns { data, error } and does NOT throw on an API error, so a
+403 lands in that discarded object, the "Email sent" line prints anyway, and in
+one case a success row is written to automation_fire_log.
+
+This is not theoretical. Regal Rest Cleaning has FIVE recorded weekly-summary
+successes in automation_fire_log, and the Resend log shows 403s for
+regalrestcleaning.com over the same period. The dashboard is reporting sends
+that never happened.
+
+THIS PASTE MAKES FAILURES VISIBLE. IT DOES NOT FIX WHY THEY FAIL.
+
+Do NOT change any from-address. Do NOT change which API key is used. Do NOT
+import _shared/email-sender-resolution.ts. The sender pairing is wrong in these
+functions and that is being fixed separately, on purpose — closing the silence
+first means the next failure shows up in the database instead of a provider log.
+If you "helpfully" repoint a sender in this paste, the verification below cannot
+tell the two changes apart.
+
+  PART 1  weekly-business-report      check the result, and stop the fire log lying
+  PART 2  notify-subscription-cancelled  check the result, stop returning success
+  PART 3  weekly-payroll-summary      check the result
+
+All verification is at the END.
+
+THE FAILURE LOG. All three use the same existing RPC. Confirmed live signature:
+
+  log_org_email_send_failure(
+    _organization_id uuid,
+    _method text,
+    _fell_back_to text,
+    _recipient text,
+    _subject text,
+    _error_message text
+  )
+
+It is SECURITY DEFINER and writes to public.org_email_send_failures, which is
+where _shared/send-org-email.ts already logs. Use _method = 'resend' and
+_fell_back_to = null, matching the 32 rows already in that table from the
+resend path. Do not invent new values for those two columns.
+
+
+=== PART 1 of 3 — weekly-business-report ===
+
+supabase/functions/weekly-business-report/index.ts, around line 326. Currently:
+
+          const resend = new Resend(RESEND_API_KEY);
+          const senderFrom = formatEmailFrom(emailSettingsResult.settings);
+
+          await resend.emails.send({
+            from: senderFrom,
+            to: [adminEmail],
+            subject: wsSubject,
+            html: reportHtml,
+          });
+          console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
+          // Log the successful send so Automation Center can show a real fire count.
+          const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
+            organization_id: org.id,
+            automation_type: 'weekly_summary',
+            target_id: org.id,
+            metadata: { sent_at: new Date().toISOString(), to: adminEmail },
+          });
+          if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
+
+Replace from `await resend.emails.send({` through the fireLogErr line with:
+
+          // The SDK returns { data, error } and does not throw on an API
+          // error. Discarding it is why five 403s to regalrestcleaning.com
+          // were recorded as successful sends.
+          const { data: sendData, error: sendError } = await resend.emails.send({
+            from: senderFrom,
+            to: [adminEmail],
+            subject: wsSubject,
+            html: reportHtml,
+          });
+
+          if (sendError) {
+            const detail =
+              typeof sendError === "string"
+                ? sendError
+                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+            console.error(
+              `[weekly-business-report] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`,
+            );
+            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+              _organization_id: org.id,
+              _method: "resend",
+              _fell_back_to: null,
+              _recipient: adminEmail,
+              _subject: wsSubject,
+              _error_message: detail,
+            });
+            if (failLogErr) {
+              console.error(`[weekly-business-report] failure-log insert failed for org ${org.id}:`, failLogErr);
+            }
+            // NO automation_fire_log row. A fire-log entry means the owner
+            // received their report; writing one here is the exact lie this
+            // change removes.
+          } else {
+            console.log(`[weekly-business-report] Email sent to ${adminEmail} for org: ${org.id}`);
+            const { error: fireLogErr } = await supabase.from('automation_fire_log').insert({
+              organization_id: org.id,
+              automation_type: 'weekly_summary',
+              target_id: org.id,
+              metadata: {
+                sent_at: new Date().toISOString(),
+                to: adminEmail,
+                provider_message_id: sendData?.id ?? null,
+              },
+            });
+            if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
+          }
+
+Keep the surrounding try/catch exactly as it is — it still catches network-level
+throws, which are a different failure from an API error and must also not be
+mistaken for a send.
+
+Do not touch `senderFrom`, `formatEmailFrom`, `RESEND_API_KEY`, or the
+`else` branch that skips orgs with no email settings. Those are the pairing
+problem and are out of scope here.
+
+
+=== PART 2 of 3 — notify-subscription-cancelled ===
+
+supabase/functions/notify-subscription-cancelled/index.ts, around line 85. It
+captures the response and then never looks at it:
+
+    const emailResponse = await resend.emails.send({ ... });
+
+    console.log("[notify-subscription-cancelled] Cancellation notification sent:", emailResponse);
+
+    return new Response(JSON.stringify({ success: true, emailId: emailResponse.data?.id }), {
+
+So a 403 returns HTTP 200 with success:true and emailId undefined.
+
+Change the send to destructure, and insert a failure branch BEFORE the existing
+console.log and return:
+
+    const { data: sendData, error: sendError } = await resend.emails.send({
+      ... leave the from, to, subject and html exactly as they are ...
+    });
+
+    if (sendError) {
+      const detail =
+        typeof sendError === "string"
+          ? sendError
+          : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+      console.error("[notify-subscription-cancelled] send FAILED:", detail);
+
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { error: failLogErr } = await supabaseAdmin.rpc("log_org_email_send_failure", {
+        _organization_id: organizationId,
+        _method: "resend",
+        _fell_back_to: null,
+        _recipient: adminEmail,
+        _subject: `Subscription Cancelled: ${customerName}`,
+        _error_message: detail,
+      });
+      if (failLogErr) console.error("[notify-subscription-cancelled] failure-log insert failed:", failLogErr);
+
+      return new Response(
+        JSON.stringify({ success: false, error: "notification email failed", detail }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
+
+    console.log("[notify-subscription-cancelled] Cancellation notification sent:", sendData?.id);
+
+    return new Response(JSON.stringify({ success: true, emailId: sendData?.id }), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+
+`organizationId` is already in scope — it is a required field on the request
+body and is validated near the top of the handler.
+
+If a Supabase client is already constructed earlier in this function, reuse it
+rather than creating `supabaseAdmin`. Do not add a second client if one exists.
+
+502 rather than 500: the failure is downstream at the email provider, and the
+caller should be able to tell that apart from this function breaking.
+
+
+=== PART 3 of 3 — weekly-payroll-summary ===
+
+supabase/functions/weekly-payroll-summary/index.ts, around line 197. Currently:
+
+          const resend = new Resend(RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'TidyWise <noreply@resend.dev>',
+            to: [adminEmail],
+            subject: `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`,
+            html: summaryHtml,
+          });
+          console.log(`[weekly-payroll-summary] Email sent to ${adminEmail}`);
+
+Replace with:
+
+          const wpsSubject = `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`;
+          const { data: sendData, error: sendError } = await resend.emails.send({
+            from: 'TidyWise <noreply@resend.dev>',
+            to: [adminEmail],
+            subject: wpsSubject,
+            html: summaryHtml,
+          });
+
+          if (sendError) {
+            const detail =
+              typeof sendError === "string"
+                ? sendError
+                : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+            console.error(`[weekly-payroll-summary] send FAILED for org ${org.id} -> ${adminEmail}: ${detail}`);
+            const { error: failLogErr } = await supabase.rpc("log_org_email_send_failure", {
+              _organization_id: org.id,
+              _method: "resend",
+              _fell_back_to: null,
+              _recipient: adminEmail,
+              _subject: wpsSubject,
+              _error_message: detail,
+            });
+            if (failLogErr) {
+              console.error(`[weekly-payroll-summary] failure-log insert failed for org ${org.id}:`, failLogErr);
+            }
+          } else {
+            console.log(`[weekly-payroll-summary] Email sent to ${adminEmail} (${sendData?.id ?? "no id"})`);
+          }
+
+LEAVE THE from ADDRESS ALONE. `noreply@resend.dev` is Resend's sandbox domain
+and is very probably delivering to nobody — but that is a separate finding, and
+this change is what will prove it. After this ships, every run of this function
+should start writing rows to org_email_send_failures. That evidence is the
+point; do not pre-empt it by changing the sender now.
+
+If `supabase` is not the name of the client in scope at this point in the file,
+use whichever service-role client is already there. Do not construct a new one.
+
+
+=== VERIFICATION — ALL THREE, AFTER DEPLOYING ===
+
+Deploy all three functions. Confirm deployed, not merely committed.
+
+STEP A — capture the before state:
+
+  select coalesce(method,'(null)') as method, count(*) as failures
+  from public.org_email_send_failures group by 1 order by failures desc;
+
+  select o.name, count(*) as fire_log_rows
+  from public.automation_fire_log f
+  join public.organizations o on o.id = f.organization_id
+  where f.automation_type = 'weekly_summary'
+  group by 1 order by fire_log_rows desc;
+
+Expect the second query to show TIDYWISE 5 and Regal Rest Cleaning 5.
+
+STEP B — trigger weekly-business-report once, manually, and paste its logs.
+
+STEP C — capture the after state with the same two queries.
+
+HOW TO READ IT — this is the part that matters, and there are two ways to be
+wrong in opposite directions.
+
+  THE FAILURE SIDE. Regal Rest Cleaning must gain a row in
+  org_email_send_failures naming its domain, and must NOT gain a new
+  automation_fire_log row. If it gains a fire-log row, the success branch is
+  still running on a failed send and nothing has been fixed.
+
+  THE CONTROL, AND DO NOT SKIP IT. TIDYWISE sends from
+  support@tidywisecleaning.com, which IS verified, so its send genuinely
+  succeeds. It must STILL gain a new automation_fire_log row, and must NOT
+  appear in org_email_send_failures.
+
+  If TIDYWISE stops getting a fire-log row, this change has swapped one lie for
+  another — a dashboard that under-reports real sends is no more honest than
+  one that over-reports failures, and it is harder to notice because it looks
+  like the feature simply going quiet.
+
+  Both halves must hold in the SAME run. One org succeeding and one failing,
+  side by side, is the only result that proves the branch actually discriminates
+  rather than having been hardcoded to one side.
+
+STEP D — report which of the three functions now write to
+org_email_send_failures at all. weekly-payroll-summary may produce rows
+immediately, because of the sandbox sender. If it produces none, say so — that
+is informative either way, and it tells us whether resend.dev is delivering.
+
+=== REPORT BACK — ONE REPLY ===
+
+  1. Both queries from Step A and Step C, side by side.
+  2. The Regal Rest result: new failure row yes/no, new fire-log row yes/no.
+  3. The TIDYWISE control: new fire-log row yes/no, new failure row yes/no.
+  4. Did you change any from-address, API key, or import the sender resolver?
+     The expected answer is no. If you changed one, say which and why.
+  5. Anything half-applied — one function deployed and another not?
+
+Confirm each function is DEPLOYED, not merely committed.

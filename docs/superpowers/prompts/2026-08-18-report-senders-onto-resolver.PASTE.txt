@@ -1,0 +1,291 @@
+=== PUT TWO OWNER-FACING REPORTS ON THE SENDER RESOLVER. ONE TURN. ===
+
+Follow-on from the change that closed the silent failures. That one made
+failures visible. This one fixes why they fail.
+
+  PART 1  weekly-business-report   -> _shared/email-sender-resolution.ts
+  PART 2  weekly-payroll-summary   -> the same, and its sandbox sender goes away
+
+Both are OWNER-FACING internal reports, so both pass allowPlatformFallback:
+true. Do NOT change _shared/send-org-email.ts or any customer-facing path in
+this paste — customer mail deliberately fails closed rather than arriving from
+TidyWise, and that decision is not in scope here.
+
+THE ACTUAL BUG, because it is not what it looks like. weekly-business-report
+does this today:
+
+    const resend = new Resend(RESEND_API_KEY);          // PLATFORM key
+    const senderFrom = formatEmailFrom(settings);        // ORG address
+
+Regal Rest Cleaning HAS its own Resend API key configured, and the function
+ignores it. Sending their address with TidyWise's key is a guaranteed 403,
+because Resend verifies domains per account. The fix is not "add a fallback" —
+it is to stop mixing one org's address with another account's key.
+
+THE ELSE BRANCH, AND WHO IS ACTUALLY IN SCOPE. Today:
+
+    } else {
+      console.log(`[weekly-business-report] Skipping email for org ${org.id} - email settings not configured`);
+    }
+
+Read the top of the function before assuming this affects everyone. The loop is
+OPT-IN GATED: it loads organization_automations where automation_type =
+'weekly_summary' and is_enabled = true, and fans out only to those org ids.
+Exactly TWO organisations are enabled today — TIDYWISE and Regal Rest Cleaning
+— and both already have an organization_email_settings row.
+
+So this run touches 2 orgs, not 97, and the else branch above is currently
+unreachable. Removing it changes nothing for anybody today; it becomes live
+only if an org enables the toggle without configuring a sender, which is
+exactly when the platform fallback should carry them.
+
+DO NOT widen the gate. Do not remove the is_enabled filter, do not iterate all
+organizations, and do not "helpfully" enable the automation for anyone. Sending
+an unsolicited weekly business report to 95 organisations that never opted in
+would be spam, and it is the single worst thing this change could do.
+
+
+=== PART 1 of 2 — weekly-business-report ===
+
+Add to the imports:
+
+    import {
+      resolveSender,
+      PLATFORM_SENDER_FROM,
+    } from "../_shared/email-sender-resolution.ts";
+
+Replace the whole `if (emailSettingsResult.success && ... ) { ... } else { ... }`
+block around line 324 with the following. Everything above it — the report HTML,
+adminEmail, wsSubject, the getOrgEmailSettings call — stays as it is.
+
+      const orgSettings =
+        emailSettingsResult.success && emailSettingsResult.settings
+          ? emailSettingsResult.settings
+          : null;
+
+      const platformKey = RESEND_API_KEY;
+
+      const resolved = resolveSender({
+        settings: orgSettings,
+        platformFrom: PLATFORM_SENDER_FROM,
+        platformKeyPresent: !!platformKey,
+        allowPlatformFallback: true,   // owner-facing internal report
+      });
+
+      if (!resolved.ok) {
+        console.error(`[weekly-business-report] no sender for org ${org.id}: ${resolved.error}`);
+        await supabase.rpc("log_org_email_send_failure", {
+          _organization_id: org.id,
+          _method: "resend",
+          _fell_back_to: null,
+          _recipient: adminEmail,
+          _subject: wsSubject,
+          _error_message: resolved.error,
+        });
+      } else {
+        // The key must match the address. keySource 'org' means send with the
+        // org's OWN key, which is what makes their own verified domain work —
+        // the previous code always used the platform key and so could never
+        // succeed for an org sending from its own domain.
+        const keyFor = (source: "org" | "platform") =>
+          source === "org" ? (orgSettings?.resend_api_key || platformKey) : platformKey;
+
+        let fromHeader = resolved.sender.from;
+        let resend = new Resend(keyFor(resolved.sender.keySource) as string);
+        let fellBackTo: string | null = resolved.sender.usedFallback ? "platform" : null;
+
+        const attempt = async () => {
+          const { data, error } = await resend.emails.send({
+            from: fromHeader,
+            to: [adminEmail],
+            subject: wsSubject,
+            html: reportHtml,
+          });
+          return { data, error };
+        };
+
+        let { data: sendData, error: sendError } = await attempt();
+
+        // Escalation. Without this Regal Rest still fails: its settings are
+        // complete, so the first resolve returns the ORG identity, and only a
+        // second resolve carrying priorFailure switches to the platform.
+        if (sendError) {
+          const firstError =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+
+          const escalated = resolveSender({
+            settings: orgSettings,
+            platformFrom: PLATFORM_SENDER_FROM,
+            platformKeyPresent: !!platformKey,
+            allowPlatformFallback: true,
+            priorFailure: firstError,
+          });
+
+          if (escalated.ok && escalated.sender.usedFallback && !resolved.sender.usedFallback) {
+            console.warn(
+              `[weekly-business-report] org ${org.id}: own identity failed (${firstError}); retrying from the platform sender.`,
+            );
+            // No backoff. An unverified From or a rejected key is a permanent
+            // validation error — waiting cannot change it, only the identity
+            // swap on the next two lines can.
+            resend = new Resend(platformKey as string);
+            fromHeader = escalated.sender.from;
+            fellBackTo = "platform";
+            ({ data: sendData, error: sendError } = await attempt());
+          }
+        }
+
+        if (sendError) {
+          const detail =
+            typeof sendError === "string"
+              ? sendError
+              : (sendError as { message?: string })?.message ?? JSON.stringify(sendError);
+          console.error(`[weekly-business-report] send FAILED for org ${org.id}: ${detail}`);
+          await supabase.rpc("log_org_email_send_failure", {
+            _organization_id: org.id,
+            _method: "resend",
+            _fell_back_to: fellBackTo,
+            _recipient: adminEmail,
+            _subject: wsSubject,
+            _error_message: detail,
+          });
+          // No automation_fire_log row. Unchanged from the previous paste.
+        } else {
+          console.log(
+            `[weekly-business-report] sent to ${adminEmail} for org ${org.id} ` +
+            `(from=${fromHeader}, fellBackTo=${fellBackTo ?? "none"})`,
+          );
+          if (fellBackTo) {
+            // Not an error, but the owner should eventually be told their own
+            // identity is not working. Logged so it is countable.
+            await supabase.rpc("log_org_email_send_failure", {
+              _organization_id: org.id,
+              _method: "resend",
+              _fell_back_to: fellBackTo,
+              _recipient: adminEmail,
+              _subject: wsSubject,
+              _error_message: `weekly report sent via platform sender: ${resolved.sender.fallbackReason ?? "org_send_failed"}`,
+            });
+          }
+          const { error: fireLogErr } = await supabase.from("automation_fire_log").insert({
+            organization_id: org.id,
+            automation_type: "weekly_summary",
+            target_id: org.id,
+            metadata: {
+              sent_at: new Date().toISOString(),
+              to: adminEmail,
+              provider_message_id: sendData?.id ?? null,
+              from: fromHeader,
+              fell_back_to: fellBackTo,
+            },
+          });
+          if (fireLogErr) console.error(`[weekly-business-report] fire-log insert failed for org ${org.id}:`, fireLogErr);
+        }
+      }
+
+That last "sent via platform sender" log matches the two rows
+payroll-period-process already writes with fell_back_to = 'platform'. It is a
+record that the org's identity is broken, not a send failure — the send worked.
+
+
+=== PART 2 of 2 — weekly-payroll-summary ===
+
+This one needs one extra thing first: it has NO org email settings lookup at
+all. It sends everything from 'TidyWise <noreply@resend.dev>', Resend's sandbox
+domain, which almost certainly reaches nobody.
+
+Add the same two imports as Part 1, plus:
+
+    import { getOrgEmailSettings } from "../_shared/get-org-email-settings.ts";
+
+Then replace the `if (RESEND_API_KEY) { ... }` block around line 194 with the
+same structure as Part 1, with these differences:
+
+  - fetch settings first:
+        const settingsResult = await getOrgEmailSettings(org.id);
+        const orgSettings =
+          settingsResult.success && settingsResult.settings ? settingsResult.settings : null;
+
+  - the subject is already computed inline; hoist it to a variable first:
+        const wpsSubject = `📊 Weekly Payroll Summary - $${totalPayroll.toFixed(2)} (${totalJobs} jobs)`;
+
+  - use `resolved.sender.from` for the From header. The literal
+    'TidyWise <noreply@resend.dev>' is DELETED, not kept as a fallback. The
+    resolver's platform address is a verified domain; the sandbox one is not,
+    and keeping it as a backstop would reintroduce the failure this removes.
+
+  - this function does NOT write to automation_fire_log. Do not add it.
+
+Everything else — the escalation, the error check, the failure logging — is the
+same shape as Part 1.
+
+If the client variable in scope there is not named `supabase`, use whichever
+service-role client already exists in that function. Do not construct a second.
+
+
+=== VERIFICATION — AFTER DEPLOYING BOTH ===
+
+Deploy both. Confirm deployed, not merely committed.
+
+STEP A — before:
+
+  select o.name, count(*) as fire_log_rows
+  from public.automation_fire_log f
+  join public.organizations o on o.id = f.organization_id
+  where f.automation_type = 'weekly_summary'
+  group by 1 order by 2 desc;
+
+  select o.name, left(f.error_message, 50) as err, f.fell_back_to, f.created_at::date
+  from public.org_email_send_failures f
+  join public.organizations o on o.id = f.organization_id
+  order by f.created_at desc limit 10;
+
+STEP B — trigger weekly-business-report once manually. Paste its full logs,
+including the `from=` and `fellBackTo=` values on each success line.
+
+STEP C — after: rerun both queries from Step A.
+
+HOW TO READ IT. Two controls, and they fail in opposite directions.
+
+  CONTROL 1 — REGAL REST MUST NOW SUCCEED. It must gain a NEW
+  automation_fire_log row. It has its own Resend key, which the old code
+  ignored while sending its address with TidyWise's key — a guaranteed 403.
+  Either it now succeeds on its own identity (from=bookings@regalrestcleaning.com,
+  fellBackTo=none) because its domain is verified in its own account, or it
+  escalates and succeeds from the platform sender (fellBackTo=platform). Both
+  are passes. Still failing is not.
+
+  CONTROL 2 — TIDYWISE MUST NOT SILENTLY SWITCH. It must gain a fire-log row
+  AND its log line must read from=TIDYWISE <support@tidywisecleaning.com> with
+  fellBackTo=none. If TIDYWISE now shows fellBackTo=platform, the resolver is
+  falling back when it did not need to — every org would be sending as TidyWise
+  and the org identity would be dead code. That is a failure even though the
+  email arrived.
+
+  Report both `from=` values verbatim. The pair is the evidence: one org that
+  keeps its own identity and one that gets rescued, in the same run. Either
+  alone could be produced by a resolver hardwired to one branch.
+
+  CONTROL 3 — THE BLAST RADIUS MUST NOT GROW. Exactly TWO orgs are opted in,
+  so this run must produce exactly TWO new automation_fire_log rows: one for
+  TIDYWISE, one for Regal Rest. If it produces more, the opt-in gate has been
+  widened and organisations that never asked for a weekly report have just
+  received one. Report the exact count, and if it is not 2, say so before
+  anything else — that is a spam incident, not a passing test.
+
+=== REPORT BACK — ONE REPLY ===
+
+  1. Both queries, before and after.
+  2. Control 1 — Regal Rest: new fire-log row yes/no, and its `from=` and
+     `fellBackTo=` values.
+  3. Control 2 — TIDYWISE: new fire-log row yes/no, and its `from=` and
+     `fellBackTo=` values. fellBackTo must be none.
+  4. The exact number of new automation_fire_log rows. It must be 2. If it is
+     higher, name every organisation that received one and stop.
+  5. Did weekly-payroll-summary stop using noreply@resend.dev entirely?
+  6. Did you touch _shared/send-org-email.ts or any customer-facing sender?
+     Expected answer: no.
+
+Confirm both functions are DEPLOYED, not merely committed.
