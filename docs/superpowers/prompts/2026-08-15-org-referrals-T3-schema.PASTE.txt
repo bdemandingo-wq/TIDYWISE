@@ -1,0 +1,327 @@
+=== SCOPE: TIDYWISE CRM (jointidywise). ONE MIGRATION. NO CODE CHANGES. ===
+
+Repo: the jointidywise CRM. NOT the TidyWise cleaning site, NOT Clean Collective.
+
+Task 3 of docs/superpowers/plans/2026-08-15-org-referral-programme.md.
+
+  ONE migration: four new tables, their RLS, and one backfill.
+
+Do NOT create any edge function. Do NOT touch create-subscription,
+stripe-invoice-webhook, OnboardingPage, or the existing `referrals` table.
+Those are Tasks 4-9 and each has its own prompt.
+
+
+=== WHAT THIS IS ===
+
+An org-to-org referral programme for the SaaS: a company that refers another
+company earns a free month, vested on the referred company's SECOND successful
+payment.
+
+THIS IS NOT THE EXISTING `referrals` TABLE. That one is a tenant's own
+CUSTOMERS referring each other — `referrer_customer_id`/`referred_customer_id`
+both point at `public.customers`, it is scoped to a single organization_id, it
+pays a dollar `credit_amount` into `customers.credits`, and it fires from a
+trigger on `public.bookings`. Every one of those is wrong for org-to-org. Leave
+it completely alone; these are new tables alongside it.
+
+SCOPE IS MONTHLY PLANS ONLY. 80 of 96 orgs are `plan_type='lifetime'` and carry
+an "active" Stripe subscription with NULL billing_interval and NULL price — they
+have no monthly bill, so they can neither earn nor redeem a free month. They are
+excluded from the backfill and out of scope on both sides.
+
+
+=== STEP 1 of 3 — THE TABLES ===
+
+```sql
+-- The referrer's shareable code. One per org.
+create table if not exists public.org_referral_codes (
+  organization_id uuid primary key references public.organizations(id) on delete cascade,
+  code text not null unique,
+  created_at timestamptz not null default now(),
+  -- The alphabet is ENFORCED here, not hoped for. Excludes O, I, 0 and 1:
+  -- a referral code exists to be read aloud and typed back, and those are the
+  -- two pairs people confuse. This constraint is what makes a hex-generated
+  -- code (which always contains 0 and 1 eventually) fail LOUDLY at insert
+  -- rather than silently shipping an unreadable code to a customer.
+  constraint org_referral_codes_alphabet
+    check (code ~ '^[A-HJ-NP-Z2-9]{8}$')
+);
+
+-- The ledger. One row per attributed signup.
+create table if not exists public.org_referrals (
+  id uuid primary key default gen_random_uuid(),
+  -- The code as it was actually used. Deliberately NOT a foreign key to
+  -- org_referral_codes.code: this is an audit record of what was presented at
+  -- claim time, and it must survive a code being rotated or an org deleted.
+  referral_code text not null,
+  referrer_org_id uuid not null references public.organizations(id) on delete cascade,
+  referred_org_id uuid not null references public.organizations(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending','qualified','rewarded','rejected','expired')),
+  rejection_reason text,
+  referred_paid_invoice_count integer not null default 0,
+  referred_first_payment_at timestamptz,
+  referred_second_payment_at timestamptz,
+  referrer_reward_granted_at timestamptz,
+  referred_card_fingerprint text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  -- An org can be REFERRED exactly once, ever. This is the atomic guard
+  -- against a double claim; a read-then-write check in the edge function
+  -- cannot close that race and must not be relied on instead.
+  constraint org_referrals_referred_once unique (referred_org_id),
+  -- An org cannot refer itself. Cheap, absolute, and independent of whatever
+  -- the application-layer self-referral checks do.
+  constraint org_referrals_no_self check (referrer_org_id <> referred_org_id)
+);
+
+create index if not exists org_referrals_referrer_status_idx
+  on public.org_referrals (referrer_org_id, status);
+
+create index if not exists org_referrals_code_idx
+  on public.org_referrals (referral_code);
+
+-- Months owed vs redeemed. Stripe permits ONE discount per subscription, so
+-- rewards are reconciled into a single coupon recomputed from this ledger
+-- rather than stacked. months_redeemed is counted from webhook events, which
+-- is why the CHECK allows redeemed to exceed granted rather than blocking a
+-- double-fire — the application clamps at zero when computing what is owed.
+create table if not exists public.org_referral_credits (
+  organization_id uuid primary key references public.organizations(id) on delete cascade,
+  months_granted integer not null default 0,
+  months_redeemed integer not null default 0,
+  active_coupon_id text,
+  updated_at timestamptz not null default now(),
+  constraint org_referral_credits_non_negative
+    check (months_granted >= 0 and months_redeemed >= 0)
+);
+
+-- The three-referral bonus. One per org, enforced by the unique constraint so
+-- the "one-time" rule is a database fact rather than an application promise.
+create table if not exists public.org_referral_bonuses (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references public.organizations(id) on delete cascade,
+  months integer not null check (months > 0),
+  qualifying_referral_ids uuid[] not null,
+  granted_at timestamptz not null default now(),
+  constraint org_referral_bonus_once unique (organization_id)
+);
+```
+
+
+=== STEP 2 of 3 — RLS ===
+
+Read-only for members of the owning org. There are deliberately NO
+INSERT/UPDATE/DELETE policies on any of the four tables.
+
+WHY THAT MATTERS AND IS NOT AN OVERSIGHT: the `organizations` INSERT policy is
+`(auth.uid() = owner_id)` and does NOT enumerate columns, so an authenticated
+user can already write any column on their own org row. If attribution were
+client-writable, a user could name any referrer, set their own status to
+'qualified', or grant themselves months. Every write here goes through an edge
+function on the service role, which retains full access regardless of RLS.
+
+```sql
+alter table public.org_referral_codes   enable row level security;
+alter table public.org_referrals        enable row level security;
+alter table public.org_referral_credits enable row level security;
+alter table public.org_referral_bonuses enable row level security;
+
+create policy "members read own referral code" on public.org_referral_codes
+  for select to authenticated
+  using (exists (select 1 from public.org_memberships m
+                 where m.organization_id = org_referral_codes.organization_id
+                   and m.user_id = auth.uid()));
+
+-- Referrers see referrals they made. The REFERRED org deliberately cannot read
+-- the row: it names who referred them and carries a card fingerprint.
+create policy "members read own referrals" on public.org_referrals
+  for select to authenticated
+  using (exists (select 1 from public.org_memberships m
+                 where m.organization_id = org_referrals.referrer_org_id
+                   and m.user_id = auth.uid()));
+
+create policy "members read own credits" on public.org_referral_credits
+  for select to authenticated
+  using (exists (select 1 from public.org_memberships m
+                 where m.organization_id = org_referral_credits.organization_id
+                   and m.user_id = auth.uid()));
+
+create policy "members read own bonuses" on public.org_referral_bonuses
+  for select to authenticated
+  using (exists (select 1 from public.org_memberships m
+                 where m.organization_id = org_referral_bonuses.organization_id
+                   and m.user_id = auth.uid()));
+```
+
+Confirmed live before writing this: `public.org_memberships` has columns
+`id, organization_id, user_id, role, created_at`, so these policies resolve.
+
+
+=== STEP 3 of 3 — THE BACKFILL ===
+
+Give every existing NON-LIFETIME org a code so the programme works for them on
+day one.
+
+CRITICAL — GENERATE FROM THE ALPHABET, NOT FROM A UUID. The obvious
+`substr(replace(gen_random_uuid()::text,'-',''), 1, 8)` is WRONG here and the
+CHECK constraint in Step 1 will reject it. A uuid is hexadecimal, so it contains
+0 and 1 — precisely the two characters the alphabet exists to exclude. Existing
+orgs must satisfy the same property new orgs do, which
+`src/lib/referralCode.test.ts` already pins for the TypeScript minting path.
+
+```sql
+insert into public.org_referral_codes (organization_id, code)
+select o.id,
+       (select string_agg(
+                 substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+                        1 + (('x' || substr(md5(o.id::text), 1 + i*2, 2))::bit(8)::int % 32),
+                        1),
+                 '' order by i)
+        from generate_series(0, 7) i)
+from public.organizations o
+where o.plan_type is distinct from 'lifetime'
+on conflict (organization_id) do nothing;
+```
+
+Notes so nothing here is guessed. I RAN this against the live database as a
+read-only SELECT before writing it down:
+
+  - It produced 16 rows and **16 DISTINCT codes**, zero containing an excluded
+    character, all exactly 8 long. Samples: 3QHVZTVX, 6MEAPXMX, 79E6V6EU,
+    CZDHXF6G.
+
+  - THE OBVIOUS VERSION IS BROKEN — do not "simplify" back to it. A
+    `cross join lateral (... random() ...)` that does not reference the outer
+    row gets HOISTED by the planner: I measured it giving all 16 orgs the
+    identical code `ULXV3A5L`. The UNIQUE constraint would then abort the
+    insert with 23505. The correlated subquery above cannot be hoisted because
+    it references `o.id`.
+
+  - Deriving the code from `md5(organization_id)` also makes the backfill
+    DETERMINISTIC and idempotent: re-running it produces the same code for the
+    same org rather than a second, different one. That mirrors the TypeScript
+    path, where `generateReferralCode` is seeded on organization_id for exactly
+    the same reason.
+
+  - `('x' || <two hex chars>)::bit(8)::int` is the standard Postgres hex-to-int
+    conversion, giving 0-255; `% 32` indexes the 32-character alphabet.
+
+  - `is distinct from 'lifetime'` rather than `<> 'lifetime'` so orgs with a
+    NULL plan_type are INCLUDED. A new org that has not chosen a plan is in
+    scope; `<>` would silently skip every NULL.
+
+  - If you nonetheless hit 23505 on `code`, do NOT add ON CONFLICT on code.
+    Report the error — it would mean two org ids collided in md5's first 8
+    mapped bytes, which is worth knowing about.
+
+REPORT THE ROW COUNT. Expect exactly 16. I measured this live before writing:
+96 organizations total, 80 with plan_type='lifetime', 16 remaining. A different
+number means the plan mix changed since I measured — stop and tell me rather
+than proceeding.
+
+
+=== VERIFICATION — RUN ALL FIVE AND PASTE THE OUTPUT ===
+
+Query 4 is the CONTROL and it is not optional. Queries 1-3 all return zero when
+everything is fine, and they would ALSO return zero if the regex were simply
+broken. Query 4 proves the regex can actually detect a bad code.
+
+```sql
+-- 1. No code contains an excluded character. EXPECT 0.
+select count(*) as codes_with_excluded_chars
+from public.org_referral_codes
+where code ~ '[OI01]';
+
+-- 2. Every code matches the full alphabet and length. EXPECT 0.
+select count(*) as codes_violating_alphabet
+from public.org_referral_codes
+where code !~ '^[A-HJ-NP-Z2-9]{8}$';
+
+-- 3. Codes are distinct — proves the lateral was NOT hoisted.
+--    EXPECT total = 16 AND distinct_codes = 16.
+select count(*) as total, count(distinct code) as distinct_codes
+from public.org_referral_codes;
+
+-- 4. CONTROL: the detector works. EXPECT both true.
+--    If either is false, queries 1 and 2 prove nothing.
+select ('ABCD0123' ~ '[OI01]')                    as control_detects_excluded,
+       ('ABCD0123' !~ '^[A-HJ-NP-Z2-9]{8}$')      as control_detects_violation;
+
+-- 5. No lifetime org received a code. EXPECT 0.
+select count(*) as lifetime_orgs_with_codes
+from public.org_referral_codes c
+join public.organizations o on o.id = c.organization_id
+where o.plan_type = 'lifetime';
+```
+
+Also paste three sample codes so I can eyeball them:
+
+```sql
+select code from public.org_referral_codes order by created_at limit 3;
+```
+
+
+=== WHAT MUST NOT CHANGE ===
+
+1. `public.referrals` — the customer-to-customer table — is UNTOUCHED. Do not
+   add columns to it, do not rename it, do not migrate data out of it.
+2. `process_booking_referral_attribution` and its trigger on `public.bookings`
+   are UNTOUCHED.
+3. `public.organizations` gains NO new columns. Attribution lives in
+   org_referrals, deliberately, because the organizations INSERT policy would
+   make any column on that table client-writable.
+4. No edge functions. No frontend. No changes to create-subscription or
+   stripe-invoice-webhook.
+5. Do not add INSERT/UPDATE/DELETE policies to any of the four new tables.
+6. Do not "improve" anything else. Report it and leave it.
+
+
+=== SANITY CHECKS BEFORE YOU REPORT ===
+
+Report the number you actually MEASURE for each. Do not adjust anything to
+reach these — if one disagrees, say so and stop.
+
+  1. Four tables exist: org_referral_codes, org_referrals,
+     org_referral_credits, org_referral_bonuses.
+  2. All four have `rowsecurity = true` in pg_tables.
+  3. Exactly FOUR policies exist across the four tables, all `cmd = 'SELECT'`,
+     and ZERO policies with cmd IN ('INSERT','UPDATE','DELETE','ALL').
+  4. The backfill inserted exactly 16 rows.
+  5. Verification queries 1, 2 and 5 all return 0.
+  6. Verification query 3 returns 16 and 16.
+  7. Verification query 4 returns true and true.
+  8. `org_referrals` carries BOTH the unique constraint on referred_org_id AND
+     the no-self CHECK. Confirm with:
+
+```sql
+select conname, contype, pg_get_constraintdef(oid)
+from pg_constraint where conrelid='public.org_referrals'::regclass
+order by contype, conname;
+```
+
+  9. `select count(*) from public.referrals;` is UNCHANGED from before the
+     migration — proof the existing customer referral feature was not touched.
+     Record it before and after.
+
+
+=== REPORT BACK, ALL OF IT IN ONE REPLY ===
+
+a) Confirm the migration is APPLIED to the live database, not just committed.
+
+b) The backfill row count.
+
+c) The full output of all five verification queries, plus the three sample
+   codes.
+
+d) All nine sanity-check numbers you measured, including the before/after count
+   from item 9.
+
+e) The full constraint list from item 8, pasted.
+
+f) Confirm `public.referrals`, `process_booking_referral_attribution`, and
+   `public.organizations` columns are all untouched.
+
+g) Confirm you created NO edge function and changed NO frontend file.
+
+h) Anything you noticed but deliberately did not touch.

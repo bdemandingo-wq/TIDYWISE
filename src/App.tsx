@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { captureReferralFromUrl } from "@/lib/referralAttribution";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -236,6 +237,17 @@ const offlinePersister = createSyncStoragePersister({
 
 const AppStateHandler = (): null => {
   useAppStateHandler();
+
+  // Capture ?ref= from the landing URL before anything can navigate away from
+  // it. The code is only held here — attribution is recorded server-side by
+  // claim-referral once an organization exists to attach it to.
+  //
+  // Runs once on mount rather than per route: first touch wins, so re-running
+  // it on a later navigation could not change the answer anyway.
+  useEffect(() => {
+    captureReferralFromUrl(window.location.search);
+  }, []);
+
   return null;
 };
 
