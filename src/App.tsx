@@ -133,6 +133,7 @@ const NotificationsPreviewPage = lazy(() => import("./pages/preview/Notification
 const AutomationCenterPreviewPage = lazy(() => import("./pages/preview/AutomationCenterPreviewPage"));
 const AutomationStepEditorPreviewPage = lazy(() => import("./pages/preview/AutomationStepEditorPreviewPage"));
 const TrackingPreviewPage = lazy(() => import("./pages/preview/TrackingPreviewPage"));
+const PortalAdminPreviewPage = lazy(() => import("./pages/preview/PortalAdminPreviewPage"));
 const BookingsPreviewPage = lazy(() => import("./pages/preview/BookingsPreviewPage"));
 const CustomersPreviewPage = lazy(() => import("./pages/preview/CustomersPreviewPage"));
 const LeadsPreviewPage = lazy(() => import("./pages/preview/LeadsPreviewPage"));
@@ -420,6 +421,7 @@ const App = () => (
                     <Route path="/dashboard/preview/automation-center" element={<AutomationCenterPreviewPage />} />
                     <Route path="/dashboard/preview/step-editor" element={<AutomationStepEditorPreviewPage />} />
                     <Route path="/dashboard/preview/tracking" element={<TrackingPreviewPage />} />
+                    <Route path="/dashboard/preview/portal-admin" element={<PortalAdminPreviewPage />} />
                     <Route path="/dashboard/preview/bookings" element={<BookingsPreviewPage />} />
                     <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
                     <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
@@ -600,6 +602,7 @@ const App = () => (
                     <Route path="/dashboard/preview/automation-center" element={<AutomationCenterPreviewPage />} />
                     <Route path="/dashboard/preview/step-editor" element={<AutomationStepEditorPreviewPage />} />
                     <Route path="/dashboard/preview/tracking" element={<TrackingPreviewPage />} />
+                    <Route path="/dashboard/preview/portal-admin" element={<PortalAdminPreviewPage />} />
                     <Route path="/dashboard/preview/bookings" element={<BookingsPreviewPage />} />
                     <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
                     <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
