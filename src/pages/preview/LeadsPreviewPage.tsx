@@ -227,7 +227,11 @@ export default function LeadsPreviewPage() {
         </p>
       </div>
 
-      <div className="mx-auto w-full max-w-[430px]">
+      {/* .portal-v2 carries the --pv-* custom properties. Without it the
+          tokens do not resolve and every colour silently falls back to an
+          inherited value — which looked plausible against the dark shell,
+          which is why it went unnoticed. */}
+      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <ListShell<Tab>
           title="Leads"
           action={{ label: 'Add' }}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ListShell, ListRow, ListSectionLabel, type ListState } from '@/components/portal-v2';
+import { ListShell, ListRow, ListSectionLabel, StatCard, type ListState } from '@/components/portal-v2';
 import {
   adminBookingStatusBadge,
   paymentBadge,
@@ -283,7 +283,11 @@ export default function BookingsPreviewPage() {
         </p>
       </div>
 
-      <div className="mx-auto w-full max-w-[430px]">
+      {/* .portal-v2 carries the --pv-* custom properties. Without it the
+          tokens do not resolve and every colour silently falls back to an
+          inherited value — which looked plausible against the dark shell,
+          which is why it went unnoticed. */}
+      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <ListShell<Tab>
           title="Bookings"
           action={{ label: 'Create' }}
@@ -312,6 +316,16 @@ export default function BookingsPreviewPage() {
           onRetry={() => setState('ready')}
           skeletonRows={6}
         >
+          {/* 4c puts four summary cards between the tabs and the list: a 2x2
+              grid, 10px gaps. "Owed to you" is gold-accented and "Completed"
+              carries a green label — the only two that are not neutral. */}
+          <div className="grid grid-cols-2 gap-2.5 pb-1">
+            <StatCard label="Total" value="439" caption="all time" />
+            <StatCard label="Owed to you" value="$203.00" caption="1 completed job" tone="gold" />
+            <StatCard label="Scheduled" value="42" caption="all time" />
+            <StatCard label="Completed" value="388" caption="all time" tone="success" />
+          </div>
+
           <ListSectionLabel>{rows.length} bookings</ListSectionLabel>
           {rows.map(r => (
             <ListRow

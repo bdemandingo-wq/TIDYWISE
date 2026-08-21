@@ -166,11 +166,9 @@ export function ListShell<T extends string>({
         </Card>
       )}
 
-      {state === 'ready' && (
-        <Card>
-          <div className="flex flex-col gap-1">{children}</div>
-        </Card>
-      )}
+      {/* No outer card: mockup 4c stacks each row as its own card with 10px
+          gaps. ListRow carries the card now. */}
+      {state === 'ready' && <div className="flex flex-col gap-2.5">{children}</div>}
     </div>
   );
 }

@@ -11,8 +11,8 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center rounded-full px-2 py-[3px]',
-        'text-[10.5px] font-bold',
+        'inline-flex shrink-0 items-center rounded-full px-2.5 py-[3px]',
+        'text-[10px] font-bold',
         tone === 'info' &&
           'bg-[hsl(var(--pv-brand-soft))] text-[hsl(var(--pv-brand))]',
         tone === 'success' &&
