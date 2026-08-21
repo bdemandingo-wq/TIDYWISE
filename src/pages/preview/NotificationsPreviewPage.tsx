@@ -95,8 +95,8 @@ export default function NotificationsPreviewPage() {
           className={
             'rounded-full px-3 py-1 text-[11px] font-bold transition-colors ' +
             (errored
-              ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-on-brand))]'
-              : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-on-brand))]')
+              ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-brand-ink))]'
+              : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]')
           }
         >
           {errored ? 'Error' : 'Ready'}
@@ -105,7 +105,7 @@ export default function NotificationsPreviewPage() {
           <button
             type="button"
             onClick={() => setOpen(null)}
-            className="rounded-full bg-[hsl(var(--pv-card))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-ink-2))]"
+            className="rounded-full bg-[hsl(var(--pv-surface))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-ink-2))]"
           >
             ← Back to centre
           </button>
