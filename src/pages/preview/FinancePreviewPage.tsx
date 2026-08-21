@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ListShell, ListRow, ListSectionLabel, type ListState } from '@/components/portal-v2';
+import { ListShell, ListRow, ListSectionLabel, Card, CardTitle, StatCard, CalendarMonth, type ListState } from '@/components/portal-v2';
 
 /**
  * Screen 4i — /dashboard/finance at 390px.
@@ -51,7 +51,25 @@ import { ListShell, ListRow, ListSectionLabel, type ListState } from '@/componen
  * fee and an unpaid cleaner.
  */
 
-type Tab = 'transactions' | 'sales-tax';
+/* 6d/6e add two views the screen did not have. Live FinancePage carries both:
+   the P&L line items (its CSV header at :384 is the canonical order — Total
+   Sales, Processing Fees, Net Revenue, Cleaner Pay, Expenses, Refunds, Net
+   Profit, Profit Margin) and PnLCalendar. */
+type Tab = 'transactions' | 'pnl' | 'calendar' | 'sales-tax';
+
+/* 6e's P&L. `zero: true` marks a line that is GENUINELY nothing — no expenses
+   were logged, nothing was refunded — as opposed to a figure that failed to
+   read. The comp shows both as "−$0.00" and they are not the same thing; the
+   screen has to be able to say which. Same distinction the services screen
+   makes for a free re-clean. */
+const PNL: { label: string; amount: number; sign: '+' | '-' | ''; zero?: boolean }[] = [
+  { label: 'Total sales (gross)', amount: 10655.0, sign: '+' },
+  { label: 'Processing fees (Stripe)', amount: 132.89, sign: '-' },
+  { label: 'Net revenue', amount: 10522.11, sign: '' },
+  { label: 'Cleaner pay', amount: 6049.5, sign: '-' },
+  { label: 'Expenses', amount: 0, sign: '-', zero: true },
+  { label: 'Refunds', amount: 0, sign: '-', zero: true },
+];
 
 type Txn = {
   id: string;
@@ -102,7 +120,19 @@ const TAX: TaxRow[] = [
 
 const TABS: { id: Tab; label: string; count?: number }[] = [
   { id: 'transactions', label: 'Transactions', count: TXNS.length },
-  { id: 'sales-tax', label: 'Sales tax', count: TAX.length },
+  { id: 'pnl', label: 'P&L' },
+  { id: 'calendar', label: 'P&L Calendar' },
+  { id: 'sales-tax', label: 'Tax by Zip', count: TAX.length },
+];
+
+/* 6d's calendar. null = no bookings that day, which renders as a dash rather
+   than $0 — the same distinction the P&L makes for expenses. */
+const DAY_REVENUE: { day: number; revenue: string | null }[] = [
+  { day: 3, revenue: '$1.38K' }, { day: 4, revenue: null }, { day: 5, revenue: '$220' },
+  { day: 6, revenue: '$565' },   { day: 7, revenue: '$225' }, { day: 8, revenue: '$175' },
+  { day: 9, revenue: null },     { day: 10, revenue: '$430' }, { day: 11, revenue: '$310' },
+  { day: 12, revenue: null },    { day: 13, revenue: '$690' }, { day: 14, revenue: '$285' },
+  { day: 15, revenue: '$140' },  { day: 16, revenue: null },
 ];
 
 const STATES: { id: ListState; label: string; why: string }[] = [
@@ -131,7 +161,7 @@ export default function FinancePreviewPage() {
     t => !q || t.customer_name.toLowerCase().includes(q) || String(t.booking_number).includes(q) || t.service_name.toLowerCase().includes(q),
   );
   const tax = TAX.filter(t => !q || t.zip.includes(q));
-  const count = tab === 'transactions' ? txns.length : tax.length;
+  const count = tab === 'transactions' ? txns.length : tab === 'sales-tax' ? tax.length : 1;
   const effective: ListState = state === 'ready' && count === 0 ? 'empty' : state;
 
   return (
@@ -198,7 +228,105 @@ export default function FinancePreviewPage() {
           onRetry={() => setState('ready')}
           skeletonRows={6}
         >
-          {tab === 'transactions' ? (
+          {tab === 'pnl' ? (
+            <div className="flex flex-col gap-3 px-4 py-3">
+              {/* 6e's headline. Margin is a ratio, so it is suppressed rather
+                  than zeroed — "0% margin" is a verdict, not a reading. And net
+                  profit can legitimately be NEGATIVE (FinancePage.tsx:598
+                  colours for exactly that), so it is never clamped to zero. */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <StatCard
+                  label="Net profit · August"
+                  value={state === 'error' ? '—' : '$4,472.61'}
+                  caption={state === 'error' ? 'sales less costs' : '42% margin'}
+                />
+                <StatCard
+                  label="Gross profit"
+                  value={state === 'error' ? '—' : '$6.91K'}
+                  caption={state === 'error' ? 'this month' : '$261.47 avg / customer'}
+                />
+              </div>
+
+              <Card>
+                <CardTitle>Profit &amp; loss</CardTitle>
+                <div className="mt-2.5">
+                  {PNL.map(l => (
+                    <div
+                      key={l.label}
+                      className="flex items-center gap-2 border-b border-[hsl(var(--pv-border))] py-2.5 last:border-b-0"
+                    >
+                      <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                        {l.label}
+                      </span>
+                      <span
+                        className={
+                          'shrink-0 tabular-nums text-[13px] font-extrabold ' +
+                          (l.sign === '-'
+                            ? 'text-[hsl(var(--pv-ink-2))]'
+                            : 'text-[hsl(var(--pv-ink))]')
+                        }
+                      >
+                        {state === 'error'
+                          ? '—'
+                          : `${l.sign === '-' ? '−' : l.sign === '+' ? '+' : ''}$${l.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Both zero lines above are real. Saying so is the whole
+                      difference between "you spent nothing" and "we could not
+                      read what you spent". */}
+                  {state !== 'error' && (
+                    <p className="pt-2 text-[11px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                      Expenses and refunds are genuinely nil this month — nothing
+                      was logged and nothing was refunded, rather than the
+                      figures being unavailable.
+                    </p>
+                  )}
+
+                  <div className="mt-1 flex items-center gap-2 border-t-2 border-[hsl(var(--pv-ink))] pt-2.5">
+                    <span className="min-w-0 flex-1 text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
+                      Net profit
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[15px] font-extrabold text-[hsl(var(--pv-success))]">
+                      {state === 'error' ? '—' : '$4,472.61'}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          ) : tab === 'calendar' ? (
+            <div className="flex flex-col gap-3 px-4 py-3">
+              <Card>
+                <CardTitle>August 2026</CardTitle>
+                <p className="mt-0.5 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                  Revenue per day. A day with no bookings shows a dash, not
+                  $0 — nobody booked is not the same as nobody paid.
+                </p>
+                <div className="mt-2.5 grid grid-cols-7 gap-1">
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                    <span
+                      key={i}
+                      className="text-center text-[10px] font-bold uppercase text-[hsl(var(--pv-ink-3))]"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                  {DAY_REVENUE.map((d, i) => (
+                    <div
+                      key={i}
+                      className="rounded-[8px] bg-[hsl(var(--pv-sunken))] px-1 py-1.5 text-center"
+                    >
+                      <p className="text-[10px] font-bold text-[hsl(var(--pv-ink-3))]">{d.day}</p>
+                      <p className="truncate text-[9.5px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
+                        {state === 'error' ? '—' : d.revenue === null ? '–' : d.revenue}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          ) : tab === 'transactions' ? (
             <>
               <ListSectionLabel>{txns.length} transactions</ListSectionLabel>
               {txns.map(t => {
