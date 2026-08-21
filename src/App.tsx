@@ -155,6 +155,8 @@ const PayrollPreviewPage = lazy(() => import("./pages/preview/PayrollPreviewPage
 const SettingsPreviewPage = lazy(() => import("./pages/preview/SettingsPreviewPage"));
 const ServicesPreviewPage = lazy(() => import("./pages/preview/ServicesPreviewPage"));
 const FinancePreviewPage = lazy(() => import("./pages/preview/FinancePreviewPage"));
+const SchedulerWiredPage = lazy(() => import("./pages/admin/SchedulerBenchmarksWiredPages").then(m => ({ default: m.SchedulerWiredPage })));
+const BenchmarksWiredPage = lazy(() => import("./pages/admin/SchedulerBenchmarksWiredPages").then(m => ({ default: m.BenchmarksWiredPage })));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -459,6 +461,8 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/scheduler-v2" element={<AdminRoute><ErrorBoundary featureName="Scheduler v2"><SchedulerWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/benchmarks-v2" element={<AdminRoute><ErrorBoundary featureName="Benchmarks v2"><BenchmarksWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -656,6 +660,8 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/scheduler-v2" element={<AdminRoute><ErrorBoundary featureName="Scheduler v2"><SchedulerWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/benchmarks-v2" element={<AdminRoute><ErrorBoundary featureName="Benchmarks v2"><BenchmarksWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
