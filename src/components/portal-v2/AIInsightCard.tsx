@@ -17,6 +17,9 @@ import { StatusBadge } from './StatusBadge';
  * and NO Urgent chip.
  */
 export function AIInsightCard({
+  kind,
+  confidence,
+  recommendation,
   title,
   body,
   urgent = false,
@@ -24,11 +27,22 @@ export function AIInsightCard({
   onAction,
   error = false,
 }: {
-  title: string;
+  /* Optional: 7a's cards have NO title row. They open with the severity
+     chip and the confidence label, and the first sentence of the body does
+     the titling. Forcing a title in truncated it AND clipped the chip
+     beside it, so the comp's shape is the one that fits. */
+  title?: string;
   body: string;
   urgent?: boolean;
   actionLabel?: string;
   onAction?: () => void;
+  /* 7a leads each insight with a severity chip and a CONFIDENCE label,
+     and closes it with a tinted recommendation panel rather than a link.
+     The panel matters: the insight is analysis, the recommendation is the
+     thing you act on, and the comp separates them visually. */
+  kind?: 'urgent' | 'opportunity';
+  confidence?: string;
+  recommendation?: string;
   error?: boolean;
 }) {
   return (
@@ -40,21 +54,44 @@ export function AIInsightCard({
         >
           <Sparkles className="h-4 w-4 text-[hsl(var(--pv-brand-ink))]" />
         </span>
-        <h2 className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">
-          {error ? 'Insights unavailable' : title}
-        </h2>
-        {urgent && !error && (
+        {(title || error) && (
+          <h2 className="min-w-0 flex-1 truncate text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">
+            {error ? 'Insights unavailable' : title}
+          </h2>
+        )}
+        {!title && !error && <span className="min-w-0 flex-1" />}
+        {(urgent || kind) && !error && (
           <span className="shrink-0">
-            <StatusBadge tone="danger" label="Urgent" />
+            <StatusBadge
+              tone={kind === 'opportunity' ? 'success' : 'danger'}
+              label={kind === 'opportunity' ? 'Opportunity' : 'Urgent'}
+            />
           </span>
         )}
       </div>
+
+      {confidence && !error && (
+        <p className="mt-1 text-[11px] font-semibold text-[hsl(var(--pv-ink-3))]">{confidence}</p>
+      )}
 
       <p className="mt-2.5 text-[12.5px] font-semibold leading-[1.52] text-[hsl(var(--pv-ink-2))]">
         {error
           ? "We couldn't read your insights just now. Your numbers are unaffected."
           : body}
       </p>
+
+      {!error && recommendation && (
+        <p
+          className={
+            'mt-2.5 rounded-[10px] px-3.5 py-[11px] text-[11.5px] font-semibold leading-[1.55] ' +
+            (kind === 'opportunity'
+              ? 'bg-[hsl(var(--pv-success-soft))] text-[hsl(var(--pv-success))]'
+              : 'bg-[hsl(var(--pv-danger-soft))] text-[hsl(var(--pv-danger))]')
+          }
+        >
+          {recommendation}
+        </p>
+      )}
 
       {!error && actionLabel && (
         <button
