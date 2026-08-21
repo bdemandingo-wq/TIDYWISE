@@ -82,7 +82,26 @@ export default function MediaGridPreviewPage() {
         ))}
       </div>
 
-      <DetailHeader title="Photos" sub="One grid, three screens' worth of actions" />
+      <DetailHeader title="Booking Media" sub="Uploads from cleaners" />
+
+        {/* 6f's summary. "0 videos" is a real zero — nobody has uploaded one —
+            not a count that failed to read, so it renders as 0 rather than a
+            dash, and the caption says the split is of what exists. */}
+        <div className="px-5 pt-3">
+          <div className="rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-[18px] py-3.5">
+            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[hsl(var(--pv-ink-3))]">
+              Uploads from cleaners
+            </p>
+            <p className="mt-1 text-[24px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-ink))]">
+              {state === 'error' ? '—' : '117'}
+            </p>
+            <p className="mt-1 text-[10.5px] font-medium text-[hsl(var(--pv-ink-3))]">
+              {state === 'error'
+                ? 'before, after and video'
+                : '45 before · 72 after · 0 videos'}
+            </p>
+          </div>
+        </div>
 
       <div className="flex flex-1 flex-col gap-4 px-5 pb-6">
         <section>
