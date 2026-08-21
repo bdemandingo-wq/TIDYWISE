@@ -252,6 +252,10 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
   const [gmail, setGmail] = useState(true);
   const [loyaltyOn, setLoyaltyOn] = useState(true);
   const [sqft, setSqft] = useState(false);
+  /* 5u / 5v / 5w are a third level: index → section → sub-screen. Each comp
+     shows a back arrow reading "Pricing", "SMS", "Booking form", so they open
+     from inside a section rather than from the index. */
+  const [sub, setSub] = useState<'frequencies' | 'sms-setup' | 'form-display' | null>(null);
 
   if (!sum) {
     return (
@@ -269,6 +273,10 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
       </>
     );
   }
+
+  if (sub === 'frequencies') return <CustomFrequencies onBack={() => setSub(null)} />;
+  if (sub === 'sms-setup') return <SmsSetupGuide onBack={() => setSub(null)} />;
+  if (sub === 'form-display') return <FormDisplay onBack={() => setSub(null)} />;
 
   return (
     <>
@@ -346,6 +354,7 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
             <SettingsGroup title="Form display" state="ready">
               <SettingsRow kind="value" label="Theme" value="Light" onClick={() => undefined} />
               <SettingsRow kind="value" label="Scheduling mode" value="Specific time slots" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Display & colours" value="6 set" onClick={() => setSub('form-display')} />
             </SettingsGroup>
           </>
         )}
@@ -366,7 +375,7 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
               <SettingsRow kind="value" label="Weekly" value="20%" onClick={() => undefined} />
               <SettingsRow kind="value" label="Every 2 weeks" value="15%" onClick={() => undefined} />
               <SettingsRow kind="value" label="Monthly" value="10%" onClick={() => undefined} />
-              <SettingsRow kind="value" label="Custom frequencies" value="4" onClick={() => undefined} />
+              <SettingsRow kind="value" label="Custom frequencies" value="4" onClick={() => setSub('frequencies')} />
             </SettingsGroup>
           </>
         )}
@@ -412,7 +421,11 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
             <Card>
               <div className="flex items-center gap-2">
                 <CardTitle>API configuration</CardTitle>
-                <button type="button" className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]">
+                <button
+                  type="button"
+                  onClick={() => setSub('sms-setup')}
+                  className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]"
+                >
                   Setup guide →
                 </button>
               </div>
@@ -499,5 +512,384 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
         )}
       </div>
     </>
+  );
+}
+/* ══════════════════════════════════════════════════════════════════════════
+   5u — Pricing › Custom frequencies
+
+   Measured: mode chips 11px at 6px 12px; a 1.4fr/.8fr field grid at 8px gap;
+   fields radius 10 at 12px 13px, 12.5px text, labels 11.5px/700 5px above;
+   the add row is fields + a nowrap 12.5px/800 button at 13px 20px.
+
+   The comp's summary is "2 custom schedules · 1 active · 1 paused", and the
+   pause state is the reason this screen needs one. A paused frequency still
+   exists in this list but does NOT appear in the booking form, so a list that
+   showed only names would make a paused schedule look live. Each row says
+   which it is.
+   ══════════════════════════════════════════════════════════════════════════ */
+function CustomFrequencies({ onBack }: { onBack: () => void }) {
+  const [mode, setMode] = useState<'interval' | 'days'>('interval');
+
+  return (
+    <>
+      <DetailHeader title="Custom frequencies" onBack={onBack} />
+      <InverseHeader
+        eyebrow="Pricing"
+        business="Custom frequencies"
+        revenueLabel="Custom schedules"
+        revenue="2"
+        wells={
+          <>
+            <StatWell value="1" caption="active" />
+            <StatWell value="1" caption="paused" />
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-3.5 px-5 pb-10 pt-4">
+        <Card>
+          <CardTitle>New frequency</CardTitle>
+          <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+            Custom recurring intervals or day-of-week schedules with their own
+            discount. These appear in the booking form.
+          </p>
+
+          <div className="mt-3 flex gap-1.5">
+            {([
+              ['interval', 'Every X days'],
+              ['days', 'Specific days'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id)}
+                aria-pressed={mode === id}
+                className={
+                  'rounded-full px-3 py-1.5 text-[11px] ' +
+                  (mode === id
+                    ? 'bg-[hsl(var(--pv-brand))] font-bold text-[hsl(var(--pv-brand-ink))]'
+                    : 'font-semibold text-[hsl(var(--pv-ink-3))]')
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 grid grid-cols-[1.4fr_0.8fr] gap-2">
+            <Field label="Name" placeholder="e.g. Every 3 Days" />
+            <Field label={mode === 'interval' ? 'Interval (days)' : 'Days'} placeholder="3" />
+          </div>
+
+          <div className="mt-2.5 flex items-end gap-2">
+            <div className="flex-1">
+              <Field label="Discount %" placeholder="0" />
+            </div>
+            <Button variant="primary" className="shrink-0 whitespace-nowrap rounded-[10px]">
+              + Add
+            </Button>
+          </div>
+        </Card>
+
+        <Card>
+          <CardTitle>Your custom frequencies</CardTitle>
+          <div className="mt-2.5 flex flex-col gap-2.5">
+            {[
+              { name: 'Mon/Wed/Fri', meta: 'Mon Wed Fri', paused: false },
+              { name: 'Every 10 Days', meta: '10-day interval · 12% off', paused: true },
+            ].map(f => (
+              <div key={f.name} className="flex items-center gap-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">
+                    {f.name}
+                  </p>
+                  <p className="truncate text-[11.5px] text-[hsl(var(--pv-ink-3))]">
+                    {f.meta}
+                  </p>
+                </div>
+                {/* A paused frequency is still listed here but does NOT show
+                    on the booking form. Without this the two look identical. */}
+                <StatusBadge
+                  tone={f.paused ? 'warn' : 'success'}
+                  label={f.paused ? 'Paused' : 'On the form'}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Button variant="primary" fullWidth className="rounded-[12px]">
+          Save changes
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5v — SMS › OpenPhone setup guide & debug tools
+   ══════════════════════════════════════════════════════════════════════════ */
+function SmsSetupGuide({ onBack }: { onBack: () => void }) {
+  return (
+    <>
+      <DetailHeader title="OpenPhone setup" onBack={onBack} />
+      <InverseHeader
+        eyebrow="SMS"
+        business="OpenPhone setup"
+        revenueLabel="Integration status"
+        revenue="Connected"
+        wells={<StatWell value="2:01 PM" caption="last check, Aug 20" />}
+      />
+
+      <div className="flex flex-col gap-3.5 px-5 pb-10 pt-4">
+        <Card>
+          <CardTitle>How to get your credentials</CardTitle>
+          <div className="mt-3 flex flex-col gap-3">
+            {[
+              ['Create an OpenPhone account', 'Go to openphone.com and sign up.'],
+              ['Get your API key', 'Settings → API, then create a new key.'],
+              ['Find your phone number ID', 'Phone Numbers → click your number; the ID is in the URL.'],
+            ].map(([title, body], i) => (
+              <div key={title} className="flex gap-3">
+                <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[hsl(var(--pv-brand-soft))] text-[11px] font-extrabold text-[hsl(var(--pv-brand))]">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-bold text-[hsl(var(--pv-ink))]">{title}</p>
+                  <p className="text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                    {body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <CardTitle>SMS notifications include</CardTitle>
+          <div className="mt-2 flex flex-col gap-1.5">
+            {[
+              'Booking confirmation texts to customers',
+              'Appointment reminders before cleanings',
+              'Schedule change notifications',
+            ].map(t => (
+              <p key={t} className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                <span className="mr-1.5 text-[hsl(var(--pv-success))]">✓</span>
+                {t}
+              </p>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2">
+            <CardTitle>Debug tools</CardTitle>
+            <button
+              type="button"
+              className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]"
+            >
+              Check config →
+            </button>
+          </div>
+          <p className="mt-0.5 text-[11.5px] text-[hsl(var(--pv-ink-3))]">
+            Test and troubleshoot your integration.
+          </p>
+          <div className="mt-2.5">
+            <Field label="Send to" placeholder="(555) 123-4567" />
+          </div>
+          <p className="mt-2.5 rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3.5 py-3 text-[12px] leading-[1.45] text-[hsl(var(--pv-ink-2))]">
+            This is a test message from TidyWise. If you received this,
+            OpenPhone is working!
+          </p>
+          {/* This one really sends. The comp gives it the same weight as
+              "Copy link"; naming the consequence before the tap is the rule
+              this design system already applies to campaigns and discounts. */}
+          <p className="mt-2 text-[11px] font-semibold text-[hsl(var(--pv-ink-3))]">
+            Sends a real text to that number and uses one message from your
+            OpenPhone allowance.
+          </p>
+          <div className="mt-2">
+            <Button variant="secondary" className="rounded-[10px]">Send test SMS</Button>
+          </div>
+        </Card>
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   5w — Booking form › Display settings & custom colours
+
+   Two divergences from the comp, both measured against the live component.
+
+   1. SIX colour options, not five. FormDisplaySettings.tsx:78-85 defines
+      form_bg_color, form_card_color, form_text_color, form_button_color,
+      form_button_text_color AND form_accent_color — "Headings, borders, icons
+      & highlights". The comp draws the first five. Accent is the one that
+      colours headings, so leaving it out means the setting that changes the
+      most visible thing on the page is the one you cannot find.
+
+   2. Contrast is checked. Nothing in the live component validates any pair —
+      grep for luminance/contrast/wcag/ratio in FormDisplaySettings returns
+      zero. These colours are not applied to this admin screen; they are
+      applied to the PUBLIC booking form, so an unreadable combination is
+      inflicted on the customer trying to book, and the owner who picked it
+      never sees the result. This repo already runs check-color-pairs.mjs over
+      its own tokens for exactly this reason; a customer-facing palette
+      deserves the same courtesy.
+
+      The warning is advisory, not a block — it is their brand and they may
+      have a reason. It states the ratio and what it affects.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** Relative luminance / contrast, WCAG 2.1. Small and local on purpose. */
+function contrast(a: string, b: string): number {
+  const lum = (hex: string) => {
+    const h = hex.replace('#', '');
+    const v = [0, 2, 4].map(i => {
+      const c = parseInt(h.slice(i, i + 2), 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
+function FormDisplay({ onBack }: { onBack: () => void }) {
+  const [sections, setSections] = useState<Record<string, boolean>>({
+    'Service selection': true,
+    'Add-ons & extras': true,
+    'Square footage': false,
+    'Promo code field': true,
+  });
+
+  /* Deliberately a failing pair by default so the check is visible in the
+     preview: mid-grey text on a near-white page is 2.8:1. */
+  const COLOURS = [
+    { label: 'Background', description: 'Page background color', value: '#FBFBFD' },
+    { label: 'Cards', description: 'Card and section backgrounds', value: '#F0F1F5' },
+    { label: 'Text', description: 'Main text and headings', value: '#8A8F98' },
+    { label: 'Buttons', description: 'Primary action buttons', value: '#2B5CE6' },
+    { label: 'Button text', description: 'Text on buttons', value: '#FFFFFF' },
+    /* The sixth, which the comp omits. */
+    { label: 'Accent', description: 'Headings, borders, icons & highlights', value: '#0891B2' },
+  ];
+
+  const bg = COLOURS[0].value;
+  const text = COLOURS[2].value;
+  const btn = COLOURS[3].value;
+  const btnText = COLOURS[4].value;
+
+  const pairs = [
+    { name: 'Text on background', ratio: contrast(text, bg) },
+    { name: 'Button text on buttons', ratio: contrast(btnText, btn) },
+  ].filter(p => p.ratio < 4.5);
+
+  const shown = Object.values(sections).filter(Boolean).length;
+
+  return (
+    <>
+      <DetailHeader title="Display settings" onBack={onBack} />
+      <InverseHeader
+        eyebrow="Booking form"
+        business="Display settings"
+        revenueLabel="Sections shown"
+        revenue={String(shown)}
+        wells={
+          <>
+            <StatWell value="Light" caption="theme" />
+            <StatWell value={String(COLOURS.length)} caption="custom colors" />
+          </>
+        }
+      />
+
+      <div className="flex flex-col gap-3.5 px-5 pb-10 pt-4">
+        <SettingsGroup title="Sections on the form" state="ready">
+          {Object.keys(sections).map(k => (
+            <SettingsRow
+              key={k}
+              kind="toggle"
+              label={k}
+              checked={sections[k]}
+              onCheckedChange={v => setSections(s => ({ ...s, [k]: v }))}
+            />
+          ))}
+        </SettingsGroup>
+
+        <Card>
+          <div className="flex items-center gap-2">
+            <CardTitle>Custom form colors</CardTitle>
+            <button
+              type="button"
+              className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]"
+            >
+              Reset →
+            </button>
+          </div>
+
+          {/* Advisory, not a block — it is their brand. But these colours are
+              applied to the PUBLIC form, so the person who suffers an
+              unreadable pair is the customer, and the owner never sees it. */}
+          {pairs.length > 0 && (
+            <div className="mt-2.5 rounded-[10px] bg-[hsl(var(--pv-warn-soft))] px-3.5 py-2.5">
+              <p className="text-[12px] font-bold text-[hsl(var(--pv-warn))]">
+                Hard to read on your booking page
+              </p>
+              {pairs.map(p => (
+                <p
+                  key={p.name}
+                  className="mt-0.5 text-[11.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]"
+                >
+                  {p.name} is {p.ratio.toFixed(1)}:1. Small text needs 4.5:1.
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3 flex flex-col gap-3">
+            {COLOURS.map(c => (
+              <div key={c.label} className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  style={{ background: c.value }}
+                  className="h-[26px] w-[26px] shrink-0 rounded-full border border-[hsl(var(--pv-border))]"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">
+                    {c.label}
+                  </p>
+                  <p className="truncate text-[11px] text-[hsl(var(--pv-ink-3))]">
+                    {c.description}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-[11px] text-[hsl(var(--pv-ink-3))]">
+                  {c.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Button variant="primary" fullWidth className="rounded-[12px]">
+          Save changes
+        </Button>
+      </div>
+    </>
+  );
+}
+
+/** The comp's field: 11.5px/700 label, 5px gap, radius 10, 12px 13px. */
+function Field({ label, placeholder }: { label: string; placeholder: string }) {
+  return (
+    <div>
+      <label className="block text-[11.5px] font-bold text-[hsl(var(--pv-ink-2))]">
+        {label}
+      </label>
+      <input
+        placeholder={placeholder}
+        className="mt-[5px] w-full rounded-[10px] bg-[hsl(var(--pv-sunken))] px-[13px] py-3 text-[12.5px] text-[hsl(var(--pv-ink))] outline-none placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]"
+      />
+    </div>
   );
 }
