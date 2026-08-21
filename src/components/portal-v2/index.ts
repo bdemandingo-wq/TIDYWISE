@@ -53,3 +53,5 @@ export { Sparkline } from './Sparkline';
 export { MessageBubble } from './MessageBubble';
 export { SimpleListView, useSimpleSearch } from './SimpleListView';
 export type { SimpleListRow } from './SimpleListView';
+export { BookingsListView, bookingMoney, bookingStaffLine, matchesBookingSearch, useBookingSearch } from './BookingsListView';
+export type { BookingsRow } from './BookingsListView';

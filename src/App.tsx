@@ -155,6 +155,8 @@ const PayrollPreviewPage = lazy(() => import("./pages/preview/PayrollPreviewPage
 const SettingsPreviewPage = lazy(() => import("./pages/preview/SettingsPreviewPage"));
 const ServicesPreviewPage = lazy(() => import("./pages/preview/ServicesPreviewPage"));
 const FinancePreviewPage = lazy(() => import("./pages/preview/FinancePreviewPage"));
+const BookingsWiredPage = lazy(() => import("./pages/admin/BookingsWiredPage"));
+const BookingsStatesPreviewPage = lazy(() => import("./pages/preview/BookingsStatesPreviewPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -459,6 +461,7 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -467,6 +470,8 @@ const App = () => (
                     <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
+                      {/* Additive: same guard, same data, mobile layout. The live route above is untouched. */}
+                      <Route path="/dashboard/bookings-v2" element={<AdminRoute><ErrorBoundary featureName="Bookings v2"><BookingsWiredPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/customers" element={<AdminRoute><ErrorBoundary featureName="Customers"><CustomersPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
@@ -656,6 +661,7 @@ const App = () => (
                     <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
                     <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
                     <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
+                    <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -664,6 +670,8 @@ const App = () => (
                     <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
+                      {/* Additive: same guard, same data, mobile layout. The live route above is untouched. */}
+                      <Route path="/dashboard/bookings-v2" element={<AdminRoute><ErrorBoundary featureName="Bookings v2"><BookingsWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/customers" element={<AdminRoute><ErrorBoundary featureName="Customers"><CustomersPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
