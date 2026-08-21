@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SegmentedTabs } from '@/components/portal-v2';
 
 /**
  * /dashboard/finance-v2 — the P&L on real data. ADDITIVE.
@@ -49,6 +49,12 @@ const money = (n: number) =>
 export default function FinanceWiredPage() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  /* 6d's P&L calendar. Booked by DEFAULT, because that is what the comp shows
+     and what an operator plans against — but never unlabelled, which was the
+     actual defect on the live screen: Total Sales said "incl. unpaid" and Net
+     Profit inherited the same basis silently. The basis is named in the card
+     title, restated under it, and switchable. */
+  const [basis, setBasis] = useState<'booked' | 'collected'>('booked');
   const [range] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -127,6 +133,25 @@ export default function FinanceWiredPage() {
     () => (expensesQ.data ?? []).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0),
     [expensesQ.data],
   );
+
+  /* One cell per day of the month. null means no bookings that day — which is
+     not a day that earned nothing, and the two must not render alike. */
+  const calendar = useMemo(() => {
+    const rows = (bookingsQ.data ?? []) as any[];
+    const start = new Date(range.start);
+    const daysInMonth = new Date(start.getUTCFullYear(), start.getUTCMonth() + 1, 0).getUTCDate();
+    const isPaid = (b: any) => b.payment_status === 'paid' || b.payment_status === 'partial';
+    const byDay = new Map<number, number>();
+    for (const b of rows) {
+      if (basis === 'collected' && !isPaid(b)) continue;
+      const d = new Date(b.scheduled_at).getUTCDate();
+      byDay.set(d, (byDay.get(d) ?? 0) + Number(b.total_amount ?? 0));
+    }
+    return Array.from({ length: daysInMonth }, (_, i) => ({
+      day: i + 1,
+      amount: byDay.has(i + 1) ? byDay.get(i + 1)! : null,
+    }));
+  }, [bookingsQ.data, basis, range.start]);
 
   const phase = combinedPhase([bookingsQ, expensesQ]);
   const expensesPhase = queryPhase(expensesQ);
@@ -207,6 +232,46 @@ export default function FinanceWiredPage() {
                   are higher than the truth.
                 </p>
               )}
+            </Card>
+
+            {/* 6d — revenue per day, on whichever basis is selected. */}
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>
+                  {basis === 'booked' ? 'Booked per day' : 'Collected per day'}
+                </CardTitle>
+              </div>
+              <div className="mt-2">
+                <SegmentedTabs<'booked' | 'collected'>
+                  tabs={[
+                    { id: 'booked', label: 'Booked' },
+                    { id: 'collected', label: 'Collected' },
+                  ]}
+                  value={basis}
+                  onChange={setBasis}
+                  label="Revenue basis"
+                />
+              </div>
+              <p className="mt-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                {basis === 'booked'
+                  ? 'Work scheduled that day, whether or not it has been paid for. A dash means nothing was booked — not that nothing was earned.'
+                  : 'Money actually taken that day. A dash means nothing was collected.'}
+              </p>
+              <div className="mt-2.5 grid grid-cols-7 gap-1">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((dd, i) => (
+                  <span key={i} className="text-center text-[10px] font-bold uppercase text-[hsl(var(--pv-ink-3))]">
+                    {dd}
+                  </span>
+                ))}
+                {calendar.map(c => (
+                  <div key={c.day} className="rounded-[8px] bg-[hsl(var(--pv-sunken))] px-1 py-1.5 text-center">
+                    <p className="text-[10px] font-bold text-[hsl(var(--pv-ink-3))]">{c.day}</p>
+                    <p className="truncate text-[9.5px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
+                      {c.amount === null ? '–' : c.amount >= 1000 ? `$${(c.amount / 1000).toFixed(1)}K` : `$${Math.round(c.amount)}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </Card>
 
             <Card>
