@@ -1,5 +1,16 @@
 import { useMemo, useState } from 'react';
-import { ListShell, ListRow, ListSectionLabel, type ListState } from '@/components/portal-v2';
+import {
+  ListShell,
+  ListRow,
+  ListSectionLabel,
+  StatCard,
+  Card,
+  CardTitle,
+  Button,
+  StatusBadge,
+  SettingsRow,
+  type ListState,
+} from '@/components/portal-v2';
 import {
   adminBookingStatusBadge,
   paymentBadge,
@@ -240,6 +251,9 @@ export default function BookingsPreviewPage() {
   const [state, setState] = useState<ListState>('ready');
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
+  /* 4d: the sheet that opens from a row. It belongs to this screen rather
+     than a route of its own — tapping a booking is how you reach it. */
+  const [sheetFor, setSheetFor] = useState<Row | null>(null);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -283,7 +297,11 @@ export default function BookingsPreviewPage() {
         </p>
       </div>
 
-      <div className="mx-auto w-full max-w-[430px]">
+      {/* .portal-v2 carries the --pv-* custom properties. Without it the
+          tokens do not resolve and every colour silently falls back to an
+          inherited value — which looked plausible against the dark shell,
+          which is why it went unnoticed. */}
+      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <ListShell<Tab>
           title="Bookings"
           action={{ label: 'Create' }}
@@ -312,7 +330,18 @@ export default function BookingsPreviewPage() {
           onRetry={() => setState('ready')}
           skeletonRows={6}
         >
-          <ListSectionLabel>{rows.length} bookings</ListSectionLabel>
+          {/* 4c puts four summary cards between the tabs and the list: a 2x2
+              grid, 10px gaps. "Owed to you" is gold-accented and "Completed"
+              carries a green label — the only two that are not neutral. */}
+          <div className="grid grid-cols-2 gap-2.5 pb-1">
+            <StatCard label="Total" value="439" caption="all time" />
+            <StatCard label="Owed to you" value="$203.00" caption="1 completed job" tone="gold" />
+            <StatCard label="Scheduled" value="42" caption="all time" />
+            <StatCard label="Completed" value="388" caption="all time" tone="success" />
+          </div>
+
+          {tab === 'all' && (
+          <><ListSectionLabel>{rows.length} bookings</ListSectionLabel>
           {rows.map(r => (
             <ListRow
               key={r.id}
@@ -337,11 +366,159 @@ export default function BookingsPreviewPage() {
                        label: r.reminder === 'urgent' ? 'Reminder overdue' : 'Reminder due' }]
                   : []),
               ]}
-              onClick={() => undefined}
+              onClick={() => setSheetFor(r)}
             />
           ))}
+          </>
+          )}
+
+          {/* 7d — Quotes. A quote is money that has NOT been agreed, so the
+              screen leads with total quote value and every row carries an
+              expiry. A quote past its validity date is not pending, it is
+              gone, and the date is the only thing that says which. */}
+          {tab === 'quotes' && (
+            <>
+              <div className="grid grid-cols-2 gap-2.5 pb-1">
+                <StatCard label="Total quote value" value="$1,541.00" caption="4 quotes" />
+                <StatCard label="Pending" value="4" caption="0 accepted" tone="gold" />
+              </div>
+              {[
+                { n: 47, who: 'Barbara', amount: '$438.00', svc: 'Move In/Out Clean', email: 'barbara@gmail.com', until: 'Aug 14', expired: true },
+                { n: 51, who: 'Devon Cross', amount: '$1,280.00', svc: 'Office Clean', email: 'devon@crossmgmt.co', until: 'Aug 29', expired: false },
+              ].map(q => (
+                <ListRow
+                  key={q.n}
+                  lead={{ kind: 'ref', label: `#${q.n}` }}
+                  title={q.who}
+                  meta={q.svc}
+                  lines={[q.email, `Valid until ${q.until}`]}
+                  money={q.amount}
+                  status={[
+                    { tone: 'warn', label: 'Pending' },
+                    ...(q.expired ? [{ tone: 'danger' as const, label: 'Expired' }] : []),
+                  ]}
+                  onClick={() => undefined}
+                />
+              ))}
+            </>
+          )}
+
+          {/* 7e — Cleaner Wages, bulk edit. Two applies, deliberately
+              separate: a job total and a wage are different numbers, and
+              one Apply for both would let a mistyped rate rewrite what the
+              customer is charged. */}
+          {tab === 'wages' && (
+            <>
+              <Card>
+                <CardTitle>Bulk edit selected (0)</CardTitle>
+                <p className="mt-0.5 text-[11px] font-normal text-[hsl(var(--pv-ink-3))]">
+                  Hourly or percentage, per booking.
+                </p>
+                <div className="mt-2.5">
+                  <SettingsRow
+                    kind="input"
+                    label="Job total"
+                    value="150"
+                    onChange={() => undefined}
+                    inputType="number"
+                    suffix="$"
+                    action={{ label: 'Apply' }}
+                  />
+                  <SettingsRow kind="value" label="Wage type" value="Flat rate" onClick={() => undefined} />
+                  <SettingsRow
+                    kind="input"
+                    label="Rate"
+                    value="25"
+                    onChange={() => undefined}
+                    inputType="number"
+                    suffix="$/hr"
+                    action={{ label: 'Apply wage' }}
+                  />
+                </div>
+              </Card>
+
+              {rows.slice(0, 3).map(r => (
+                <ListRow
+                  key={r.id}
+                  lead={{ kind: 'ref', label: `#${r.booking_number}` }}
+                  title={r.customer ?? 'Unknown'}
+                  meta={bookingServiceName(r.service_name, r.total_amount)}
+                  lines={[staffLine(r)]}
+                  money={money(r.total_amount)}
+                  status={[{ tone: 'info', label: 'Flat $25/hr' }]}
+                  onClick={() => undefined}
+                />
+              ))}
+            </>
+          )}
+
+          {tab === 'drafts' && (
+            <Card>
+              <CardTitle>3 drafts</CardTitle>
+              <p className="mt-1 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                Bookings started but never confirmed. They are not on anyone&rsquo;s
+                calendar and nobody has been charged.
+              </p>
+            </Card>
+          )}
         </ListShell>
       </div>
+
+      {/* 4d — the booking action sheet. Grouped, because the actions are not
+          peers: viewing is safe, completing changes pay, marking paid moves
+          money. The comp groups them under BOOKING / PAYMENTS / COMMS
+          headings and this keeps that, so a destructive tap is never
+          adjacent to a harmless one by accident. */}
+      {sheetFor && (
+        <div className="portal-v2 fixed inset-0 z-50 flex items-end justify-center bg-black/40">
+          <div className="max-h-[85dvh] w-full max-w-[430px] overflow-y-auto rounded-t-[20px] bg-[hsl(var(--pv-surface))] px-5 pb-6 pt-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-extrabold tabular-nums text-[hsl(var(--pv-brand))]">
+                #{sheetFor.booking_number}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[hsl(var(--pv-ink))]">
+                {sheetFor.customer ?? 'Unknown'}
+              </span>
+              <span className="text-[14px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
+                {money(sheetFor.total_amount)}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <StatusBadge {...adminBookingStatusBadge(sheetFor.status)} />
+              <StatusBadge {...paymentBadge(sheetFor.payment_status, sheetFor.has_payment_intent)} />
+            </div>
+
+            {[
+              { group: 'Booking', items: ['View details', 'Reschedule', 'Assign cleaner'] },
+              { group: 'Payments', items: ['Mark complete & adjust pay', 'Mark paid'] },
+              { group: 'Comms', items: ['Message customer', 'Resend confirmation'] },
+            ].map(g => (
+              <div key={g.group} className="mt-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.05em] text-[hsl(var(--pv-ink-3))]">
+                  {g.group}
+                </p>
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  {g.items.map(i => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="min-h-[44px] rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-bg))] px-3.5 text-left text-[12.5px] font-bold text-[hsl(var(--pv-ink))]"
+                    >
+                      {i}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <div className="mt-4">
+              <Button variant="secondary" fullWidth className="rounded-[10px]" onClick={() => setSheetFor(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

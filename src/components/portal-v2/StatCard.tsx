@@ -18,17 +18,42 @@ export function StatCard({
   label: string;
   value: string;
   caption: string;
-  tone?: 'default' | 'danger';
+  /* 4c uses a gold-accented card for "Owed to you" (gold label, gold-tinted
+     surface and border) and a green label for "Completed". `danger` predates
+     these and stays for the churn stat. */
+  tone?: 'default' | 'danger' | 'gold' | 'success';
   className?: string;
 }) {
   return (
-    <Card className={cn('flex-1', className)}>
-      <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[hsl(var(--pv-ink-3))]">
+    <Card
+      className={cn(
+        'flex-1',
+        /* 4c tints the "Owed to you" card itself, not just its label:
+           a gold-washed surface and a gold border. Translated to the gold
+           family rather than copying the comp's gradient hexes. */
+        tone === 'gold' && 'border-[hsl(var(--pv-gold))] bg-[hsl(var(--pv-gold-soft))]',
+        className,
+      )}
+    >
+      <p
+        className={cn(
+          /* Mockup 4c: 10.5px, weight 600, sentence case — NOT uppercase.
+             Zero uppercase/letter-spacing occurrences across 1b and 4c; the
+             one in 2a is PayWell's "YOUR PAY", a different element. */
+          'text-[10.5px] font-semibold',
+          tone === 'gold'
+            ? 'text-[hsl(var(--pv-gold))]'
+            : tone === 'success'
+              ? 'text-[hsl(var(--pv-success))]'
+              : 'text-[hsl(var(--pv-ink-3))]',
+        )}
+      >
         {label}
       </p>
       <p
         className={cn(
-          'mt-1.5 text-[24px] font-extrabold leading-none tabular-nums',
+          /* Mockup 4c/1b: 22px, not 24px. */
+          'mt-1 text-[22px] font-extrabold leading-none tabular-nums',
           tone === 'danger'
             ? 'text-[hsl(var(--pv-danger))]'
             : 'text-[hsl(var(--pv-ink))]',
@@ -36,7 +61,7 @@ export function StatCard({
       >
         {value}
       </p>
-      <p className="mt-1 truncate text-[10.5px] font-medium text-[hsl(var(--pv-ink-3))]">
+      <p className="mt-1 truncate text-[10px] font-medium text-[hsl(var(--pv-ink-3))]">
         {caption}
       </p>
     </Card>

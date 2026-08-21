@@ -1,4 +1,3 @@
-import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DateTile } from './DateTile';
 import { Avatar } from './Avatar';
@@ -77,62 +76,78 @@ export function ListRow({
     <Root
       {...(onClick ? { type: 'button' as const, onClick } : {})}
       className={cn(
-        'flex w-full min-h-[56px] items-center gap-3 rounded-[10px] px-1 text-left',
+        /* Row anatomy read off mockups 4c and 8a, which agree exactly:
+
+             card    background, 1px border, radius 14px, padding 13px/16px,
+                     stacked by ListShell with 10px gaps
+             row 1   flex, gap 8px  -> ref (12px/800, brand) · title (flex:1,
+                     13.5px/700) · money (14px/800). Money ends the SAME line
+                     as the title and outranks it in both size and weight.
+             row 2   meta, 11px, margin-top 3px
+             row 3   badges, gap 6px, margin-top 9px, with the trailing
+                     control pushed right by margin-left:auto
+
+           The previous build put money and badges in a right-hand column and
+           the ref in a 46px left gutter. Both are corrected here. */
+        'block w-full rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4 py-[13px] text-left',
         onClick &&
           'transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]',
         className,
       )}
     >
-      {/* Fixed 46px gutter whatever fills it — §3 rule 13. */}
-      {lead.kind !== 'none' && (
-        <span className="flex w-[46px] shrink-0 justify-center">
-          {lead.kind === 'date' ? (
+      <span className="flex items-center gap-2">
+        {/* A date or person lead keeps the 46px gutter (§3 rule 13); a `ref`
+            is inline here, which is what both comps show. */}
+        {lead.kind === 'date' && (
+          <span className="flex w-[46px] shrink-0 justify-center">
             <DateTile weekday={lead.weekday} day={lead.day} variant="static" />
-          ) : lead.kind === 'person' ? (
-            <Avatar name={lead.name} />
-          ) : (
-            <span className="flex h-9 w-[46px] items-center justify-center rounded-[8px] bg-[hsl(var(--pv-sunken))] text-[10.5px] font-extrabold tabular-nums text-[hsl(var(--pv-ink-3))]">
-              {lead.label}
-            </span>
-          )}
-        </span>
-      )}
-
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold text-[hsl(var(--pv-ink))]">
-          {title}
-        </span>
-        {meta && (
-          <span className="block truncate text-[11.5px] font-normal text-[hsl(var(--pv-ink-3))]">
-            {meta}
           </span>
         )}
-        {lines?.map((l) => (
-          <span
-            key={l}
-            className="mt-0.5 block truncate text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]"
-          >
-            {l}
+        {lead.kind === 'person' && (
+          <span className="flex w-[46px] shrink-0 justify-center">
+            <Avatar name={lead.name} />
           </span>
-        ))}
+        )}
+        {lead.kind === 'ref' && (
+          <span className="shrink-0 text-[12px] font-extrabold tabular-nums text-[hsl(var(--pv-brand))]">
+            {lead.label}
+          </span>
+        )}
+
+        <span className="min-w-0 flex-1 truncate text-[13.5px] font-bold text-[hsl(var(--pv-ink))]">
+          {title}
+        </span>
+
+        {money && (
+          <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
+            {money}
+          </span>
+        )}
       </span>
 
-      {(money || badges.length > 0) && (
-        <span className="flex shrink-0 flex-col items-end gap-1">
-          {money && (
-            <span className="text-[13px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
-              {money}
-            </span>
-          )}
+      {meta && (
+        <span className="mt-[3px] block truncate text-[11px] font-normal text-[hsl(var(--pv-ink-3))]">
+          {meta}
+        </span>
+      )}
+      {lines?.map((l) => (
+        <span
+          key={l}
+          className="mt-[3px] block truncate text-[11px] font-semibold text-[hsl(var(--pv-ink-3))]"
+        >
+          {l}
+        </span>
+      ))}
+
+      {badges.length > 0 && (
+        <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
           {badges.map((b, i) => (
             <StatusBadge key={`${b.label}-${i}`} tone={b.tone} label={b.label} />
           ))}
         </span>
       )}
 
-      {onClick && (
-        <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(var(--pv-ink-4))]" aria-hidden />
-      )}
+
     </Root>
   );
 }
