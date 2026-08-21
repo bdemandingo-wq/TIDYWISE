@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, Sparkline } from '@/components/portal-v2';
+import { useMemo, useState } from 'react';
+import { Card, CardTitle, StatCard, Sparkline, SegmentedTabs } from '@/components/portal-v2';
 
 /**
  * /dashboard/reports-v2 — the reports overview on real data. ADDITIVE.
@@ -45,6 +45,11 @@ const money = (n: number) =>
 
 export default function ReportsWiredPage() {
   const { organization } = useOrganization();
+  /* Booked by default — it is the series that actually has shape, and an
+     operator plans against work scheduled. Labelled and switchable, because
+     the defect on the live screen was never "booked revenue", it was booked
+     revenue presented as though it were collected. */
+  const [basis, setBasis] = useState<'booked' | 'collected'>('booked');
   const orgTz = useOrgTimezone();
 
   const q = useQuery({
@@ -95,13 +100,18 @@ export default function ReportsWiredPage() {
     const payingCustomers = new Set(paid.map(b => b.customer_id).filter(Boolean));
     const spendPerPayer = payingCustomers.size > 0 ? collected / payingCustomers.size : null;
 
-    /* Monthly series of collected money, for the one chart this screen has. */
-    const byMonth = new Map<string, number>();
-    for (const b of paid) {
-      const k = String(b.scheduled_at).slice(0, 7);
-      byMonth.set(k, (byMonth.get(k) ?? 0) + Number(b.total_amount ?? 0));
-    }
-    const series = [...byMonth.entries()].sort(([a], [b2]) => a.localeCompare(b2)).map(([, v]) => v);
+    /* Two monthly series. Which one the chart draws is the caller's choice
+       and is always named on screen. */
+    const monthly = (src: any[]) => {
+      const byMonth = new Map<string, number>();
+      for (const b of src) {
+        const k = String(b.scheduled_at).slice(0, 7);
+        byMonth.set(k, (byMonth.get(k) ?? 0) + Number(b.total_amount ?? 0));
+      }
+      return [...byMonth.entries()].sort(([a], [b2]) => a.localeCompare(b2)).map(([, v]) => v);
+    };
+    const seriesBooked = monthly(rows.filter(b => b.status !== 'cancelled'));
+    const seriesCollected = monthly(paid);
 
     return {
       total: rows.length,
@@ -111,9 +121,12 @@ export default function ReportsWiredPage() {
       collected,
       spendPerPayer,
       payingCustomers: payingCustomers.size,
-      series,
+      seriesBooked,
+      seriesCollected,
     };
   }, [q.data]);
+
+  const series = basis === 'booked' ? m.seriesBooked : m.seriesCollected;
 
   const newCustomers = (customersQ.data ?? []).length;
 
@@ -164,21 +177,36 @@ export default function ReportsWiredPage() {
             )}
 
             <Card>
-              <CardTitle>Collected over time</CardTitle>
-              <p className="mt-0.5 text-[11.5px] text-[hsl(var(--pv-ink-3))]">
-                Money actually taken, by month.
+              <CardTitle>
+                {basis === 'booked' ? 'Booked over time' : 'Collected over time'}
+              </CardTitle>
+              <div className="mt-2">
+                <SegmentedTabs<'booked' | 'collected'>
+                  tabs={[
+                    { id: 'booked', label: 'Booked' },
+                    { id: 'collected', label: 'Collected' },
+                  ]}
+                  value={basis}
+                  onChange={setBasis}
+                  label="Revenue basis"
+                />
+              </div>
+              <p className="mt-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                {basis === 'booked'
+                  ? 'Work booked each month, whether or not it has been paid for.'
+                  : 'Money actually taken, by month.'}
               </p>
               <div className="mt-2.5">
                 {/* null, not zeroes — a flat line along the bottom of a revenue
                     chart reads as a collapse, not as an absent read. */}
                 <Sparkline
-                  points={m.series.length >= 2 ? m.series : null}
+                  points={series.length >= 2 ? series : null}
                   height={56}
-                  label="Collected revenue by month"
+                  label={`${basis === 'booked' ? 'Booked' : 'Collected'} revenue by month`}
                   caption={
-                    m.series.length === 0
-                      ? 'Nothing collected yet'
-                      : 'Only one month of payments — no trend to draw'
+                    series.length === 0
+                      ? basis === 'booked' ? 'Nothing booked yet' : 'Nothing collected yet'
+                      : `Only one month of ${basis === 'booked' ? 'bookings' : 'payments'} — no trend to draw`
                   }
                 />
               </div>
