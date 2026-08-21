@@ -164,6 +164,8 @@ const LeadsStatesPreviewPage = lazy(() => import("./pages/preview/LeadsStatesPre
 const RecurringWiredPage = lazy(() => import("./pages/admin/RecurringWiredPage"));
 const PayrollWiredPage = lazy(() => import("./pages/admin/PayrollWiredPage"));
 const FinanceWiredPage = lazy(() => import("./pages/admin/FinanceWiredPage"));
+const MessagesWiredPage = lazy(() => import("./pages/admin/MessagesWiredPage"));
+const MessagesStatesPreviewPage = lazy(() => import("./pages/preview/MessagesStatesPreviewPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -474,6 +476,8 @@ const App = () => (
                     <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/finance-v2" element={<AdminRoute><ErrorBoundary featureName="Finance v2"><FinanceWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/preview/messages-states" element={<MessagesStatesPreviewPage />} />
+                    <Route path="/dashboard/messages-v2" element={<AdminRoute><ErrorBoundary featureName="Messages v2"><MessagesWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -682,6 +686,8 @@ const App = () => (
                     <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/finance-v2" element={<AdminRoute><ErrorBoundary featureName="Finance v2"><FinanceWiredPage /></ErrorBoundary></AdminRoute>} />
+                    <Route path="/dashboard/preview/messages-states" element={<MessagesStatesPreviewPage />} />
+                    <Route path="/dashboard/messages-v2" element={<AdminRoute><ErrorBoundary featureName="Messages v2"><MessagesWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
