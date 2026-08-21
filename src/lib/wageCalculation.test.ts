@@ -285,3 +285,77 @@ describe('resolveCleanerPay', () => {
     expect(jobCard.calculatedPay).toBe(137.5);
   });
 });
+
+describe('percentage-only rescue (solo bookings)', () => {
+  /* A cleaner paid on percentage_rate with no hourly rate. Before this, the
+     chain `cleaner_wage ?? base_wage ?? hourly_rate ?? 0` resolved them to a
+     rate of 0 and a wage of $0.00 — and because the payout engine mirrors this
+     file, that is what they would have been paid. */
+  const percentOnly = makeStaff({
+    base_wage: null,
+    hourly_rate: null,
+    percentage_rate: 50,
+  });
+
+  it('pays a percentage of net revenue on a solo booking', () => {
+    const booking = makeBooking({ total_amount: 300 });
+    const r = calculateBookingWage(booking, percentOnly, 1);
+    expect(r.calculatedPay).toBe(150);
+    expect(r.wageType).toBe('percentage');
+    expect(r.wageRate).toBe(50);
+  });
+
+  it('still pays zero when the team size is unknown', () => {
+    /* Omitting teamSize means the caller cannot vouch that this is solo, and
+       an unknown team is treated as a team. Old behaviour, deliberately. */
+    const booking = makeBooking({ total_amount: 300 });
+    expect(calculateBookingWage(booking, percentOnly).calculatedPay).toBe(0);
+  });
+
+  it('does NOT apply on a team booking — the 300% guard', () => {
+    /* BookingStepper divides the percentage by team size when it writes
+       pay_share. Applying the full percentage per member here would pay out
+       three times the booking. */
+    const booking = makeBooking({ total_amount: 300 });
+    expect(calculateBookingWage(booking, percentOnly, 3).calculatedPay).toBe(0);
+  });
+
+  it('never overrides an explicit rate', () => {
+    const both = makeStaff({ hourly_rate: 25, percentage_rate: 50 });
+    const booking = makeBooking({ total_amount: 300, duration: 120 });
+    /* Hourly wins: 25 * 2h = 50, not 50% of 300. */
+    expect(calculateBookingWage(booking, both, 1).calculatedPay).toBe(50);
+  });
+
+  it('never overrides a booking-level wage', () => {
+    const booking = makeBooking({ total_amount: 300, cleaner_wage: 80, cleaner_wage_type: 'flat' });
+    expect(calculateBookingWage(booking, percentOnly, 1).calculatedPay).toBe(80);
+  });
+
+  it('is still outranked by a pay_expected snapshot', () => {
+    const booking = makeBooking({ total_amount: 300, cleaner_pay_expected: 99 });
+    const r = resolveCleanerPay(booking, percentOnly, null, 1);
+    expect(r.calculatedPay).toBe(99);
+    expect(r.source).toBe('pay_expected');
+    expect(r.isExact).toBe(true);
+  });
+
+  it('is outranked by pay_share, which is already team-divided', () => {
+    const booking = makeBooking({ total_amount: 300 });
+    const r = resolveCleanerPay(booking, percentOnly, 42, 1);
+    expect(r.calculatedPay).toBe(42);
+    expect(r.source).toBe('pay_share');
+  });
+
+  it('pays on the DISCOUNTED amount, not pre-discount', () => {
+    /* bookingNetRevenue's existing ruling: pay is on the price actually
+       charged. subtotal is pre-discount, total_amount is post. */
+    const booking = makeBooking({ total_amount: 300, subtotal: 400, discount_amount: 100 });
+    expect(calculateBookingWage(booking, percentOnly, 1).calculatedPay).toBe(150);
+  });
+
+  it('ignores a percentage_rate of 0', () => {
+    const zero = makeStaff({ base_wage: null, hourly_rate: null, percentage_rate: 0 });
+    expect(calculateBookingWage(makeBooking({ total_amount: 300 }), zero, 1).calculatedPay).toBe(0);
+  });
+});

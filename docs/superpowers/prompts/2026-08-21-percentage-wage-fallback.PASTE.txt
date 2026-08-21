@@ -1,0 +1,93 @@
+Deploy a fix to the payroll payout engine. This is a MONEY bug: one cleaner is
+currently being paid $0.00 for work they did.
+
+WHAT IS WRONG
+
+supabase/functions/_shared/payroll-period-process.ts resolves a cleaner's wage
+through this chain:
+
+    b.cleaner_wage ?? staff?.base_wage ?? staff?.hourly_rate ?? 0
+
+`percentage_rate` is not in it. The staff query at the bottom of the file
+already SELECTs percentage_rate — it is fetched and then never read.
+
+So a cleaner configured with a percentage and no hourly rate resolves to a rate
+of 0 and is PAID $0.00.
+
+Confirmed on the live org (read-only queries):
+
+  - 5 staff. One has percentage_rate = 50 with base_wage NULL and
+    hourly_rate NULL. The other four have hourly_rate = 25.
+  - booking_team_assignments has 2 rows and pay_share is NULL on BOTH, so the
+    per-cleaner snapshot that would normally carry the percentage was never
+    written for anything.
+  - All 47 bookings have cleaner_wage_type set to 'hourly' or 'flat' — never
+    'percentage' — so the existing percentage branch never fires either.
+  - That cleaner has 2 non-cancelled bookings: #305 ($280) and #1716 ($530),
+    both with cleaner_pay_expected NULL and cleaner_wage NULL.
+
+50% of ($280 + $530) = $405.00 that the engine would pay as $0.00.
+
+THE FIX, ALREADY WRITTEN
+
+The change is committed on branch fix/percentage-wage-fallback. Take the file
+from that branch as-is — do not re-derive it. Two functions change:
+
+  1. `interface WageStaff` gains `percentage_rate: number | null`.
+
+  2. `calculateBookingWage(b, staff)` becomes
+     `calculateBookingWage(b, staff, teamSize?)` and gains a step 2b, between
+     the cleaner_actual_payment check and the rate/type fallback:
+
+         const noExplicitRate =
+           b.cleaner_wage == null &&
+           staff?.base_wage == null &&
+           staff?.hourly_rate == null;
+         const pct = staff?.percentage_rate;
+         if (teamSize === 1 && noExplicitRate && pct != null && Number(pct) > 0) {
+           return (Number(pct) / 100) * bookingNetRevenue(b);
+         }
+
+  3. `calcWage(b, staff, payShareOverride)` becomes
+     `calcWage(b, staff, payShareOverride, teamSize?)` and forwards teamSize.
+
+  4. In the per-booking loop, the team branch passes `assignments.length` and
+     the solo branch (no assignment rows, staffed via staff_id) passes 1.
+
+WHY SOLO ONLY — DO NOT REMOVE THIS CONDITION
+
+BookingStepper writes pay_share as
+`(jobTotal * percentage_rate / 100) / teamSize` — it DIVIDES by the team size.
+This function has no team context of its own. Applying the full percentage per
+member of a three-person team would pay out 300% of the booking.
+
+`teamSize === 1` is the ONLY value that opts in. Undefined means the caller does
+not know, and an unknown team is treated as a team. Failing to pay is bad;
+silently overpaying threefold is worse.
+
+WHY NET REVENUE AND NOT total_amount
+
+It uses the existing bookingNetRevenue() helper, unchanged. That helper already
+carries this project's ruling that pay is on the discounted amount actually
+charged, and it already backs the existing `wageType === 'percentage'` branch.
+An earlier version of it subtracted the discount twice and underpaid percentage
+cleaners by exactly (rate / 100) * discount_amount. Do not introduce a second
+base for this path.
+
+MIRRORING
+
+src/lib/wageCalculation.ts has the identical change on the same branch, in
+computePayFromDefaults. The two files carry comments binding them to each other.
+If you change the logic here, the frontend copy must change the same way in the
+same commit, or a cleaner's job card and their payslip will disagree.
+
+VERIFY BEFORE AND AFTER
+
+Before: that cleaner's two bookings resolve to 0.
+After:  #305 -> $140.00, #1716 -> $265.00, total $405.00.
+A team booking with a percentage-only cleaner must still resolve to 0, not to
+the full percentage.
+
+Deploy the payroll-period-process shared module and every function that imports
+it. Then confirm it is DEPLOYED, not just committed — reply with the deployed
+function list and the timestamp.
