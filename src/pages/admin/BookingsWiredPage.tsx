@@ -1,12 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useBookings, type BookingWithDetails } from '@/hooks/useBookings';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useBookings, useDraftBookings, type BookingWithDetails } from '@/hooks/useBookings';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import {
   BookingsListView,
   useBookingSearch,
+  StatCard,
+  ListRow,
+  ListSectionLabel,
   type BookingsRow,
 } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
@@ -74,11 +80,36 @@ function toRow(b: BookingWithDetails, fmt: (iso: string) => string): BookingsRow
   };
 }
 
+type Tab = 'all' | 'drafts' | 'quotes' | 'wages';
+
 export default function BookingsWiredPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<Tab>('all');
+  const { organization } = useOrganization();
+  const orgId = organization?.id;
   const bookingsQ = useBookings();
+  const draftsQ = useDraftBookings();
   const orgTz = useOrgTimezone();
+
+  /* 4c's Quotes tab. A quote is money that has NOT been agreed, and the comp
+     puts an expiry on every row — a quote past valid_until is not pending, it
+     is gone, and the date is the only thing that says which. */
+  const quotesQ = useQuery({
+    queryKey: ['bookings-v2-quotes', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const { data, error } = await supabase
+        .from('quotes')
+        .select('id, quote_number, total_amount, status, valid_until, created_at')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!orgId,
+  });
 
   /* Formatted in the ORG's timezone. A booking at 8am in Florida must not read
      as 5am because the person looking is in California — the repo has an
@@ -110,22 +141,172 @@ export default function BookingsWiredPage() {
           ? 'empty'
           : 'ready';
 
+  /* ── 4c's four summary cards, from real data ────────────────────────────
+     §5.1 applies here as much as to the rows. "Owed to you" is MONEY, so on a
+     failed read it passes "—" with the default tone rather than a gold $0.00 —
+     which would read as "nothing outstanding" when the truth is "we could not
+     check". The counts drop to "—" for the same reason: a confident 0 is a
+     claim.
+
+     The values are the comp's four, computed rather than assumed:
+       Total       non-draft bookings
+       Owed to you completed work that has not been paid for
+       Scheduled   status = confirmed
+       Completed   status = completed                                        */
+  const cards = useMemo(() => {
+    const src = (bookingsQ.data ?? []) as any[];
+    const completed = src.filter(b => b.status === 'completed');
+    const owedRows = completed.filter(b => b.payment_status !== 'paid');
+    const owed = owedRows.reduce((sum, b) => sum + Number(b.total_amount ?? 0), 0);
+    return {
+      total: src.length,
+      owed,
+      owedJobs: owedRows.length,
+      scheduled: src.filter(b => b.status === 'confirmed').length,
+      completed: completed.length,
+    };
+  }, [bookingsQ.data]);
+
+  const ready = phase === 'ready';
+  const dash = (v: string) => (ready ? v : '—');
+
+  const summary = (
+    <div className="grid grid-cols-2 gap-2.5 pb-1">
+      <StatCard label="Total" value={dash(String(cards.total))} caption="all time" />
+      <StatCard
+        label="Owed to you"
+        value={dash(`$${cards.owed.toFixed(2)}`)}
+        caption={ready ? `${cards.owedJobs} completed job${cards.owedJobs === 1 ? '' : 's'}` : 'completed but unpaid'}
+        /* Gold only when the figure is real. An errored card takes the default
+           tone so it cannot read as an alarming amount. */
+        tone={ready ? 'gold' : 'default'}
+      />
+      <StatCard label="Scheduled" value={dash(String(cards.scheduled))} caption="all time" />
+      <StatCard
+        label="Completed"
+        value={dash(String(cards.completed))}
+        caption="all time"
+        tone={ready ? 'success' : 'default'}
+      />
+    </div>
+  );
+
+  const tabs = [
+    { id: 'all' as Tab, label: 'All', count: all.length },
+    { id: 'drafts' as Tab, label: 'Drafts', count: (draftsQ.data ?? []).length },
+    { id: 'quotes' as Tab, label: 'Quotes', count: (quotesQ.data ?? []).length },
+    { id: 'wages' as Tab, label: 'Wages' },
+  ];
+
+  const fmtDate = (d: string) =>
+    new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: orgTz || 'UTC' })
+      .format(new Date(`${String(d).slice(0, 10)}T12:00:00Z`));
+
+  /* Today in the ORG's timezone — valid_until is a DATE, so comparing it to a
+     device clock expires a quote a day early west of the business. */
+  const orgToday = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: orgTz || 'UTC',
+  }).format(new Date());
+
+  const tabBody =
+    tab === 'all' ? undefined : (
+      <>
+        {tab === 'drafts' && (
+          <>
+            <ListSectionLabel>{(draftsQ.data ?? []).length} drafts</ListSectionLabel>
+            {(draftsQ.data ?? []).map((d: any) => (
+              <ListRow
+                key={d.id}
+                lead={{ kind: 'ref', label: `#${d.booking_number}` }}
+                title={d.customer ? `${d.customer.first_name ?? ''} ${d.customer.last_name ?? ''}`.replace(/\s+/g, ' ').trim() || 'Unknown' : 'Unknown'}
+                meta="Draft — not booked"
+                lines={[d.scheduled_at ? fmt(d.scheduled_at) : 'No date set']}
+                money={d.total_amount == null ? '—' : `$${Number(d.total_amount).toFixed(2)}`}
+              />
+            ))}
+            {(draftsQ.data ?? []).length === 0 && (
+              <p className="px-4 py-6 text-center text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+                No drafts.
+              </p>
+            )}
+          </>
+        )}
+
+        {tab === 'quotes' && (
+          <>
+            <ListSectionLabel>{(quotesQ.data ?? []).length} quotes</ListSectionLabel>
+            {(quotesQ.data ?? []).map((qt: any) => {
+              /* A quote past its validity date is not pending, it is gone —
+                 and the date is the only thing that says which. */
+              const expired = !!qt.valid_until && qt.valid_until < orgToday && qt.status !== 'accepted';
+              return (
+                <ListRow
+                  key={qt.id}
+                  lead={{ kind: 'ref', label: `#${qt.quote_number}` }}
+                  title={qt.status === 'accepted' ? 'Accepted' : expired ? 'Expired' : 'Awaiting reply'}
+                  meta={qt.valid_until ? `Valid until ${fmtDate(qt.valid_until)}` : 'No expiry set'}
+                  lines={[qt.created_at ? `Sent ${fmtDate(qt.created_at)}` : null].filter(Boolean) as string[]}
+                  money={qt.total_amount == null ? '—' : `$${Number(qt.total_amount).toFixed(2)}`}
+                  status={[
+                    expired
+                      ? { tone: 'danger' as const, label: 'Expired' }
+                      : qt.status === 'accepted'
+                        ? { tone: 'success' as const, label: 'Accepted' }
+                        : { tone: 'warn' as const, label: 'Open' },
+                  ]}
+                />
+              );
+            })}
+            {(quotesQ.data ?? []).length === 0 && (
+              <p className="px-4 py-6 text-center text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+                No quotes.
+              </p>
+            )}
+          </>
+        )}
+
+        {tab === 'wages' && (
+          <p className="px-4 py-6 text-[12.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+            Cleaner wages live on their own screen, where each figure carries
+            whether it is a locked-in amount or an estimate.{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/payroll-v2')}
+              className="font-bold text-[hsl(var(--pv-brand))]"
+            >
+              Open payroll →
+            </button>
+          </p>
+        )}
+      </>
+    );
+
   return (
     <AdminLayout title="Bookings" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        <BookingsListView
+        <BookingsListView<Tab>
           phase={listState}
           rows={rows}
           search={search}
           onSearch={setSearch}
+          tabs={tabs}
+          tab={tab}
+          onTab={setTab}
+          summary={summary}
           sectionLabel={
             search.trim()
               ? `${rows.length} of ${all.length} bookings`
               : `${all.length} bookings`
           }
           onSelect={r => navigate(`/dashboard/bookings?booking=${r.id}`)}
-          onRetry={() => bookingsQ.refetch()}
-        />
+          onRetry={() => {
+            bookingsQ.refetch();
+            draftsQ.refetch();
+            quotesQ.refetch();
+          }}
+        >
+          {tabBody}
+        </BookingsListView>
       </div>
     </AdminLayout>
   );

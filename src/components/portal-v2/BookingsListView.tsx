@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
 import { ListRow } from './ListRow';
 import {
@@ -55,7 +55,7 @@ export function bookingStaffLine(r: BookingsRow): string {
   return r.staff_name || 'Unassigned';
 }
 
-export function BookingsListView({
+export function BookingsListView<T extends string = 'all'>({
   phase,
   rows,
   search,
@@ -63,6 +63,11 @@ export function BookingsListView({
   onSelect,
   onRetry,
   sectionLabel,
+  tabs,
+  tab,
+  onTab,
+  summary,
+  children,
 }: {
   phase: ListState;
   rows: BookingsRow[];
@@ -72,19 +77,35 @@ export function BookingsListView({
   onRetry?: () => void;
   /** Overridable so a wired caller can say "46 bookings" vs "3 matching". */
   sectionLabel?: string;
+  /* ── Added when the wiring pass met the 4c mockup ──────────────────────
+     The row was already comp-matched — it was extracted from the 4c preview
+     and renders the identical ListRow. What the extracted view dropped was
+     the SCREEN chrome: 4c's four tabs and the 2x2 summary grid between the
+     tabs and the list. These props put it back without touching the row.
+
+     Optional throughout, so the states preview keeps rendering a plain
+     single-tab list and only the wired caller opts in. */
+  tabs?: { id: T; label: string; count?: number }[];
+  tab?: T;
+  onTab?: (t: T) => void;
+  /** 4c's summary cards. Rendered between the tabs and the section label. */
+  summary?: ReactNode;
+  /** Content for a tab that is not the booking list (drafts, quotes, wages). */
+  children?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
+  const singleTab = [{ id: 'all' as T, label: 'All bookings', count: rows.length }];
 
   return (
-    <ListShell<'all'>
+    <ListShell<T>
       title="Bookings"
-      action={{ label: 'Add' }}
+      action={{ label: 'Create' }}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, service, or booking #..."
-      tabs={[{ id: 'all', label: 'All bookings', count: rows.length }]}
-      tab="all"
-      onTab={() => undefined}
+      tabs={tabs ?? singleTab}
+      tab={tab ?? ('all' as T)}
+      onTab={onTab ?? (() => undefined)}
       state={phase}
       empty={
         filtered
@@ -103,6 +124,13 @@ export function BookingsListView({
       onRetry={onRetry}
       skeletonRows={6}
     >
+      {/* 4c puts four summary cards between the tabs and the list: a 2x2
+          grid at 10px gaps. Rendered above the section label so it reads as
+          a header for the whole screen rather than for the list. */}
+      {summary}
+
+      {children ?? (
+        <>
       <ListSectionLabel>{sectionLabel ?? `${rows.length} bookings`}</ListSectionLabel>
       {rows.map(r => (
         <ListRow
@@ -134,6 +162,8 @@ export function BookingsListView({
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}
+        </>
+      )}
     </ListShell>
   );
 }
