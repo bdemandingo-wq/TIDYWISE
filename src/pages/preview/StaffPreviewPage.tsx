@@ -249,8 +249,8 @@ function StateBar({
         className={
           'rounded-full px-3 py-1 text-[11px] font-bold ' +
           (errored
-            ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-on-brand))]'
-            : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-on-brand))]')
+            ? 'bg-[hsl(var(--pv-danger))] text-[hsl(var(--pv-brand-ink))]'
+            : 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]')
         }
       >
         {errored ? 'Error' : 'Ready'}
@@ -262,7 +262,7 @@ function StateBar({
           'rounded-full px-3 py-1 text-[11px] font-bold ' +
           (testMode
             ? 'bg-[hsl(var(--pv-gold))] text-[hsl(var(--pv-gold-ink))]'
-            : 'bg-[hsl(var(--pv-card))] text-[hsl(var(--pv-ink-2))]')
+            : 'bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-2))]')
         }
       >
         Test mode {testMode ? 'on' : 'off'}
@@ -271,7 +271,7 @@ function StateBar({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-full bg-[hsl(var(--pv-card))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-ink-2))]"
+          className="rounded-full bg-[hsl(var(--pv-surface))] px-3 py-1 text-[11px] font-bold text-[hsl(var(--pv-ink-2))]"
         >
           ← List
         </button>
