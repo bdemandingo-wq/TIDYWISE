@@ -102,8 +102,8 @@ const FREQUENCIES: Frequency[] = [
 ];
 
 const TABS: { id: Tab; label: string; count?: number }[] = [
-  { id: 'services', label: 'Services', count: SERVICES.length },
-  { id: 'pricing', label: 'Pricing', count: PRICING.length },
+  { id: 'services', label: 'Custom Services', count: SERVICES.length },
+  { id: 'pricing', label: 'Service Pricing', count: PRICING.length },
   { id: 'extras', label: 'Extras', count: EXTRAS.length },
   { id: 'frequencies', label: 'Frequencies', count: FREQUENCIES.length },
 ];
