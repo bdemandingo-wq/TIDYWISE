@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { queryPhase } from '@/lib/queryState';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -58,6 +58,14 @@ type Cfg = {
   searchPlaceholder?: string;
   /** Used when the count is exactly 1. */
   singular?: string;
+  /* ── The comp's InverseHeader ──────────────────────────────────────────
+     Most of these screens open with a dark hero carrying a headline figure
+     and two or three wells. Built from the loaded rows, so it is a function
+     rather than a node — and it takes the phase, because §5.1 applies to a
+     hero figure exactly as it does to a row: an errored header passes "—"
+     and sets InverseHeader's own `error` flag rather than rendering a
+     confident zero in 32px type. */
+  header?: (rows: any[], ready: boolean) => { eyebrow: string; label: string; value: string; wells: { value: string; caption: string }[] };
 };
 
 /** Shared plumbing: one query, one phase, one view. */
@@ -102,10 +110,27 @@ function useSimpleScreen(cfg: Cfg) {
 
 function Screen({ cfg }: { cfg: Cfg }) {
   const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg);
+  const ready = listState === 'ready' || listState === 'empty';
+  const h = cfg.header?.(q.data ?? [], ready);
   return (
     <AdminLayout title={cfg.title} subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          header={
+            h ? (
+              <InverseHeader
+                eyebrow={h.eyebrow}
+                business={cfg.title}
+                revenueLabel={h.label}
+                revenue={h.value}
+                error={!ready}
+                onRetry={() => q.refetch()}
+                wells={h.wells.map((w, i) => (
+                  <StatWell key={i} value={w.value} caption={w.caption} />
+                ))}
+              />
+            ) : undefined
+          }
           title={cfg.title}
           phase={listState}
           rows={rows}
@@ -138,6 +163,14 @@ export function ServicesWiredPage() {
     <Screen
       cfg={{
         title: 'Services',
+        header: (rows, ready) => ({
+          eyebrow: 'Catalog',
+          label: 'Active services',
+          value: ready ? String(rows.length) : '—',
+          wells: [
+            { value: ready ? String(rows.filter((r: any) => r.deposit_amount != null).length) : '—', caption: 'take a deposit' },
+          ],
+        }),
         singular: 'service',
         table: 'services',
         order: { col: 'name', asc: true },
@@ -169,6 +202,15 @@ export function DiscountsWiredPage() {
     <Screen
       cfg={{
         title: 'Discounts',
+        header: (rows, ready) => ({
+          eyebrow: 'Promotions',
+          label: 'Discount codes',
+          value: ready ? String(rows.length) : '—',
+          wells: [
+            { value: ready ? String(rows.filter((r: any) => r.is_active === true).length) : '—', caption: 'active' },
+            { value: ready ? String(rows.filter((r: any) => r.is_active !== true).length) : '—', caption: 'off' },
+          ],
+        }),
         singular: 'discount',
         table: 'discounts',
         order: { col: 'created_at', asc: false },
@@ -213,6 +255,17 @@ export function InventoryWiredPage() {
     <Screen
       cfg={{
         title: 'Inventory',
+        header: (rows, ready) => {
+          const low = rows.filter((r: any) => r.min_quantity != null && Number(r.quantity) <= Number(r.min_quantity));
+          return {
+            eyebrow: 'Supplies',
+            label: 'Items tracked',
+            value: ready ? String(rows.length) : '—',
+            /* Low stock leads because it is the only figure here that needs
+               an action today. */
+            wells: [{ value: ready ? String(low.length) : '—', caption: 'low stock' }],
+          };
+        },
         singular: 'item',
         table: 'inventory_items',
         order: { col: 'name', asc: true },
@@ -253,6 +306,14 @@ export function ChecklistsWiredPage() {
     <Screen
       cfg={{
         title: 'Checklists',
+        header: (rows, ready) => ({
+          eyebrow: 'Quality',
+          label: 'Checklist templates',
+          value: ready ? String(rows.length) : '—',
+          wells: [
+            { value: ready ? String(rows.filter((r: any) => r.service_id).length) : '—', caption: 'linked to a service' },
+          ],
+        }),
         singular: 'checklist',
         table: 'checklist_templates',
         order: { col: 'name', asc: true },
@@ -276,6 +337,14 @@ export function TasksWiredPage() {
     <Screen
       cfg={{
         title: 'Tasks',
+        header: (rows, ready) => ({
+          eyebrow: 'Work',
+          label: 'Open tasks',
+          value: ready ? String(rows.filter((r: any) => r.is_completed !== true).length) : '—',
+          wells: [
+            { value: ready ? String(rows.filter((r: any) => r.is_completed === true).length) : '—', caption: 'done' },
+          ],
+        }),
         singular: 'task',
         table: 'tasks_and_notes',
         order: { col: 'created_at', asc: false },
@@ -309,6 +378,21 @@ export function FeedbackWiredPage() {
     <Screen
       cfg={{
         title: 'Feedback',
+        header: (rows, ready) => {
+          const rated = rows.filter((r: any) => r.rating != null);
+          const avg = rated.length ? rated.reduce((s: number, r: any) => s + Number(r.rating), 0) / rated.length : null;
+          return {
+            eyebrow: 'Clients',
+            label: 'Average rating',
+            /* Null when nobody has rated — not 0.0, which reads as unanimous
+               one-star. */
+            value: ready && avg !== null ? avg.toFixed(1) : '—',
+            wells: [
+              { value: ready ? String(rows.length) : '—', caption: 'responses' },
+              { value: ready ? String(rows.filter((r: any) => r.is_resolved !== true).length) : '—', caption: 'unresolved' },
+            ],
+          };
+        },
         singular: 'response',
         table: 'client_feedback',
         order: { col: 'created_at', asc: false },

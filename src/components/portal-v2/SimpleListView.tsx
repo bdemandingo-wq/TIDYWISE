@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
 import { ListRow } from './ListRow';
 
@@ -43,6 +43,7 @@ export function SimpleListView({
   addLabel,
   sectionLabel,
   note,
+  header,
 }: {
   title: string;
   phase: ListState;
@@ -59,11 +60,22 @@ export function SimpleListView({
   sectionLabel?: string;
   /** A caveat that belongs above the rows, e.g. a companion read that failed. */
   note?: string;
+  /* ── Added when the wiring pass met the mockups ────────────────────────
+     Most comps in this set open with an InverseHeader — a dark hero carrying
+     the screen's headline figure and two or three StatWells — above the list
+     rather than inside it. It is a page header, not list content, so it
+     renders BEFORE ListShell and is not affected by the list's state.
+
+     Optional, so the states previews and any caller that does not want one
+     are unchanged. */
+  header?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
-    <ListShell<'all'>
+    <>
+      {header}
+      <ListShell<'all'>
       title={title}
       action={{ label: addLabel ?? 'Add' }}
       search={search}
@@ -103,7 +115,8 @@ export function SimpleListView({
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}
-    </ListShell>
+      </ListShell>
+    </>
   );
 }
 
