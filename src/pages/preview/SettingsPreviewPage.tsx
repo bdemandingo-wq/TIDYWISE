@@ -230,6 +230,18 @@ export default function SettingsPreviewPage() {
  * with the max recurring discount. The summary is not decoration; it answers
  * "what is this currently set to" before you read a single control.
  */
+/* The real list, read off SidebarVisibilitySettings.tsx — 25 items, of which
+   Dashboard and Help Videos carry `required: true` and are shown separately
+   rather than as switches that refuse. Names are the live ones, not guesses:
+   "AI Intelligence" and "Payment Setup" are easy to mis-title from memory. */
+const SIDEBAR_ITEMS = [
+  'Scheduler', 'Tracking', 'Bookings', 'Recurring', 'Customers', 'Messages',
+  'Leads', 'Operations', 'Campaigns', 'Discounts', 'Feedback', 'Services',
+  'Staff', 'Checklists', 'Inventory', 'Payroll', 'Expenses', 'Finance',
+  'Reports', 'Notifications', 'AI Intelligence', 'Subscription',
+  'Payment Setup',
+];
+
 type Summary = { label: string; value: string; wells: { value: string; caption: string }[] };
 
 const SUMMARY: Record<string, Summary> = {
@@ -242,6 +254,13 @@ const SUMMARY: Record<string, Summary> = {
   emails: { label: 'Sending from', value: 'Gmail', wells: [{ value: '~500', caption: 'per day' }] },
   reviews: { label: 'Google rating', value: '4.9', wells: [{ value: '138', caption: 'reviews' }, { value: '10', caption: 'requests sent' }, { value: '8%', caption: 'conversion' }] },
   branding: { label: 'Brand', value: 'TidyWise', wells: [{ value: '#2B5CE6', caption: 'primary' }, { value: '#14B8A6', caption: 'accent' }] },
+  /* The five that had no comp. Built to the pattern the nine above establish:
+     a summary answering "what is this set to now", then the controls. */
+  sidebar: { label: 'Links in the sidebar', value: '21 of 25', wells: [{ value: '4', caption: 'hidden' }, { value: '2', caption: 'always on' }] },
+  'mobile-nav': { label: 'Bottom bar', value: '4 of 4', wells: [{ value: '2', caption: 'left' }, { value: '2', caption: 'right' }] },
+  import: { label: 'Imported so far', value: 'None', wells: [{ value: '2', caption: 'platforms' }] },
+  security: { label: 'Password', value: 'Set', wells: [{ value: 'On', caption: 'org isolation' }] },
+  feedback: { label: 'Goes to', value: 'The founder', wells: [{ value: 'Every one', caption: 'gets read' }] },
 };
 
 function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
@@ -256,6 +275,8 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
      shows a back arrow reading "Pricing", "SMS", "Booking form", so they open
      from inside a section rather than from the index. */
   const [sub, setSub] = useState<'frequencies' | 'sms-setup' | 'form-display' | null>(null);
+  const [hiddenLinks, setHiddenLinks] = useState<string[]>(['Expenses', 'Checklists', 'Inventory', 'Discounts']);
+  const [navSlots, setNavSlots] = useState<string[]>(['Bookings', 'Customers', 'Calendar', 'Leads']);
 
   if (!sum) {
     return (
@@ -263,10 +284,10 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
         <DetailHeader title={title} onBack={onBack} />
         <div className="px-5 pt-4">
           <Card>
-            <CardTitle>No comp for this section</CardTitle>
+            <CardTitle>Not built yet</CardTitle>
             <p className="mt-1.5 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
-              Sidebar, Mobile Nav, Import Data, Security and Feedback have no
-              comp in the set of 76. Saying so is better than inventing one.
+              This section has no comp and no pattern to follow. Saying so is
+              better than inventing one.
             </p>
           </Card>
         </div>
@@ -405,6 +426,208 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
               </div>
             </Card>
           </>
+        )}
+
+        {/* ── Sidebar ──────────────────────────────────────────────────
+            25 links (SidebarVisibilitySettings.tsx), two of them
+            `required: true` — Dashboard and Help Videos. A required item still
+            renders a row, because leaving it out would make the list disagree
+            with the sidebar it describes, but the row says WHY it cannot be
+            turned off instead of offering a switch that silently refuses. */}
+        {id === 'sidebar' && (
+          <>
+            <SettingsGroup
+              title="Always shown"
+              description="These two can’t be hidden — Dashboard is where every redirect lands, and Help Videos is how you get unstuck."
+              state="ready"
+            >
+              <SettingsRow kind="value" label="Dashboard" value="Always on" />
+              <SettingsRow kind="value" label="Help Videos" value="Always on" />
+            </SettingsGroup>
+            <SettingsGroup
+              title="Show in the sidebar"
+              description="Hiding a link doesn’t switch the feature off — the page still works if you have its address."
+              state="ready"
+            >
+              {SIDEBAR_ITEMS.map(n => (
+                <SettingsRow
+                  key={n}
+                  kind="toggle"
+                  label={n}
+                  checked={!hiddenLinks.includes(n)}
+                  onCheckedChange={v =>
+                    setHiddenLinks(h => (v ? h.filter(x => x !== n) : [...h, n]))
+                  }
+                />
+              ))}
+            </SettingsGroup>
+            <Button variant="secondary" className="rounded-[10px]">Reset to default</Button>
+          </>
+        )}
+
+        {/* ── Mobile Nav ───────────────────────────────────────────────
+            Exactly four slots, named Left 1 / Left 2 / Right 1 / Right 2 in
+            MobileBottomNavSettings.tsx:83, and the save path only accepts a
+            set of four (`if (items.length === 4)`, :46). So this is not a
+            "pick your favourites" list — it is four fixed positions, and
+            choosing a page always displaces whatever held that slot. The
+            screen says which slot it is filling and what it replaces. */}
+        {id === 'mobile-nav' && (
+          <>
+            <Card>
+              <CardTitle>What’s in the bottom bar</CardTitle>
+              <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+                Four slots, two either side of the + button. Picking a page for
+                a slot replaces what was there — it doesn’t add a fifth.
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {(['Left 1', 'Left 2', 'Right 1', 'Right 2'] as const).map((slot, i) => (
+                  <div
+                    key={slot}
+                    className="rounded-[12px] bg-[hsl(var(--pv-sunken))] px-3.5 py-3"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-[hsl(var(--pv-ink-3))]">
+                      {slot}
+                    </p>
+                    <p className="mt-0.5 truncate text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">
+                      {navSlots[i]}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+            <SettingsGroup title="Change a slot" state="ready">
+              {(['Left 1', 'Left 2', 'Right 1', 'Right 2'] as const).map((slot, i) => (
+                <SettingsRow
+                  key={slot}
+                  kind="value"
+                  label={slot}
+                  value={navSlots[i]}
+                  onClick={() =>
+                    setNavSlots(s2 => {
+                      const next = [...s2];
+                      const pool = ['Bookings', 'Customers', 'Calendar', 'Leads', 'Invoices'];
+                      next[i] = pool[(pool.indexOf(next[i]) + 1) % pool.length];
+                      return next;
+                    })
+                  }
+                />
+              ))}
+            </SettingsGroup>
+          </>
+        )}
+
+        {/* ── Import Data ──────────────────────────────────────────────
+            The live tab is one card and one button that navigates to
+            /dashboard/import. The judgement here is that an import is the
+            most destructive-feeling thing on this screen even though it only
+            adds: people hesitate because they cannot tell whether it will
+            duplicate what they already have. Saying so up front is the whole
+            job of this section at 390px. */}
+        {id === 'import' && (
+          <>
+            <Card>
+              <CardTitle>Bring your data across</CardTitle>
+              <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+                Customers, staff, bookings and services from BookingKoala or
+                Jobber.
+              </p>
+              <div className="mt-2.5">
+                <SettingsRow kind="value" label="BookingKoala" value="Supported" />
+                <SettingsRow kind="value" label="Jobber" value="Supported" />
+              </div>
+              <p className="mt-2.5 text-[11.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+                Importing only adds records. Nothing you already have is
+                changed or removed, and you can review everything before it
+                lands.
+              </p>
+              <div className="mt-2.5">
+                <Button variant="primary" className="rounded-[10px]">Open import wizard</Button>
+              </div>
+            </Card>
+            <Card>
+              <CardTitle>Imported so far</CardTitle>
+              <p className="mt-1.5 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                Nothing yet. When you run an import this is where the record of
+                it lives.
+              </p>
+            </Card>
+          </>
+        )}
+
+        {/* ── Security ─────────────────────────────────────────────────
+            LIVE BUG, reproduced deliberately as the fix rather than the fault.
+
+            SettingsPage.tsx:559 guards `if (!currentPassword || !newPassword ||
+            !confirmPassword)` and :580 re-authenticates with currentPassword.
+            But currentPassword is only ever `useState('')` at :308 — grep for
+            `value={currentPassword}` returns nothing, and setCurrentPassword is
+            never called anywhere. No input renders it.
+
+            So the state is permanently empty, the guard always trips, and the
+            change-password form CANNOT SUCCEED. Every attempt shows "Please
+            fill in all password fields" while both visible fields are filled,
+            which reads as a validation bug in the fields you can see.
+
+            The re-authentication is right and should stay — changing a password
+            without proving you know the old one is how a borrowed session
+            becomes a stolen account. The missing piece is the field. */}
+        {id === 'security' && (
+          <>
+            <Card>
+              <CardTitle>Change password</CardTitle>
+              <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+                You’ll need your current password — it proves the session is
+                yours before the change goes through.
+              </p>
+              <div className="mt-2.5 flex flex-col gap-2.5">
+                {/* The field the live form validates but never renders. */}
+                <Field label="Current password" placeholder="Required" />
+                <Field label="New password" placeholder="At least 6 characters" />
+                <Field label="Confirm new password" placeholder="Type it again" />
+              </div>
+              <div className="mt-2.5">
+                <Button variant="primary" className="rounded-[10px]">Update password</Button>
+              </div>
+            </Card>
+
+            {/* Irreversible, and the one action on this screen where the
+                consequence has to be stated before the tap rather than in a
+                confirm dialog after it. */}
+            <Card>
+              <CardTitle>Delete this account</CardTitle>
+              <p className="mt-1.5 text-[12.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
+                This removes your account, your organisation and everything in
+                it — bookings, customers, invoices and photos. It cannot be
+                undone and support cannot restore it.
+              </p>
+              <div className="mt-2.5">
+                <Button variant="secondary" className="rounded-[10px]">Delete account</Button>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* ── Feedback ─────────────────────────────────────────────────
+            Not customer feedback — that is screen 10c. This is the owner
+            writing to the person who builds TidyWise, so it is an outbound
+            send, and the screen says where it goes and what happens next
+            rather than leaving "Submit" to imply it. */}
+        {id === 'feedback' && (
+          <Card>
+            <CardTitle>Send feedback</CardTitle>
+            <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+              Suggestions, problems, and anything you like or don’t. It goes
+              straight to the person building TidyWise — every one gets read.
+            </p>
+            <div className="mt-2.5 flex flex-col gap-2.5">
+              <Field label="What’s on your mind?" placeholder="Type as much as you like" />
+              <Field label="Email for a reply (optional)" placeholder="Leave blank and you won’t hear back" />
+            </div>
+            <div className="mt-2.5">
+              <Button variant="primary" className="rounded-[10px]">Send feedback</Button>
+            </div>
+          </Card>
         )}
 
         {id === 'sms' && (
