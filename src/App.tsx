@@ -161,6 +161,7 @@ const CustomersWiredPage = lazy(() => import("./pages/admin/CustomersWiredPage")
 const CustomersStatesPreviewPage = lazy(() => import("./pages/preview/CustomersStatesPreviewPage"));
 const LeadsWiredPage = lazy(() => import("./pages/admin/LeadsWiredPage"));
 const LeadsStatesPreviewPage = lazy(() => import("./pages/preview/LeadsStatesPreviewPage"));
+const RecurringWiredPage = lazy(() => import("./pages/admin/RecurringWiredPage"));
 const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
 const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
 const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
@@ -468,6 +469,7 @@ const App = () => (
                     <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
                     <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
+                    <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
@@ -673,6 +675,7 @@ const App = () => (
                     <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
                     <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
                     <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
+                    <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
                     <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
                     <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
