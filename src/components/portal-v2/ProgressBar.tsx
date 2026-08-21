@@ -7,7 +7,10 @@ export function ProgressBar({
   label,
 }: {
   value: number;
-  tone?: 'primary' | 'gold';
+  /* 5d colours each automation's bar by its own success rate — a failing
+     pipeline reads red, a healthy one green. So the bar needs the full
+     status set, not just brand and loyalty gold. */
+  tone?: 'primary' | 'gold' | 'success' | 'warn' | 'danger';
   label: string;
 }) {
   const pct = Math.max(0, Math.min(100, value));
@@ -25,7 +28,13 @@ export function ProgressBar({
           'h-full rounded-full transition-[width] duration-200 ease-out motion-reduce:transition-none',
           tone === 'gold'
             ? 'bg-[hsl(var(--pv-gold))]'
-            : 'bg-[hsl(var(--pv-brand))]',
+            : tone === 'success'
+              ? 'bg-[hsl(var(--pv-success))]'
+              : tone === 'warn'
+                ? 'bg-[hsl(var(--pv-warn))]'
+                : tone === 'danger'
+                  ? 'bg-[hsl(var(--pv-danger))]'
+                  : 'bg-[hsl(var(--pv-brand))]',
         )}
         style={{ width: `${pct}%` }}
       />
