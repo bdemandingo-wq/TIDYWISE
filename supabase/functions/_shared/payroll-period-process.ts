@@ -585,7 +585,9 @@ export async function processOrg(
         const sm = staffMap.get(b.staff_id) ?? null;
         const a = assignments.find((a) => a.staff_id === b.staff_id);
         const ps = a?.pay_share != null ? Number(a.pay_share) : null;
-        const pay = calcWage(b, sm, ps);
+        // Solo (no assignment rows) opts into the percentage-only rescue with
+        // teamSize 1; anything with assignments passes the real team size.
+        const pay = calcWage(b, sm, ps, assignments.length > 0 ? assignments.length : 1);
         const hours = getActualHours(b, sm);
         const row = ensure(b.staff_id);
         row.jobs += 1;
@@ -600,8 +602,9 @@ export async function processOrg(
         if (seenForBooking.has(a.staff_id)) continue;
         const member = staffMap.get(a.staff_id) ?? null;
         const ps = a.pay_share != null ? Number(a.pay_share) : null;
-        const pay = calcWage(b, member, ps);
+        const pay = calcWage(b, member, ps, assignments.length);
         const hours = getActualHours(b, member);
+
         const row = ensure(a.staff_id);
         row.jobs += 1;
         row.payout += pay;
