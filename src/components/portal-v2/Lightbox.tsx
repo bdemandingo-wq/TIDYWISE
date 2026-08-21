@@ -45,7 +45,16 @@ export function Lightbox({
       role="dialog"
       aria-modal="true"
       aria-label={item.alt}
-      className="fixed inset-0 z-50 flex flex-col bg-[hsl(var(--pv-inverse))]"
+      /* Safe areas. This is the only portal-v2 component that covers the whole
+         screen, so it is the only one where the notch and the home indicator
+         can land on top of a control rather than on background.
+   
+         Top matters most: the header row holds the close button, and on a
+         notched iPhone with viewport-fit=cover an un-inset `inset-0` puts it
+         partly under the status bar — the one control a full-screen overlay
+         must never lose. Bottom keeps the thumbnail strip clear of the home
+         indicator. Both fall back to 0px, so nothing changes off-device. */
+      className="fixed inset-0 z-50 flex flex-col bg-[hsl(var(--pv-inverse))] pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)]"
     >
       <div className="flex items-center gap-3 px-4 pt-3">
         <p className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-[hsl(var(--pv-on-inverse))]">
