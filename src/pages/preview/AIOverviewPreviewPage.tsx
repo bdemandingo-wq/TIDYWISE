@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  Card,
+  CardTitle,
   InverseHeader,
   StatWell,
   SegmentedTabs,
@@ -120,6 +122,7 @@ export default function AIOverviewPreviewPage() {
             label="AI intelligence section"
           />
 
+          {tab === 'overview' && (<>
           <AIInsightCard
             kind="urgent"
             confidence="High confidence"
@@ -137,6 +140,82 @@ export default function AIOverviewPreviewPage() {
             actionLabel="Open pipeline"
             error={errored}
           />
+          </>)}
+
+          {/* 7b — Ask AI. Four canned questions above a free prompt, then the
+              answer. The questions are not filler: they are the ones an owner
+              actually asks, and they teach what this can be asked at all. */}
+          {tab === 'ask' && (
+            <>
+              <Card>
+                <CardTitle>Ask TidyWise AI</CardTitle>
+                <div className="mt-2.5 flex flex-col gap-2">
+                  {[
+                    'Why did revenue drop this month?',
+                    'Which 5 clients should I call today?',
+                    'Most profitable day of the week?',
+                    'Draft a win-back text for Thomas Murray',
+                  ].map(q => (
+                    <button
+                      key={q}
+                      type="button"
+                      className="rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3.5 py-2.5 text-left text-[12px] font-semibold text-[hsl(var(--pv-ink))]"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+                <label className="mt-3 flex h-11 items-center rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3">
+                  <input
+                    placeholder="Ask anything about your business…"
+                    className="min-w-0 flex-1 bg-transparent text-[12px] font-medium text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:outline-none"
+                  />
+                </label>
+              </Card>
+
+              <AIInsightCard
+                kind="opportunity"
+                confidence="Based on 6 months of bookings"
+                body="Staff Friday heavily — your top performer Stephanie Pickett ($11,273 revenue) and Bruce Davis (48 bookings) should be prioritised for Friday afternoons."
+                error={errored}
+              />
+            </>
+          )}
+
+          {/* 7c — Scheduling, churn and leads. The week grid is a demand
+              shape, not a calendar: it answers "when do I need people". */}
+          {(tab === 'leads' || tab === 'retention') && (
+            <>
+              <Card>
+                <CardTitle>This week&rsquo;s bookings</CardTitle>
+                <p className="mt-0.5 text-[11px] font-normal text-[hsl(var(--pv-ink-3))]">
+                  Aug 17 – Aug 23
+                </p>
+                <div className="mt-3 grid grid-cols-7 gap-1.5">
+                  {[
+                    { d: 'M', n: 1 }, { d: 'T', n: 1 }, { d: 'W', n: 0 },
+                    { d: 'T', n: 2 }, { d: 'F', n: 3 }, { d: 'S', n: 2 }, { d: 'S', n: 0 },
+                  ].map((x, i) => (
+                    <div key={i} className="rounded-[8px] bg-[hsl(var(--pv-sunken))] py-2 text-center">
+                      <p className="text-[10px] font-bold text-[hsl(var(--pv-ink-3))]">{x.d}</p>
+                      <p className="mt-0.5 text-[13px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
+                        {errored ? '—' : x.n}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              <AIInsightCard
+                kind="opportunity"
+                confidence="High confidence"
+                body="Friday is 26% of total bookings and 3pm the highest-demand hour."
+                recommendation="Schedule 8–9 of your 14 staff during the Friday 3pm peak. Reduce Saturday coverage to 3–4 staff (12 bookings) and strengthen Fri–Sun capacity."
+                actionLabel="Open scheduler"
+                error={errored}
+              />
+            </>
+          )}
         </div>
       </main>
     </div>
