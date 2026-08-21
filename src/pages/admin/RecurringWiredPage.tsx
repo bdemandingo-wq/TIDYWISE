@@ -7,7 +7,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
 import { frequencyLabel, dayName } from '@/lib/frequencyLabel';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -152,6 +152,22 @@ export default function RecurringWiredPage() {
     <AdminLayout title="Recurring" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Schedules"
+              business="Recurring"
+              revenueLabel="Recurring schedules"
+              revenue={phase === 'ready' ? String(rows.length) : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => recurringQ.refetch()}
+              wells={
+                <>
+                  <StatWell value={phase === 'ready' ? String(activeCount) : '—'} caption="active" />
+                  <StatWell value={phase === 'ready' ? String(rows.length - activeCount) : '—'} caption="paused" />
+                </>
+              }
+            />
+          }
           title="Recurring"
           phase={listState}
           rows={filtered}

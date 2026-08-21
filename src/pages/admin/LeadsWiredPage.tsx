@@ -7,7 +7,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { leadDisplayName } from '@/lib/leadStatus';
-import { LeadsListView, useLeadSearch, type LeadsRow } from '@/components/portal-v2';
+import { LeadsListView, useLeadSearch, StatCard, type LeadsRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -91,9 +91,48 @@ export default function LeadsWiredPage() {
           ? 'empty'
           : 'ready';
 
+  /* 8g's header pair. Conversion is a RATIO, so it is suppressed rather than
+     zeroed on a failed read — "0% conversion" is a verdict on the whole
+     pipeline, not a reading. */
+  const converted = (leadsQ.data ?? []).filter((l: any) => l.status === 'converted').length;
+  const lost = (leadsQ.data ?? []).filter((l: any) => l.status === 'lost').length;
+  /* Conversion is undefined until leads actually RESOLVE. All 6 live leads
+     are still open — none converted, none lost — and reporting "0%" there
+     says the pipeline is failing when nothing has concluded yet. A rate needs
+     a denominator of finished things, so it is suppressed until at least one
+     lead has landed either way. Distinct again from a failed read, which also
+     shows "—" but says so in the caption. */
+  const resolved = converted + lost;
+  const conversionPct = resolved > 0 ? Math.round((converted / resolved) * 100) : null;
+  const ready = phase === 'ready';
+
   return (
     <AdminLayout title="Leads" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        <div className="px-4 pt-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatCard
+              label="Total leads"
+              value={ready ? String(all.length) : '—'}
+              caption={
+                ready
+                  ? `${(leadsQ.data ?? []).filter((l: any) => l.status === 'follow_up').length} need follow-up`
+                  : 'across all sources'
+              }
+            />
+            <StatCard
+              label="Conversion"
+              value={ready && conversionPct !== null ? `${conversionPct}%` : '—'}
+              caption={
+                !ready
+                  ? 'converted / resolved'
+                  : conversionPct === null
+                    ? 'no leads resolved yet'
+                    : `${converted} converted · ${lost} lost`
+              }
+            />
+          </div>
+        </div>
         <LeadsListView
           phase={listState}
           rows={rows}

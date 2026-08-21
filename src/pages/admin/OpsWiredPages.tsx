@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -115,6 +115,27 @@ export function ExpensesWiredPage() {
     <AdminLayout title="Expenses" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Costs"
+              business="Expenses"
+              revenueLabel="Logged this period"
+              revenue={phase === 'ready' ? money(total) ?? '$0.00' : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => q.refetch()}
+              wells={
+                <>
+                  <StatWell value={phase === 'ready' ? String(rows.length) : '—'} caption="entries" />
+                  {/* A receipt is what makes a cost deductible, so the count
+                      without one is the figure worth surfacing. */}
+                  <StatWell
+                    value={phase === 'ready' ? String((q.data ?? []).filter((e: any) => !e.receipt_url).length) : '—'}
+                    caption="no receipt"
+                  />
+                </>
+              }
+            />
+          }
           title="Expenses"
           phase={listState}
           rows={filtered}
@@ -205,6 +226,32 @@ export function BookingPhotosWiredPage() {
     <AdminLayout title="Booking media" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Booking photos"
+              business="Media"
+              revenueLabel="Uploads from cleaners"
+              revenue={phase === 'ready' ? String(rows.length) : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => q.refetch()}
+              wells={
+                <>
+                  <StatWell
+                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.photo_type === 'before').length) : '—'}
+                    caption="before"
+                  />
+                  <StatWell
+                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.photo_type === 'after').length) : '—'}
+                    caption="after"
+                  />
+                  <StatWell
+                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.media_type === 'video').length) : '—'}
+                    caption="videos"
+                  />
+                </>
+              }
+            />
+          }
           title="Media"
           phase={listState}
           rows={filtered}
@@ -305,6 +352,34 @@ export function TrackingWiredPage() {
     <AdminLayout title="Tracking" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          header={
+            <InverseHeader
+              eyebrow="Live"
+              business="Tracking"
+              revenueLabel="Cleaners on the road"
+              revenue={phase === 'ready' ? String(rows.length) : '—'}
+              error={phase !== 'ready'}
+              onRetry={() => q.refetch()}
+              wells={
+                <>
+                  <StatWell
+                    value={phase === 'ready' ? String((q.data ?? []).filter((t: any) => t.arrived_at).length) : '—'}
+                    caption="arrived"
+                  />
+                  {/* Stale positions are the hazard on this screen, so the
+                      count is in the hero rather than only on the rows. */}
+                  <StatWell
+                    value={
+                      phase === 'ready'
+                        ? String((q.data ?? []).filter((t: any) => t.recorded_at && (Date.now() - new Date(t.recorded_at).getTime()) / 60000 > 10).length)
+                        : '—'
+                    }
+                    caption="stale"
+                  />
+                </>
+              }
+            />
+          }
           title="Tracking"
           phase={listState}
           rows={filtered}
