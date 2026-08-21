@@ -101,10 +101,62 @@ const FREQUENCIES: Frequency[] = [
   { id: '3', name: 'First Monday', interval_days: null, days_of_week: [1], active: false },
 ];
 
+/* 10e — square footage. The LIVE ladder is 17 tiers (src/data/pricingData.ts
+   squareFootageRanges, 750 → 6000 in 300-400sf steps). The comp draws EIGHT
+   and jumps ≤2700 → ≤6000, skipping nine of them including 1800 and
+   everything from 3000 to 5600.
+
+   That is not a layout simplification, it is deleting price points: a 3,200sf
+   house would have no tier to fall into. All 17 render. Same reasoning as 1a's
+   period chips, except here the dropped items are prices. */
+const SQFT_TIERS: { label: string; price: number | null }[] = [
+  { label: '≤750', price: 140 },   { label: '≤1000', price: 160 },
+  { label: '≤1250', price: 180 },  { label: '≤1500', price: 200 },
+  { label: '≤1800', price: 220 },  { label: '≤2100', price: 240 },
+  { label: '≤2400', price: 260 },  { label: '≤2700', price: 280 },
+  { label: '≤3000', price: 300 },  { label: '≤3300', price: 320 },
+  { label: '≤3600', price: 340 },  { label: '≤4000', price: 355 },
+  { label: '≤4400', price: 365 },  { label: '≤4800', price: 370 },
+  { label: '≤5200', price: 375 },  { label: '≤5600', price: 378 },
+  { label: '≤6000', price: 380 },
+];
+
+/* 10e — exclude parameters. Live: ExcludeParametersCard, ROOM_TYPES is
+   bedroom / bathroom / full_bath with a per-room reduction. */
+const EXCLUDES: { label: string; reduction: number }[] = [
+  { label: 'Exclude bedrooms', reduction: 25 },
+  { label: 'Exclude bathrooms', reduction: 20 },
+  { label: 'Exclude full baths', reduction: 15 },
+];
+
+/* 10f — pets. The comp draws ONE toggle at a flat $25. Live is a graded set
+   (pricingData.ts): No Pets $0, 1 Pet $15, 2 Pets $25, 3+ Pets $40.
+
+   Following the comp would charge $25 for one pet that should be $15 and $25
+   for three that should be $40 — the displayed price would stop matching what
+   the booking form actually charges. That is the live-bug exception, and the
+   money rule besides: what is shown has to mirror what bills. Graded stays. */
+const PETS: { label: string; price: number }[] = [
+  { label: 'No pets', price: 0 },
+  { label: '1 pet', price: 15 },
+  { label: '2 pets', price: 25 },
+  { label: '3+ pets', price: 40 },
+];
+
+/* 10f — home condition. The comp matches live exactly on every price; labels
+   below are live's own wording. */
+const CONDITIONS: { label: string; price: number }[] = [
+  { label: '1 — Excellent (light cleaning needed)', price: 0 },
+  { label: '2 — Good (normal upkeep)', price: 15 },
+  { label: '3 — Fair (some areas need attention)', price: 25 },
+  { label: '4 — Needs Work (heavy cleaning)', price: 50 },
+  { label: '5 — Very Dirty (deep cleaning required)', price: 75 },
+];
+
 const TABS: { id: Tab; label: string; count?: number }[] = [
   { id: 'services', label: 'Custom Services', count: SERVICES.length },
   { id: 'pricing', label: 'Service Pricing', count: PRICING.length },
-  { id: 'extras', label: 'Extras', count: EXTRAS.length },
+  { id: 'extras', label: 'Add-On Extras', count: EXTRAS.length },
   { id: 'frequencies', label: 'Frequencies', count: FREQUENCIES.length },
 ];
 
@@ -214,7 +266,35 @@ export default function ServicesPreviewPage() {
 
           {tab === 'pricing' && (
             <>
-              <ListSectionLabel>{pricing.length} pricing rows</ListSectionLabel>
+              {/* 10e leads with a warning, because this tab is what the public
+                  booking form quotes from — editing here changes what a
+                  customer is charged, which is not obvious from a price table. */}
+              <div className="mx-4 mb-3 rounded-[10px] bg-[hsl(var(--pv-warn-soft))] px-3.5 py-2.5">
+                <p className="text-[11.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]">
+                  These prices are what your public booking form quotes. Changing
+                  one changes what customers are charged.
+                </p>
+              </div>
+
+              <ListSectionLabel>Square footage · {SQFT_TIERS.length} tiers</ListSectionLabel>
+              <div className="mx-4 mb-3 grid grid-cols-2 gap-2">
+                {SQFT_TIERS.map(t => (
+                  <button
+                    key={t.label}
+                    type="button"
+                    className="flex items-center gap-2 rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3 py-2.5 text-left"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                      {t.label} sf
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[12.5px] font-extrabold text-[hsl(var(--pv-ink))]">
+                      {state === 'error' ? '—' : money(t.price)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <ListSectionLabel>{pricing.length} bedroom &amp; bathroom rows</ListSectionLabel>
               {pricing.map(p => (
                 <ListRow
                   key={p.id}
@@ -226,14 +306,61 @@ export default function ServicesPreviewPage() {
                   onClick={() => undefined}
                 />
               ))}
+
+              {/* 10e's third block. A reduction, so it is shown as a negative
+                  rather than a bare number — "$25" next to "Exclude bedrooms"
+                  reads as a surcharge. */}
+              <ListSectionLabel>Exclude parameters</ListSectionLabel>
+              <p className="mx-4 mb-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                Room types customers can skip, with a reduction per room.
+              </p>
+              {EXCLUDES.map(e => (
+                <ListRow
+                  key={e.label}
+                  title={e.label}
+                  meta="Per room skipped"
+                  money={state === 'error' ? '—' : `−${money(e.reduction)}`}
+                  onClick={() => undefined}
+                />
+              ))}
             </>
           )}
 
           {tab === 'extras' && (
             <>
+              <p className="mx-4 mb-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                Changes sync to the booking form for the selected service.
+              </p>
               <ListSectionLabel>{extras.length} extras</ListSectionLabel>
               {extras.map(e => (
                 <ListRow key={e.id} title={e.name} meta="Add-on" money={money(e.price)} onClick={() => undefined} />
+              ))}
+
+              {/* Graded, not the comp's single flat-$25 toggle — see PETS. */}
+              <ListSectionLabel>Pets</ListSectionLabel>
+              <p className="mx-4 mb-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                The booking form charges by how many, so this is four prices and
+                not a yes/no.
+              </p>
+              {PETS.map(x => (
+                <ListRow
+                  key={x.label}
+                  title={x.label}
+                  meta="Pet surcharge"
+                  money={state === 'error' ? '—' : money(x.price)}
+                  onClick={() => undefined}
+                />
+              ))}
+
+              <ListSectionLabel>Home condition</ListSectionLabel>
+              {CONDITIONS.map(c => (
+                <ListRow
+                  key={c.label}
+                  title={c.label}
+                  meta="Condition surcharge"
+                  money={state === 'error' ? '—' : `+${money(c.price)}`}
+                  onClick={() => undefined}
+                />
               ))}
             </>
           )}
@@ -257,6 +384,12 @@ export default function ServicesPreviewPage() {
                 />
               ))}
             </>
+          )}
+          {tab === 'services' && state === 'ready' && (
+            <p className="mx-4 mb-2 mt-3 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
+              Tip: after creating a service, use Service Pricing to set
+              square-footage rates, bed/bath combinations and extras.
+            </p>
           )}
         </ListShell>
       </div>
