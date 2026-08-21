@@ -57,3 +57,5 @@ export { BookingsListView, bookingMoney, bookingStaffLine, matchesBookingSearch,
 export type { BookingsRow } from './BookingsListView';
 export { CustomersListView, matchesCustomerSearch, useCustomerSearch } from './CustomersListView';
 export type { CustomersRow } from './CustomersListView';
+export { LeadsListView, matchesLeadSearch, useLeadSearch } from './LeadsListView';
+export type { LeadsRow } from './LeadsListView';
