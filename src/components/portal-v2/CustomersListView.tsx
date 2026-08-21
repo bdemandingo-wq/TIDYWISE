@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
-import { ListRow } from './ListRow';
+import { PersonRow } from './PersonRow';
 import { customerStatusBadge } from '@/lib/customerStatus';
 
 /**
@@ -89,33 +89,49 @@ export function CustomersListView({
         </p>
       )}
 
+      {/* PersonRow, not ListRow — the 7h/10g comps use it for people and it
+          carries what a person's row needs that a generic one does not: an
+          avatar keyed off the name, an `inactive` treatment that dims the whole
+          row rather than adding a pill, and a `state="error"` that keeps the
+          row present when its data failed.
+
+          That last one matters here. PersonRow's own docstring warns that a
+          failed read must never fall back to `inactive`, because a greyed-out
+          dashed row says "this person is deactivated" — a claim. An inactive
+          CUSTOMER is a real state on this screen (getEffectiveStatus resolves
+          it), so the two have to stay separate, and they do. */}
       {rows.map(r => (
-        <ListRow
+        <PersonRow
           key={r.id}
-          /* Six of eight live customers share a name. The email is what
-             actually identifies a row, so it is never dropped. */
-          title={r.name ?? 'Unnamed customer'}
-          meta={r.email ?? 'No email'}
-          lines={[
-            r.phone ?? 'No phone',
-            /* Absent on 3 of 8 live customers, as an EMPTY STRING rather than
-               null — so the caller passes null and this says so. */
-            r.location ?? 'No address on file',
+          name={r.name ?? 'Unnamed customer'}
+          /* Short scannable values belong in facts; the email, phone and
+             address get their own lines because at 390px three of them in one
+             wrap row read as a run-on string. */
+          facts={[
             r.bookings === undefined
               ? 'History unavailable'
               : r.bookings === 0
-                ? 'No bookings yet'
-                : `${r.bookings} booking${r.bookings === 1 ? '' : 's'}${r.lastBookingLabel ? ` · last ${r.lastBookingLabel}` : ''}`,
+                ? 'No bookings'
+                : `${r.bookings} booking${r.bookings === 1 ? '' : 's'}`,
+            /* §5.1: undefined spend renders NOTHING, never $0.00 — a customer
+               who has spent nothing and one whose spend did not read must not
+               look identical. */
+            ...(r.revenue === undefined ? [] : [`$${r.revenue.toFixed(2)}`]),
+            ...(r.lastBookingLabel ? [`last ${r.lastBookingLabel}`] : []),
           ]}
-          /* §5.1: undefined revenue renders nothing at all, never $0.00 — a
-             customer who has spent nothing and a customer whose spend did not
-             read must not look identical. */
-          money={
-            r.revenue === undefined
-              ? undefined
-              : `$${r.revenue.toFixed(2)}`
-          }
-          status={[
+          lines={[
+            /* Six of eight live customers share a name. The email is what
+               actually identifies a row, so it is never dropped. */
+            r.email ?? 'No email',
+            r.phone ?? 'No phone',
+            /* Absent on 3 of 8 live customers as an EMPTY STRING rather than
+               null — the caller passes null and this says so. */
+            r.location ?? 'No address on file',
+          ]}
+          /* A customer explicitly marked inactive gets the dimmed treatment —
+             this is the real state, not a failure. */
+          inactive={r.status === 'inactive'}
+          badges={[
             customerStatusBadge(r.status),
             ...(r.is_recurring
               ? [{ tone: 'info' as const, label: 'Recurring' }]

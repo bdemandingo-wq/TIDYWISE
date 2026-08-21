@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -122,14 +122,24 @@ export default function StaffWiredPage() {
   const hoursOk = queryPhase(hoursQ) === 'ready';
   const docsOk = queryPhase(docsQ) === 'ready';
 
-  const rows: SimpleListRow[] = useMemo(
+  /* PersonRow, not a generic list row — this is the 10g comp's component and
+     it is the right one for staff: an avatar, an `inactive` treatment that
+     dims the whole row instead of adding a pill, and a separation between
+     "deactivated" and "this row's data failed" that a status badge cannot
+     express. */
+  type Row = {
+    id: string; name: string; facts: string[]; lines: string[];
+    inactive: boolean;
+    badges: { tone: 'info' | 'success' | 'warn' | 'danger'; label: string }[];
+  };
+
+  const rows: Row[] = useMemo(
     () =>
       (staffQ.data ?? []).map((s: any) => {
         const h = hoursByStaff.get(s.id);
         const docs = docsByStaff.get(s.id) ?? [];
         const pendingDocs = docs.filter(d => d.status !== 'approved').length;
 
-        /* No rows is the permissive default, not a gap. */
         const availability = !hoursOk
           ? 'Availability unavailable'
           : !h
@@ -151,25 +161,25 @@ export default function StaffWiredPage() {
 
         return {
           id: s.id,
-          title: s.name ?? 'Unnamed',
-          meta: s.email ?? 'No email',
+          name: s.name ?? 'Unnamed',
+          /* Short and scannable — the comp puts the pay rate here. */
+          facts: [wage],
           lines: [
-            s.tax_classification
-              ? (TAX_LABEL[s.tax_classification] ?? s.tax_classification)
-              : 'No tax classification',
-            wage,
+            s.email ?? 'No email',
             availability,
             docsOk
               ? docs.length === 0
                 ? 'No documents on file'
                 : `${docs.length} document${docs.length === 1 ? '' : 's'}: ${docs.map(d => DOC_LABEL[d.document_type] ?? d.document_type).join(', ')}`
-              : null,
+              : 'Documents unavailable',
           ],
+          /* The comp's own treatment: an inactive cleaner dims rather than
+             wearing a pill. */
+          inactive: s.is_active !== true,
           badges: [
-            s.is_active === true
-              ? { tone: 'success' as const, label: 'Active' }
-              : { tone: 'info' as const, label: 'Inactive' },
-            /* The wage trap, caught before payroll rather than on a payslip. */
+            ...(s.tax_classification
+              ? [{ tone: 'info' as const, label: TAX_LABEL[s.tax_classification] ?? s.tax_classification }]
+              : []),
             ...(percentOnly
               ? [{ tone: 'danger' as const, label: 'Would be paid $0' }]
               : []),
@@ -182,7 +192,13 @@ export default function StaffWiredPage() {
     [staffQ.data, hoursByStaff, docsByStaff, hoursOk, docsOk],
   );
 
-  const filtered = useSimpleSearch(rows, search);
+  const filtered = useMemo(() => {
+    const qy = search.trim().toLowerCase();
+    if (!qy) return rows;
+    return rows.filter(
+      r => r.name.toLowerCase().includes(qy) || r.lines.some(l => l.toLowerCase().includes(qy)),
+    );
+  }, [rows, search]);
   const phase = combinedPhase([staffQ]);
   const activeCount = (staffQ.data ?? []).filter((s: any) => s.is_active === true).length;
 
@@ -198,33 +214,52 @@ export default function StaffWiredPage() {
   return (
     <AdminLayout title="Staff" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        <SimpleListView
+        <ListShell<'all'>
           title="Staff"
-          phase={listState}
-          rows={filtered}
+          action={{ label: 'Add staff' }}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by name or email..."
-          emptyTitle="No team members yet"
-          emptyHint="Cleaners and office staff you add will show here."
+          tabs={[{ id: 'all', label: 'All staff', count: filtered.length }]}
+          tab="all"
+          onTab={() => undefined}
+          state={listState}
+          empty={{
+            title: 'No team members yet',
+            hint: 'Cleaners and office staff you add will show here.',
+            action: { label: 'Add staff' },
+          }}
           errorLabel="Couldn't load your team"
-          addLabel="Add staff"
           onRetry={() => {
             staffQ.refetch();
             hoursQ.refetch();
             docsQ.refetch();
           }}
-          note={
-            phase === 'ready' && (!hoursOk || !docsOk)
-              ? `Couldn't load ${!hoursOk && !docsOk ? 'availability or documents' : !hoursOk ? 'availability' : 'documents'}. The team list itself is complete.`
-              : undefined
-          }
-          sectionLabel={
-            search.trim()
+          skeletonRows={5}
+        >
+          <ListSectionLabel>
+            {search.trim()
               ? `${filtered.length} of ${rows.length}`
-              : `${activeCount} active · ${rows.length - activeCount} inactive`
-          }
-        />
+              : `${activeCount} active · ${rows.length - activeCount} inactive`}
+          </ListSectionLabel>
+
+          {phase === 'ready' && (!hoursOk || !docsOk) && (
+            <p className="mx-4 mb-2 rounded-[10px] bg-[hsl(var(--pv-warn-soft))] px-3.5 py-2.5 text-[11.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]">
+              Couldn&rsquo;t load {!hoursOk && !docsOk ? 'availability or documents' : !hoursOk ? 'availability' : 'documents'}. The team list itself is complete.
+            </p>
+          )}
+
+          {filtered.map(r => (
+            <PersonRow
+              key={r.id}
+              name={r.name}
+              facts={r.facts}
+              lines={r.lines}
+              inactive={r.inactive}
+              badges={r.badges}
+            />
+          ))}
+        </ListShell>
       </div>
     </AdminLayout>
   );
