@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Eyebrow } from './Card';
 
 /**
  * §3 rule 7: tinted wells encode source. amber = human-written and must-read;
@@ -13,7 +12,9 @@ export function NoteWell({
   label,
   children,
 }: {
-  tone: 'warn' | 'info';
+  /* 11c pairs a danger alert (negative margin) with a warn one (1099
+     filing) in the same stack, so danger is a real third tone here. */
+  tone: 'warn' | 'info' | 'danger';
   label: string;
   children: React.ReactNode;
 }) {
@@ -31,17 +32,34 @@ export function NoteWell({
   return (
     <div
       className={cn(
-        'rounded-[10px] border px-3 py-2.5',
+        /* 11c: radius 14px, padding 12/16. */
+        'rounded-[14px] border px-4 py-3',
         tone === 'warn'
           ? 'border-[hsl(var(--pv-warn-soft))] bg-[hsl(var(--pv-warn-soft))]'
-          : 'border-[hsl(var(--pv-brand-soft))] bg-[hsl(var(--pv-brand-soft))]',
+          : tone === 'danger'
+            ? 'border-[hsl(var(--pv-danger-soft))] bg-[hsl(var(--pv-danger-soft))]'
+            : 'border-[hsl(var(--pv-brand-soft))] bg-[hsl(var(--pv-brand-soft))]',
       )}
     >
-      <Eyebrow>{label}</Eyebrow>
+      {/* 11c renders this at 12px/800 in the tone's own ink, sentence case.
+          Eyebrow uppercases, and the comps contain no uppercase anywhere. */}
+      <p
+        className={cn(
+          'text-[12px] font-extrabold',
+          tone === 'warn'
+            ? 'text-[hsl(var(--pv-warn))]'
+            : tone === 'danger'
+              ? 'text-[hsl(var(--pv-danger))]'
+              : 'text-[hsl(var(--pv-brand))]',
+        )}
+      >
+        {label}
+      </p>
       <p
         ref={bodyRef}
         className={cn(
-          'mt-1 text-[12.5px] font-semibold leading-[1.52] text-[hsl(var(--pv-ink-2))]',
+          /* 11c: 11.5px, line-height 1.5, 3px below the title. */
+          'mt-[3px] text-[11.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]',
           !expanded && 'line-clamp-4',
         )}
       >
@@ -79,7 +97,7 @@ export function NoteWellError({
       role="alert"
       className="rounded-[10px] border border-[hsl(var(--pv-warn))] bg-[hsl(var(--pv-warn-soft))] px-3 py-2.5"
     >
-      <Eyebrow>{label}</Eyebrow>
+      <p className="text-[12px] font-extrabold text-[hsl(var(--pv-warn))]">{label}</p>
       <p className="mt-1 text-[12.5px] font-semibold leading-[1.52] text-[hsl(var(--pv-ink-2))]">
         {message}
       </p>
