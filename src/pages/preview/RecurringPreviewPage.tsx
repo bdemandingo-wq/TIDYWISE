@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ListShell, ListRow, ListSectionLabel, type ListState } from '@/components/portal-v2';
+import { ListShell, ListRow, ListSectionLabel, Card, CardTitle, Button, StatCard, SettingsRow, type ListState } from '@/components/portal-v2';
 
 /**
  * Screen 4e — /dashboard/recurring at 390px.
@@ -246,6 +246,9 @@ const STATES: { id: ListState; label: string; why: string }[] = [
 
 export default function RecurringPreviewPage() {
   const [state, setState] = useState<ListState>('ready');
+  const [showAdd, setShowAdd] = useState(true);
+  const [amount, setAmount] = useState('');
+  const [createActive, setCreateActive] = useState(true);
   const [tab, setTab] = useState<Tab>('all');
   const [search, setSearch] = useState('');
 
@@ -296,6 +299,102 @@ export default function RecurringPreviewPage() {
           inherited value — which looked plausible against the dark shell,
           which is why it went unnoticed. */}
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {/* 7f's summary. Paused is the number that matters: a paused schedule
+            still sits in this list but generates nothing, so a bare count of
+            31 would overstate what is actually running. */}
+        <div className="px-4 pt-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            <StatCard
+              label="Recurring schedules"
+              value={state === 'error' ? '—' : '31'}
+              caption={state === 'error' ? 'active + paused' : '18 active · 13 paused'}
+            />
+            <StatCard
+              label="Generating visits"
+              value={state === 'error' ? '—' : '18'}
+              caption="the other 13 are paused"
+            />
+          </div>
+        </div>
+
+        {showAdd && (
+          <div className="px-4 pt-3">
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Add recurring booking</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(false)}
+                  className="ml-auto text-[11.5px] font-bold text-[hsl(var(--pv-brand))]"
+                >
+                  Close
+                </button>
+              </div>
+
+              {/* The comp's seven fields, in its order. */}
+              <div className="mt-2">
+                <SettingsRow kind="value" label="Customer *" value="Select customer" onClick={() => undefined} />
+                <SettingsRow kind="value" label="Service *" value="Select service" onClick={() => undefined} />
+                <SettingsRow kind="value" label="Frequency *" value="Weekly" onClick={() => undefined} />
+                {/* Live stores this as ends_at (RecurringBookingsPage.tsx:500,
+                    :566 stop generating past it). "Until cancelled" is the
+                    null case. */}
+                <SettingsRow kind="value" label="How long?" value="Until cancelled" onClick={() => undefined} />
+                <SettingsRow kind="value" label="Preferred day" value="Any day" onClick={() => undefined} />
+              </div>
+
+              <div className="mt-2.5">
+                <label className="block text-[11.5px] font-bold text-[hsl(var(--pv-ink-2))]">
+                  Amount per visit *
+                </label>
+                {/* The comp pre-fills this with "0.00" as a VALUE. A required
+                    money field that arrives already satisfied by a zero is how
+                    you create a schedule that bills nothing — and unlike a
+                    one-off, this one repeats every week until somebody notices.
+                    Placeholder, not value: the field stays empty and the button
+                    stays disabled until a real figure is typed. */}
+                <input
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  className="mt-1.5 w-full rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3.5 py-3 text-[13px] text-[hsl(var(--pv-ink))] outline-none placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]"
+                />
+                {!amount && (
+                  <p className="mt-1 text-[11px] font-semibold text-[hsl(var(--pv-ink-3))]">
+                    Every visit bills this amount, so it can&rsquo;t be left blank.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-2.5">
+                <SettingsRow
+                  kind="toggle"
+                  label="Active"
+                  description="Off means it saves but generates no visits."
+                  checked={createActive}
+                  onCheckedChange={setCreateActive}
+                />
+              </div>
+
+              <div className="mt-2.5">
+                {/* Button has no `disabled` prop, so the guard is the variant:
+                    a secondary button that does nothing until there is a
+                    figure, rather than a primary one that looks ready. */}
+                <Button
+                  variant={amount ? 'primary' : 'secondary'}
+                  fullWidth
+                  className="rounded-[12px]"
+                  aria-disabled={!amount}
+                  onClick={() => undefined}
+                >
+                  Create
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         <ListShell<Tab>
           title="Recurring"
           action={{ label: 'New' }}
