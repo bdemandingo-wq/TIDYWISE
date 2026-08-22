@@ -62,3 +62,16 @@ npx tsc --noEmit -p tsconfig.app.json   # slow; the -p flag is NOT optional
 - Anything you could not verify, stated plainly as unverified.
 - Guard results, each one named with its outcome.
 - Any divergence from the comp you chose deliberately, with the reason.
+
+## Browser recipe (sandbox-specific — use exactly this)
+
+Playwright's bundled Chromium is missing system libraries in this sandbox and will fail with
+`libglib-2.0.so.0: cannot open shared object file`. Do NOT try to install it or fetch libs with
+`nix build` — that burns the whole budget. Use the system browser instead:
+
+```python
+b = await p.chromium.launch(headless=True, executable_path="/bin/chromium", args=["--no-sandbox"])
+```
+
+Confirmed working. Restore the Supabase session (see LOVABLE_BROWSER_AUTH_STATUS and the cookie /
+localStorage restore snippet) BEFORE navigating to a /dashboard route, or you land on /login.
