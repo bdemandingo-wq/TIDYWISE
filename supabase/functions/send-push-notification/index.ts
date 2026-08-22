@@ -61,7 +61,7 @@ async function getApnsJwt(): Promise<string> {
 
 // ── Send one APNs push ────────────────────────────────────────────────────────
 async function sendApns(deviceToken: string, title: string, body: string, data?: Record<string, string>) {
-  const bundleId = Deno.env.get("APNS_BUNDLE_ID") || "com.jointidywise.app";
+  const bundleId = Deno.env.get("APNS_BUNDLE_ID") || "com.TidyWiseApp.app";
   const jwt = await getApnsJwt();
 
   const payload = {

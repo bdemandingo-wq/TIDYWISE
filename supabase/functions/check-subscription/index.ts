@@ -338,7 +338,7 @@ serve(async (req) => {
     // Look up the user's organization via org_memberships
     const { data: membership, error: membershipError } = await supabaseClient
       .from("org_memberships")
-      .select("organization_id, organizations(created_at)")
+      .select("organization_id, organizations(created_at, plan_type)")
       .eq("user_id", user.id)
       .limit(1)
       .single();
@@ -359,6 +359,42 @@ serve(async (req) => {
     }
 
     const orgData = membership.organizations as any;
+
+    // ── Step 1.5: New-style profile-backed 14-day trial (plan_type = 'trial') ──
+    if (orgData?.plan_type === "trial") {
+      const { data: trialProfile, error: trialProfileError } = await supabaseClient
+        .from("profiles")
+        .select("trial_ends_at")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (trialProfileError) {
+        logStep("ERROR reading profile trial_ends_at", { message: trialProfileError.message });
+      }
+
+      const trialEndsAt = trialProfile?.trial_ends_at ?? null;
+      const trialActive = !!trialEndsAt && Date.now() < Date.parse(trialEndsAt);
+
+      logBranch(trialActive ? "profile_trial_active" : "profile_trial_expired", {
+        orgId: membership.organization_id,
+        trialEndsAt,
+      });
+
+      return new Response(JSON.stringify(
+        trialActive
+          ? { subscribed: true, trial_active: true, trial_end: trialEndsAt }
+          : {
+              subscribed: false,
+              trial_active: false,
+              trial_end: trialEndsAt,
+              message: "Your 14-day trial has ended. Subscribe to keep using TidyWise.",
+            }
+      ), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+
     const orgCreatedAt = orgData?.created_at;
 
     if (!orgCreatedAt) {
