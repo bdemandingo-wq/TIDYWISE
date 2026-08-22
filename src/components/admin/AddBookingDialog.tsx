@@ -78,7 +78,7 @@ export function AddBookingDialog({
             <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20">
               <CalendarIcon className="h-5 w-5 text-primary" />
             </div>
-            <span>{booking ? 'Edit Booking' : 'New Booking'}</span>
+            <span>{booking?.id ? 'Edit Booking' : 'New Booking'}</span>
             {booking?.is_draft && (
               <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">
                 Draft
