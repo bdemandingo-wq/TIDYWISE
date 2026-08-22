@@ -753,23 +753,41 @@ export function CampaignWizard({
                     </p>
                   </div>
                 </div>
-                {optedOutCount > 0 && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
-                  </p>
-                )}
-                {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {campaignForm.excludeAlreadyReceived && (
-                      <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
+                {isMobile ? (
+                  (() => {
+                    const parts: string[] = [];
+                    if (optedOutCount > 0) parts.push(`${optedOutCount} opted-out contacts excluded`);
+                    if (campaignForm.excludeAlreadyReceived) parts.push("excluding already received");
+                    if (campaignForm.excludeRecentDays > 0) parts.push(`skip contacted in last ${campaignForm.excludeRecentDays}d`);
+                    if (campaignForm.onlyAfterDate) parts.push(`only after ${format(campaignForm.onlyAfterDate, "MMM d")}`);
+                    const throttleLabel = THROTTLE_OPTIONS.find(o => o.value === campaignForm.throttleSeconds)?.label
+                      ?? `one every ${campaignForm.throttleSeconds}s`;
+                    parts.push(throttleLabel.toLowerCase());
+                    return parts.length > 0 ? (
+                      <p className="text-xs text-muted-foreground mt-1">{parts.join(" · ")}</p>
+                    ) : null;
+                  })()
+                ) : (
+                  <>
+                    {optedOutCount > 0 && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
+                      </p>
                     )}
-                    {campaignForm.excludeRecentDays > 0 && (
-                      <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
+                    {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {campaignForm.excludeAlreadyReceived && (
+                          <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
+                        )}
+                        {campaignForm.excludeRecentDays > 0 && (
+                          <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
+                        )}
+                        {campaignForm.onlyAfterDate && (
+                          <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
+                        )}
+                      </div>
                     )}
-                    {campaignForm.onlyAfterDate && (
-                      <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
-                    )}
-                  </div>
+                  </>
                 )}
               </div>
 
