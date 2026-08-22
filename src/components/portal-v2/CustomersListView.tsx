@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
+import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { PersonRow } from './PersonRow';
 import { customerStatusBadge } from '@/lib/customerStatus';
 
@@ -36,6 +37,8 @@ export function CustomersListView({
   onRetry,
   sectionLabel,
   statsUnavailable,
+  actions,
+  onAdd,
 }: {
   phase: ListState;
   rows: CustomersRow[];
@@ -46,13 +49,28 @@ export function CustomersListView({
   sectionLabel?: string;
   /** True when the booking-stats read failed but customers loaded. */
   statsUnavailable?: boolean;
+  /* Import / Export / Merge — the live screen's toolbar, which the comp
+     has no room for and which the swap would otherwise have deleted. */
+  actions?: ActionChip[];
+  /** Wires the comp's "+ Add" header button to the real dialog. */
+  onAdd?: () => void;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
+    <>
+      {/* Outside ListShell on purpose — the shell renders children only when
+          state === 'ready', so a chip row inside it vanishes on an empty,
+          loading or failed list, taking the actions with it. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1.5 pt-1">
+          <ActionChipRow actions={actions} label="Customer actions" />
+        </div>
+      )}
+
     <ListShell<'all'>
       title="Customers"
-      action={{ label: 'Add' }}
+      action={{ label: 'Add', onClick: onAdd }}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, email, or phone..."
@@ -70,7 +88,7 @@ export function CustomersListView({
           : {
               title: 'No customers yet',
               hint: 'People who book, and ones you add by hand, will show here.',
-              action: { label: 'Add customer' },
+              action: { label: 'Add customer', onClick: onAdd },
             }
       }
       errorLabel="Couldn't load customers"
@@ -141,6 +159,7 @@ export function CustomersListView({
         />
       ))}
     </ListShell>
+    </>
   );
 }
 

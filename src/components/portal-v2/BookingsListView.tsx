@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
+import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { ListRow } from './ListRow';
 import {
   adminBookingStatusBadge,
@@ -67,6 +68,9 @@ export function BookingsListView<T extends string = 'all'>({
   tab,
   onTab,
   summary,
+  actions,
+  onFilter,
+  filterCount,
   children,
 }: {
   phase: ListState;
@@ -90,6 +94,14 @@ export function BookingsListView<T extends string = 'all'>({
   onTab?: (t: T) => void;
   /** 4c's summary cards. Rendered between the tabs and the section label. */
   summary?: ReactNode;
+  /* ── Added when the toolbar moved off the live page ────────────────────
+     The comp gives this screen one action. The live Bookings screen has
+     five, and they used to sit in desktop chrome that also rendered on
+     phones. They render here now so the swap does not delete them. */
+  actions?: ActionChip[];
+  /** Date-range / status filters, surfaced through ListShell's filter button. */
+  onFilter?: () => void;
+  filterCount?: number;
   /** Content for a tab that is not the booking list (drafts, quotes, wages). */
   children?: ReactNode;
 }) {
@@ -97,7 +109,19 @@ export function BookingsListView<T extends string = 'all'>({
   const singleTab = [{ id: 'all' as T, label: 'All bookings', count: rows.length }];
 
   return (
+    <>
+      {/* Outside ListShell on purpose — the shell renders children only
+          when state === 'ready', so a chip row inside it vanishes on an
+          empty, loading or failed list, taking the actions with it. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1 pt-1">
+          <ActionChipRow actions={actions} label="Booking actions" />
+        </div>
+      )}
+
     <ListShell<T>
+      onFilter={onFilter}
+      filterCount={filterCount ?? 0}
       title="Bookings"
       action={{ label: 'Create' }}
       search={search}
@@ -128,6 +152,7 @@ export function BookingsListView<T extends string = 'all'>({
           grid at 10px gaps. Rendered above the section label so it reads as
           a header for the whole screen rather than for the list. */}
       {summary}
+
 
       {children ?? (
         <>
@@ -165,6 +190,7 @@ export function BookingsListView<T extends string = 'all'>({
         </>
       )}
     </ListShell>
+    </>
   );
 }
 

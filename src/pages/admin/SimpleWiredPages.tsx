@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { queryPhase } from '@/lib/queryState';
 import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -68,8 +69,11 @@ type Cfg = {
   header?: (rows: any[], ready: boolean) => { eyebrow: string; label: string; value: string; wells: { value: string; caption: string }[] };
 };
 
+/** A row straight off the table, before cfg.map turns it into a display row. */
+type RawRow = Record<string, unknown>;
+
 /** Shared plumbing: one query, one phase, one view. */
-function useSimpleScreen(cfg: Cfg) {
+function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
 
@@ -92,7 +96,14 @@ function useSimpleScreen(cfg: Cfg) {
     enabled: !!organization?.id,
   });
 
-  const all = useMemo(() => (q.data ?? []).map(cfg.map), [q.data, cfg]);
+  /* rowFilter runs on the RAW row, before cfg.map, so a caller can filter on
+     columns the display row does not carry — Inventory's category and
+     low-stock are both like that. Applied before the search so the count
+     under the search box describes what is on screen. */
+  const all = useMemo(
+    () => (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(cfg.map),
+    [q.data, cfg, rowFilter],
+  );
   const rows = useSimpleSearch(all, search);
   const phase = queryPhase(q);
 
@@ -108,14 +119,28 @@ function useSimpleScreen(cfg: Cfg) {
   return { q, rows, all, search, setSearch, listState };
 }
 
-function Screen({ cfg }: { cfg: Cfg }) {
-  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg);
+/** The toolbar props every one of these screens forwards untouched. */
+type ToolbarProps = {
+  /** Filters raw rows before they are mapped for display. */
+  rowFilter?: (raw: RawRow) => boolean;
+  actions?: ActionChip[];
+  onAdd?: () => void;
+  onFilter?: () => void;
+  filterCount?: number;
+};
+
+function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter }: { cfg: Cfg; rowFilter?: (raw: RawRow) => boolean } & ToolbarProps) {
+  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg, rowFilter);
   const ready = listState === 'ready' || listState === 'empty';
   const h = cfg.header?.(q.data ?? [], ready);
   return (
-    <AdminLayout title={cfg.title} subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
+          onAdd={onAdd}
+          onFilter={onFilter}
+          filterCount={filterCount}
           header={
             h ? (
               <InverseHeader
@@ -150,7 +175,7 @@ function Screen({ cfg }: { cfg: Cfg }) {
           }
         />
       </div>
-    </AdminLayout>
+    </>
   );
 }
 
@@ -158,9 +183,10 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Services ──────────────────────────────────────────────────────────── */
-export function ServicesWiredPage() {
+export function ServicesMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Services',
         header: (rows, ready) => ({
@@ -197,9 +223,10 @@ export function ServicesWiredPage() {
 }
 
 /* ── Discounts ─────────────────────────────────────────────────────────── */
-export function DiscountsWiredPage() {
+export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Discounts',
         header: (rows, ready) => ({
@@ -250,9 +277,10 @@ export function DiscountsWiredPage() {
 }
 
 /* ── Inventory ─────────────────────────────────────────────────────────── */
-export function InventoryWiredPage() {
+export function InventoryMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Inventory',
         header: (rows, ready) => {
@@ -301,9 +329,10 @@ export function InventoryWiredPage() {
 }
 
 /* ── Checklists ────────────────────────────────────────────────────────── */
-export function ChecklistsWiredPage() {
+export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Checklists',
         header: (rows, ready) => ({
@@ -332,9 +361,10 @@ export function ChecklistsWiredPage() {
 }
 
 /* ── Tasks & notes ─────────────────────────────────────────────────────── */
-export function TasksWiredPage() {
+export function TasksMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Tasks',
         header: (rows, ready) => ({
@@ -373,9 +403,10 @@ export function TasksWiredPage() {
 }
 
 /* ── Client feedback ───────────────────────────────────────────────────── */
-export function FeedbackWiredPage() {
+export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Feedback',
         header: (rows, ready) => {
@@ -441,7 +472,7 @@ export function FeedbackWiredPage() {
    waiting for a morning brief that the screen has quietly told them is
    switched off. So the toggles do not render at all until the read succeeds.
    ────────────────────────────────────────────────────────────────────────── */
-export function NotificationsWiredPage() {
+export function NotificationsMobileBody() {
   const { organization } = useOrganization();
 
   const q = useQuery({
@@ -465,7 +496,7 @@ export function NotificationsWiredPage() {
   const phase = queryPhase(q);
 
   return (
-    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {/* 5b opens with the hero too. The wells report the two briefings as
             three-state, because the columns are nullable and "not set" is not
@@ -562,6 +593,75 @@ export function NotificationsWiredPage() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export function ServicesWiredPage() {
+  return (
+    <AdminLayout title="Services" subtitle="Mobile layout, live data">
+      <ServicesMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function DiscountsWiredPage() {
+  return (
+    <AdminLayout title="Discounts" subtitle="Mobile layout, live data">
+      <DiscountsMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function InventoryWiredPage() {
+  return (
+    <AdminLayout title="Inventory" subtitle="Mobile layout, live data">
+      <InventoryMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function ChecklistsWiredPage() {
+  return (
+    <AdminLayout title="Checklists" subtitle="Mobile layout, live data">
+      <ChecklistsMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function TasksWiredPage() {
+  return (
+    <AdminLayout title="Tasks" subtitle="Mobile layout, live data">
+      <TasksMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function FeedbackWiredPage() {
+  return (
+    <AdminLayout title="Feedback" subtitle="Mobile layout, live data">
+      <FeedbackMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function NotificationsWiredPage() {
+  return (
+    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
+      <NotificationsMobileBody />
     </AdminLayout>
   );
 }

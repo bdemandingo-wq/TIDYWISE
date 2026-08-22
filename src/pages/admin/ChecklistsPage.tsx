@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ChecklistsMobileBody } from '@/pages/admin/SimpleWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,6 +141,7 @@ function SortableChecklistItem({ item, index, onRemove, onToggleRequiresPhoto }:
 }
 
 export default function ChecklistsPage() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -426,6 +430,22 @@ export default function ChecklistsPage() {
         </div>
       </div>
 </AdminLayout>
+    );
+  }
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders ChecklistsMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'create', label: 'Create Checklist', icon: <Plus className="h-3.5 w-3.5" />, onClick: openCreateDialog },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Cleaning Checklists" subtitle="Create and manage cleaning checklists">
+        <ChecklistsMobileBody actions={mobileActions} />
+      </AdminLayout>
     );
   }
 

@@ -6,7 +6,8 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase } from '@/lib/queryState';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
-import { ListShell, ListSectionLabel, PersonRow } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -62,7 +63,23 @@ type PayRow = {
   percentRate: number | null;
 };
 
-export default function PayrollWiredPage() {
+/**
+ * Supplied when this body is the mobile arm of the live PayrollPage, which
+ * owns Export CSV and the pay-period controls. The handlers stay there;
+ * only the rendering moves here. Without them the -v2 route is unchanged.
+ */
+export function PayrollMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+  periodLabel,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+  /** e.g. "Aug 1 - Aug 31, 2026" — shown so the figures below are dated. */
+  periodLabel?: string;
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -237,7 +254,7 @@ export default function PayrollWiredPage() {
   const estimatedTotal = resolved.filter(r => !r.isExact).reduce((s, r) => s + r.pay, 0);
 
   return (
-    <AdminLayout title="Payroll" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {phase === 'ready' && payRows.length > 0 && (
           <div className="px-4 pt-3">
@@ -267,9 +284,27 @@ export default function PayrollWiredPage() {
           </div>
         )}
 
+        {/* Outside ListShell on purpose — the shell renders children only when
+            state === 'ready'. Inside it, the actions AND the period these
+            figures cover would disappear on an empty or failed read, which is
+            precisely when an unexplained blank payroll screen needs a date on
+            it. */}
+        {actions && actions.length > 0 && (
+          <div className="px-5 pb-1 pt-1">
+            <ActionChipRow actions={actions} label="Payroll actions" />
+          </div>
+        )}
+        {periodLabel && (
+          <p className="px-5 pb-1.5 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+            {periodLabel}
+          </p>
+        )}
+
         <ListShell<'all'>
           title="Payroll"
           action={{ label: 'Run payroll' }}
+          onFilter={onFilter}
+          filterCount={filterCount ?? 0}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by cleaner or booking #..."
@@ -299,6 +334,27 @@ export default function PayrollWiredPage() {
           ))}
         </ListShell>
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function PayrollWiredPage() {
+  return (
+    <AdminLayout title="Payroll" subtitle="Mobile layout, live data">
+      <PayrollMobileBody />
     </AdminLayout>
   );
 }

@@ -1,4 +1,8 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ReportsMobileBody } from '@/pages/admin/ReportsWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ServiceDurationAccuracy } from '@/components/admin/ServiceDurationAccuracy';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { StatCard } from '@/components/admin/StatCard';
@@ -121,6 +125,8 @@ export default function ReportsPage() {
   // which is its own trap waiting for someone to believe them.
   const [recurringPlans, setRecurringPlans] = useState<number>(0);
   const { isTestMode, maskName } = useTestMode();
+  const isMobile = useIsMobile();
+  const [mobileDatesOpen, setMobileDatesOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     // Placeholder; corrected below once the org's timezone resolves.
     /* eslint-disable-next-line local/no-device-local-dates -- provisional; the effect below re-sets both once the org zone resolves */
@@ -335,6 +341,60 @@ export default function ReportsPage() {
         </div>
       </div>
 </AdminLayout>
+    );
+  }
+
+  /* ── Mobile arm ────────────────────────────────────────────────────────
+     Desktop untouched below. This page's only toolbar control is the date
+     range, so the chip IS the range — its label is the selected period,
+     which keeps the window visible instead of hiding it behind an icon.
+     Same dateRange state and the same two DatePickers as desktop. */
+  const mobileActions: ActionChip[] = [
+    {
+      id: 'range',
+      label: `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`,
+      icon: <CalendarIcon className="h-3.5 w-3.5" />,
+      onClick: () => setMobileDatesOpen(true),
+      tone: 'primary',
+    },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Reports" subtitle="">
+        <ReportsMobileBody actions={mobileActions} />
+
+        <Sheet open={mobileDatesOpen} onOpenChange={setMobileDatesOpen}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
+            <SheetHeader className="pb-2">
+              <SheetTitle className="text-base">Report period</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 pt-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">From</Label>
+                <DatePicker
+                  mode="single"
+                  selected={dateRange.from}
+                  onSelect={(date) => date && (rangeTouchedRef.current = true) && setDateRange(prev => ({ ...prev, from: date }))}
+                  className="rounded-md border"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">To</Label>
+                <DatePicker
+                  mode="single"
+                  selected={dateRange.to}
+                  onSelect={(date) => date && (rangeTouchedRef.current = true) && setDateRange(prev => ({ ...prev, to: date }))}
+                  className="rounded-md border"
+                />
+              </div>
+              <Button className="h-11 rounded-xl" onClick={() => setMobileDatesOpen(false)}>
+                Show results
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </AdminLayout>
     );
   }
 

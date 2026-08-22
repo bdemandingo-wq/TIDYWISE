@@ -4,6 +4,8 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { CustomersMobileBody } from '@/pages/admin/CustomersWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -98,6 +100,18 @@ export default function CustomersPage() {
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  /* One Add handler for both the desktop header button and the mobile
+     chip. The plan-limit check has to run on both paths — a phone that
+     skipped it would open a dialog that fails on save. */
+  const handleAddCustomer = () => {
+    if (atCustomerLimit) {
+      toast.error(`Basic plan limited to ${maxCustomers} customers. Upgrade to add more.`);
+      setShowSubscriptionDialog(true);
+    } else {
+      setAddDialogOpen(true);
+    }
+  };
   const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'inactive' | 'remove_campaigns' | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -842,6 +856,34 @@ export default function CustomersPage() {
   const customerCount = customers.filter(c => getEffectiveStatus(c) === 'active').length;
   const leadCount = customers.filter(c => getEffectiveStatus(c) === 'lead').length;
 
+  /* The header's four actions, as chips, for the phone. isAdmin gates the
+     same two it gates on desktop — a chip row is not a reason to widen who
+     can export a customer list. */
+  const mobileCustomerActions: ActionChip[] = [
+    ...(isAdmin
+      ? [
+          {
+            id: 'duplicates',
+            label: 'Find duplicates',
+            icon: <GitMerge className="h-3.5 w-3.5" />,
+            onClick: () => navigate('/dashboard/customers/duplicates'),
+          },
+          {
+            id: 'export',
+            label: 'Export CSV',
+            icon: <Download className="h-3.5 w-3.5" />,
+            onClick: exportToCsv,
+          },
+        ]
+      : []),
+    {
+      id: 'import',
+      label: 'Import',
+      icon: <Upload className="h-3.5 w-3.5" />,
+      onClick: () => setImportDialogOpen(true),
+    },
+  ];
+
   return (
     <AdminLayout
       title="Customers"
@@ -849,6 +891,10 @@ export default function CustomersPage() {
       actions={
         <div className="flex gap-2">
       <SEOHead title="Customers | TidyWise" description="Manage your customer database" noIndex />
+          {/* The same four actions render as chips inside CustomersMobileBody
+              on a phone. SEOHead stays outside the guard — it is not chrome. */}
+          {!isMobile && (
+            <>
           {isAdmin && (
             <Button
               variant="outline"
@@ -870,17 +916,12 @@ export default function CustomersPage() {
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => {
-            if (atCustomerLimit) {
-              toast.error(`Basic plan limited to ${maxCustomers} customers. Upgrade to add more.`);
-              setShowSubscriptionDialog(true);
-            } else {
-              setAddDialogOpen(true);
-            }
-          }}>
+          <Button size="sm" className="gap-2" onClick={handleAddCustomer}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Customer</span>
           </Button>
+            </>
+          )}
         </div>
       }
     >
@@ -896,6 +937,11 @@ export default function CustomersPage() {
         </div>
       )}
       {/* Tabs + Search + Bulk Actions */}
+      {/* Desktop only. On a phone the tabs, search and bulk-action bar all
+          live inside CustomersMobileBody, and the header actions render as
+          chips in it. Rendering both put two search fields and two tab rows
+          on one 390px screen. */}
+      {!isMobile && (
       <div className="space-y-4 mb-4">
         <Tabs value={tabFilter} onValueChange={(v) => setTabFilter(v as TabFilter)} className="w-full">
           <TabsList className="w-full sm:w-auto">
@@ -983,135 +1029,31 @@ export default function CustomersPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Mobile: Virtualized card list */}
       {isMobile ? (
-        <div className="relative">
-          <div
-            className="sticky top-0 z-10 -mt-2 mb-2"
-            style={{ transform: `translate3d(0, ${pullDistance ? pullDistance - 24 : 0}px, 0)` }}
-          >
-            <div className="flex items-center justify-center text-xs text-muted-foreground gap-2 py-2">
-              <RefreshCw className={cn('h-4 w-4 transition-transform', pullDistance >= 64 ? 'rotate-180' : 'rotate-0')} aria-hidden="true" />
-              <span>{pullDistance >= 64 ? 'Release to refresh' : 'Pull to refresh'}</span>
-            </div>
-          </div>
+        /* ========== MOBILE ==========
+           CustomersMobileBody — the same component /dashboard/customers-v2
+           renders, minus its AdminLayout wrapper. It owns its queries,
+           states and §5.1 rules.
 
-          <div
-            ref={listRef}
-            className="h-[calc(100dvh-16rem)] overflow-auto overscroll-contain"
-            onTouchStart={onListTouchStart}
-            onTouchMove={onListTouchMove}
-            onTouchEnd={onListTouchEnd}
-          >
-            {isLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Card key={i} className="p-4 animate-pulse"><div className="h-4 w-1/2 bg-muted rounded" /><div className="mt-3 h-3 w-2/3 bg-muted rounded" /></Card>
-                ))}
-              </div>
-            ) : customersOffline ? (
-              <OfflineState />
-            ) : customersError ? (
-              <LoadFailedState onRetry={() => refetchCustomers()} />
-            ) : filteredCustomers.length === 0 ? (
-              <EmptyState onAdd={() => setAddDialogOpen(true)} />
-            ) : (
-              <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-                {rowVirtualizer.getVirtualItems().map((vRow) => {
-                  const customer = filteredCustomers[vRow.index];
-                  const isExpanded = expandedId === customer.id;
-                  const isSelected = selectedIds.has(customer.id);
-                  const cStats = statsMap.get(customer.id);
-                  const isDupe = duplicates.has(customer.id);
+           onSelectCustomer keeps MobileContactProfile reachable. Without it
+           the body navigates to ?customer=<id>, which this page does not read
+           (it reads ?filter= only) — so the tap would do nothing and the
+           sheet would be dead code.
 
-                  return (
-                    <div key={customer.id} className="absolute left-0 top-0 w-full" style={{ transform: `translate3d(0, ${vRow.start}px, 0)` }}>
-                      <button
-                          type="button"
-                          className={cn('w-full text-left bg-card border border-border shadow-sm rounded-xl p-3 transition-transform active:scale-[0.99] will-change-transform mb-3')}
-                          onPointerDown={() => startLongPress(customer.id)}
-                          onPointerUp={cancelLongPress}
-                          onPointerCancel={cancelLongPress}
-                          onClick={() => {
-                            cancelLongPress();
-                            if (batchMode) { hapticImpact('light'); toggleSelect(customer.id); return; }
-                            hapticImpact('light');
-                            setSelectedCustomer(customer);
-                            setMobileProfileOpen(true);
-                          }}
-                        >
-                          <div className="flex items-start gap-3">
-                            {batchMode && (
-                              <div className="pt-1"><Checkbox checked={isSelected} onCheckedChange={() => toggleSelect(customer.id)} /></div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="font-medium text-sm truncate">{maskName(`${customer.first_name} ${customer.last_name}`)}</p>
-                                    {isDupe && <AlertTriangle className="w-3.5 h-3.5 text-warning flex-shrink-0" />}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground truncate">{maskPhone(customer.phone || '')}</p>
-                                </div>
-                                <div className="flex flex-col items-end gap-0.5 shrink-0">
-                                  <StatusBadgeMenu customer={customer} />
-                                  {isDupe && <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">Possible Duplicate</Badge>}
-                                </div>
-                              </div>
-                              {cStats && (
-                                <div className="flex gap-3 mt-1.5 text-xs text-muted-foreground">
-                                  <span>{cStats.total_bookings} bookings</span>
-                                  <span>{maskAmount(cStats.total_revenue)}</span>
-                                  {cStats.last_booking_date && <span>Last: {format(new Date(cStats.last_booking_date), 'MMM d')}</span>}
-                                </div>
-                              )}
-
-                              {isExpanded && (
-                                <div className="mt-3 space-y-2 animate-fade-in">
-                                  {customer.address && (
-                                    <div className="text-sm flex items-center gap-1 text-muted-foreground">
-                                      <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
-                                      <span>{[customer.address, customer.city, customer.state, customer.zip_code].filter(Boolean).join(', ')}</span>
-                                    </div>
-                                  )}
-                                  <div className="flex gap-2 pt-2">
-                                    <Button type="button" variant="outline" size="sm" className="flex-1" onClick={e => { e.preventDefault(); e.stopPropagation(); hapticImpact('light'); setSelectedCustomer(customer); setEditDialogOpen(true); }}>
-                                      <Edit className="h-4 w-4 mr-2" /> Edit
-                                    </Button>
-                                    <Button type="button" variant="outline" size="sm" className="flex-1" onClick={e => { e.preventDefault(); e.stopPropagation(); hapticImpact('light'); setSelectedCustomer(customer); setPaymentHistoryOpen(true); }}>
-                                      <CreditCard className="h-4 w-4 mr-2" /> Payments
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => { hapticImpact('medium'); setAddDialogOpen(true); }}
-            className={cn('fixed right-4 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center transition-transform active:scale-[0.96] will-change-transform')}
-            aria-label="Add customer"
-          >
-            <Plus className="h-6 w-6" aria-hidden="true" />
-          </button>
-
-          {batchMode && (
-            <div className="fixed left-4 right-4 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]">
-              <Button type="button" variant="secondary" className="w-full" onClick={() => { hapticImpact('light'); setBatchMode(false); setSelectedIds(new Set()); }}>
-                Exit batch mode
-              </Button>
-            </div>
-          )}
-        </div>
+           The desktop table below is untouched. */
+        <CustomersMobileBody
+          actions={mobileCustomerActions}
+          onAdd={handleAddCustomer}
+          onSelectCustomer={id => {
+            const c = customers?.find(x => x.id === id);
+            if (!c) return;
+            setSelectedCustomer(c);
+            setMobileProfileOpen(true);
+          }}
+        />
       ) : (
         /* Desktop Table */
         <>

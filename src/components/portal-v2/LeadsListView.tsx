@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
+import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { ListRow } from './ListRow';
 import { leadStatusBadge, leadSourceLabel } from '@/lib/leadStatus';
 
@@ -29,6 +30,10 @@ export function LeadsListView({
   onSelect,
   onRetry,
   sectionLabel,
+  actions,
+  onAdd,
+  onFilter,
+  filterCount,
 }: {
   phase: ListState;
   rows: LeadsRow[];
@@ -37,13 +42,30 @@ export function LeadsListView({
   onSelect?: (r: LeadsRow) => void;
   onRetry?: () => void;
   sectionLabel?: string;
+  actions?: ActionChip[];
+  onAdd?: () => void;
+  /** Status / source / month, which do not fit in a chip row. */
+  onFilter?: () => void;
+  filterCount?: number;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
+    <>
+      {/* Outside ListShell — the shell renders children only when
+          state === 'ready', so actions inside it vanish on an empty or
+          failed list. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1.5 pt-1">
+          <ActionChipRow actions={actions} label="Lead actions" />
+        </div>
+      )}
+
     <ListShell<'all'>
       title="Leads"
-      action={{ label: 'Add' }}
+      action={{ label: 'Add', onClick: onAdd }}
+      onFilter={onFilter}
+      filterCount={filterCount ?? 0}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, email, phone, or source..."
@@ -94,6 +116,7 @@ export function LeadsListView({
         />
       ))}
     </ListShell>
+    </>
   );
 }
 

@@ -383,6 +383,7 @@ export default function TrackingPage() {
         <Button
           variant="ghost"
           size="icon"
+          aria-label="Go back"
           onClick={() => navigate(-1)}
           className="min-h-[44px] min-w-[44px] shrink-0"
         >

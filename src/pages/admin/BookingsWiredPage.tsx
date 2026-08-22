@@ -16,6 +16,7 @@ import {
   type BookingsRow,
 } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/bookings-v2 — the mobile bookings list on real data.
@@ -82,7 +83,24 @@ function toRow(b: BookingWithDetails, fmt: (iso: string) => string): BookingsRow
 
 type Tab = 'all' | 'drafts' | 'quotes' | 'wages';
 
-export default function BookingsWiredPage() {
+/**
+ * `actions`, `onFilter`, `filterCount` and `onSelectBooking` are supplied
+ * when this body is the mobile arm of the live BookingsPage. That page owns
+ * the five toolbar actions and their dialogs, so the handlers stay there and
+ * only the rendering moves here. Without them (the -v2 preview route) the
+ * body renders exactly as it did before.
+ */
+export function BookingsMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+  onSelectBooking,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+  onSelectBooking?: (id: string) => void;
+} = {}) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
@@ -128,6 +146,31 @@ export default function BookingsWiredPage() {
     [bookingsQ.data, fmt],
   );
   const rows = useBookingSearch(all, search);
+
+  /* ── Drafts tab: matches BookingsPage, deliberately ────────────────────
+     BookingsPage has always shown true is_draft rows PLUS non-draft rows
+     sitting on pending status and pending payment. Counting only is_draft
+     here showed 1 where the live screen showed 32, which reads as data
+     loss on a phone even though nothing was lost.
+
+     useBookings filters is_draft out, so the two sets are disjoint and
+     concatenating cannot double-count.
+
+     The label is the honest part. 31 of these 32 are not drafts — they
+     are finished-or-scheduled bookings that have not been paid, worth
+     $6,056 with 26 of them already in the past. A row that says
+     "Draft — not booked" about an unpaid job is wrong, so each row says
+     which of the two it actually is. The tab is still one tab; splitting
+     it properly is a separate decision. */
+  const draftRows = useMemo(() => {
+    const trueDrafts = (draftsQ.data ?? []).map(d => ({ row: d, unpaid: false }));
+    const unpaid = (bookingsQ.data ?? [])
+      .filter(b => b.status === 'pending' && b.payment_status === 'pending')
+      .map(b => ({ row: b, unpaid: true }));
+    return [...trueDrafts, ...unpaid];
+  }, [draftsQ.data, bookingsQ.data]);
+  const unpaidCount = draftRows.filter(d => d.unpaid).length;
+
 
   const phase = queryPhase(bookingsQ);
   /* ListShell has no 'offline' — it is surfaced as an error with its own copy,
@@ -193,7 +236,7 @@ export default function BookingsWiredPage() {
 
   const tabs = [
     { id: 'all' as Tab, label: 'All', count: all.length },
-    { id: 'drafts' as Tab, label: 'Drafts', count: (draftsQ.data ?? []).length },
+    { id: 'drafts' as Tab, label: 'Drafts & unpaid', count: draftRows.length },
     { id: 'quotes' as Tab, label: 'Quotes', count: (quotesQ.data ?? []).length },
     { id: 'wages' as Tab, label: 'Wages' },
   ];
@@ -213,18 +256,22 @@ export default function BookingsWiredPage() {
       <>
         {tab === 'drafts' && (
           <>
-            <ListSectionLabel>{(draftsQ.data ?? []).length} drafts</ListSectionLabel>
-            {(draftsQ.data ?? []).map((d: any) => (
+            <ListSectionLabel>
+              {unpaidCount > 0
+                ? `${draftRows.length - unpaidCount} draft${draftRows.length - unpaidCount === 1 ? '' : 's'} · ${unpaidCount} awaiting payment`
+                : `${draftRows.length} draft${draftRows.length === 1 ? '' : 's'}`}
+            </ListSectionLabel>
+            {draftRows.map(({ row: d, unpaid }: any) => (
               <ListRow
                 key={d.id}
                 lead={{ kind: 'ref', label: `#${d.booking_number}` }}
                 title={d.customer ? `${d.customer.first_name ?? ''} ${d.customer.last_name ?? ''}`.replace(/\s+/g, ' ').trim() || 'Unknown' : 'Unknown'}
-                meta="Draft — not booked"
+                meta={unpaid ? 'Booked — awaiting payment' : 'Draft — not booked'}
                 lines={[d.scheduled_at ? fmt(d.scheduled_at) : 'No date set']}
                 money={d.total_amount == null ? '—' : `$${Number(d.total_amount).toFixed(2)}`}
               />
             ))}
-            {(draftsQ.data ?? []).length === 0 && (
+            {draftRows.length === 0 && (
               <p className="px-4 py-6 text-center text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
                 No drafts.
               </p>
@@ -282,7 +329,7 @@ export default function BookingsWiredPage() {
     );
 
   return (
-    <AdminLayout title="Bookings" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <BookingsListView<Tab>
           phase={listState}
@@ -293,12 +340,19 @@ export default function BookingsWiredPage() {
           tab={tab}
           onTab={setTab}
           summary={summary}
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           sectionLabel={
             search.trim()
               ? `${rows.length} of ${all.length} bookings`
               : `${all.length} bookings`
           }
-          onSelect={r => navigate(`/dashboard/bookings?booking=${r.id}`)}
+          onSelect={r =>
+            onSelectBooking
+              ? onSelectBooking(r.id)
+              : navigate(`/dashboard/bookings?booking=${r.id}`)
+          }
           onRetry={() => {
             bookingsQ.refetch();
             draftsQ.refetch();
@@ -308,6 +362,27 @@ export default function BookingsWiredPage() {
           {tabBody}
         </BookingsListView>
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function BookingsWiredPage() {
+  return (
+    <AdminLayout title="Bookings" subtitle="Mobile layout, live data">
+      <BookingsMobileBody />
     </AdminLayout>
   );
 }

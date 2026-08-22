@@ -1,4 +1,6 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { NotificationsMobileBody } from '@/pages/admin/SimpleWiredPages';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -37,6 +39,7 @@ const PUSH_CATEGORIES = [
 ];
 
 export default function NotificationsPage() {
+  const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgId = organization?.id ?? null;
 
@@ -154,6 +157,18 @@ export default function NotificationsPage() {
       setSendingEvening(false);
     }
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders NotificationsMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  if (isMobile) {
+    return (
+      <AdminLayout title="Notifications" subtitle="Manage how you receive notifications">
+        <NotificationsMobileBody />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Notifications" subtitle="Manage how you receive notifications">

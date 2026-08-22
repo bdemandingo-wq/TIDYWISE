@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
 import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell } from '@/components/portal-v2';
+import { ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -48,7 +50,11 @@ const DOC_LABEL: Record<string, string> = {
   certification: 'Certification',
 };
 
-export default function StaffWiredPage() {
+export function StaffMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
 
@@ -212,7 +218,7 @@ export default function StaffWiredPage() {
           : 'ready';
 
   return (
-    <AdminLayout title="Staff" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {/* 10g opens with the head-count and its split. */}
         <InverseHeader
@@ -234,6 +240,15 @@ export default function StaffWiredPage() {
             </>
           }
         />
+        {/* Outside ListShell — the shell renders children only when
+            state === 'ready', so actions inside it vanish on an empty or
+            failed list. */}
+        {actions && actions.length > 0 && (
+          <div className="px-5 pb-1.5 pt-1">
+            <ActionChipRow actions={actions} label="Staff actions" />
+          </div>
+        )}
+
         <ListShell<'all'>
           title="Staff"
           action={{ label: 'Add staff' }}
@@ -281,6 +296,27 @@ export default function StaffWiredPage() {
           ))}
         </ListShell>
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function StaffWiredPage() {
+  return (
+    <AdminLayout title="Staff" subtitle="Mobile layout, live data">
+      <StaffMobileBody />
     </AdminLayout>
   );
 }

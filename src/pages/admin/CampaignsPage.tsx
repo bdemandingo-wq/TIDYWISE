@@ -145,7 +145,10 @@ export default function CampaignsPage() {
       title="Campaigns"
       subtitle="Manage marketing campaigns and automations"
       actions={
-        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+        /* The label is hidden below sm, so without aria-label the primary
+           action on this page is announced as just "button" — and it is the
+           only way to create a campaign. */
+        <Button className="gap-2" aria-label="New Campaign" onClick={() => setCreateOpen(true)}>
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">New Campaign</span>
         </Button>

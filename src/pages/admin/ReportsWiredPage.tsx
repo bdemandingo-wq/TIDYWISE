@@ -5,7 +5,8 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { useMemo, useState } from 'react';
-import { Card, CardTitle, StatCard, Sparkline, SegmentedTabs } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, Sparkline, SegmentedTabs, ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/reports-v2 — the reports overview on real data. ADDITIVE.
@@ -43,7 +44,17 @@ import { Card, CardTitle, StatCard, Sparkline, SegmentedTabs } from '@/component
 const money = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function ReportsWiredPage() {
+/**
+ * `actions` is the live ReportsPage's date-range control. Reports with no
+ * stated period are the same trap as payroll — a number is meaningless
+ * until you know the window. Optional, so /dashboard/reports-v2 is
+ * unchanged.
+ */
+export function ReportsMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   /* Booked by default — it is the series that actually has shape, and an
      operator plans against work scheduled. Labelled and switchable, because
@@ -132,7 +143,7 @@ export default function ReportsWiredPage() {
 
   if (phase === 'error' || phase === 'offline') {
     return (
-      <AdminLayout title="Reports" subtitle="Mobile layout, live data">
+      <>
         <div className="portal-v2 mx-auto w-full max-w-[430px] px-5 py-4">
           <Card>
             <CardTitle>Couldn&rsquo;t load your reports</CardTitle>
@@ -142,13 +153,17 @@ export default function ReportsWiredPage() {
             </p>
           </Card>
         </div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Reports" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
+        {actions && actions.length > 0 && (
+          <ActionChipRow actions={actions} label="Report period" />
+        )}
+
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">Loading…</p>
         ) : (
@@ -261,6 +276,27 @@ export default function ReportsWiredPage() {
           </>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function ReportsWiredPage() {
+  return (
+    <AdminLayout title="Reports" subtitle="Mobile layout, live data">
+      <ReportsMobileBody />
     </AdminLayout>
   );
 }
