@@ -29,6 +29,8 @@ export type SimpleListRow = {
   badges?: { tone: 'success' | 'info' | 'warn' | 'danger'; label: string }[];
   /** Inline row actions — 8a's Mark Paid / Resend / View · Duplicate. */
   actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
+  /** 7f / 11a's left status bar. */
+  accent?: 'success' | 'warn' | 'danger' | 'brand';
 };
 
 export function SimpleListView({
@@ -51,6 +53,7 @@ export function SimpleListView({
   onAdd,
   onFilter,
   filterCount,
+  badgeAlign,
 }: {
   title: string;
   phase: ListState;
@@ -87,6 +90,8 @@ export function SimpleListView({
   /** Compound controls (selects, ranges) that do not fit in a chip row. */
   onFilter?: () => void;
   filterCount?: number;
+  /** 7f / 10c right-align their status pills; 4c does not. */
+  badgeAlign?: 'left' | 'right';
 }) {
   const filtered = search.trim().length > 0;
 
@@ -144,6 +149,8 @@ export function SimpleListView({
           money={r.money}
           status={r.badges}
           actions={r.actions}
+          accent={r.accent}
+          badgeAlign={badgeAlign}
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}

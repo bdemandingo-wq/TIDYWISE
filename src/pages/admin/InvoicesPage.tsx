@@ -442,6 +442,27 @@ export default function InvoicesPage() {
             if (inv) { setViewingInvoice(inv); setViewDialogOpen(true); }
           }}
         />
+
+
+        {/* Mounted in the mobile arm too. The new dead-control guard caught
+            this — a SEVENTH instance of the same pattern, in a screen I had
+            already 'finished'. Without these, New Invoice and the row's View
+            action both did nothing on a phone. */}
+        <InvoiceFormDialog
+          open={formDialogOpen}
+          onOpenChange={(open) => {
+            setFormDialogOpen(open);
+            if (!open) setEditingInvoice(null);
+          }}
+          invoice={editingInvoice}
+          customers={customers}
+          leads={leads}
+          services={services}
+          defaultTaxPercent={defaultTaxPercent}
+          organizationId={organization?.id || ''}
+        />
+
+        <InvoiceViewDialog open={viewDialogOpen} onOpenChange={setViewDialogOpen} invoice={viewingInvoice} />
       </AdminLayout>
     );
   }

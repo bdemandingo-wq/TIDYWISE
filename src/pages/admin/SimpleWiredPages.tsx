@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
@@ -50,12 +51,17 @@ import type { ListState } from '@/components/portal-v2';
  */
 
 type Cfg = {
+  /** PostgREST select. Defaults to '*'. */
+  select?: string;
+  /** 7f / 10c right-align their status pills; 4c does not. */
+  badgeAlign?: 'left' | 'right';
   title: string;
   table: string;
   order: { col: string; asc: boolean };
   emptyTitle: string;
   emptyHint: string;
-  map: (r: any) => SimpleListRow;
+  /** `fmtDay` renders a date in the ORG's timezone — never the device's. */
+  map: (r: any, fmtDay: (iso: string | null | undefined) => string | null) => SimpleListRow;
   searchPlaceholder?: string;
   /** Used when the count is exactly 1. */
   singular?: string;
@@ -75,6 +81,7 @@ type RawRow = Record<string, unknown>;
 /** Shared plumbing: one query, one phase, one view. */
 function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
   const { organization } = useOrganization();
+  const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
 
   const q = useQuery({
@@ -83,7 +90,9 @@ function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
       if (!organization?.id) return [];
       const { data, error } = await supabase
         .from(cfg.table as never)
-        .select('*')
+        /* cfg.select lets a screen ask for more than its own columns —
+           Checklists needs an embedded item count. Defaults to '*'. */
+        .select(cfg.select ?? '*')
         .eq('organization_id', organization.id)
         .order(cfg.order.col, { ascending: cfg.order.asc })
         /* Unique tiebreaker on every one of these. None uses .range() today,
@@ -100,9 +109,27 @@ function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
      columns the display row does not carry — Inventory's category and
      low-stock are both like that. Applied before the search so the count
      under the search box describes what is on screen. */
+  /* A day formatted in the ORG's zone. Screens were rendering raw ISO
+     ("2026-01-22") straight from the column, which is a database value, not a
+     date a person reads. Passed into cfg.map so every screen formats the same
+     way and none reaches for the device's locale. */
+  const fmtDay = useMemo(() => {
+    const f = new Intl.DateTimeFormat('en-US', {
+      timeZone: orgTz,
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return (iso: string | null | undefined) => {
+      if (!iso) return null;
+      const d = new Date(iso);
+      return Number.isNaN(d.getTime()) ? null : f.format(d);
+    };
+  }, [orgTz]);
+
   const all = useMemo(
-    () => (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(cfg.map),
-    [q.data, cfg, rowFilter],
+    () => (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(r => cfg.map(r, fmtDay)),
+    [q.data, cfg, rowFilter, fmtDay],
   );
   const rows = useSimpleSearch(all, search);
   const phase = queryPhase(q);
@@ -137,6 +164,7 @@ function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter }: { cfg
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          badgeAlign={cfg.badgeAlign}
           actions={actions}
           onAdd={onAdd}
           onFilter={onFilter}
@@ -345,6 +373,9 @@ export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
         }),
         singular: 'checklist',
         table: 'checklist_templates',
+        /* 11a's row reads "11 items · assigned to X". The count comes from an
+           embedded aggregate rather than a second query per row. */
+        select: '*, checklist_items(count)',
         order: { col: 'name', asc: true },
         emptyTitle: 'No checklists yet',
         emptyHint: 'Templates you build will show here.',
@@ -353,7 +384,16 @@ export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
           id: t.id,
           title: t.name,
           meta: t.description ? t.description : null,
-          lines: [t.service_id ? 'Linked to a service' : 'Not linked to a service'],
+          lines: [
+            /* PostgREST returns the aggregate as [{ count }]. Undefined means
+               the embed did not come back, which is not the same as zero
+               items — so it says nothing rather than claiming none. */
+            (() => {
+              const n = Array.isArray(t.checklist_items) ? t.checklist_items[0]?.count : undefined;
+              return typeof n === 'number' ? `${n} item${n === 1 ? '' : 's'}` : null;
+            })(),
+            t.service_id ? 'Linked to a service' : 'Not linked to a service',
+          ],
         }),
       }}
     />
@@ -409,6 +449,8 @@ export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
       {...toolbar}
       cfg={{
         title: 'Feedback',
+        /* 10c puts the Open / Resolved pill at the right of the row. */
+        badgeAlign: 'right',
         header: (rows, ready) => {
           const rated = rows.filter((r: any) => r.rating != null);
           const avg = rated.length ? rated.reduce((s: number, r: any) => s + Number(r.rating), 0) / rated.length : null;
@@ -430,7 +472,7 @@ export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
         emptyTitle: 'No feedback yet',
         emptyHint: 'Ratings and comments from clients will show here.',
         searchPlaceholder: 'Search feedback...',
-        map: (fb: any): SimpleListRow => ({
+        map: (fb: any, fmtDay): SimpleListRow => ({
           id: fb.id,
           title:
             fb.rating === null || fb.rating === undefined
@@ -439,7 +481,7 @@ export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
           meta: fb.issue_description ? fb.issue_description : null,
           lines: [
             fb.resolution ? `Resolution: ${fb.resolution}` : null,
-            String(fb.created_at).slice(0, 10),
+            fmtDay(fb.created_at),
           ],
           badges: [
             /* Both are nullable in the schema. Null means nobody has decided

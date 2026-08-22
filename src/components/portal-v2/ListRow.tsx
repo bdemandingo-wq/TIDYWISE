@@ -45,6 +45,8 @@ export function ListRow({
   money,
   status,
   actions,
+  badgeAlign = 'left',
+  accent,
   onClick,
   className,
 }: {
@@ -77,6 +79,15 @@ export function ListRow({
      They stopPropagation, so tapping an action never also fires the row's
      own onClick — otherwise "Mark Paid" would mark it paid AND open it. */
   actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
+  /* ── Comp variance, made explicit ─────────────────────────────────────
+     4c puts the badges bottom-LEFT with an overflow control at the right.
+     7f, 10c and 7g right-align them instead. The comps genuinely differ, so
+     this is a prop rather than a global choice — defaulting to the existing
+     left so no screen moves unless it asks. */
+  badgeAlign?: 'left' | 'right';
+  /* 7f and 11a carry a coloured bar down the left edge of the row, keyed to
+     status. Optional: a row that does not pass one renders exactly as before. */
+  accent?: 'success' | 'warn' | 'danger' | 'brand';
   onClick?: () => void;
   className?: string;
 }) {
@@ -101,6 +112,12 @@ export function ListRow({
            The previous build put money and badges in a right-hand column and
            the ref in a 46px left gutter. Both are corrected here. */
         'block w-full rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4 py-[13px] text-left',
+        /* 7f / 11a's status bar: a thicker left border in the status colour,
+           which keeps the row's radius and needs no extra element. */
+        accent === 'success' && 'border-l-[3px] border-l-[hsl(var(--pv-success))]',
+        accent === 'warn' && 'border-l-[3px] border-l-[hsl(var(--pv-warn))]',
+        accent === 'danger' && 'border-l-[3px] border-l-[hsl(var(--pv-danger))]',
+        accent === 'brand' && 'border-l-[3px] border-l-[hsl(var(--pv-brand))]',
         onClick &&
           'transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]',
         className,
@@ -151,7 +168,12 @@ export function ListRow({
       ))}
 
       {badges.length > 0 && (
-        <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
+        <span
+          className={
+            'mt-[9px] flex flex-wrap items-center gap-1.5' +
+            (badgeAlign === 'right' ? ' justify-end' : '')
+          }
+        >
           {badges.map((b, i) => (
             <StatusBadge key={`${b.label}-${i}`} tone={b.tone} label={b.label} />
           ))}
