@@ -58,6 +58,11 @@ export function SimpleListView({
   onFilter,
   filterCount,
   badgeAlign,
+  hideTitle,
+  hideSearch,
+  hideTabs,
+  hideSectionLabel,
+  beforeList,
 }: {
   title: string;
   phase: ListState;
@@ -96,6 +101,14 @@ export function SimpleListView({
   filterCount?: number;
   /** 7f / 10c right-align their status pills; 4c does not. */
   badgeAlign?: 'left' | 'right';
+  /* Comps 6a / 8a / 10g carry the title, search and tabs in the hero, so the
+     shell must not render a second set. */
+  hideTitle?: boolean;
+  hideSearch?: boolean;
+  hideTabs?: boolean;
+  hideSectionLabel?: boolean;
+  /** Content between the header and the list (6a's month calendar). */
+  beforeList?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
 
@@ -113,8 +126,13 @@ export function SimpleListView({
         </div>
       )}
 
+      {beforeList}
+
       <ListShell<'all'>
       title={title}
+      hideTitle={hideTitle}
+      hideSearch={hideSearch}
+      hideTabs={hideTabs}
       action={{ label: addLabel ?? 'Add', onClick: onAdd }}
       onFilter={onFilter}
       filterCount={filterCount ?? 0}
@@ -138,7 +156,9 @@ export function SimpleListView({
       onRetry={onRetry}
       skeletonRows={5}
     >
-      <ListSectionLabel>{sectionLabel ?? `${rows.length} items`}</ListSectionLabel>
+      {!hideSectionLabel && (
+        <ListSectionLabel>{sectionLabel ?? `${rows.length} items`}</ListSectionLabel>
+      )}
       {note && (
         <p className="mx-4 mb-2 rounded-[10px] bg-[hsl(var(--pv-warn-soft))] px-3.5 py-2.5 text-[11.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]">
           {note}
