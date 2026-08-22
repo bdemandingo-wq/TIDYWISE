@@ -129,6 +129,31 @@ export function BookingsMobileBody() {
   );
   const rows = useBookingSearch(all, search);
 
+  /* ── Drafts tab: matches BookingsPage, deliberately ────────────────────
+     BookingsPage has always shown true is_draft rows PLUS non-draft rows
+     sitting on pending status and pending payment. Counting only is_draft
+     here showed 1 where the live screen showed 32, which reads as data
+     loss on a phone even though nothing was lost.
+
+     useBookings filters is_draft out, so the two sets are disjoint and
+     concatenating cannot double-count.
+
+     The label is the honest part. 31 of these 32 are not drafts — they
+     are finished-or-scheduled bookings that have not been paid, worth
+     $6,056 with 26 of them already in the past. A row that says
+     "Draft — not booked" about an unpaid job is wrong, so each row says
+     which of the two it actually is. The tab is still one tab; splitting
+     it properly is a separate decision. */
+  const draftRows = useMemo(() => {
+    const trueDrafts = (draftsQ.data ?? []).map(d => ({ row: d, unpaid: false }));
+    const unpaid = (bookingsQ.data ?? [])
+      .filter(b => b.status === 'pending' && b.payment_status === 'pending')
+      .map(b => ({ row: b, unpaid: true }));
+    return [...trueDrafts, ...unpaid];
+  }, [draftsQ.data, bookingsQ.data]);
+  const unpaidCount = draftRows.filter(d => d.unpaid).length;
+
+
   const phase = queryPhase(bookingsQ);
   /* ListShell has no 'offline' — it is surfaced as an error with its own copy,
      because the one thing that must not happen is it reading as "empty". */
@@ -193,7 +218,7 @@ export function BookingsMobileBody() {
 
   const tabs = [
     { id: 'all' as Tab, label: 'All', count: all.length },
-    { id: 'drafts' as Tab, label: 'Drafts', count: (draftsQ.data ?? []).length },
+    { id: 'drafts' as Tab, label: 'Drafts', count: draftRows.length },
     { id: 'quotes' as Tab, label: 'Quotes', count: (quotesQ.data ?? []).length },
     { id: 'wages' as Tab, label: 'Wages' },
   ];
@@ -213,18 +238,22 @@ export function BookingsMobileBody() {
       <>
         {tab === 'drafts' && (
           <>
-            <ListSectionLabel>{(draftsQ.data ?? []).length} drafts</ListSectionLabel>
-            {(draftsQ.data ?? []).map((d: any) => (
+            <ListSectionLabel>
+              {unpaidCount > 0
+                ? `${draftRows.length - unpaidCount} draft${draftRows.length - unpaidCount === 1 ? '' : 's'} · ${unpaidCount} awaiting payment`
+                : `${draftRows.length} draft${draftRows.length === 1 ? '' : 's'}`}
+            </ListSectionLabel>
+            {draftRows.map(({ row: d, unpaid }: any) => (
               <ListRow
                 key={d.id}
                 lead={{ kind: 'ref', label: `#${d.booking_number}` }}
                 title={d.customer ? `${d.customer.first_name ?? ''} ${d.customer.last_name ?? ''}`.replace(/\s+/g, ' ').trim() || 'Unknown' : 'Unknown'}
-                meta="Draft — not booked"
+                meta={unpaid ? 'Booked — awaiting payment' : 'Draft — not booked'}
                 lines={[d.scheduled_at ? fmt(d.scheduled_at) : 'No date set']}
                 money={d.total_amount == null ? '—' : `$${Number(d.total_amount).toFixed(2)}`}
               />
             ))}
-            {(draftsQ.data ?? []).length === 0 && (
+            {draftRows.length === 0 && (
               <p className="px-4 py-6 text-center text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
                 No drafts.
               </p>
