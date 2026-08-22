@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PayrollMobileBody } from '@/pages/admin/PayrollWiredPage';
-import type { ActionChip } from '@/components/portal-v2';
+import type { ActionChip, PayrollStaffRow } from '@/components/portal-v2';
+import { PayrollReport } from '@/components/portal-v2';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -1205,6 +1206,71 @@ export default function PayrollPage() {
     return (
       <AdminLayout title="Payroll Report" subtitle="Staff wages, profitability, and forecasting">
         <SEOHead title="Payroll | TidyWise" description="Manage staff payroll and wages" noIndex />
+        {/* This page's own warning, which lived only in the desktop branch
+            below the early return — so on a phone a failed source showed no
+            warning at all while the totals rendered as fact. On a screen
+            people pay from, that is the worst place for it to be missing. */}
+        {loadFailures.length > 0 && (
+          <div className="mx-4 mb-3 rounded-[14px] border border-[hsl(var(--pv-danger))] bg-[hsl(var(--pv-danger-soft))] px-4 py-3">
+            <p className="text-[13px] font-extrabold text-[hsl(var(--pv-danger))]">
+              These figures are incomplete
+            </p>
+            <p className="mt-1 text-[12.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]">
+              Do not pay from these totals until they load. Failed:{' '}
+              {loadFailures.map(([label]) => label).join(', ')}.
+            </p>
+          </div>
+        )}
+
+        {/* 11c's report and 11d's staff summary, stacked ABOVE the roster the
+            wiring pass built. 11c has no list and the live screen is all list;
+            rendering both means the screen reads report-then-detail rather
+            than one replacing the other.
+
+            Every figure comes from this page's own derivation — the report
+            computes nothing. Deriving them a second time inside the component
+            is how two numbers on one screen start disagreeing. */}
+        <PayrollReport
+          ready={loadFailures.length === 0}
+          periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
+          totalPayroll={totalPayroll}
+          avgLaborPct={avgLaborPct}
+          revenueNet={totalRevenue}
+          profit={totalProfit}
+          hours={totalHours}
+          cleans={totalCleans}
+          negativeMarginCount={negativeMarginCount}
+          contractorsNeedingFiling={contractorsNeedingFiling}
+          current={{
+            label: getPeriodTitle(periodConfig, 'current'),
+            revenueNet: currentWeekForecast.revenueNet,
+            laborTotal: currentWeekForecast.laborTotal,
+            profit: currentWeekForecast.profit,
+            laborPct: currentWeekForecast.laborPct,
+            bookingCount: currentWeekForecast.bookingCount,
+          }}
+          next={{
+            label: getPeriodTitle(periodConfig, 'next'),
+            revenueNet: nextWeekForecast.revenueNet,
+            laborTotal: nextWeekForecast.laborTotal,
+            profit: nextWeekForecast.profit,
+            missingPay: nextWeekForecast.missingPay,
+          }}
+          staff={effectivePayrollData.map((s): PayrollStaffRow => ({
+            id: s.id,
+            name: maskName(s.name),
+            /* 11d chips the classification. Null stays null — an unset
+               classification is not the same as W-2. */
+            classification: s.tax_classification === '1099' ? '1099' : s.tax_classification === 'w2' ? 'W-2' : null,
+            cleans: s.assignedCleans,
+            hours: s.totalHours,
+            ytd: s.ytdEarnings,
+            pay: s.totalPay,
+            laborPct: s.revenueAttributed > 0 ? (s.totalPay / s.revenueAttributed) * 100 : null,
+          }))}
+          onExport={exportCSV}
+        />
+
         <PayrollMobileBody
           actions={mobileActions}
           onFilter={() => setMobileFiltersOpen(true)}

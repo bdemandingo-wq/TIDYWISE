@@ -22,6 +22,8 @@ export { TimeChipRow, OTHER_TIME, formatTime24 } from './TimeChipRow';
 export type { TimeChoice } from './TimeChipRow';
 export { BookingRow } from './BookingRow';
 export { ActionChipRow } from './ActionChipRow';
+export { PayrollReport } from './PayrollReport';
+export type { PayrollStaffRow } from './PayrollReport';
 export type { ActionChip } from './ActionChipRow';
 export { LoyaltyBanner } from './LoyaltyBanner';
 export { ShortcutCard } from './ShortcutCard';
