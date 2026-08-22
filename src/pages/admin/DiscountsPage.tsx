@@ -149,6 +149,13 @@ export default function DiscountsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Discounts & Coupons" subtitle="Manage promotional codes">
+        {/* 10a's whole comp is the AI suggestions rail above the list — the
+            mobile arm had it nowhere at all, so "Create ->" on a suggestion
+            was unreachable on a phone. Same component desktop mounts, same
+            prefill handler. */}
+        <div className="px-4 pt-1">
+          <AIDiscountSuggestions onCreateDiscount={openWithPrefill} />
+        </div>
         <DiscountsMobileBody
           /* The active toggle. handleToggleActive takes the whole discount
              because it needs the current value to invert and to word the

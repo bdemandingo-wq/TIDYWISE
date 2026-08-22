@@ -179,7 +179,18 @@ export default function ServicesPage() {
           />
         </div>
 
-        {mobileTab === 'custom-services' && <ServicesMobileBody actions={mobileActions} />}
+        {mobileTab === 'custom-services' && (
+          <>
+            <ServicesMobileBody actions={mobileActions} />
+            {/* 10d's list ends with a tip pointing at the Pricing tab; the
+                mobile arm had the list but never this closing hint. */}
+            <div className="px-4 pb-6">
+              <div className="rounded-xl bg-[hsl(var(--pv-surface-2))] p-3 text-[11.5px] leading-relaxed text-[hsl(var(--pv-ink-3))]">
+                <b className="text-[hsl(var(--pv-ink))]">Tip:</b> after creating a service, use the Service Pricing tab to set square-footage rates, bed/bath combinations, extras and more.
+              </div>
+            </div>
+          </>
+        )}
         {mobileTab === 'service-pricing' && (
           <div className="space-y-4 px-4 pb-6"><ServicePricingEditor /></div>
         )}
