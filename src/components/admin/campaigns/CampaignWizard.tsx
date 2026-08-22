@@ -674,7 +674,7 @@ export function CampaignWizard({
               )}
 
               {(campaignForm.channel === "email" || campaignForm.channel === "both") && (
-                <>
+                <div className={cn(isMobile && "border rounded-2xl p-4 space-y-4 bg-card")}>
                   <div className="space-y-2">
                     <Label>Email Subject</Label>
                     <Input
@@ -695,7 +695,7 @@ export function CampaignWizard({
                       Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}
                     </p>
                   </div>
-                </>
+                </div>
               )}
 
               {/* Live Preview */}
