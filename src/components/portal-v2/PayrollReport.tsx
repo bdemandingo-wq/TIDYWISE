@@ -69,6 +69,7 @@ export function PayrollReport({
   next,
   staff,
   onExport,
+  tabs,
   ready,
 }: {
   periodLabel: string;
@@ -84,6 +85,8 @@ export function PayrollReport({
   next?: { label: string; revenueNet: number; laborTotal: number; profit: number; missingPay: number };
   staff: PayrollStaffRow[];
   onExport?: () => void;
+  /* 11d keeps the screen's tab row inside the hero. */
+  tabs?: React.ReactNode;
   ready: boolean;
 }) {
   return (
@@ -98,6 +101,8 @@ export function PayrollReport({
             ? { direction: avgLaborPct > 60 ? 'down' : 'up', label: `${avgLaborPct.toFixed(1)}% avg labor` }
             : undefined
         }
+        action={onExport ? { label: 'Export', onClick: onExport } : undefined}
+        tabs={tabs}
         wells={
           <>
             <StatWell value={ready ? money(revenueNet) : '—'} caption="revenue (net)" />
