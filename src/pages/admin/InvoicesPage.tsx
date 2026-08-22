@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { InvoicesMobileBody } from '@/pages/admin/InvoicesWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -154,6 +157,7 @@ function editBlockedReason(status: Invoice['status']): string {
 }
 
 export default function InvoicesPage() {
+  const isMobile = useIsMobile();
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -406,6 +410,27 @@ export default function InvoicesPage() {
     totalPaid: invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total_amount, 0),
     totalOutstanding: invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.total_amount, 0),
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders InvoicesMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    {
+      id: 'new',
+      label: 'New Invoice',
+      icon: <Plus className="h-3.5 w-3.5" />,
+      onClick: () => { setEditingInvoice(null); setFormDialogOpen(true); },
+    },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Invoices" subtitle={`${invoices.length} total invoices`}>
+        <InvoicesMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

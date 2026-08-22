@@ -7,6 +7,8 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
 import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -67,7 +69,11 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'warn' | 'danger'> = {
   cancelled: 'warn',
 };
 
-export function InvoicesMobileBody() {
+export function InvoicesMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -203,6 +209,7 @@ export function InvoicesMobileBody() {
         )}
 
         <SimpleListView
+          actions={actions}
           title="Invoices"
           phase={listState}
           rows={filtered}

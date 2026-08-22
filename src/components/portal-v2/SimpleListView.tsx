@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
+import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { ListRow } from './ListRow';
 
 /**
@@ -44,6 +45,10 @@ export function SimpleListView({
   sectionLabel,
   note,
   header,
+  actions,
+  onAdd,
+  onFilter,
+  filterCount,
 }: {
   title: string;
   phase: ListState;
@@ -69,15 +74,39 @@ export function SimpleListView({
      Optional, so the states previews and any caller that does not want one
      are unchanged. */
   header?: ReactNode;
+  /* ── Added when the live screens' toolbars moved onto phones ───────────
+     A comp gives a list screen one action. The live admin screens have two
+     to four, and swapping the phone layout in without them would delete
+     those actions from phones entirely. They render as chips between the
+     header and the rows. Optional throughout. */
+  actions?: ActionChip[];
+  /** Wires the shell's "+ Add" button to the live page's real dialog. */
+  onAdd?: () => void;
+  /** Compound controls (selects, ranges) that do not fit in a chip row. */
+  onFilter?: () => void;
+  filterCount?: number;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
     <>
       {header}
+
+      {/* Outside ListShell on purpose. The shell renders children only when
+          state === 'ready', so a chip row inside it disappears on an empty,
+          loading or failed list — taking "Add" with it at exactly the moment
+          someone needs it. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1.5 pt-1">
+          <ActionChipRow actions={actions} label={`${title} actions`} />
+        </div>
+      )}
+
       <ListShell<'all'>
       title={title}
-      action={{ label: addLabel ?? 'Add' }}
+      action={{ label: addLabel ?? 'Add', onClick: onAdd }}
+      onFilter={onFilter}
+      filterCount={filterCount ?? 0}
       search={search}
       onSearch={onSearch}
       searchPlaceholder={searchPlaceholder ?? 'Search...'}
@@ -92,7 +121,7 @@ export function SimpleListView({
               hint: 'Try a different search.',
               action: { label: 'Clear search', onClick: () => onSearch('') },
             }
-          : { title: emptyTitle, hint: emptyHint, action: { label: addLabel ?? 'Add' } }
+          : { title: emptyTitle, hint: emptyHint, action: { label: addLabel ?? 'Add', onClick: onAdd } }
       }
       errorLabel={errorLabel}
       onRetry={onRetry}

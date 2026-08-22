@@ -6,6 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -51,7 +52,11 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Expenses ──────────────────────────────────────────────────────────── */
-export function ExpensesMobileBody() {
+export function ExpensesMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -115,6 +120,7 @@ export function ExpensesMobileBody() {
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
           header={
             <InverseHeader
               eyebrow="Costs"

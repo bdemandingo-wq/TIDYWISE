@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { RecurringMobileBody } from '@/pages/admin/RecurringWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -209,6 +212,7 @@ function formatDateKey(d: Date, timeZone: string): string {
 }
 
 export default function RecurringBookingsPage() {
+  const isMobile = useIsMobile();
   // Recurrence is the BUSINESS's calendar: which weekday a series lands on,
   // and therefore which per-day price applies.
   const orgTimezone = useOrgTimezone();
@@ -609,6 +613,22 @@ export default function RecurringBookingsPage() {
     if (!nextB) return -1;
     return nextA.getTime() - nextB.getTime();
   });
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders RecurringMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'add', label: 'Add Recurring', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Recurring Bookings" subtitle={`${recurringBookings.length} recurring schedules`}>
+        <RecurringMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

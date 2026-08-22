@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { FeedbackMobileBody } from '@/pages/admin/SimpleWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,6 +49,7 @@ interface FeedbackEntry {
 }
 
 export default function ClientFeedbackPage() {
+  const isMobile = useIsMobile();
   // feedback_date is a DATE column: the business's calendar day.
   const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -188,6 +192,23 @@ export default function ClientFeedbackPage() {
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`client-feedback-${orgDateKey(new Date(), orgTimezone)}.csv`, csvContent, 'text/csv');
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders FeedbackMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: exportToExcel },
+    { id: 'add', label: 'Add Feedback', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Client Feedback" subtitle="Track and resolve customer issues">
+        <FeedbackMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

@@ -284,6 +284,22 @@ export function PayrollMobileBody({
           </div>
         )}
 
+        {/* Outside ListShell on purpose — the shell renders children only when
+            state === 'ready'. Inside it, the actions AND the period these
+            figures cover would disappear on an empty or failed read, which is
+            precisely when an unexplained blank payroll screen needs a date on
+            it. */}
+        {actions && actions.length > 0 && (
+          <div className="px-5 pb-1 pt-1">
+            <ActionChipRow actions={actions} label="Payroll actions" />
+          </div>
+        )}
+        {periodLabel && (
+          <p className="px-5 pb-1.5 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+            {periodLabel}
+          </p>
+        )}
+
         <ListShell<'all'>
           title="Payroll"
           action={{ label: 'Run payroll' }}
@@ -308,22 +324,6 @@ export function PayrollMobileBody({
           }}
           skeletonRows={5}
         >
-          {actions && actions.length > 0 && (
-            <div className="px-5 pb-1.5 pt-0.5">
-              <ActionChipRow actions={actions} label="Payroll actions" />
-            </div>
-          )}
-
-          {/* The period these figures cover. Payroll numbers without a date
-              range are unreadable — "$2,400" means nothing until you know
-              which weeks it counts, and the control that sets it is behind
-              the filter button. */}
-          {periodLabel && (
-            <p className="px-5 pb-1 pt-0.5 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
-              {periodLabel}
-            </p>
-          )}
-
           <ListSectionLabel>
             {search.trim()
               ? `${filtered.length} of ${rows.length}`

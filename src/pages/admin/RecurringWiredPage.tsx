@@ -8,6 +8,8 @@ import { combinedPhase, queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
 import { frequencyLabel, dayName } from '@/lib/frequencyLabel';
 import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import { ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -39,7 +41,11 @@ import type { ListState } from '@/components/portal-v2';
  * means "no end date", not "ended", and the two must not read alike.
  */
 
-export function RecurringMobileBody() {
+export function RecurringMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -152,6 +158,7 @@ export function RecurringMobileBody() {
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
           header={
             <InverseHeader
               eyebrow="Schedules"

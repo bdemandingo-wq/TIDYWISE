@@ -109,6 +109,16 @@ export function BookingsListView<T extends string = 'all'>({
   const singleTab = [{ id: 'all' as T, label: 'All bookings', count: rows.length }];
 
   return (
+    <>
+      {/* Outside ListShell on purpose — the shell renders children only
+          when state === 'ready', so a chip row inside it vanishes on an
+          empty, loading or failed list, taking the actions with it. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1 pt-1">
+          <ActionChipRow actions={actions} label="Booking actions" />
+        </div>
+      )}
+
     <ListShell<T>
       onFilter={onFilter}
       filterCount={filterCount ?? 0}
@@ -143,11 +153,6 @@ export function BookingsListView<T extends string = 'all'>({
           a header for the whole screen rather than for the list. */}
       {summary}
 
-      {actions && actions.length > 0 && (
-        <div className="px-5 pb-1 pt-0.5">
-          <ActionChipRow actions={actions} label="Booking actions" />
-        </div>
-      )}
 
       {children ?? (
         <>
@@ -185,6 +190,7 @@ export function BookingsListView<T extends string = 'all'>({
         </>
       )}
     </ListShell>
+    </>
   );
 }
 

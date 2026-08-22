@@ -58,6 +58,16 @@ export function CustomersListView({
   const filtered = search.trim().length > 0;
 
   return (
+    <>
+      {/* Outside ListShell on purpose — the shell renders children only when
+          state === 'ready', so a chip row inside it vanishes on an empty,
+          loading or failed list, taking the actions with it. */}
+      {actions && actions.length > 0 && (
+        <div className="px-5 pb-1.5 pt-1">
+          <ActionChipRow actions={actions} label="Customer actions" />
+        </div>
+      )}
+
     <ListShell<'all'>
       title="Customers"
       action={{ label: 'Add', onClick: onAdd }}
@@ -85,12 +95,6 @@ export function CustomersListView({
       onRetry={onRetry}
       skeletonRows={6}
     >
-      {actions && actions.length > 0 && (
-        <div className="px-5 pb-1.5 pt-0.5">
-          <ActionChipRow actions={actions} label="Customer actions" />
-        </div>
-      )}
-
       <ListSectionLabel>{sectionLabel ?? `${rows.length} customers`}</ListSectionLabel>
 
       {/* Customers loaded but their booking history did not. Said once, at the
@@ -155,6 +159,7 @@ export function CustomersListView({
         />
       ))}
     </ListShell>
+    </>
   );
 }
 

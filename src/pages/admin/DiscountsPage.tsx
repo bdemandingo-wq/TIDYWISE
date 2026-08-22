@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { DiscountsMobileBody } from '@/pages/admin/SimpleWiredPages';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +40,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { AIDiscountSuggestions } from '@/components/admin/AIDiscountSuggestions';
 
 export default function DiscountsPage() {
+  const isMobile = useIsMobile();
   const { discounts, loading, createDiscount, deleteDiscount, updateDiscount } = useDiscounts();
   const { settings } = useOrganizationSettings();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -136,6 +139,18 @@ export default function DiscountsPage() {
         </div>
       </div>
 </AdminLayout>
+    );
+  }
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders DiscountsMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  if (isMobile) {
+    return (
+      <AdminLayout title="Discounts & Coupons" subtitle="Manage promotional codes">
+        <DiscountsMobileBody />
+      </AdminLayout>
     );
   }
 

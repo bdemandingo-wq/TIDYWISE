@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ExpensesMobileBody } from '@/pages/admin/OpsWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +81,7 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export default function ExpensesPage() {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -246,6 +250,23 @@ export default function ExpensesPage() {
     const cat = EXPENSE_CATEGORIES.find(c => c.value === category);
     return cat?.icon || Receipt;
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders ExpensesMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'export', label: 'Export CSV', icon: <Download className="h-3.5 w-3.5" />, onClick: exportCSV },
+    { id: 'add', label: 'Add Expense', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setAddDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Expenses & Supplies" subtitle="Track business expenses for tax deductions">
+        <ExpensesMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

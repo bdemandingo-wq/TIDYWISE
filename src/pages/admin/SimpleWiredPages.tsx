@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { queryPhase } from '@/lib/queryState';
 import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -108,7 +109,15 @@ function useSimpleScreen(cfg: Cfg) {
   return { q, rows, all, search, setSearch, listState };
 }
 
-function Screen({ cfg }: { cfg: Cfg }) {
+/** The toolbar props every one of these screens forwards untouched. */
+type ToolbarProps = {
+  actions?: ActionChip[];
+  onAdd?: () => void;
+  onFilter?: () => void;
+  filterCount?: number;
+};
+
+function Screen({ cfg, actions, onAdd, onFilter, filterCount }: { cfg: Cfg } & ToolbarProps) {
   const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg);
   const ready = listState === 'ready' || listState === 'empty';
   const h = cfg.header?.(q.data ?? [], ready);
@@ -116,6 +125,10 @@ function Screen({ cfg }: { cfg: Cfg }) {
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
+          onAdd={onAdd}
+          onFilter={onFilter}
+          filterCount={filterCount}
           header={
             h ? (
               <InverseHeader
@@ -158,9 +171,10 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Services ──────────────────────────────────────────────────────────── */
-export function ServicesMobileBody() {
+export function ServicesMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Services',
         header: (rows, ready) => ({
@@ -197,9 +211,10 @@ export function ServicesMobileBody() {
 }
 
 /* ── Discounts ─────────────────────────────────────────────────────────── */
-export function DiscountsMobileBody() {
+export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Discounts',
         header: (rows, ready) => ({
@@ -250,9 +265,10 @@ export function DiscountsMobileBody() {
 }
 
 /* ── Inventory ─────────────────────────────────────────────────────────── */
-export function InventoryMobileBody() {
+export function InventoryMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Inventory',
         header: (rows, ready) => {
@@ -301,9 +317,10 @@ export function InventoryMobileBody() {
 }
 
 /* ── Checklists ────────────────────────────────────────────────────────── */
-export function ChecklistsMobileBody() {
+export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Checklists',
         header: (rows, ready) => ({
@@ -332,9 +349,10 @@ export function ChecklistsMobileBody() {
 }
 
 /* ── Tasks & notes ─────────────────────────────────────────────────────── */
-export function TasksMobileBody() {
+export function TasksMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Tasks',
         header: (rows, ready) => ({
@@ -373,9 +391,10 @@ export function TasksMobileBody() {
 }
 
 /* ── Client feedback ───────────────────────────────────────────────────── */
-export function FeedbackMobileBody() {
+export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
   return (
     <Screen
+      {...toolbar}
       cfg={{
         title: 'Feedback',
         header: (rows, ready) => {
