@@ -1212,7 +1212,7 @@ export default function MessagesPage() {
         {isMobile ? (
           <div className="w-10 shrink-0" aria-hidden="true" />
         ) : (
-          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+          <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
             <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
           </Button>
         )}
@@ -1222,7 +1222,7 @@ export default function MessagesPage() {
         )}>Messages</h1>
         <div className="flex items-center gap-2">
         {isMobile && (
-          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+          <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
             <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
           </Button>
         )}
@@ -1270,11 +1270,12 @@ export default function MessagesPage() {
               </button>
               <button
                 onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
+                aria-label="Select conversations"
                 className="text-[#007AFF]"
               >
                 <Pencil className="h-5 w-5" />
               </button>
-              <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
+              <button onClick={() => setNewConversationOpen(true)} aria-label="New conversation" className="text-[#007AFF]">
                 <Plus className="h-5 w-5" />
               </button>
             </>

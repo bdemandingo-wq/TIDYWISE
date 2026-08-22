@@ -466,8 +466,6 @@ export default function LeadsPage() {
             >
               <AlertTriangle className="w-4 h-4" />
               Abandoned ({abandonedLinks.filter((l: any) => l.link_opened_at && !l.booking_completed_at).length})
-              <Table2 className="w-4 h-4" />
-              Table
             </Button>
           </div>
           <Button
