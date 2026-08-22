@@ -2,6 +2,8 @@ import { cn } from '@/lib/utils';
 import { DateTile } from './DateTile';
 import { Avatar } from './Avatar';
 import { StatusBadge } from './StatusBadge';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * The row that ten admin list screens share.
@@ -47,6 +49,8 @@ export function ListRow({
   actions,
   badgeAlign = 'left',
   accent,
+  toggle,
+  select,
   onClick,
   className,
 }: {
@@ -88,6 +92,22 @@ export function ListRow({
   /* 7f and 11a carry a coloured bar down the left edge of the row, keyed to
      status. Optional: a row that does not pass one renders exactly as before. */
   accent?: 'success' | 'warn' | 'danger' | 'brand';
+  /* ── An on/off control on the row itself ──────────────────────────────
+     11a puts an active toggle on every checklist, and the live Discounts and
+     Checklists screens both have one on desktop that the phone had lost.
+
+     It sits on the title line, right of the money slot, because that is
+     where 11a puts it and because a control below the badges reads as part
+     of the metadata rather than as something you can operate.
+
+     stopPropagation, so flipping the toggle never also fires the row's
+     onClick — otherwise turning a checklist off would also open it. */
+  toggle?: { checked: boolean; onChange: (next: boolean) => void; label: string };
+  /* Bulk SELECTION, which is a different thing from the on/off toggle above:
+     a toggle changes the record, a checkbox only marks it for an action you
+     have not taken yet. Rendered leading, where a selection control belongs,
+     rather than trailing beside the toggle. */
+  select?: { checked: boolean; onChange: (next: boolean) => void; label: string };
   onClick?: () => void;
   className?: string;
 }) {
@@ -124,6 +144,20 @@ export function ListRow({
       )}
     >
       <span className="flex items-center gap-2">
+        {select && (
+          <span
+            className="shrink-0"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            role="presentation"
+          >
+            <Checkbox
+              checked={select.checked}
+              onCheckedChange={v => select.onChange(v === true)}
+              aria-label={select.label}
+            />
+          </span>
+        )}
         {/* A date or person lead keeps the 46px gutter (§3 rule 13); a `ref`
             is inline here, which is what both comps show. */}
         {lead.kind === 'date' && (
@@ -149,6 +183,21 @@ export function ListRow({
         {money && (
           <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
             {money}
+          </span>
+        )}
+
+        {toggle && (
+          <span
+            className="shrink-0"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            role="presentation"
+          >
+            <Switch
+              checked={toggle.checked}
+              onCheckedChange={toggle.onChange}
+              aria-label={toggle.label}
+            />
           </span>
         )}
       </span>

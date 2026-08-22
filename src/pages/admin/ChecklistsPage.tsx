@@ -444,6 +444,9 @@ export default function ChecklistsPage() {
     return (
       <AdminLayout title="Cleaning Checklists" subtitle="Create and manage cleaning checklists">
         <ChecklistsMobileBody
+          /* 11a's active toggle. The page owns the mutation; the body only
+             renders the control. */
+          onToggle={(id, next) => toggleTemplate.mutate({ id, is_active: next })}
           
           onAdd={openCreateDialog}
         />

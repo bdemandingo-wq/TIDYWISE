@@ -31,6 +31,10 @@ export type SimpleListRow = {
   actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
   /** 7f / 11a's left status bar. */
   accent?: 'success' | 'warn' | 'danger' | 'brand';
+  /** 11a's per-row active toggle. */
+  toggle?: { checked: boolean; onChange: (next: boolean) => void; label: string };
+  /** Bulk-selection checkbox. */
+  select?: { checked: boolean; onChange: (next: boolean) => void; label: string };
 };
 
 export function SimpleListView({
@@ -150,6 +154,8 @@ export function SimpleListView({
           status={r.badges}
           actions={r.actions}
           accent={r.accent}
+          toggle={r.toggle}
+          select={r.select}
           badgeAlign={badgeAlign}
           onClick={onSelect ? () => onSelect(r) : undefined}
         />

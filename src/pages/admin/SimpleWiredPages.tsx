@@ -55,6 +55,13 @@ type Cfg = {
   select?: string;
   /** 7f / 10c right-align their status pills; 4c does not. */
   badgeAlign?: 'left' | 'right';
+  /* Describes the row's on/off control. Returns null for a row that has
+     none. The MUTATION is not here — the page owns it and passes onToggle —
+     so cfg.map stays a pure projection of a row. */
+  toggle?: (raw: RawRow) => { checked: boolean; label: string } | null;
+  /* Bulk-selection checkbox. Same split as toggle: the shape is described
+     here, the state and the action live on the page. */
+  selectable?: (raw: RawRow) => { checked: boolean; label: string } | null;
   title: string;
   table: string;
   order: { col: string; asc: boolean };
@@ -79,7 +86,12 @@ type Cfg = {
 type RawRow = Record<string, unknown>;
 
 /** Shared plumbing: one query, one phase, one view. */
-function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
+function useSimpleScreen(
+  cfg: Cfg,
+  rowFilter?: (raw: RawRow) => boolean,
+  onToggle?: (id: string, next: boolean) => void,
+  onSelectRow?: (id: string, next: boolean) => void,
+) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -128,8 +140,24 @@ function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
   }, [orgTz]);
 
   const all = useMemo(
-    () => (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(r => cfg.map(r, fmtDay)),
-    [q.data, cfg, rowFilter, fmtDay],
+    () =>
+      (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(r => {
+        const row = cfg.map(r, fmtDay);
+        const t = cfg.toggle?.(r);
+        /* Only attach a control the page can actually service. Rendering a
+           toggle with no handler is the dead-control pattern again. */
+        const sel = cfg.selectable?.(r);
+        return {
+          ...row,
+          ...(t && onToggle
+            ? { toggle: { ...t, onChange: (next: boolean) => onToggle(row.id, next) } }
+            : {}),
+          ...(sel && onSelectRow
+            ? { select: { ...sel, onChange: (next: boolean) => onSelectRow(row.id, next) } }
+            : {}),
+        };
+      }),
+    [q.data, cfg, rowFilter, fmtDay, onToggle, onSelectRow],
   );
   const rows = useSimpleSearch(all, search);
   const phase = queryPhase(q);
@@ -150,14 +178,18 @@ function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
 type ToolbarProps = {
   /** Filters raw rows before they are mapped for display. */
   rowFilter?: (raw: RawRow) => boolean;
+  /** Flips the row's toggle. Supplied by the page, which owns the mutation. */
+  onToggle?: (id: string, next: boolean) => void;
+  /** Marks / unmarks a row for a bulk action. */
+  onSelectRow?: (id: string, next: boolean) => void;
   actions?: ActionChip[];
   onAdd?: () => void;
   onFilter?: () => void;
   filterCount?: number;
 };
 
-function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter }: { cfg: Cfg; rowFilter?: (raw: RawRow) => boolean } & ToolbarProps) {
-  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg, rowFilter);
+function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter, onToggle, onSelectRow }: { cfg: Cfg; rowFilter?: (raw: RawRow) => boolean } & ToolbarProps) {
+  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg, rowFilter, onToggle, onSelectRow);
   const ready = listState === 'ready' || listState === 'empty';
   const h = cfg.header?.(q.data ?? [], ready);
   return (
@@ -268,6 +300,8 @@ export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
         }),
         singular: 'discount',
         table: 'discounts',
+        /* The active toggle desktop has and the phone had lost. */
+        toggle: d => ({ checked: d.is_active === true, label: `Active: ${String(d.code ?? d.name ?? 'discount')}` }),
         order: { col: 'created_at', asc: false },
         emptyTitle: 'No discounts yet',
         emptyHint: 'Codes you create will show here.',
@@ -305,7 +339,13 @@ export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
 }
 
 /* ── Inventory ─────────────────────────────────────────────────────────── */
-export function InventoryMobileBody(toolbar: ToolbarProps = {}) {
+export function InventoryMobileBody({
+  selectedIds = new Set<string>(),
+  ...toolbar
+}: ToolbarProps & {
+  /* The page owns the selection set; the body only reflects it. */
+  selectedIds?: Set<string>;
+} = {}) {
   return (
     <Screen
       {...toolbar}
@@ -324,6 +364,9 @@ export function InventoryMobileBody(toolbar: ToolbarProps = {}) {
         },
         singular: 'item',
         table: 'inventory_items',
+        /* Checked-ness comes from the page's selection set, read through the
+           closure the page builds when it constructs this body. */
+        selectable: i => ({ checked: selectedIds.has(String(i.id)), label: `Select ${String(i.name ?? 'item')}` }),
         order: { col: 'name', asc: true },
         emptyTitle: 'Nothing in inventory',
         emptyHint: 'Supplies you track will show here.',
@@ -376,6 +419,9 @@ export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
         /* 11a's row reads "11 items · assigned to X". The count comes from an
            embedded aggregate rather than a second query per row. */
         select: '*, checklist_items(count)',
+        /* 11a puts an active toggle on every template; desktop has one and
+           the phone had lost it. */
+        toggle: t => ({ checked: t.is_active !== false, label: `Active: ${String(t.name ?? 'checklist')}` }),
         order: { col: 'name', asc: true },
         emptyTitle: 'No checklists yet',
         emptyHint: 'Templates you build will show here.',
