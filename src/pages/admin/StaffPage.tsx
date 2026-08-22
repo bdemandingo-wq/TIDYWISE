@@ -368,6 +368,20 @@ export default function StaffPage() {
               handleToggleActive(member, true);
             }
           }}
+          onAddStaff={() => setAddDialogOpen(true)}
+          /* The same four handlers desktop's kebab uses — reused, not
+             re-implemented, so mobile and desktop can never disagree about
+             what "Edit" or "Delete Permanently" do. */
+          onRowAction={(id, action) => {
+            const member = staff.find(m => m.id === id);
+            if (!member) return;
+            if (action === 'edit') handleEditClick(member);
+            else if (action === 'resend') handleResendPasswordLink(member);
+            else if (action === 'schedule') {
+              setSelectedStaff(member);
+              setScheduleDialogOpen(true);
+            } else if (action === 'delete-permanent') handlePermanentDeleteClick(member);
+          }}
         />
         )}
 
@@ -401,6 +415,121 @@ export default function StaffPage() {
           </div>
         )}
 
+
+        {/* Add Staff — the shell's title-row button now calls this. */}
+        <AddStaffDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
+        <EditStaffDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          staff={selectedStaff}
+        />
+
+        {/* Permanent Delete — kebab's fourth item, inactive staff only. */}
+        <AlertDialog open={permanentDeleteDialogOpen} onOpenChange={setPermanentDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-destructive">Permanently Delete Staff Member</AlertDialogTitle>
+              <AlertDialogDescription>
+                <strong className="text-destructive">Warning:</strong> This will permanently delete {staffToDelete?.name} from the database.
+                This action cannot be undone. All associated data will be removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingPermanently}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmPermanentDelete}
+                disabled={isDeletingPermanently}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeletingPermanently ? 'Deleting...' : 'Delete Permanently'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Password Reset Link Dialog — kebab's "Resend link". */}
+        <Dialog open={resendLinkDialogOpen} onOpenChange={handleResendLinkDialogClose}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Password Setup Link</DialogTitle>
+            </DialogHeader>
+            {resendLinkData?.maskedEmail && (
+              <div className="space-y-4 py-4">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Setup link sent to {resendLinkData.maskedEmail}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {resendLinkData.name} works for more than one business, so the link was
+                  emailed to them directly rather than shown here — it would sign in to all
+                  of their businesses, not just yours. Ask them to check their inbox.
+                </p>
+                <p className="text-xs text-muted-foreground text-center">
+                  The link will expire after use. You can generate a new one if needed.
+                </p>
+              </div>
+            )}
+
+            {resendLinkData?.link && (
+              <div className="space-y-4 py-4">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Send this link to {resendLinkData.name}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Share this password setup link with the staff member. They'll use it to create or reset their password and access the staff portal.
+                </p>
+                <div className="bg-muted p-4 rounded-lg space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <p className="font-mono text-sm">{resendLinkData.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Password Setup Link</Label>
+                    <p className="font-mono text-xs break-all bg-background p-2 rounded border mt-1">
+                      {resendLinkData.link}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={copyLink}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? 'Copied!' : 'Copy Setup Link'}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  The link will expire after use. You can generate a new one if needed.
+                </p>
+              </div>
+            )}
+            <DialogFooter>
+              <Button onClick={handleResendLinkDialogClose}>Done</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Schedule Dialog — kebab's "View schedule". */}
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedStaff?.name}'s Schedule
+              </DialogTitle>
+            </DialogHeader>
+            {selectedStaff && (
+              <CleanerCalendar staffId={selectedStaff.id} organizationId={organizationId} />
+            )}
+            <DialogFooter>
+              <Button onClick={() => setScheduleDialogOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* The confirmation itself, mounted in the arm. Without this the
             switch would open nothing — the pattern the dead-control guard

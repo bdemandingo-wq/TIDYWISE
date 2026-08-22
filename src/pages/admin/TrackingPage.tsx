@@ -382,82 +382,33 @@ export default function TrackingPage() {
   /* ── Mobile arm ────────────────────────────────────────────────────────
      Unlike the other swapped screens this page has no AdminLayout — it
      returns a bare div — so the arm returns the body inside the same safe
-     area padding rather than a layout wrapper. There is no toolbar to move:
-     the only control is the back arrow, which the body does not need because
-     it is reached from the nav rather than pushed onto a stack. */
+     area padding rather than a layout wrapper. Comp 6c's hero, notification
+     toggles, active-job list and completed-routes summary all live inside
+     TrackingMobileBody now, fed by this page's own live queries and
+     handleToggle so there is one source of truth for smsSettings. */
   if (isMobile) {
+    const mobileActiveJobs = activeJobs.map((job) => {
+      const staff = Array.isArray(job.staff) ? job.staff[0] : job.staff;
+      const booking = Array.isArray(job.booking) ? job.booking[0] : job.booking;
+      return {
+        id: job.id,
+        staffName: (staff as any)?.name ?? 'Unknown cleaner',
+        bookingNumber: (booking as any)?.booking_number ?? null,
+      };
+    });
+    const mobileHistoricalJobs = historicalJobs.map((job) => ({ id: job.id }));
+
     return (
       <div className="pt-[env(safe-area-inset-top)]">
-        <TrackingMobileBody />
-
-        {/* 6c puts a Notifications card with these five switches directly on
-            the tracking screen, and the parity guard flagged that the phone
-            had none of them. This is the SAME block the desktop settings bar
-            renders, driving the same smsSettings state — reused rather than
-            reimplemented, so the two cannot drift. */}
-        <div className="px-4 pb-6 pt-2">
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-6">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="notify-admin"
-                checked={smsSettings.notify_admin_on_the_way}
-                onCheckedChange={(v) => handleToggle('notify_admin_on_the_way', v)}
-                disabled={savingToggle}
-              />
-              <Label htmlFor="notify-admin" className="text-sm cursor-pointer">
-                Notify Admin when cleaner goes On My Way
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="notify-client"
-                checked={smsSettings.notify_client_on_the_way}
-                onCheckedChange={(v) => handleToggle('notify_client_on_the_way', v)}
-                disabled={savingToggle}
-              />
-              <Label htmlFor="notify-client" className="text-sm cursor-pointer">
-                Notify Client when cleaner goes On My Way
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="notify-client-eta"
-                checked={smsSettings.notify_client_distance_eta}
-                onCheckedChange={(v) => handleToggle('notify_client_distance_eta', v)}
-                disabled={savingToggle}
-              />
-              <Label htmlFor="notify-client-eta" className="text-sm cursor-pointer">
-                Include distance &amp; ETA in client SMS
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="notify-client-arrived"
-                checked={smsSettings.notify_client_arrived}
-                onCheckedChange={(v) => handleToggle('notify_client_arrived', v)}
-                disabled={savingToggle}
-              />
-              <Label htmlFor="notify-client-arrived" className="text-sm cursor-pointer">
-                Notify client when cleaner has arrived
-              </Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                id="notify-admin-arrived"
-                checked={smsSettings.notify_admin_arrived}
-                onCheckedChange={(v) => handleToggle('notify_admin_arrived', v)}
-                disabled={savingToggle}
-              />
-              <Label htmlFor="notify-admin-arrived" className="text-sm cursor-pointer">
-                Notify admin when cleaner has arrived
-              </Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-        </div>
+        <TrackingMobileBody
+          activeJobs={mobileActiveJobs}
+          historicalJobs={mobileHistoricalJobs}
+          loading={loading}
+          smsSettings={smsSettings}
+          savingToggle={savingToggle}
+          onToggle={handleToggle}
+          onBack={() => navigate(-1)}
+        />
       </div>
     );
   }
