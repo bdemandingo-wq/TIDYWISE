@@ -137,7 +137,19 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         <main
           className={cn(
             "animate-page-enter flex-1 w-full max-w-full overflow-x-hidden",
-            "px-3 py-3 md:p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-4"
+            /* The bottom pad has to clear the Copilot bubble, not just the bottom
+               nav. The bubble is fixed at 7rem + safe-area and is 53px tall, so
+               its top edge sits 158px above the viewport bottom — while this
+               padding was 76px. Anything in the last 82px of a page could not
+               be scrolled out from under it, which is why a dashboard chart
+               stayed covered however far you scrolled.
+
+               11.5rem clears the bubble with a small gap. Note the root
+               font-size here is 15px, not 16 — 11.5rem is 172px, not 184. The
+               safe-area term stays because the bubble's own offset includes
+               it, so the two have to move together. Desktop is unchanged —
+               md:pb-4 with the bubble at bottom-6. */
+            "px-3 py-3 md:p-4 pb-[calc(11.5rem+env(safe-area-inset-bottom))] md:pb-4"
           )}
         >
           <EmailIdentityBanner />

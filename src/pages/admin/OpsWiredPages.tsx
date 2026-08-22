@@ -167,7 +167,15 @@ export function ExpensesMobileBody({
 }
 
 /* ── Booking media ─────────────────────────────────────────────────────── */
-export function BookingPhotosMobileBody() {
+export function BookingPhotosMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -232,6 +240,9 @@ export function BookingPhotosMobileBody() {
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           header={
             <InverseHeader
               eyebrow="Booking photos"
@@ -279,7 +290,15 @@ export function BookingPhotosMobileBody() {
 }
 
 /* ── Live tracking ─────────────────────────────────────────────────────── */
-export function TrackingMobileBody() {
+export function TrackingMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -358,6 +377,9 @@ export function TrackingMobileBody() {
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           header={
             <InverseHeader
               eyebrow="Live"

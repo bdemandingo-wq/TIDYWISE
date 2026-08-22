@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { CampaignsMobileBody } from '@/pages/admin/CampaignsOpsWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -137,6 +139,22 @@ export default function CampaignsPage() {
         </div>
       </div>
 </AdminLayout>
+    );
+  }
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders CampaignsMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'new', label: 'New Campaign', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setCreateOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Campaigns" subtitle="Manage marketing campaigns and automations">
+        <CampaignsMobileBody actions={mobileActions} />
+      </AdminLayout>
     );
   }
 

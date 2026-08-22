@@ -37,7 +37,11 @@ const CAMPAIGN_TYPE: Record<string, string> = {
    that has never fired says so on its own row rather than being counted in a
    total that implies activity.
    ────────────────────────────────────────────────────────────────────────── */
-export function CampaignsMobileBody() {
+export function CampaignsMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -142,6 +146,10 @@ export function CampaignsMobileBody() {
   return (
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {actions && actions.length > 0 && (
+          <ActionChipRow actions={actions} label="Campaign actions" />
+        )}
+
         {phase === 'ready' && neverRunCount > 0 && (
           <div className="px-4 pt-3">
             <Card>

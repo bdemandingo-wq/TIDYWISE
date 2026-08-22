@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { TrackingMobileBody } from '@/pages/admin/OpsWiredPages';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Navigation, Clock, MapPin, Car, User, Loader2, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
@@ -249,6 +251,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
 }
 
 export default function TrackingPage() {
+  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgId = organization?.id;
@@ -375,6 +378,20 @@ export default function TrackingPage() {
     }
     setSavingToggle(false);
   };
+
+  /* ── Mobile arm ────────────────────────────────────────────────────────
+     Unlike the other swapped screens this page has no AdminLayout — it
+     returns a bare div — so the arm returns the body inside the same safe
+     area padding rather than a layout wrapper. There is no toolbar to move:
+     the only control is the back arrow, which the body does not need because
+     it is reached from the nav rather than pushed onto a stack. */
+  if (isMobile) {
+    return (
+      <div className="pt-[env(safe-area-inset-top)]">
+        <TrackingMobileBody />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pt-[env(safe-area-inset-top)]">
