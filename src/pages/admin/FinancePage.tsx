@@ -1,4 +1,9 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+// mobile-control-allow: Tabs — 6d puts Transactions / P&L Calendar / Tax by
+// Zip / P&L in the hero, and all four are real views here. None is ported to
+// the phone yet and a tab that switches to nothing is worse than no tab, so
+// the mobile hero carries booked / collected / owed instead until the views
+// follow. Recorded rather than silently missing.
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { FinanceMobileBody } from '@/pages/admin/FinanceWiredPage';
