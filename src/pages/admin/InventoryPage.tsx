@@ -416,7 +416,31 @@ export default function InventoryPage() {
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* Both dialogs must be mounted inside the mobile arm too — the mobile
+            "Add Item", "Settings" and Categories chips call these setters, and
+            without these the taps were silently inert. */}
+        <InventoryDialog
+          open={dialogOpen}
+          onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingItem(null); }}
+          item={editingItem}
+          categories={allCategories}
+          onSave={(data) => {
+            if (editingItem) {
+              updateMutation.mutate({ id: editingItem.id, ...data });
+            } else {
+              createMutation.mutate(data);
+            }
+          }}
+        />
+        <InventorySettingsDialog
+          open={settingsDialogOpen}
+          onOpenChange={setSettingsDialogOpen}
+          categories={customCategories}
+          organizationId={organization?.id || ''}
+        />
       </AdminLayout>
+
     );
   }
 
