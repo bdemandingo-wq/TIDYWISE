@@ -56,7 +56,8 @@ export function MediaTile({
       <div className="relative aspect-square overflow-hidden rounded-[10px] bg-[hsl(var(--pv-sunken))]">
         {status === 'loading' && <Skeleton className="absolute inset-0 rounded-[10px]" />}
 
-        {status !== 'failed' && (
+        {resolved && status !== 'failed' && (
+
           <img
             key={nonce}
             src={src}
