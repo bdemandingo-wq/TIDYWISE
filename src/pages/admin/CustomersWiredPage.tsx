@@ -48,6 +48,7 @@ export function CustomersMobileBody({
   actions,
   onAdd,
   onMerge,
+  onRowAction,
 }: {
   onSelectCustomer?: (id: string) => void;
   /* Import / Export / Merge, owned by the live CustomersPage. */
@@ -57,6 +58,8 @@ export function CustomersMobileBody({
       /dashboard/customers/duplicates flow; omitted on the standalone -v2
       preview route, which has no merge destination of its own. */
   onMerge?: () => void;
+  /** The row kebab — same actions desktop's icon row offers. */
+  onRowAction?: (row: CustomersRow, action: 'edit' | 'payment' | 'message' | 'delete') => void;
 } = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
@@ -225,6 +228,7 @@ export function CustomersMobileBody({
             customersQ.refetch();
             statsQ.refetch();
           }}
+          onRowAction={onRowAction}
         />
       </div>
     </>
