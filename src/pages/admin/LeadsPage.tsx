@@ -48,6 +48,7 @@ import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, formatDi
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
+import { LeadPipelineMobile } from '@/components/admin/LeadPipelineMobile';
 import { SEOHead } from '@/components/SEOHead';
 import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -442,6 +443,32 @@ export default function LeadsPage() {
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  /* Pipeline first: it is the view the board was designed for and the one a
+     phone benefits from most. List and Abandoned come across rather than
+     being dropped — Abandoned is a different query entirely (booking links
+     opened and never finished), and List is the only view that shows a lead
+     whose status is outside the board's five stages. */
+  /* booking_link_tracking is queried with `.from(... as any)` because the
+     table is not in the generated types, so the query's inferred type is a
+     SelectQueryError. This names the columns the two mobile call sites read
+     rather than reaching for `any` at each one. */
+  type AbandonedLink = {
+    id: string;
+    customer_name: string | null;
+    customer_email: string | null;
+    customer_phone: string | null;
+    link_sent_at: string | null;
+    link_opened_at: string | null;
+    booking_completed_at: string | null;
+  };
+
+  const [mobileView, setMobileView] = useState<'pipeline' | 'list' | 'abandoned'>('pipeline');
+
+  /* The same count the desktop tab shows: opened and never completed, not
+     every row in the table. */
+  const abandonedOpen = (abandonedLinks as unknown as AbandonedLink[]).filter(
+    l => l.link_opened_at && !l.booking_completed_at,
+  ).length;
   const mobileActions: ActionChip[] = [
     { id: 'sync', label: 'Smart Sync', icon: <RefreshCw className="h-3.5 w-3.5" />, onClick: () => runSync(leads), busy: isSyncing },
     { id: 'funnel', label: 'Funnel Report', icon: <TrendingDown className="h-3.5 w-3.5" />, onClick: () => setShowFunnel(!showFunnel) },
@@ -452,6 +479,79 @@ export default function LeadsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Leads" subtitle="Track and manage your sales leads">
+        <div className="flex gap-1 px-4 pb-2 pt-1">
+          {([
+            ['pipeline', 'Pipeline'],
+            ['list', 'List'],
+            ['abandoned', `Abandoned${abandonedOpen > 0 ? ` (${abandonedOpen})` : ''}`],
+          ] as const).map(([id, label]) => (
+            <Button
+              key={id}
+              size="sm"
+              variant={mobileView === id ? 'default' : 'ghost'}
+              className="h-9 flex-1 rounded-full text-[12.5px]"
+              onClick={() => setMobileView(id)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
+        {mobileView === 'pipeline' && (
+          <LeadPipelineMobile
+            leads={filteredLeads}
+            onStatusChange={(leadId, newStatus) => updateMutation.mutate({ id: leadId, status: newStatus })}
+            onEdit={(lead) => { setEditingLead(lead); setDialogOpen(true); }}
+            onDelete={(id) => deleteMutation.mutate(id)}
+            onConvert={convertToCustomer}
+            maskName={maskName}
+            maskEmail={maskEmail}
+            maskPhone={maskPhone}
+            showDelete
+          />
+        )}
+
+        {mobileView === 'abandoned' && (
+          <div className="flex flex-col gap-2.5 px-4 pb-6">
+            {abandonedLoading ? (
+              <p className="py-8 text-center text-[12.5px] text-muted-foreground">Loading…</p>
+            ) : abandonedLinks.length === 0 ? (
+              <p className="py-8 text-center text-[12.5px] text-muted-foreground">
+                No abandoned bookings.
+              </p>
+            ) : (
+              (abandonedLinks as unknown as AbandonedLink[]).map(link => (
+                <Card key={link.id} className="rounded-[14px]">
+                  <CardContent className="space-y-1 px-[15px] py-[13px]">
+                    <p className="text-[13px] font-extrabold">
+                      {maskName(link.customer_name || 'Unknown')}
+                    </p>
+                    {link.customer_email && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {maskEmail(link.customer_email)}
+                      </p>
+                    )}
+                    {link.customer_phone && (
+                      <p className="text-xs text-muted-foreground">{maskPhone(link.customer_phone)}</p>
+                    )}
+                    {/* Opened-but-never-finished is the whole point of this
+                        view, so the elapsed time since opening is the fact
+                        that matters, not the send date. */}
+                    <p className="pt-1 text-[11.5px] text-muted-foreground">
+                      {link.link_opened_at
+                        ? `Opened ${formatDistanceToNow(new Date(link.link_opened_at), { addSuffix: true })}`
+                        : link.link_sent_at
+                          ? `Sent ${formatDistanceToNow(new Date(link.link_sent_at), { addSuffix: true })} · never opened`
+                          : 'Not sent'}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+
+        {mobileView === 'list' && (
         <LeadsMobileBody
           actions={mobileActions}
           onFilter={() => setMobileFiltersOpen(true)}
@@ -464,6 +564,7 @@ export default function LeadsPage() {
              applies them to its own rows — see LeadsMobileBody. */
           filters={{ status: statusFilter, source: sourceFilter, month: monthFilter }}
         />
+        )}
 
         <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
