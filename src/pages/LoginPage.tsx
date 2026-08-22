@@ -17,7 +17,6 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, HardHat, Users } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
 
 // Validation schema
 const loginSchema = z.object({
@@ -31,9 +30,8 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const claimSlug = searchParams.get('claim');
   const isNative = Capacitor.isNativePlatform();
-  // Flip to false if App Review ever objects to the external signup link
-  // Jul 20 2026: App Review objected (Guideline 3.1.1) — keep false
-  const SHOW_NATIVE_SIGNUP_LINK = false;
+  // In-app signup is now supported (trial-first, no payment).
+  const SHOW_NATIVE_SIGNUP_LINK = true;
   const { user, loading: authLoading, initialCleanupDone, signIn } = useAuthNoSession();
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
@@ -345,13 +343,12 @@ export default function LoginPage() {
             ) : SHOW_NATIVE_SIGNUP_LINK && (
               <div className="mt-6 text-center text-sm">
                 <span className="text-muted-foreground">Don't have an account? </span>
-                <button
-                  type="button"
-                  onClick={() => Browser.open({ url: 'https://www.jointidywise.com/signup' })}
+                <Link
+                  to="/signup"
                   className="text-primary hover:underline font-medium"
                 >
-                  Sign up on our website
-                </button>
+                  Create account
+                </Link>
               </div>
             )}
 

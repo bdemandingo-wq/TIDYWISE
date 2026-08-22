@@ -9,9 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OrgDataExportCard } from '@/components/admin/OrgDataExportCard';
-import ReferralPanel from '@/components/settings/ReferralPanel';
 import { AppUpdateCard } from '@/components/admin/AppUpdateCard';
-import { GetTheAppCard } from '@/components/admin/GetTheAppCard';
 import { FeedbackTab } from '@/components/admin/FeedbackTab';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -861,13 +859,6 @@ export default function SettingsPage() {
 
           {/* Owner-only; renders nothing for managers. */}
           <OrgDataExportCard />
-
-          {/* Renders nothing for lifetime orgs — they have no monthly bill to
-              discount, so advertising a free month would be a promise we
-              cannot keep. */}
-          <ReferralPanel />
-          {/* Every platform — "where else can I run this" is always a fair question. */}
-          <GetTheAppCard />
 
           {/* Native only; renders nothing on web, where a refresh is the update. */}
           <AppUpdateCard />

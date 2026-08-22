@@ -6,7 +6,6 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { TodayStats } from '@/components/admin/TodayStats';
 import { UpcomingBookings } from '@/components/admin/UpcomingBookings';
 import { OnboardingChecklist } from '@/components/admin/OnboardingChecklist';
-import { GetTheAppBanner } from '@/components/admin/GetTheAppBanner';
 import { useBookings, useCustomers, BookingWithDetails } from '@/hooks/useBookings';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -132,10 +131,6 @@ export default function AdminDashboard() {
     >
       <div className="portal-v2">
       <OnboardingChecklist />
-      {/* Below the checklist on purpose: a half-set-up org has more urgent
-          business than which device it reads this on. Renders nothing on
-          native or in an installed PWA. */}
-      <GetTheAppBanner />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-fade-in">
         <div className="xl:col-span-2 space-y-6">
           <TodayStats 

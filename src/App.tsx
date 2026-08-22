@@ -1,5 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
-import { captureReferralFromUrl } from "@/lib/referralAttribution";
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,8 +39,8 @@ const ScoreGeneratePage = lazy(() => import("./pages/score/ScoreGeneratePage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
-// Native redirect for signup (App Store compliance - no in-app signup on native)
-const NativeSignupRedirect = lazy(() => import("./pages/NativeSignupRedirect"));
+// Native signup page (email/password + stubbed Apple/Google OAuth)
+const NativeSignupPage = lazy(() => import("./pages/NativeSignupRedirect"));
 const LogoutPage = lazy(() => import("./pages/LogoutPage"));
 
 // Legacy auth page (kept for backwards compatibility)
@@ -105,90 +104,12 @@ const AdminCustomWorkRequestsPage = lazy(() => import("./pages/admin/AdminCustom
 const DataImportPage = lazy(() => import("./pages/admin/DataImportPage"));
 const BookingPhotosPage = lazy(() => import("./pages/admin/BookingPhotosPage"));
 const StaffPortal = lazy(() => import("./pages/staff/StaffPortal"));
-const StaffJobDetailPage = lazy(() => import("./pages/staff/StaffJobDetailPage"));
-const StaffHomePage = lazy(() => import("./pages/staff/StaffHomePage"));
 const StaffLoginPage = lazy(() => import("./pages/staff/StaffLoginPage"));
 const StaffResetPasswordPage = lazy(() => import("./pages/staff/StaffResetPasswordPage"));
 
 // Client Portal Pages
 const PortalLoginPage = lazy(() => import("./pages/portal/PortalLoginPage"));
 const PortalDashboardPage = lazy(() => import("./pages/portal/PortalDashboardPage"));
-const JobDetailPreviewPage = lazy(() => import("./pages/preview/JobDetailPreviewPage"));
-const CleanerHomePreviewPage = lazy(() => import("./pages/preview/CleanerHomePreviewPage"));
-const ClientHomePreviewPage = lazy(() => import("./pages/preview/ClientHomePreviewPage"));
-const BookingRequestPreviewPage = lazy(() => import("./pages/preview/BookingRequestPreviewPage"));
-const AdminDashboardPreviewPage = lazy(() => import("./pages/preview/AdminDashboardPreviewPage"));
-const NewBookingPreviewPage = lazy(() => import("./pages/preview/NewBookingPreviewPage"));
-const ListShellPreviewPage = lazy(() => import("./pages/preview/ListShellPreviewPage"));
-const SettingsGroupPreviewPage = lazy(() => import("./pages/preview/SettingsGroupPreviewPage"));
-const MediaGridPreviewPage = lazy(() => import("./pages/preview/MediaGridPreviewPage"));
-const PersonRowPreviewPage = lazy(() => import("./pages/preview/PersonRowPreviewPage"));
-const JobDetailStatesPreviewPage = lazy(() => import("./pages/preview/JobDetailStatesPreviewPage"));
-const SchedulerPreviewPage = lazy(() => import("./pages/preview/SchedulerPreviewPage"));
-const ConversationPreviewPage = lazy(() => import("./pages/preview/ConversationPreviewPage"));
-const AIOverviewPreviewPage = lazy(() => import("./pages/preview/AIOverviewPreviewPage"));
-const CustomerProfilePreviewPage = lazy(() => import("./pages/preview/CustomerProfilePreviewPage"));
-const PayrollOverviewPreviewPage = lazy(() => import("./pages/preview/PayrollOverviewPreviewPage"));
-const NotificationsPreviewPage = lazy(() => import("./pages/preview/NotificationsPreviewPage"));
-const AutomationCenterPreviewPage = lazy(() => import("./pages/preview/AutomationCenterPreviewPage"));
-const AutomationStepEditorPreviewPage = lazy(() => import("./pages/preview/AutomationStepEditorPreviewPage"));
-const TrackingPreviewPage = lazy(() => import("./pages/preview/TrackingPreviewPage"));
-const PortalAdminPreviewPage = lazy(() => import("./pages/preview/PortalAdminPreviewPage"));
-const InvoiceDetailPreviewPage = lazy(() => import("./pages/preview/InvoiceDetailPreviewPage"));
-const NewInvoicePreviewPage = lazy(() => import("./pages/preview/NewInvoicePreviewPage"));
-const MessagesInboxPreviewPage = lazy(() => import("./pages/preview/MessagesInboxPreviewPage"));
-const TasksPreviewPage = lazy(() => import("./pages/preview/TasksPreviewPage"));
-const OperationsPreviewPage = lazy(() => import("./pages/preview/OperationsPreviewPage"));
-const CampaignsPreviewPage = lazy(() => import("./pages/preview/CampaignsPreviewPage"));
-const CampaignSetupPreviewPage = lazy(() => import("./pages/preview/CampaignSetupPreviewPage"));
-const DiscountsPreviewPage = lazy(() => import("./pages/preview/DiscountsPreviewPage"));
-const FeedbackPreviewPage = lazy(() => import("./pages/preview/FeedbackPreviewPage"));
-const StaffPreviewPage = lazy(() => import("./pages/preview/StaffPreviewPage"));
-const ChecklistsPreviewPage = lazy(() => import("./pages/preview/ChecklistsPreviewPage"));
-const InventoryPreviewPage = lazy(() => import("./pages/preview/InventoryPreviewPage"));
-const BookingsPreviewPage = lazy(() => import("./pages/preview/BookingsPreviewPage"));
-const CustomersPreviewPage = lazy(() => import("./pages/preview/CustomersPreviewPage"));
-const LeadsPreviewPage = lazy(() => import("./pages/preview/LeadsPreviewPage"));
-const InvoicesPreviewPage = lazy(() => import("./pages/preview/InvoicesPreviewPage"));
-const RecurringPreviewPage = lazy(() => import("./pages/preview/RecurringPreviewPage"));
-const PayrollPreviewPage = lazy(() => import("./pages/preview/PayrollPreviewPage"));
-const SettingsPreviewPage = lazy(() => import("./pages/preview/SettingsPreviewPage"));
-const ServicesPreviewPage = lazy(() => import("./pages/preview/ServicesPreviewPage"));
-const FinancePreviewPage = lazy(() => import("./pages/preview/FinancePreviewPage"));
-const BookingsWiredPage = lazy(() => import("./pages/admin/BookingsWiredPage"));
-const BookingsStatesPreviewPage = lazy(() => import("./pages/preview/BookingsStatesPreviewPage"));
-const CustomersWiredPage = lazy(() => import("./pages/admin/CustomersWiredPage"));
-const CustomersStatesPreviewPage = lazy(() => import("./pages/preview/CustomersStatesPreviewPage"));
-const LeadsWiredPage = lazy(() => import("./pages/admin/LeadsWiredPage"));
-const LeadsStatesPreviewPage = lazy(() => import("./pages/preview/LeadsStatesPreviewPage"));
-const RecurringWiredPage = lazy(() => import("./pages/admin/RecurringWiredPage"));
-const PayrollWiredPage = lazy(() => import("./pages/admin/PayrollWiredPage"));
-const FinanceWiredPage = lazy(() => import("./pages/admin/FinanceWiredPage"));
-const MessagesWiredPage = lazy(() => import("./pages/admin/MessagesWiredPage"));
-const MessagesStatesPreviewPage = lazy(() => import("./pages/preview/MessagesStatesPreviewPage"));
-const InvoicesWiredPage = lazy(() => import("./pages/admin/InvoicesWiredPage"));
-const ServicesWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.ServicesWiredPage })));
-const DiscountsWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.DiscountsWiredPage })));
-const InventoryWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.InventoryWiredPage })));
-const ChecklistsWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.ChecklistsWiredPage })));
-const TasksWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.TasksWiredPage })));
-const FeedbackWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.FeedbackWiredPage })));
-const NotificationsWiredPage = lazy(() => import("./pages/admin/SimpleWiredPages").then(m => ({ default: m.NotificationsWiredPage })));
-const StaffWiredPage = lazy(() => import("./pages/admin/StaffWiredPage"));
-const ExpensesWiredPage = lazy(() => import("./pages/admin/OpsWiredPages").then(m => ({ default: m.ExpensesWiredPage })));
-const BookingPhotosWiredPage = lazy(() => import("./pages/admin/OpsWiredPages").then(m => ({ default: m.BookingPhotosWiredPage })));
-const TrackingWiredPage = lazy(() => import("./pages/admin/OpsWiredPages").then(m => ({ default: m.TrackingWiredPage })));
-const CampaignsWiredPage = lazy(() => import("./pages/admin/CampaignsOpsWiredPages").then(m => ({ default: m.CampaignsWiredPage })));
-const OperationsWiredPage = lazy(() => import("./pages/admin/CampaignsOpsWiredPages").then(m => ({ default: m.OperationsWiredPage })));
-const ReportsWiredPage = lazy(() => import("./pages/admin/ReportsWiredPage"));
-const SchedulerWiredPage = lazy(() => import("./pages/admin/SchedulerBenchmarksWiredPages").then(m => ({ default: m.SchedulerWiredPage })));
-const BenchmarksWiredPage = lazy(() => import("./pages/admin/SchedulerBenchmarksWiredPages").then(m => ({ default: m.BenchmarksWiredPage })));
-const PlatformAnalyticsPreviewPage = lazy(() => import("./pages/preview/PlatformAnalyticsPreviewPage"));
-const DashboardPolishPreviewPage = lazy(() => import("./pages/preview/DashboardPolishPreviewPage"));
-const ClientBookingsPreviewPage = lazy(() => import("./pages/preview/ClientBookingsPreviewPage"));
-const SignInPreviewPage = lazy(() => import("./pages/preview/SignInPreviewPage"));
-const ReportsPreviewPage = lazy(() => import("./pages/preview/ReportsPreviewPage"));
-const CleanerHomeStatesPreviewPage = lazy(() => import("./pages/preview/CleanerHomeStatesPreviewPage"));
 const PortalRequestPage = lazy(() => import("./pages/portal/PortalRequestPage"));
 
 const ReviewPage = lazy(() => import("./pages/ReviewPage"));
@@ -292,17 +213,6 @@ const offlinePersister = createSyncStoragePersister({
 
 const AppStateHandler = (): null => {
   useAppStateHandler();
-
-  // Capture ?ref= from the landing URL before anything can navigate away from
-  // it. The code is only held here — attribution is recorded server-side by
-  // claim-referral once an organization exists to attach it to.
-  //
-  // Runs once on mount rather than per route: first touch wins, so re-running
-  // it on a later navigation could not change the answer anyway.
-  useEffect(() => {
-    captureReferralFromUrl(window.location.search);
-  }, []);
-
   return null;
 };
 
@@ -381,8 +291,7 @@ const App = () => (
                           <Routes>
                     {/* Auth Routes - No Session Persistence */}
                          <Route path="/login" element={<LoginPage />} />
-                         {/* App Store Guideline 3.1.1: No signup/registration on native */}
-                         <Route path="/signup" element={<Navigate to="/login" replace />} />
+                         <Route path="/signup" element={<NativeSignupPage />} />
                           {/* /auth renders LoginPage directly (not a redirect) so its
                               unique title/description from LoginPage's isAuthPath logic
                               can actually take effect. Canonical still points to /login. */}
@@ -431,8 +340,6 @@ const App = () => (
                       <Route path="/staff/login" element={<StaffLoginPage />} />
                       <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                       <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
-                      <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
-                      <Route path="/staff/home" element={<StaffRoute><ErrorBoundary featureName="Cleaner home"><StaffHomePage /></ErrorBoundary></StaffRoute>} />
 
                       {/* Client Portal */}
                       <Route path="/portal" element={<PortalLoginPage />} />
@@ -443,89 +350,10 @@ const App = () => (
                       {/* Dashboard Routes - All Lazy Loaded (AdminRoute enforces owner/manager role) */}
                       <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
 
-                      {/* Design-spec preview. Static data, replaces nothing live. */}
-                    {/* Design-spec preview (docs/mobile-design-spec.md 3a). Static data, replaces nothing live. */}
-                    <Route path="/dashboard/preview/job-detail" element={<JobDetailPreviewPage />} />
-                    <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
-                    <Route path="/dashboard/preview/client-home" element={<ClientHomePreviewPage />} />
-                    <Route path="/dashboard/preview/booking-request" element={<BookingRequestPreviewPage />} />
-                    <Route path="/dashboard/preview/admin-dashboard" element={<AdminDashboardPreviewPage />} />
-                    <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
-                    <Route path="/dashboard/preview/list-shell" element={<ListShellPreviewPage />} />
-                    <Route path="/dashboard/preview/settings-group" element={<SettingsGroupPreviewPage />} />
-                    <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
-                    <Route path="/dashboard/preview/person-row" element={<PersonRowPreviewPage />} />
-                    <Route path="/dashboard/preview/job-detail-states" element={<JobDetailStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/scheduler" element={<SchedulerPreviewPage />} />
-                    <Route path="/dashboard/preview/conversation" element={<ConversationPreviewPage />} />
-                    <Route path="/dashboard/preview/ai-overview" element={<AIOverviewPreviewPage />} />
-                    <Route path="/dashboard/preview/customer-profile" element={<CustomerProfilePreviewPage />} />
-                    <Route path="/dashboard/preview/payroll-overview" element={<PayrollOverviewPreviewPage />} />
-                    <Route path="/dashboard/preview/notifications" element={<NotificationsPreviewPage />} />
-                    <Route path="/dashboard/preview/automation-center" element={<AutomationCenterPreviewPage />} />
-                    <Route path="/dashboard/preview/step-editor" element={<AutomationStepEditorPreviewPage />} />
-                    <Route path="/dashboard/preview/tracking" element={<TrackingPreviewPage />} />
-                    <Route path="/dashboard/preview/portal-admin" element={<PortalAdminPreviewPage />} />
-                    <Route path="/dashboard/preview/invoice-detail" element={<InvoiceDetailPreviewPage />} />
-                    <Route path="/dashboard/preview/new-invoice" element={<NewInvoicePreviewPage />} />
-                    <Route path="/dashboard/preview/messages" element={<MessagesInboxPreviewPage />} />
-                    <Route path="/dashboard/preview/tasks" element={<TasksPreviewPage />} />
-                    <Route path="/dashboard/preview/operations" element={<OperationsPreviewPage />} />
-                    <Route path="/dashboard/preview/campaigns" element={<CampaignsPreviewPage />} />
-                    <Route path="/dashboard/preview/campaign-setup" element={<CampaignSetupPreviewPage />} />
-                    <Route path="/dashboard/preview/discounts" element={<DiscountsPreviewPage />} />
-                    <Route path="/dashboard/preview/feedback" element={<FeedbackPreviewPage />} />
-                    <Route path="/dashboard/preview/staff" element={<StaffPreviewPage />} />
-                    <Route path="/dashboard/preview/checklists" element={<ChecklistsPreviewPage />} />
-                    <Route path="/dashboard/preview/inventory" element={<InventoryPreviewPage />} />
-                    <Route path="/dashboard/preview/bookings" element={<BookingsPreviewPage />} />
-                    <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
-                    <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
-                    <Route path="/dashboard/preview/invoices" element={<InvoicesPreviewPage />} />
-                    <Route path="/dashboard/preview/recurring" element={<RecurringPreviewPage />} />
-                    <Route path="/dashboard/preview/payroll" element={<PayrollPreviewPage />} />
-                    <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
-                    <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
-                    <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
-                    <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
-                    <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/finance-v2" element={<AdminRoute><ErrorBoundary featureName="Finance v2"><FinanceWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/preview/messages-states" element={<MessagesStatesPreviewPage />} />
-                    <Route path="/dashboard/messages-v2" element={<AdminRoute><ErrorBoundary featureName="Messages v2"><MessagesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/invoices-v2" element={<AdminRoute><ErrorBoundary featureName="Invoices v2"><InvoicesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/services-v2" element={<AdminRoute><ErrorBoundary featureName="Services v2"><ServicesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/discounts-v2" element={<AdminRoute><ErrorBoundary featureName="Discounts v2"><DiscountsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/inventory-v2" element={<AdminRoute><ErrorBoundary featureName="Inventory v2"><InventoryWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/checklists-v2" element={<AdminRoute><ErrorBoundary featureName="Checklists v2"><ChecklistsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/tasks-v2" element={<AdminRoute><ErrorBoundary featureName="Tasks v2"><TasksWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/feedback-v2" element={<AdminRoute><ErrorBoundary featureName="Feedback v2"><FeedbackWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/notifications-v2" element={<AdminRoute><ErrorBoundary featureName="Notifications v2"><NotificationsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/staff-v2" element={<AdminRoute><ErrorBoundary featureName="Staff v2"><StaffWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/expenses-v2" element={<AdminRoute><ErrorBoundary featureName="Expenses v2"><ExpensesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/booking-photos-v2" element={<AdminRoute><ErrorBoundary featureName="Booking media v2"><BookingPhotosWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/tracking-v2" element={<AdminRoute><ErrorBoundary featureName="Tracking v2"><TrackingWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/campaigns-v2" element={<AdminRoute><ErrorBoundary featureName="Campaigns v2"><CampaignsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/operations-v2" element={<AdminRoute><ErrorBoundary featureName="Operations v2"><OperationsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/reports-v2" element={<AdminRoute><ErrorBoundary featureName="Reports v2"><ReportsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/scheduler-v2" element={<AdminRoute><ErrorBoundary featureName="Scheduler v2"><SchedulerWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/benchmarks-v2" element={<AdminRoute><ErrorBoundary featureName="Benchmarks v2"><BenchmarksWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
-                    <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
-                    <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
-                    <Route path="/dashboard/preview/signin" element={<SignInPreviewPage />} />
-                    <Route path="/dashboard/preview/reports" element={<ReportsPreviewPage />} />
-                    <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
-                    <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
+                      <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
-                      {/* Additive: same guard, same data, mobile layout. The live route above is untouched. */}
-                      <Route path="/dashboard/bookings-v2" element={<AdminRoute><ErrorBoundary featureName="Bookings v2"><BookingsWiredPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/customers" element={<AdminRoute><ErrorBoundary featureName="Customers"><CustomersPage /></ErrorBoundary></AdminRoute>} />
-                      {/* Additive: same guard, same data, mobile layout. */}
-                      <Route path="/dashboard/customers-v2" element={<AdminRoute><ErrorBoundary featureName="Customers v2"><CustomersWiredPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
@@ -538,7 +366,6 @@ const App = () => (
                       <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/leads" element={<AdminRoute><ErrorBoundary featureName="Leads"><LeadsPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/leads-v2" element={<AdminRoute><ErrorBoundary featureName="Leads v2"><LeadsWiredPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/inventory" element={<AdminRoute><ErrorBoundary featureName="Inventory"><InventoryPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/invoices" element={<AdminRoute><ErrorBoundary featureName="Invoices"><InvoicesPage /></ErrorBoundary></AdminRoute>} />
                       <Route path="/dashboard/operations" element={<AdminRoute><ErrorBoundary featureName="Operations Tracker"><OperationsTrackerPage /></ErrorBoundary></AdminRoute>} />
@@ -660,8 +487,6 @@ const App = () => (
                     <Route path="/staff/login" element={<StaffLoginPage />} />
                     <Route path="/staff/reset-password" element={<StaffResetPasswordPage />} />
                     <Route path="/staff" element={<StaffRoute><ErrorBoundary featureName="Staff Portal"><StaffPortal /></ErrorBoundary></StaffRoute>} />
-                    <Route path="/staff/job/:id" element={<StaffRoute><ErrorBoundary featureName="Job detail"><StaffJobDetailPage /></ErrorBoundary></StaffRoute>} />
-                    <Route path="/staff/home" element={<StaffRoute><ErrorBoundary featureName="Cleaner home"><StaffHomePage /></ErrorBoundary></StaffRoute>} />
 
                     {/* Client Portal */}
                     <Route path="/portal" element={<PortalLoginPage />} />
@@ -670,89 +495,10 @@ const App = () => (
                     <Route path="/portal/request" element={<ProtectedPortalRoute><PortalRequestPage /></ProtectedPortalRoute>} />
 
                     <Route path="/dashboard" element={<AdminRoute><FinancialRoute><ErrorBoundary featureName="Dashboard"><AdminDashboard /></ErrorBoundary></FinancialRoute></AdminRoute>} />
-                    {/* Design-spec preview. Static data, replaces nothing live. */}
-                    {/* Design-spec preview (docs/mobile-design-spec.md 3a). Static data, replaces nothing live. */}
-                    <Route path="/dashboard/preview/job-detail" element={<JobDetailPreviewPage />} />
-                    <Route path="/dashboard/preview/cleaner-home" element={<CleanerHomePreviewPage />} />
-                    <Route path="/dashboard/preview/client-home" element={<ClientHomePreviewPage />} />
-                    <Route path="/dashboard/preview/booking-request" element={<BookingRequestPreviewPage />} />
-                    <Route path="/dashboard/preview/admin-dashboard" element={<AdminDashboardPreviewPage />} />
-                    <Route path="/dashboard/preview/new-booking" element={<NewBookingPreviewPage />} />
-                    <Route path="/dashboard/preview/list-shell" element={<ListShellPreviewPage />} />
-                    <Route path="/dashboard/preview/settings-group" element={<SettingsGroupPreviewPage />} />
-                    <Route path="/dashboard/preview/media-grid" element={<MediaGridPreviewPage />} />
-                    <Route path="/dashboard/preview/person-row" element={<PersonRowPreviewPage />} />
-                    <Route path="/dashboard/preview/job-detail-states" element={<JobDetailStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/scheduler" element={<SchedulerPreviewPage />} />
-                    <Route path="/dashboard/preview/conversation" element={<ConversationPreviewPage />} />
-                    <Route path="/dashboard/preview/ai-overview" element={<AIOverviewPreviewPage />} />
-                    <Route path="/dashboard/preview/customer-profile" element={<CustomerProfilePreviewPage />} />
-                    <Route path="/dashboard/preview/payroll-overview" element={<PayrollOverviewPreviewPage />} />
-                    <Route path="/dashboard/preview/notifications" element={<NotificationsPreviewPage />} />
-                    <Route path="/dashboard/preview/automation-center" element={<AutomationCenterPreviewPage />} />
-                    <Route path="/dashboard/preview/step-editor" element={<AutomationStepEditorPreviewPage />} />
-                    <Route path="/dashboard/preview/tracking" element={<TrackingPreviewPage />} />
-                    <Route path="/dashboard/preview/portal-admin" element={<PortalAdminPreviewPage />} />
-                    <Route path="/dashboard/preview/invoice-detail" element={<InvoiceDetailPreviewPage />} />
-                    <Route path="/dashboard/preview/new-invoice" element={<NewInvoicePreviewPage />} />
-                    <Route path="/dashboard/preview/messages" element={<MessagesInboxPreviewPage />} />
-                    <Route path="/dashboard/preview/tasks" element={<TasksPreviewPage />} />
-                    <Route path="/dashboard/preview/operations" element={<OperationsPreviewPage />} />
-                    <Route path="/dashboard/preview/campaigns" element={<CampaignsPreviewPage />} />
-                    <Route path="/dashboard/preview/campaign-setup" element={<CampaignSetupPreviewPage />} />
-                    <Route path="/dashboard/preview/discounts" element={<DiscountsPreviewPage />} />
-                    <Route path="/dashboard/preview/feedback" element={<FeedbackPreviewPage />} />
-                    <Route path="/dashboard/preview/staff" element={<StaffPreviewPage />} />
-                    <Route path="/dashboard/preview/checklists" element={<ChecklistsPreviewPage />} />
-                    <Route path="/dashboard/preview/inventory" element={<InventoryPreviewPage />} />
-                    <Route path="/dashboard/preview/bookings" element={<BookingsPreviewPage />} />
-                    <Route path="/dashboard/preview/customers" element={<CustomersPreviewPage />} />
-                    <Route path="/dashboard/preview/leads" element={<LeadsPreviewPage />} />
-                    <Route path="/dashboard/preview/invoices" element={<InvoicesPreviewPage />} />
-                    <Route path="/dashboard/preview/recurring" element={<RecurringPreviewPage />} />
-                    <Route path="/dashboard/preview/payroll" element={<PayrollPreviewPage />} />
-                    <Route path="/dashboard/preview/settings" element={<SettingsPreviewPage />} />
-                    <Route path="/dashboard/preview/services" element={<ServicesPreviewPage />} />
-                    <Route path="/dashboard/preview/finance" element={<FinancePreviewPage />} />
-                    <Route path="/dashboard/preview/bookings-states" element={<BookingsStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/customers-states" element={<CustomersStatesPreviewPage />} />
-                    <Route path="/dashboard/preview/leads-states" element={<LeadsStatesPreviewPage />} />
-                    <Route path="/dashboard/recurring-v2" element={<AdminRoute><ErrorBoundary featureName="Recurring v2"><RecurringWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/payroll-v2" element={<AdminRoute><ErrorBoundary featureName="Payroll v2"><PayrollWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/finance-v2" element={<AdminRoute><ErrorBoundary featureName="Finance v2"><FinanceWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/preview/messages-states" element={<MessagesStatesPreviewPage />} />
-                    <Route path="/dashboard/messages-v2" element={<AdminRoute><ErrorBoundary featureName="Messages v2"><MessagesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/invoices-v2" element={<AdminRoute><ErrorBoundary featureName="Invoices v2"><InvoicesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/services-v2" element={<AdminRoute><ErrorBoundary featureName="Services v2"><ServicesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/discounts-v2" element={<AdminRoute><ErrorBoundary featureName="Discounts v2"><DiscountsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/inventory-v2" element={<AdminRoute><ErrorBoundary featureName="Inventory v2"><InventoryWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/checklists-v2" element={<AdminRoute><ErrorBoundary featureName="Checklists v2"><ChecklistsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/tasks-v2" element={<AdminRoute><ErrorBoundary featureName="Tasks v2"><TasksWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/feedback-v2" element={<AdminRoute><ErrorBoundary featureName="Feedback v2"><FeedbackWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/notifications-v2" element={<AdminRoute><ErrorBoundary featureName="Notifications v2"><NotificationsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/staff-v2" element={<AdminRoute><ErrorBoundary featureName="Staff v2"><StaffWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/expenses-v2" element={<AdminRoute><ErrorBoundary featureName="Expenses v2"><ExpensesWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/booking-photos-v2" element={<AdminRoute><ErrorBoundary featureName="Booking media v2"><BookingPhotosWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/tracking-v2" element={<AdminRoute><ErrorBoundary featureName="Tracking v2"><TrackingWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/campaigns-v2" element={<AdminRoute><ErrorBoundary featureName="Campaigns v2"><CampaignsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/operations-v2" element={<AdminRoute><ErrorBoundary featureName="Operations v2"><OperationsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/reports-v2" element={<AdminRoute><ErrorBoundary featureName="Reports v2"><ReportsWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/scheduler-v2" element={<AdminRoute><ErrorBoundary featureName="Scheduler v2"><SchedulerWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/benchmarks-v2" element={<AdminRoute><ErrorBoundary featureName="Benchmarks v2"><BenchmarksWiredPage /></ErrorBoundary></AdminRoute>} />
-                    <Route path="/dashboard/preview/platform-analytics" element={<PlatformAnalyticsPreviewPage />} />
-                    <Route path="/dashboard/preview/dashboard-polish" element={<DashboardPolishPreviewPage />} />
-                    <Route path="/dashboard/preview/client-bookings" element={<ClientBookingsPreviewPage />} />
-                    <Route path="/dashboard/preview/signin" element={<SignInPreviewPage />} />
-                    <Route path="/dashboard/preview/reports" element={<ReportsPreviewPage />} />
-                    <Route path="/dashboard/preview/cleaner-home-states" element={<CleanerHomeStatesPreviewPage />} />
                     <Route path="/dashboard/scheduler" element={<AdminRoute><ErrorBoundary featureName="Scheduler"><SchedulerPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/bookings" element={<AdminRoute><ErrorBoundary featureName="Bookings"><BookingsPage /></ErrorBoundary></AdminRoute>} />
-                      {/* Additive: same guard, same data, mobile layout. The live route above is untouched. */}
-                      <Route path="/dashboard/bookings-v2" element={<AdminRoute><ErrorBoundary featureName="Bookings v2"><BookingsWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/tracking" element={<AdminRoute><ErrorBoundary featureName="Tracking"><TrackingPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/customers" element={<AdminRoute><ErrorBoundary featureName="Customers"><CustomersPage /></ErrorBoundary></AdminRoute>} />
-                      {/* Additive: same guard, same data, mobile layout. */}
-                      <Route path="/dashboard/customers-v2" element={<AdminRoute><ErrorBoundary featureName="Customers v2"><CustomersWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/customers/duplicates" element={<AdminRoute><ErrorBoundary featureName="Duplicates"><CustomersDuplicatesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/services" element={<AdminRoute><ErrorBoundary featureName="Services"><ServicesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/staff" element={<AdminRoute><ErrorBoundary featureName="Staff Management"><StaffPage /></ErrorBoundary></AdminRoute>} />
@@ -765,7 +511,6 @@ const App = () => (
                     <Route path="/dashboard/notifications" element={<AdminRoute><ErrorBoundary featureName="Notifications"><NotificationsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/recurring" element={<AdminRoute><ErrorBoundary featureName="Recurring Bookings"><RecurringBookingsPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/leads" element={<AdminRoute><ErrorBoundary featureName="Leads"><LeadsPage /></ErrorBoundary></AdminRoute>} />
-                      <Route path="/dashboard/leads-v2" element={<AdminRoute><ErrorBoundary featureName="Leads v2"><LeadsWiredPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/inventory" element={<AdminRoute><ErrorBoundary featureName="Inventory"><InventoryPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/invoices" element={<AdminRoute><ErrorBoundary featureName="Invoices"><InvoicesPage /></ErrorBoundary></AdminRoute>} />
                     <Route path="/dashboard/operations" element={<AdminRoute><ErrorBoundary featureName="Operations Tracker"><OperationsTrackerPage /></ErrorBoundary></AdminRoute>} />

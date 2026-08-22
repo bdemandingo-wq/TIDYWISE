@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { combinedPhase } from '@/lib/queryState';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +16,7 @@ interface OnboardingProgressProps {
 interface OnboardingStep {
   id: string;
   label: string;
-  description?: string;
+  description: string;
   icon: React.ReactNode;
   tab: string;
   completed: boolean;
@@ -26,31 +25,23 @@ interface OnboardingStep {
 }
 
 export function OnboardingProgress({ staffId, organizationId, onNavigate, taxClassification }: OnboardingProgressProps) {
-  /*
-    Every read below THROWS on error. It used to destructure only `data`, so a
-    failed query became `[]` / `undefined` / `false` and the checklist rendered
-    steps the cleaner had already finished as "Not Set". §5.1 names this exact
-    case: never render a count on failure, because "1/4 steps complete" reads
-    as a statement about the cleaner rather than about the request.
-  */
   // Check documents status
-  const docsQ = useQuery({
+  const { data: documents = [] } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('staff_documents')
         .select('id, document_type, status')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId);
-      if (error) throw error;
-      return data ?? [];
+      return data || [];
     },
   });
 
   // Check signatures status
-  const sigsQ = useQuery({
+  const { data: signatures = [] } = useQuery({
     queryKey: ['onboarding-sigs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -58,145 +49,54 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     // the consumer at sigData branches on Array.isArray. Annotated rather
     // than normalised, so this stays a pure typing change.
     queryFn: async (): Promise<{ required: number; signed: number } | []> => {
-      const { data: docs, error: docsErr } = await supabase
+      const { data: docs } = await supabase
         .from('staff_signable_documents')
         .select('id')
         .eq('organization_id', organizationId)
         .eq('is_active', true);
-      if (docsErr) throw docsErr;
 
-      // Genuinely none required — a real "nothing to do", not a failure.
       if (!docs?.length) return [];
 
-      const { data: sigs, error: sigsErr } = await supabase
+      const { data: sigs } = await supabase
         .from('staff_signatures')
         .select('id, signable_document_id')
         .eq('staff_id', staffId)
         .in('signable_document_id', docs.map(d => d.id));
-      if (sigsErr) throw sigsErr;
 
-      return { required: docs.length, signed: sigs?.length ?? 0 };
+      return { required: docs.length, signed: sigs?.length || 0 };
     },
   });
 
   // Check payout status
-  const payoutQ = useQuery({
+  const { data: payoutStatus } = useQuery({
     queryKey: ['onboarding-payout', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('staff_payout_accounts')
         .select('account_status, details_submitted, payouts_enabled')
         .eq('staff_id', staffId)
         .eq('organization_id', organizationId)
         .maybeSingle();
-      if (error) throw error;
       return data;
     },
   });
 
   // Check availability
-  const availQ = useQuery({
+  const { data: hasAvailability } = useQuery({
     queryKey: ['onboarding-avail', staffId],
     staleTime: 0,
     refetchOnMount: 'always',
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('working_hours')
         .select('id')
         .eq('staff_id', staffId)
         .limit(1);
-      if (error) throw error;
-      return (data?.length ?? 0) > 0;
+      return (data?.length || 0) > 0;
     },
   });
-
-  const documents = docsQ.data ?? [];
-  const signatures = sigsQ.data ?? [];
-  const payoutStatus = payoutQ.data;
-  const hasAvailability = availQ.data;
-
-  /*
-    A failed read must not become a count. The card hides itself when every
-    step is complete, so on error we cannot know whether to hide — and
-    guessing either way is a claim. Say what happened instead, and keep the
-    reassurance explicit: nothing the cleaner already did has been lost.
-  */
-  const phase = combinedPhase([docsQ, sigsQ, payoutQ, availQ]);
-
-  /*
-    Offline is checked before loading, not folded into it. A PAUSED query has
-    isPending true, so the loading gate below would swallow this case and show
-    a skeleton that never resolves — better than the original bug, which
-    rendered finished steps as "Not Set", but still a lie: an endless spinner
-    says "nearly there" when the honest answer is "no signal".
-  */
-  if (phase === 'offline') {
-    return (
-      <Card className="mb-6 border-primary/20">
-        <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="status">
-          <h3 className="font-semibold text-base">Finish setting up</h3>
-          <p className="text-sm text-muted-foreground mt-1">You&rsquo;re offline.</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Your progress is saved. This will load when you have a signal again.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const loadError = phase === 'error';
-  if (loadError) {
-    return (
-      <Card className="mb-6 border-primary/20">
-        <CardContent className="pt-5 pb-4 px-4 sm:px-6" role="alert">
-          <h3 className="font-semibold text-base">Finish setting up</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Couldn&rsquo;t load your setup.
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Steps you have already finished are unaffected.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              docsQ.refetch();
-              sigsQ.refetch();
-              payoutQ.refetch();
-              availQ.refetch();
-            }}
-            className="mt-2 text-xs font-semibold text-primary underline-offset-2 hover:underline"
-          >
-            Retry
-          </button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  /*
-    Loading is its own state. While a read is still in flight there is no data
-    to count, so `documents = []` would render finished steps as "Not Set" —
-    the same false claim as the error case, just briefer. A cached result makes
-    the query `success`, not `pending`, so this does not flash on warm loads.
-  */
-  const isLoading = phase === 'loading';
-  if (isLoading) {
-    return (
-      <Card className="mb-6 border-primary/20">
-        <CardContent className="pt-5 pb-4 px-4 sm:px-6">
-          <h3 className="font-semibold text-base">Finish setting up</h3>
-          <div className="mt-2 h-2 w-full rounded-full bg-muted animate-pulse" />
-          <div className="mt-3 space-y-2" aria-hidden="true">
-            <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
-            <div className="h-9 w-full rounded-md bg-muted animate-pulse" />
-          </div>
-          <span className="sr-only">Loading your onboarding steps</span>
-        </CardContent>
-      </Card>
-    );
-  }
 
   // Build steps
   const isW2 = taxClassification === 'w2';
@@ -216,9 +116,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   const uploadedDocs = groupsWithUpload;
   const requiredDocTypes = requiredDocGroups;
 
-  /* The query returns [] when nothing is required and an object otherwise;
-     sigsQ.data is typed, so the `any[]` cast this used to need is gone. */
-  const sigData = signatures;
+  const sigData = signatures as { required: number; signed: number } | any[];
   const sigsRequired = Array.isArray(sigData) ? 0 : sigData?.required || 0;
   const sigsSigned = Array.isArray(sigData) ? 0 : sigData?.signed || 0;
   const sigsComplete = sigsRequired > 0 ? sigsSigned >= sigsRequired : false;
@@ -232,8 +130,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   const steps: OnboardingStep[] = [
     {
       id: 'availability',
-      label: 'Set availability',
-      description: undefined,
+      label: 'Set Availability',
+      description: 'Configure your working hours',
       icon: <Clock className="w-5 h-5" />,
       tab: 'availability',
       completed: availComplete,
@@ -242,8 +140,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'documents',
-      label: 'Upload documents',
-      description: isW2 ? 'ID' : 'W-9, ID',
+      label: 'Upload Documents',
+      description: isW2 ? 'Government ID required' : 'W-9 and Government ID required',
       icon: <FileText className="w-5 h-5" />,
       tab: 'documents',
       completed: docsComplete,
@@ -252,7 +150,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'signatures',
-      label: 'Sign agreements',
+      label: 'Sign Agreements',
       description: noSignaturesNeeded ? 'No documents to sign yet' : `${sigsSigned}/${sigsRequired} signed`,
       icon: <PenLine className="w-5 h-5" />,
       tab: 'signatures',
@@ -262,11 +160,8 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
     },
     {
       id: 'payouts',
-      label: 'Set up payouts',
-      /* 2a shows the live state here rather than a standing blurb — the comp
-         reads "payouts paused", which is what an incomplete account is. Kept
-         state-derived so it cannot say "paused" about an active one. */
-      description: payoutComplete ? undefined : payoutPending ? 'in review' : 'payouts paused',
+      label: 'Set Up Payouts',
+      description: 'Connect your bank for direct deposits',
       icon: <Banknote className="w-5 h-5" />,
       tab: 'payouts',
       completed: payoutComplete,
@@ -287,10 +182,9 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-semibold text-base">Finish setting up</h3>
+            <h3 className="font-semibold text-base">Complete Your Onboarding</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {/* Mockup 2a: "1 of 4 done", not "1/4 steps complete". */}
-              {completedCount} of {steps.length} done
+              {completedCount}/{steps.length} steps complete
             </p>
           </div>
           <Badge

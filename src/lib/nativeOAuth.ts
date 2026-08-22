@@ -5,7 +5,7 @@
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 
-const NATIVE_CALLBACK_URL = 'com.jointidywise.app://auth/callback';
+const NATIVE_CALLBACK_URL = 'com.TidyWiseApp.app://auth/callback';
 const WEB_CALLBACK_URL = 'https://www.jointidywise.com';
 
 export function getOAuthRedirectUrl(): string {
