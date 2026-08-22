@@ -250,6 +250,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
   );
 }
 
+// mobile-control-allow: Switch — mobile arm renders the same 5 SMS toggles via TrackingMobileBody's own custom switch control (TrackingToggleRow), not shadcn Switch, so the parity scan can't see it.
 export default function TrackingPage() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();

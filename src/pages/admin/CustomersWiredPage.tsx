@@ -47,16 +47,22 @@ export function CustomersMobileBody({
   onSelectCustomer,
   actions,
   onAdd,
+  onMerge,
 }: {
   onSelectCustomer?: (id: string) => void;
   /* Import / Export / Merge, owned by the live CustomersPage. */
   actions?: ActionChip[];
   onAdd?: () => void;
+  /** Comp 7g's "⇅ Merge" control. Wired by CustomersPage to the real
+      /dashboard/customers/duplicates flow; omitted on the standalone -v2
+      preview route, which has no merge destination of its own. */
+  onMerge?: () => void;
 } = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
+  const [typeTab, setTypeTab] = useState<'all' | 'customer' | 'lead'>('all');
 
   const customersQ = useCustomers();
 
@@ -144,7 +150,15 @@ export function CustomersMobileBody({
     [customersQ.data, statsById, statsOk, fmtDay],
   );
 
-  const rows = useCustomerSearch(all, search);
+  const typeFiltered = useMemo(
+    () =>
+      typeTab === 'all'
+        ? all
+        : all.filter(r => (typeTab === 'lead' ? r.status === 'lead' : r.status !== 'lead')),
+    [all, typeTab],
+  );
+
+  const rows = useCustomerSearch(typeFiltered, search);
 
   const listState: ListState =
     customersPhase === 'error' || customersPhase === 'offline'
@@ -192,11 +206,16 @@ export function CustomersMobileBody({
           statsUnavailable={customersPhase === 'ready' && !statsOk}
           sectionLabel={
             search.trim()
-              ? `${rows.length} of ${all.length} customers`
-              : `${all.length} customers`
+              ? `${rows.length} of ${typeFiltered.length} customers`
+              : `${typeFiltered.length} customers`
           }
           actions={actions}
           onAdd={onAdd}
+          onMerge={onMerge}
+          typeTab={typeTab}
+          onTypeTab={setTypeTab}
+          customerCount={all.filter(r => r.status !== 'lead').length}
+          leadCount={all.filter(r => r.status === 'lead').length}
           onSelect={r =>
             onSelectCustomer
               ? onSelectCustomer(r.id)

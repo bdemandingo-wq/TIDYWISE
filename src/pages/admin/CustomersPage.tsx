@@ -1047,6 +1047,7 @@ export default function CustomersPage() {
         <CustomersMobileBody
           actions={mobileCustomerActions}
           onAdd={handleAddCustomer}
+          onMerge={isAdmin ? () => navigate('/dashboard/customers/duplicates') : undefined}
           onSelectCustomer={id => {
             const c = customers?.find(x => x.id === id);
             if (!c) return;
