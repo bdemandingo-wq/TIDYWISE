@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
 import { ActionChipRow, type ActionChip } from './ActionChipRow';
@@ -34,6 +35,7 @@ export function LeadsListView({
   onAdd,
   onFilter,
   filterCount,
+  header,
 }: {
   phase: ListState;
   rows: LeadsRow[];
@@ -47,11 +49,21 @@ export function LeadsListView({
   /** Status / source / month, which do not fit in a chip row. */
   onFilter?: () => void;
   filterCount?: number;
+  /* ── Comp header slot ──────────────────────────────────────────────────
+     7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
+     headline figure and its stat wells. It is page chrome, not list content,
+     so it renders BEFORE the shell and is unaffected by list state — an
+     empty list still shows the totals above it.
+
+     Optional, so the states previews and any caller that does not want one
+     are unchanged. */
+  header?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
     <>
+      {header}
       {/* Outside ListShell — the shell renders children only when
           state === 'ready', so actions inside it vanish on an empty or
           failed list. */}

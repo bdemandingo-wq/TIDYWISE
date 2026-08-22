@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import type { ActionChip } from '@/components/portal-v2';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
@@ -18,7 +19,15 @@ import type { ListState } from '@/components/portal-v2';
    `new Date(iso).toDateString()` on the device does exactly that — which is
    what the repo's local/no-device-local-dates rule exists to stop.
    ────────────────────────────────────────────────────────────────────────── */
-export function SchedulerMobileBody() {
+export function SchedulerMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
 
@@ -137,6 +146,9 @@ export function SchedulerMobileBody() {
         )}
 
         <SimpleListView
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           header={
             <InverseHeader
               eyebrow="Schedule"

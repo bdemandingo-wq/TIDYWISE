@@ -27,6 +27,14 @@ export type SimpleListRow = {
   /** Pre-formatted. Pass undefined for "no figure", never "$0.00". */
   money?: string;
   badges?: { tone: 'success' | 'info' | 'warn' | 'danger'; label: string }[];
+  /** Inline row actions — 8a's Mark Paid / Resend / View · Duplicate. */
+  actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
+  /** 7f / 11a's left status bar. */
+  accent?: 'success' | 'warn' | 'danger' | 'brand';
+  /** 11a's per-row active toggle. */
+  toggle?: { checked: boolean; onChange: (next: boolean) => void; label: string };
+  /** Bulk-selection checkbox. */
+  select?: { checked: boolean; onChange: (next: boolean) => void; label: string };
 };
 
 export function SimpleListView({
@@ -49,6 +57,7 @@ export function SimpleListView({
   onAdd,
   onFilter,
   filterCount,
+  badgeAlign,
 }: {
   title: string;
   phase: ListState;
@@ -85,6 +94,8 @@ export function SimpleListView({
   /** Compound controls (selects, ranges) that do not fit in a chip row. */
   onFilter?: () => void;
   filterCount?: number;
+  /** 7f / 10c right-align their status pills; 4c does not. */
+  badgeAlign?: 'left' | 'right';
 }) {
   const filtered = search.trim().length > 0;
 
@@ -141,6 +152,11 @@ export function SimpleListView({
           lines={(r.lines ?? []).filter((l): l is string => !!l)}
           money={r.money}
           status={r.badges}
+          actions={r.actions}
+          accent={r.accent}
+          toggle={r.toggle}
+          select={r.select}
+          badgeAlign={badgeAlign}
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}

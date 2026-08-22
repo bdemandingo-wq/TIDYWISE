@@ -197,15 +197,41 @@ export default function ClientFeedbackPage() {
      Desktop untouched below. The phone renders FeedbackMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
+  /* One primary action, as the comp shows. The shell already renders it in
+     the title row; a chip as well was a second affordance for the same job —
+     the same duplication Invoices and Staff had. */
   const mobileActions: ActionChip[] = [
     { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: exportToExcel },
-    { id: 'add', label: 'Add Feedback', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
   ];
 
   if (isMobile) {
     return (
       <AdminLayout title="Client Feedback" subtitle="Track and resolve customer issues">
-        <FeedbackMobileBody actions={mobileActions} />
+        <FeedbackMobileBody
+          actions={mobileActions}
+          onAdd={() => setDialogOpen(true)}
+        />
+
+
+        {/* Mounted in the mobile arm as well. The arm early-returns, so a
+            dialog that only exists in the desktop branch below never renders
+            on a phone — which is why the one remaining Add button did
+            nothing. Sixth instance of this pattern in this codebase. */}
+      <FeedbackDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingEntry(null);
+        }}
+        entry={editingEntry}
+        onSave={(data) => {
+          if (editingEntry) {
+            updateMutation.mutate({ id: editingEntry.id, ...data });
+          } else {
+            createMutation.mutate(data as { customer_name: string; feedback_date: string; is_resolved: boolean; followup_needed: boolean; issue_description: string | null; resolution: string | null });
+          }
+        }}
+      />
       </AdminLayout>
     );
   }

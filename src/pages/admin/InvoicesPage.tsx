@@ -415,19 +415,54 @@ export default function InvoicesPage() {
      Desktop untouched below. The phone renders InvoicesMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'new',
-      label: 'New Invoice',
-      icon: <Plus className="h-3.5 w-3.5" />,
-      onClick: () => { setEditingInvoice(null); setFormDialogOpen(true); },
-    },
-  ];
-
+  /* No chip for New Invoice. 8a shows ONE primary action and the shell
+     already renders it in the title row — a chip as well as the header
+     button as well as the shell button was three affordances for one job. */
   if (isMobile) {
     return (
       <AdminLayout title="Invoices" subtitle={`${invoices.length} total invoices`}>
-        <InvoicesMobileBody actions={mobileActions} />
+        <InvoicesMobileBody
+          onAdd={() => { setEditingInvoice(null); setFormDialogOpen(true); }}
+          /* The page owns these mutations; the body only renders the buttons. */
+          onMarkPaid={(id, previousStatus) =>
+            /* The body types this as a plain string; this page keeps the
+               narrower union the mutation expects. */
+            markPaidMutation.mutate({ id, previousStatus: previousStatus as Invoice['status'] })
+          }
+          onSend={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) sendInvoiceEmail(inv);
+          }}
+          onDuplicate={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) duplicateInvoice(inv);
+          }}
+          onView={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) { setViewingInvoice(inv); setViewDialogOpen(true); }
+          }}
+        />
+
+
+        {/* Mounted in the mobile arm too. The new dead-control guard caught
+            this — a SEVENTH instance of the same pattern, in a screen I had
+            already 'finished'. Without these, New Invoice and the row's View
+            action both did nothing on a phone. */}
+        <InvoiceFormDialog
+          open={formDialogOpen}
+          onOpenChange={(open) => {
+            setFormDialogOpen(open);
+            if (!open) setEditingInvoice(null);
+          }}
+          invoice={editingInvoice}
+          customers={customers}
+          leads={leads}
+          services={services}
+          defaultTaxPercent={defaultTaxPercent}
+          organizationId={organization?.id || ''}
+        />
+
+        <InvoiceViewDialog open={viewDialogOpen} onOpenChange={setViewDialogOpen} invoice={viewingInvoice} />
       </AdminLayout>
     );
   }

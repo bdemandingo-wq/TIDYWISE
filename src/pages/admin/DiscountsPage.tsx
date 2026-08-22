@@ -149,7 +149,15 @@ export default function DiscountsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Discounts & Coupons" subtitle="Manage promotional codes">
-        <DiscountsMobileBody />
+        <DiscountsMobileBody
+          /* The active toggle. handleToggleActive takes the whole discount
+             because it needs the current value to invert and to word the
+             toast, so the row is looked up by id here. */
+          onToggle={id => {
+            const dsc = discounts.find(x => x.id === id);
+            if (dsc) handleToggleActive(dsc);
+          }}
+        />
       </AdminLayout>
     );
   }

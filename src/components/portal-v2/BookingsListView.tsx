@@ -71,6 +71,7 @@ export function BookingsListView<T extends string = 'all'>({
   actions,
   onFilter,
   filterCount,
+  header,
   children,
 }: {
   phase: ListState;
@@ -102,6 +103,16 @@ export function BookingsListView<T extends string = 'all'>({
   /** Date-range / status filters, surfaced through ListShell's filter button. */
   onFilter?: () => void;
   filterCount?: number;
+  /* ── Comp header slot ──────────────────────────────────────────────────
+     7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
+     headline figure and its stat wells. It is page chrome, not list content,
+     so it renders BEFORE the shell and is unaffected by list state — an
+     empty list still shows the totals above it.
+
+     Optional, so the states previews and any caller that does not want one
+     are unchanged. */
+  header?: ReactNode;
+
   /** Content for a tab that is not the booking list (drafts, quotes, wages). */
   children?: ReactNode;
 }) {
@@ -110,6 +121,7 @@ export function BookingsListView<T extends string = 'all'>({
 
   return (
     <>
+      {header}
       {/* Outside ListShell on purpose — the shell renders children only
           when state === 'ready', so a chip row inside it vanishes on an
           empty, loading or failed list, taking the actions with it. */}

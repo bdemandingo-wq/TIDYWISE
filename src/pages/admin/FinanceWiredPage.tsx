@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow, InverseHeader, StatWell } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 
 /**
@@ -60,6 +61,7 @@ export function FinanceMobileBody({
 } = {}) {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
+  const orgTz = useOrgTimezone();
   /* 6d's P&L calendar. Booked by DEFAULT, because that is what the comp shows
      and what an operator plans against — but never unlabelled, which was the
      actual defect on the live screen: Total Sales said "incl. unpaid" and Net
@@ -79,7 +81,7 @@ export function FinanceMobileBody({
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment')
+        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment, customer_id')
         .eq('organization_id', organizationId)
         .gte('scheduled_at', range.start)
         .lte('scheduled_at', range.end)
@@ -129,8 +131,14 @@ export function FinanceMobileBody({
       b => b.cleaner_pay_expected == null && b.cleaner_actual_payment == null,
     ).length;
 
+    /* Distinct customers who actually have a booking this month. 6d divides
+       by this for "avg / customer"; dividing by the org's whole customer list
+       would understate it by counting people who did not book. */
+    const customers = new Set(rows.map(b => b.customer_id).filter(Boolean)).size;
+
     return {
       count: rows.length,
+      customers,
       paidCount: rows.filter(isPaid).length,
       booked,
       collected,
@@ -158,11 +166,31 @@ export function FinanceMobileBody({
       const d = new Date(b.scheduled_at).getUTCDate();
       byDay.set(d, (byDay.get(d) ?? 0) + Number(b.total_amount ?? 0));
     }
+    /* Today in the ORG's zone, not the device's. An admin in Manila looking
+       at a Florida business must see Florida's today outlined, or the
+       highlight lands on the wrong cell. The rest of this memo buckets by
+       UTC date, which is a separate pre-existing question — this only decides
+       which cell is ringed. */
+    const orgTodayDay = Number(
+      new Intl.DateTimeFormat('en-US', { timeZone: orgTz, day: 'numeric' }).format(new Date()),
+    );
+    const orgTodayMonth = new Intl.DateTimeFormat('en-US', {
+      timeZone: orgTz,
+      month: 'numeric',
+      year: 'numeric',
+    }).format(new Date());
+    const thisMonth = new Intl.DateTimeFormat('en-US', {
+      timeZone: orgTz,
+      month: 'numeric',
+      year: 'numeric',
+    }).format(start);
+
     return Array.from({ length: daysInMonth }, (_, i) => ({
       day: i + 1,
       amount: byDay.has(i + 1) ? byDay.get(i + 1)! : null,
+      isToday: orgTodayMonth === thisMonth && orgTodayDay === i + 1,
     }));
-  }, [bookingsQ.data, basis, range.start]);
+  }, [bookingsQ.data, basis, range.start, orgTz]);
 
   const phase = combinedPhase([bookingsQ, expensesQ]);
   const expensesPhase = queryPhase(expensesQ);
@@ -174,6 +202,17 @@ export function FinanceMobileBody({
      as "Net Profit" with no qualification. */
   const projectedProfit = m.booked - m.refunded - m.cleanerPayKnown - expensesTotal;
   const uncollected = m.booked - m.collected;
+  /* 6d's two figures. Both are RATIOS or sums over a denominator that can be
+     zero, so they are suppressed rather than shown as $0.00 — a month with no
+     customers has no average, which is not the same as an average of nothing. */
+  const spendPerCustomer = m.customers > 0 ? m.booked / m.customers : null;
+  /* The month this screen covers, named. 6d titles the hero with it, and a
+     finance screen whose period is unstated is the same trap as an undated
+     payroll total. */
+  const monthLabel = useMemo(
+    () => new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(range.start)),
+    [range.start],
+  );
 
   if (phase === 'error' || phase === 'offline') {
     return (
@@ -194,6 +233,31 @@ export function FinanceMobileBody({
 
   return (
     <>
+      {/* 6d's hero: the month as the title, gross profit as the headline, and
+          spend per customer beside it. The comp puts its four view tabs here
+          too — Transactions / P&L Calendar / Tax by Zip / P&L. Those views
+          exist on the desktop page but are not ported to the phone yet, and a
+          tab that switches to nothing is worse than no tab, so the wells carry
+          booked / collected / owed instead until the views follow. */}
+      <InverseHeader
+        eyebrow="Finance"
+        business={monthLabel}
+        revenueLabel="Gross profit this month"
+        revenue={money(realisedProfit)}
+        trend={
+          spendPerCustomer !== null
+            ? { direction: 'up', label: `${money(spendPerCustomer)} avg / customer` }
+            : undefined
+        }
+        wells={
+          <>
+            <StatWell value={money(m.booked)} caption="booked" />
+            <StatWell value={money(m.collected)} caption="collected" />
+            <StatWell value={money(uncollected)} caption="owed to you" />
+          </>
+        }
+      />
+
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
         {actions && actions.length > 0 && (
           <ActionChipRow actions={actions} label="Finance actions" />
@@ -273,21 +337,78 @@ export function FinanceMobileBody({
                   : 'Money actually taken that day. A dash means nothing was collected.'}
               </p>
               <div className="mt-2.5 grid grid-cols-7 gap-1">
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((dd, i) => (
-                  <span key={i} className="text-center text-[10px] font-bold uppercase text-[hsl(var(--pv-ink-3))]">
+                {/* 6d labels the columns MON…SUN, not single letters — T and S
+                    each appear twice and are ambiguous on their own. */}
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dd, i) => (
+                  <span key={i} className="text-center text-[9px] font-bold uppercase tracking-[0.04em] text-[hsl(var(--pv-ink-3))]">
                     {dd}
                   </span>
                 ))}
-                {calendar.map(c => (
-                  <div key={c.day} className="rounded-[8px] bg-[hsl(var(--pv-sunken))] px-1 py-1.5 text-center">
-                    <p className="text-[10px] font-bold text-[hsl(var(--pv-ink-3))]">{c.day}</p>
-                    <p className="truncate text-[9.5px] font-extrabold tabular-nums text-[hsl(var(--pv-ink))]">
-                      {c.amount === null ? '–' : c.amount >= 1000 ? `$${(c.amount / 1000).toFixed(1)}K` : `$${Math.round(c.amount)}`}
-                    </p>
-                  </div>
-                ))}
+                {calendar.map(c => {
+                  /* 6d tints a day that earned and leaves an empty day plain,
+                     so the month's shape is readable at a glance. A day with
+                     no bookings keeps the dash — it is not a day that earned
+                     nothing. Today is outlined rather than filled, so it stays
+                     legible whether or not it earned. */
+                  const earned = c.amount !== null && c.amount > 0;
+                  return (
+                    <div
+                      key={c.day}
+                      aria-current={c.isToday ? 'date' : undefined}
+                      className={
+                        'rounded-[8px] px-1 py-1.5 text-center ' +
+                        (earned
+                          ? 'bg-[hsl(var(--pv-success-soft))]'
+                          : 'bg-[hsl(var(--pv-sunken))]') +
+                        (c.isToday ? ' ring-2 ring-[hsl(var(--pv-brand))]' : '')
+                      }
+                    >
+                      <p
+                        className={
+                          'text-[10px] font-bold ' +
+                          (c.isToday
+                            ? 'text-[hsl(var(--pv-brand))]'
+                            : 'text-[hsl(var(--pv-ink-3))]')
+                        }
+                      >
+                        {c.day}
+                      </p>
+                      <p
+                        className={
+                          'truncate text-[9.5px] font-extrabold tabular-nums ' +
+                          (earned
+                            ? 'text-[hsl(var(--pv-success))]'
+                            : 'text-[hsl(var(--pv-ink-3))]')
+                        }
+                      >
+                        {c.amount === null ? '–' : c.amount >= 1000 ? `$${(c.amount / 1000).toFixed(1)}K` : `$${Math.round(c.amount)}`}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </Card>
+
+            {/* 6d's pair, beneath the calendar. Spend per customer is
+                suppressed rather than zeroed when nobody booked this month —
+                there is no average of no customers, and $0.00 would read as
+                "everyone spent nothing". */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <StatCard
+                label="Spend / customer"
+                value={spendPerCustomer === null ? '—' : money(spendPerCustomer)}
+                caption={
+                  m.customers === 0
+                    ? 'no customers booked'
+                    : `${m.customers} customer${m.customers === 1 ? '' : 's'}`
+                }
+              />
+              <StatCard
+                label="Owed to you"
+                value={money(uncollected)}
+                caption={`${m.count - m.paidCount} unpaid booking${m.count - m.paidCount === 1 ? '' : 's'}`}
+              />
+            </div>
 
             <Card>
               <CardTitle>Where it goes</CardTitle>

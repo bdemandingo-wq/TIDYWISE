@@ -618,14 +618,41 @@ export default function RecurringBookingsPage() {
      Desktop untouched below. The phone renders RecurringMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    { id: 'add', label: 'Add Recurring', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
-  ];
-
+  /* One primary action, as the comp shows. The shell already renders it in
+     the title row; a chip as well was a second affordance for the same job —
+     the same duplication Invoices and Staff had. */
   if (isMobile) {
     return (
       <AdminLayout title="Recurring Bookings" subtitle={`${recurringBookings.length} recurring schedules`}>
-        <RecurringMobileBody actions={mobileActions} />
+        <RecurringMobileBody
+          
+          onAdd={() => setDialogOpen(true)}
+        />
+
+
+        {/* Mounted in the mobile arm as well. The arm early-returns, so a
+            dialog that only exists in the desktop branch below never renders
+            on a phone — which is why the one remaining Add button did
+            nothing. Sixth instance of this pattern in this codebase. */}
+      <RecurringBookingDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingBooking(null);
+        }}
+        booking={editingBooking}
+        customers={customers}
+        services={services}
+        staff={staff}
+        customFrequencies={customFrequencies}
+        onSave={(data) => {
+          if (editingBooking) {
+            updateMutation.mutate({ id: editingBooking.id, ...data });
+          } else {
+            createMutation.mutate(data);
+          }
+        }}
+      />
       </AdminLayout>
     );
   }

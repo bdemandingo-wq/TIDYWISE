@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { StaffMobileBody } from '@/pages/admin/StaffWiredPage';
+import { StaffMobileBody, StaffHero } from '@/pages/admin/StaffWiredPage';
+import { SegmentedTabs } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import { useAllStaff } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
@@ -324,14 +325,113 @@ export default function StaffPage() {
      Desktop untouched below. The phone renders StaffMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    { id: 'add', label: 'Add Staff', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setAddDialogOpen(true) },
-  ];
-
+  /* No Add Staff chip. 10g shows ONE primary action and the shell already
+     renders it in the title row — a chip as well as the shell button was two
+     affordances for one job, the same duplication Invoices had. */
   if (isMobile) {
     return (
       <AdminLayout title="Staff" subtitle={`${staff.length} team members`}>
-        <StaffMobileBody actions={mobileActions} />
+        {/* Hero + tabs at PAGE level so they stay on screen whichever tab is
+            open — 10g puts both in the hero, and a tab bar that vanishes when
+            you use it is worse than no tab bar. Same structure as Leads. */}
+        <div className="portal-v2 mx-auto w-full max-w-[430px]">
+          <StaffHero staff={staff} ready={!isLoading} />
+          <div className="px-5 pb-1 pt-2">
+            <SegmentedTabs
+              tabs={[
+                { id: 'team', label: 'Team' },
+                { id: 'documents', label: 'Documents' },
+                { id: 'activity', label: 'Activity' },
+                { id: 'time-off', label: 'Time Off' },
+              ]}
+              value={activeTab}
+              onChange={handleTabChange}
+              label="Staff view"
+            />
+          </div>
+        </div>
+
+        {activeTab === 'team' && (
+        <StaffMobileBody
+          hideHero
+          /* Turning the switch OFF routes through the same confirmation the
+             desktop row uses — that dialog is what makes a destructive control
+             safe to put on a phone. Turning it back ON is not destructive and
+             applies directly, exactly as desktop does. */
+          onToggleActive={(id, next) => {
+            const member = staff.find(m => m.id === id);
+            if (!member) return;
+            if (!next) {
+              setStaffToDelete(member);
+              setDeleteDialogOpen(true);
+            } else {
+              handleToggleActive(member, true);
+            }
+          }}
+        />
+        )}
+
+        {/* The other three tabs render their real content, so switching is
+            not decorative. Each of these is a self-contained component the
+            desktop TabsContent already mounts — reused, not reimplemented.
+            Without this the tabs would change activeTab and show the same
+            roster, which is the dead-control pattern this codebase has
+            produced five times already. */}
+        {activeTab === 'documents' && (
+          <div className="space-y-4 px-4 pb-6">
+            <Card>
+              <CardContent className="pt-6">
+                <AdminSignableDocManager />
+              </CardContent>
+            </Card>
+            <PendingDocumentsReview />
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="space-y-4 px-4 pb-6">
+            <StaffEventNotifications />
+            {organizationId && <StaffComplianceDashboard organizationId={organizationId} />}
+          </div>
+        )}
+
+        {activeTab === 'time-off' && (
+          <div className="space-y-4 px-4 pb-6">
+            <TimeOffRequestsPanel />
+          </div>
+        )}
+
+
+        {/* The confirmation itself, mounted in the arm. Without this the
+            switch would open nothing — the pattern the dead-control guard
+            now catches. */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Staff Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate <strong>{staffToDelete?.name}</strong>?
+              <br /><br />
+              • They will be marked as <strong>Inactive</strong> and remain in your staff list
+              <br />
+              • They will be <strong>excluded from booking assignment</strong> dropdowns
+              <br />
+              • Their records, history, and data will be <strong>fully preserved</strong>
+              <br />
+              • You can <strong>reactivate them at any time</strong> with a single toggle
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeactivate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </AdminLayout>
     );
   }

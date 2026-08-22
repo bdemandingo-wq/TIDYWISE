@@ -43,8 +43,11 @@ import type { ListState } from '@/components/portal-v2';
 
 export function RecurringMobileBody({
   actions,
+  onAdd,
 }: {
   actions?: ActionChip[];
+  /* The shell's title-row button had no handler, so it was dead. */
+  onAdd?: () => void;
 } = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -133,6 +136,9 @@ export function RecurringMobileBody({
             r.total_amount === null || r.total_amount === undefined
               ? undefined
               : `$${Number(r.total_amount).toFixed(2)}`,
+          /* 7f keys a left bar to status — green active, amber paused — and
+             puts the pill at the right of the row. */
+          accent: active ? ('success' as const) : ('warn' as const),
           badges: active
             ? [{ tone: 'success' as const, label: 'Active' }]
             : [{ tone: 'warn' as const, label: 'Paused' }],
@@ -158,7 +164,9 @@ export function RecurringMobileBody({
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
+          badgeAlign="right"
           actions={actions}
+          onAdd={onAdd}
           header={
             <InverseHeader
               eyebrow="Schedules"

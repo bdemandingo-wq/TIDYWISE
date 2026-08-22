@@ -2040,6 +2040,15 @@ export default function BookingsPage() {
             actions={mobileActions}
             onFilter={() => setMobileFiltersOpen(true)}
             filterCount={mobileFilterCount}
+            /* Rows open the 4d action sheet — the same BookingActionSheet the
+               desktop rows use, with View Details, Mark Paid and the rest.
+               Without this the body fell back to navigating to
+               ?booking=<id>, which this page never reads, so tapping a row
+               did nothing at all. */
+            onSelectBooking={id => {
+              const b = bookings.find(x => x.id === id);
+              if (b) setActionSheetBooking(b);
+            }}
           />
         ) : (
           /* ========== DESKTOP TABLE VIEW ========== */

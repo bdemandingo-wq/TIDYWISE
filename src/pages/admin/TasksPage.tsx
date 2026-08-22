@@ -247,13 +247,17 @@ export default function TasksPage() {
     { id: 'add', label: 'Add New', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setAddDialogOpen(true) },
   ];
 
-  if (isMobile) {
-    return (
-      <AdminLayout title="Tasks & Notes" subtitle="Manage your reminders, tasks, and notes">
-        <TasksMobileBody actions={mobileActions} />
-      </AdminLayout>
-    );
-  }
+  /* ── The mobile swap is REVERTED here, deliberately ────────────────────
+     TasksMobileBody renders a flat, read-only list. This page groups tasks by
+     type behind Daily / Weekly / Monthly / Notes tabs and gives each item a
+     CHECKBOX — which is the whole point of a task list, and what comp 8f
+     shows.
+
+     Swapping the arm in removed every checkbox from the phone: you could read
+     your tasks but not tick one off. That is a functionality regression, not
+     a layout change.
+
+     The body is still reachable at /dashboard/tasks-v2. */
 
   return (
     <AdminLayout 

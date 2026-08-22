@@ -299,6 +299,25 @@ export default function InventoryPage() {
      actions as chips. Handlers stay here; only rendering moves. */
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const mobileActions: ActionChip[] = [
+    /* Only while something is selected. A bulk action with nothing selected
+       is a button that cannot do anything, and selecting rows with no action
+       to run is selection that leads nowhere — both halves have to exist. */
+    ...(selectedIds.size > 0
+      ? [
+          {
+            id: 'bulk-delete',
+            label: `Delete ${selectedIds.size}`,
+            icon: <Trash2 className="h-3.5 w-3.5" />,
+            tone: 'danger' as const,
+            onClick: () => bulkDeleteMutation.mutate(Array.from(selectedIds)),
+          },
+          {
+            id: 'bulk-clear',
+            label: 'Clear selection',
+            onClick: () => setSelectedIds(new Set()),
+          },
+        ]
+      : []),
     { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: handleExport },
     { id: 'settings', label: 'Settings', icon: <Settings className="h-3.5 w-3.5" />, onClick: () => setSettingsDialogOpen(true) },
     { id: 'add', label: 'Add Item', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => { setEditingItem(null); setDialogOpen(true); } },
@@ -308,6 +327,16 @@ export default function InventoryPage() {
     return (
       <AdminLayout title="Inventory" subtitle={`${items.length} items tracked`}>
         <InventoryMobileBody
+          /* Bulk select, which desktop has and the phone had lost. */
+          selectedIds={selectedIds}
+          onSelectRow={(id, next) =>
+            setSelectedIds(prev => {
+              const s = new Set(prev);
+              if (next) s.add(id);
+              else s.delete(id);
+              return s;
+            })
+          }
           actions={mobileActions}
           onFilter={() => setMobileFiltersOpen(true)}
           filterCount={activeTab === 'all' ? 0 : 1}
@@ -342,6 +371,21 @@ export default function InventoryPage() {
                   <span className="text-xs opacity-70">{t.count}</span>
                 </Button>
               ))}
+            </div>
+
+            {/* Per-page, which desktop has in its pagination bar and the phone
+                had lost. It belongs with the filters rather than in the chip
+                row: it shapes the list rather than acting on it. */}
+            <div className="mt-4 border-t border-border/50 pt-4">
+              <p className="mb-1.5 text-sm font-medium text-muted-foreground">Items per page</p>
+              <Select value={String(perPage)} onValueChange={v => setPerPage(Number(v))}>
+                <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[25, 50, 100].map(n => (
+                    <SelectItem key={n} value={String(n)}>{n} per page</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </SheetContent>
         </Sheet>
