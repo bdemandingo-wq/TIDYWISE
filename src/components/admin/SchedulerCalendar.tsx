@@ -811,14 +811,10 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-1">
-              {/* Named after the view they actually move. Icon-only buttons
-                  with no accessible name are announced as just "button", and
-                  these two are the only way to change the date range. */}
               <Button
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                aria-label={viewMode === 'week' ? 'Previous week' : 'Previous month'}
                 onClick={() => navigate(-1)}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -827,7 +823,6 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                aria-label={viewMode === 'week' ? 'Next week' : 'Next month'}
                 onClick={() => navigate(1)}
               >
                 <ChevronRight className="w-4 h-4" />

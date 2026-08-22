@@ -20,31 +20,19 @@ export function InverseHeader({
   revenue,
   trend,
   wells,
-  subline,
-  action,
-  tabs,
   notifications = 0,
   error = false,
   onRetry,
-  onMenu,
 }: {
   eyebrow: string;
   business: string;
   revenueLabel: string;
   revenue?: string;
   trend?: { direction: 'up' | 'down'; label: string };
-  wells?: React.ReactNode;
-  /** Comp 10g: a single line of counts under the headline figure. */
-  subline?: React.ReactNode;
-  /** Comp 10g / 11d: the hero's own primary action (+ Add staff, Export). */
-  action?: { label: string; icon?: React.ReactNode; onClick?: () => void };
-  /** Comps 10g / 11d keep the screen's tab bar INSIDE the hero. */
-  tabs?: React.ReactNode;
+  wells: React.ReactNode;
   notifications?: number;
   error?: boolean;
   onRetry?: () => void;
-  /** Defaults to opening the app's mobile sidebar. */
-  onMenu?: () => void;
 }) {
   const badge = notifications > 9 ? '9+' : String(notifications);
 
@@ -53,12 +41,7 @@ export function InverseHeader({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          aria-label="Open navigation menu"
-          /* AdminSidebar listens for this event — it is how the app's own
-             fixed hamburger opens the drawer, and the sidebar's open state is
-             local to that component. Without it this button was decorative on
-             every screen carrying a hero. */
-          onClick={onMenu ?? (() => window.dispatchEvent(new Event('tw:open-mobile-sidebar')))}
+          aria-label="Menu"
           className="flex h-11 w-11 items-center justify-center rounded-full bg-[hsl(var(--pv-inverse-well))] text-[hsl(var(--pv-on-inverse))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-on-inverse))]"
         >
           <Menu className="h-[18px] w-[18px]" aria-hidden />
@@ -71,16 +54,6 @@ export function InverseHeader({
             {business}
           </p>
         </div>
-        {action && (
-          <button
-            type="button"
-            onClick={action.onClick}
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[hsl(var(--pv-brand))] px-3 text-[11.5px] font-extrabold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-on-inverse))]"
-          >
-            {action.icon}
-            {action.label}
-          </button>
-        )}
         <button
           type="button"
           aria-label={notifications > 0 ? `Notifications, ${badge} unread` : 'Notifications'}
@@ -142,14 +115,7 @@ export function InverseHeader({
         )}
       </div>
 
-      {subline && (
-        <p className="mt-2 text-[11.5px] font-semibold text-[hsl(var(--pv-on-inverse-muted))]">
-          {subline}
-        </p>
-      )}
-
-      {wells && <div className="mt-3.5 flex gap-2">{wells}</div>}
-      {tabs && <div className="mt-3.5">{tabs}</div>}
+      <div className="mt-3.5 flex gap-2">{wells}</div>
     </header>
   );
 }

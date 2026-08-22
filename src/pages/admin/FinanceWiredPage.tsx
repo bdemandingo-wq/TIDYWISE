@@ -3,10 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow, InverseHeader, StatWell, ListRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard } from '@/components/portal-v2';
 
 /**
  * /dashboard/finance-v2 — the P&L on real data. ADDITIVE.
@@ -48,30 +46,9 @@ import type { ActionChip } from '@/components/portal-v2';
 const money = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/**
- * `actions` are the live FinancePage's exports (QuickBooks/Xero, Income
- * Report, Sales Tax by Zip) and Sync with Stripe. This screen has no list,
- * so they render as a chip row above the cards rather than inside a shell.
- * Optional, so /dashboard/finance-v2 is unchanged.
- */
-export function FinanceMobileBody({
-  actions,
-}: {
-  actions?: ActionChip[];
-} = {}) {
+export default function FinanceWiredPage() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
-  const orgTz = useOrgTimezone();
-  /* 6d's P&L calendar. Booked by DEFAULT, because that is what the comp shows
-     and what an operator plans against — but never unlabelled, which was the
-     actual defect on the live screen: Total Sales said "incl. unpaid" and Net
-     Profit inherited the same basis silently. The basis is named in the card
-     title, restated under it, and switchable. */
-  const [basis, setBasis] = useState<'booked' | 'collected'>('booked');
-  /* 6d's four hero tabs — Transactions / P&L Calendar / Tax by Zip / P&L —
-     ported to mobile as a real tab bar under the hero. Defaults to P&L
-     Calendar, the tab the comp itself shows selected. */
-  const [view, setView] = useState<'transactions' | 'calendar' | 'tax' | 'pnl'>('calendar');
   const [range] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -85,7 +62,7 @@ export function FinanceMobileBody({
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment, customer_id, zip_code, customer:customers(first_name,last_name), service:services(name)')
+        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment')
         .eq('organization_id', organizationId)
         .gte('scheduled_at', range.start)
         .lte('scheduled_at', range.end)
@@ -135,14 +112,8 @@ export function FinanceMobileBody({
       b => b.cleaner_pay_expected == null && b.cleaner_actual_payment == null,
     ).length;
 
-    /* Distinct customers who actually have a booking this month. 6d divides
-       by this for "avg / customer"; dividing by the org's whole customer list
-       would understate it by counting people who did not book. */
-    const customers = new Set(rows.map(b => b.customer_id).filter(Boolean)).size;
-
     return {
       count: rows.length,
-      customers,
       paidCount: rows.filter(isPaid).length,
       booked,
       collected,
@@ -152,85 +123,10 @@ export function FinanceMobileBody({
     };
   }, [bookingsQ.data]);
 
-  /* 6d's Transactions tab — one row per booking, real data, no separate fetch. */
-  const txRows = useMemo(() => {
-    const rows = (bookingsQ.data ?? []) as any[];
-    return rows.map(b => {
-      const cust = b.customer ? `${b.customer.first_name ?? ''} ${b.customer.last_name ?? ''}`.trim() : 'Unknown';
-      const tone: 'success' | 'warn' | 'danger' | 'info' =
-        b.payment_status === 'paid' ? 'success'
-          : b.payment_status === 'refunded' ? 'danger'
-          : b.payment_status === 'partial' ? 'info'
-          : 'warn';
-      return {
-        id: b.id,
-        title: cust || 'Unknown',
-        meta: `${b.service?.name ?? 'Service'} · #${b.booking_number}`,
-        money: money(Number(b.total_amount ?? 0)),
-        status: { tone, label: b.payment_status ?? 'unknown' } as const,
-      };
-    });
-  }, [bookingsQ.data]);
-
-  /* 6d's Tax by Zip tab. */
-  const zipRows = useMemo(() => {
-    const rows = (bookingsQ.data ?? []) as any[];
-    const byZip = new Map<string, { count: number; total: number }>();
-    for (const b of rows) {
-      const zip = b.zip_code || 'No zip';
-      const cur = byZip.get(zip) ?? { count: 0, total: 0 };
-      cur.count += 1;
-      cur.total += Number(b.total_amount ?? 0);
-      byZip.set(zip, cur);
-    }
-    return Array.from(byZip.entries())
-      .map(([zip, v]) => ({ zip, count: v.count, total: v.total, tax: v.total * 0.07 }))
-      .sort((a, b) => b.total - a.total);
-  }, [bookingsQ.data]);
-
   const expensesTotal = useMemo(
     () => (expensesQ.data ?? []).reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0),
     [expensesQ.data],
   );
-
-  /* One cell per day of the month. null means no bookings that day — which is
-     not a day that earned nothing, and the two must not render alike. */
-  const calendar = useMemo(() => {
-    const rows = (bookingsQ.data ?? []) as any[];
-    const start = new Date(range.start);
-    const daysInMonth = new Date(start.getUTCFullYear(), start.getUTCMonth() + 1, 0).getUTCDate();
-    const isPaid = (b: any) => b.payment_status === 'paid' || b.payment_status === 'partial';
-    const byDay = new Map<number, number>();
-    for (const b of rows) {
-      if (basis === 'collected' && !isPaid(b)) continue;
-      const d = new Date(b.scheduled_at).getUTCDate();
-      byDay.set(d, (byDay.get(d) ?? 0) + Number(b.total_amount ?? 0));
-    }
-    /* Today in the ORG's zone, not the device's. An admin in Manila looking
-       at a Florida business must see Florida's today outlined, or the
-       highlight lands on the wrong cell. The rest of this memo buckets by
-       UTC date, which is a separate pre-existing question — this only decides
-       which cell is ringed. */
-    const orgTodayDay = Number(
-      new Intl.DateTimeFormat('en-US', { timeZone: orgTz, day: 'numeric' }).format(new Date()),
-    );
-    const orgTodayMonth = new Intl.DateTimeFormat('en-US', {
-      timeZone: orgTz,
-      month: 'numeric',
-      year: 'numeric',
-    }).format(new Date());
-    const thisMonth = new Intl.DateTimeFormat('en-US', {
-      timeZone: orgTz,
-      month: 'numeric',
-      year: 'numeric',
-    }).format(start);
-
-    return Array.from({ length: daysInMonth }, (_, i) => ({
-      day: i + 1,
-      amount: byDay.has(i + 1) ? byDay.get(i + 1)! : null,
-      isToday: orgTodayMonth === thisMonth && orgTodayDay === i + 1,
-    }));
-  }, [bookingsQ.data, basis, range.start, orgTz]);
 
   const phase = combinedPhase([bookingsQ, expensesQ]);
   const expensesPhase = queryPhase(expensesQ);
@@ -242,21 +138,10 @@ export function FinanceMobileBody({
      as "Net Profit" with no qualification. */
   const projectedProfit = m.booked - m.refunded - m.cleanerPayKnown - expensesTotal;
   const uncollected = m.booked - m.collected;
-  /* 6d's two figures. Both are RATIOS or sums over a denominator that can be
-     zero, so they are suppressed rather than shown as $0.00 — a month with no
-     customers has no average, which is not the same as an average of nothing. */
-  const spendPerCustomer = m.customers > 0 ? m.booked / m.customers : null;
-  /* The month this screen covers, named. 6d titles the hero with it, and a
-     finance screen whose period is unstated is the same trap as an undated
-     payroll total. */
-  const monthLabel = useMemo(
-    () => new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(range.start)),
-    [range.start],
-  );
 
   if (phase === 'error' || phase === 'offline') {
     return (
-      <>
+      <AdminLayout title="Finance" subtitle="Mobile layout, live data">
         <div className="portal-v2 mx-auto w-full max-w-[430px] px-5 py-4">
           <Card>
             <CardTitle>Couldn&rsquo;t load your finances</CardTitle>
@@ -267,62 +152,19 @@ export function FinanceMobileBody({
             </p>
           </Card>
         </div>
-      </>
+      </AdminLayout>
     );
   }
 
   return (
-    <>
-      {/* 6d's hero: the month as the title, gross profit as the headline, and
-          spend per customer beside it. The comp puts its four view tabs here
-          too — Transactions / P&L Calendar / Tax by Zip / P&L. Those views
-          exist on the desktop page but are not ported to the phone yet, and a
-          tab that switches to nothing is worse than no tab, so the wells carry
-          booked / collected / owed instead until the views follow. */}
-      <InverseHeader
-        eyebrow="Finance"
-        business={monthLabel}
-        revenueLabel="Gross profit this month"
-        revenue={money(realisedProfit)}
-        trend={
-          spendPerCustomer !== null
-            ? { direction: 'up', label: `${money(spendPerCustomer)} avg / customer` }
-            : undefined
-        }
-        wells={
-          <>
-            <StatWell value={money(m.booked)} caption="booked" />
-            <StatWell value={money(m.collected)} caption="collected" />
-            <StatWell value={money(uncollected)} caption="owed to you" />
-          </>
-        }
-      />
-
+    <AdminLayout title="Finance" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
-        {actions && actions.length > 0 && (
-          <ActionChipRow actions={actions} label="Finance actions" />
-        )}
-
-        <SegmentedTabs<'transactions' | 'calendar' | 'tax' | 'pnl'>
-          tabs={[
-            { id: 'transactions', label: 'Transactions' },
-            { id: 'calendar', label: 'P&L Calendar' },
-            { id: 'tax', label: 'Tax by Zip' },
-            { id: 'pnl', label: 'P&L' },
-          ]}
-          value={view}
-          onChange={setView}
-          label="Finance view"
-        />
-
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
             Loading this month&rsquo;s figures…
           </p>
         ) : (
           <>
-            {view === 'calendar' && (
-              <>
             {/* The two numbers the live screen merges into one. */}
             <div className="grid grid-cols-2 gap-2.5">
               <StatCard
@@ -367,103 +209,6 @@ export function FinanceMobileBody({
               )}
             </Card>
 
-            {/* 6d — revenue per day, on whichever basis is selected. */}
-            <Card>
-              <div className="flex items-center gap-2">
-                <CardTitle>
-                  {basis === 'booked' ? 'Booked per day' : 'Collected per day'}
-                </CardTitle>
-              </div>
-              <div className="mt-2">
-                <SegmentedTabs<'booked' | 'collected'>
-                  tabs={[
-                    { id: 'booked', label: 'Booked' },
-                    { id: 'collected', label: 'Collected' },
-                  ]}
-                  value={basis}
-                  onChange={setBasis}
-                  label="Revenue basis"
-                />
-              </div>
-              <p className="mt-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
-                {basis === 'booked'
-                  ? 'Work scheduled that day, whether or not it has been paid for. A dash means nothing was booked — not that nothing was earned.'
-                  : 'Money actually taken that day. A dash means nothing was collected.'}
-              </p>
-              <div className="mt-2.5 grid grid-cols-7 gap-1">
-                {/* 6d labels the columns MON…SUN, not single letters — T and S
-                    each appear twice and are ambiguous on their own. */}
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dd, i) => (
-                  <span key={i} className="text-center text-[9px] font-bold uppercase tracking-[0.04em] text-[hsl(var(--pv-ink-3))]">
-                    {dd}
-                  </span>
-                ))}
-                {calendar.map(c => {
-                  /* 6d tints a day that earned and leaves an empty day plain,
-                     so the month's shape is readable at a glance. A day with
-                     no bookings keeps the dash — it is not a day that earned
-                     nothing. Today is outlined rather than filled, so it stays
-                     legible whether or not it earned. */
-                  const earned = c.amount !== null && c.amount > 0;
-                  return (
-                    <div
-                      key={c.day}
-                      aria-current={c.isToday ? 'date' : undefined}
-                      className={
-                        'rounded-[8px] px-1 py-1.5 text-center ' +
-                        (earned
-                          ? 'bg-[hsl(var(--pv-success-soft))]'
-                          : 'bg-[hsl(var(--pv-sunken))]') +
-                        (c.isToday ? ' ring-2 ring-[hsl(var(--pv-brand))]' : '')
-                      }
-                    >
-                      <p
-                        className={
-                          'text-[10px] font-bold ' +
-                          (c.isToday
-                            ? 'text-[hsl(var(--pv-brand))]'
-                            : 'text-[hsl(var(--pv-ink-3))]')
-                        }
-                      >
-                        {c.day}
-                      </p>
-                      <p
-                        className={
-                          'truncate text-[9.5px] font-extrabold tabular-nums ' +
-                          (earned
-                            ? 'text-[hsl(var(--pv-success))]'
-                            : 'text-[hsl(var(--pv-ink-3))]')
-                        }
-                      >
-                        {c.amount === null ? '–' : c.amount >= 1000 ? `$${(c.amount / 1000).toFixed(1)}K` : `$${Math.round(c.amount)}`}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* 6d's pair, beneath the calendar. Spend per customer is
-                suppressed rather than zeroed when nobody booked this month —
-                there is no average of no customers, and $0.00 would read as
-                "everyone spent nothing". */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <StatCard
-                label="Spend / customer"
-                value={spendPerCustomer === null ? '—' : money(spendPerCustomer)}
-                caption={
-                  m.customers === 0
-                    ? 'no customers booked'
-                    : `${m.customers} customer${m.customers === 1 ? '' : 's'}`
-                }
-              />
-              <StatCard
-                label="Owed to you"
-                value={money(uncollected)}
-                caption={`${m.count - m.paidCount} unpaid booking${m.count - m.paidCount === 1 ? '' : 's'}`}
-              />
-            </div>
-
             <Card>
               <CardTitle>Where it goes</CardTitle>
               <div className="mt-2.5">
@@ -499,103 +244,9 @@ export function FinanceMobileBody({
               Figures are derived from bookings, not from your payment
               processor. Connect Stripe for the amounts it actually charged.
             </p>
-              </>
-            )}
-
-            {view === 'transactions' && (
-              phase === 'ready' && txRows.length === 0 ? (
-                <p className="px-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
-                  No transactions this month.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {txRows.map(r => (
-                    <ListRow
-                      key={r.id}
-                      title={r.title}
-                      meta={r.meta}
-                      money={r.money}
-                      status={r.status}
-                    />
-                  ))}
-                </div>
-              )
-            )}
-
-            {view === 'tax' && (
-              phase === 'ready' && zipRows.length === 0 ? (
-                <p className="px-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
-                  No transactions this month.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {zipRows.map(z => (
-                    <ListRow
-                      key={z.zip}
-                      title={z.zip}
-                      meta={`${z.count} transaction${z.count === 1 ? '' : 's'} · est. tax ${money(z.tax)}`}
-                      money={money(z.total)}
-                    />
-                  ))}
-                </div>
-              )
-            )}
-
-            {view === 'pnl' && (
-              <Card>
-                <CardTitle>P&amp;L breakdown</CardTitle>
-                <div className="mt-2.5">
-                  {[
-                    ['Booked (gross)', money(m.booked), false],
-                    ['Refunds', `−${money(m.refunded)}`, m.refunded === 0],
-                    ['Cleaner pay (locked in)', `−${money(m.cleanerPayKnown)}`, m.cleanerPayKnown === 0],
-                    ['Expenses', `−${money(expensesTotal)}`, expensesTotal === 0],
-                    ['Net profit (projected)', money(projectedProfit), false],
-                  ].map(([label, val]) => (
-                    <div
-                      key={label as string}
-                      className="flex items-center gap-2 border-b border-[hsl(var(--pv-border))] py-2.5 last:border-b-0"
-                    >
-                      <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
-                        {label as string}
-                      </span>
-                      <span className="shrink-0 tabular-nums text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
-                        {val as string}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-2 text-[11px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
-                  Net profit here is projected — it assumes every booked dollar gets
-                  paid. {money(realisedProfit)} is what has actually been collected.
-                </p>
-              </Card>
-            )}
-
           </>
         )}
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export default function FinanceWiredPage() {
-  return (
-    <AdminLayout title="Finance" subtitle="Mobile layout, live data">
-      <FinanceMobileBody />
     </AdminLayout>
   );
 }

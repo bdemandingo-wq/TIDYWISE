@@ -2,8 +2,6 @@ import { cn } from '@/lib/utils';
 import { DateTile } from './DateTile';
 import { Avatar } from './Avatar';
 import { StatusBadge } from './StatusBadge';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * The row that ten admin list screens share.
@@ -46,11 +44,6 @@ export function ListRow({
   lines,
   money,
   status,
-  actions,
-  badgeAlign = 'left',
-  accent,
-  toggle,
-  select,
   onClick,
   className,
 }: {
@@ -73,41 +66,6 @@ export function ListRow({
      dropping the second badge would remove the fact the screen is organised
      around. Existing callers pass a single object and are unaffected. */
   status?: Badge | Badge[];
-  /* ── Per-row actions ───────────────────────────────────────────────────
-     8a puts them inline on the row: green "Mark Paid" and "Resend" on an
-     overdue invoice, "View · Duplicate" on a paid one. Rendered on their own
-     line beneath the badges rather than beside them, because at 390px an
-     amount, two badges and two buttons on one line is how labels get
-     truncated.
-
-     They stopPropagation, so tapping an action never also fires the row's
-     own onClick — otherwise "Mark Paid" would mark it paid AND open it. */
-  actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
-  /* ── Comp variance, made explicit ─────────────────────────────────────
-     4c puts the badges bottom-LEFT with an overflow control at the right.
-     7f, 10c and 7g right-align them instead. The comps genuinely differ, so
-     this is a prop rather than a global choice — defaulting to the existing
-     left so no screen moves unless it asks. */
-  badgeAlign?: 'left' | 'right';
-  /* 7f and 11a carry a coloured bar down the left edge of the row, keyed to
-     status. Optional: a row that does not pass one renders exactly as before. */
-  accent?: 'success' | 'warn' | 'danger' | 'brand';
-  /* ── An on/off control on the row itself ──────────────────────────────
-     11a puts an active toggle on every checklist, and the live Discounts and
-     Checklists screens both have one on desktop that the phone had lost.
-
-     It sits on the title line, right of the money slot, because that is
-     where 11a puts it and because a control below the badges reads as part
-     of the metadata rather than as something you can operate.
-
-     stopPropagation, so flipping the toggle never also fires the row's
-     onClick — otherwise turning a checklist off would also open it. */
-  toggle?: { checked: boolean; onChange: (next: boolean) => void; label: string };
-  /* Bulk SELECTION, which is a different thing from the on/off toggle above:
-     a toggle changes the record, a checkbox only marks it for an action you
-     have not taken yet. Rendered leading, where a selection control belongs,
-     rather than trailing beside the toggle. */
-  select?: { checked: boolean; onChange: (next: boolean) => void; label: string };
   onClick?: () => void;
   className?: string;
 }) {
@@ -132,32 +90,12 @@ export function ListRow({
            The previous build put money and badges in a right-hand column and
            the ref in a 46px left gutter. Both are corrected here. */
         'block w-full rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4 py-[13px] text-left',
-        /* 7f / 11a's status bar: a thicker left border in the status colour,
-           which keeps the row's radius and needs no extra element. */
-        accent === 'success' && 'border-l-[3px] border-l-[hsl(var(--pv-success))]',
-        accent === 'warn' && 'border-l-[3px] border-l-[hsl(var(--pv-warn))]',
-        accent === 'danger' && 'border-l-[3px] border-l-[hsl(var(--pv-danger))]',
-        accent === 'brand' && 'border-l-[3px] border-l-[hsl(var(--pv-brand))]',
         onClick &&
           'transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]',
         className,
       )}
     >
       <span className="flex items-center gap-2">
-        {select && (
-          <span
-            className="shrink-0"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}
-            role="presentation"
-          >
-            <Checkbox
-              checked={select.checked}
-              onCheckedChange={v => select.onChange(v === true)}
-              aria-label={select.label}
-            />
-          </span>
-        )}
         {/* A date or person lead keeps the 46px gutter (§3 rule 13); a `ref`
             is inline here, which is what both comps show. */}
         {lead.kind === 'date' && (
@@ -185,21 +123,6 @@ export function ListRow({
             {money}
           </span>
         )}
-
-        {toggle && (
-          <span
-            className="shrink-0"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}
-            role="presentation"
-          >
-            <Switch
-              checked={toggle.checked}
-              onCheckedChange={toggle.onChange}
-              aria-label={toggle.label}
-            />
-          </span>
-        )}
       </span>
 
       {meta && (
@@ -217,37 +140,9 @@ export function ListRow({
       ))}
 
       {badges.length > 0 && (
-        <span
-          className={
-            'mt-[9px] flex flex-wrap items-center gap-1.5' +
-            (badgeAlign === 'right' ? ' justify-end' : '')
-          }
-        >
+        <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
           {badges.map((b, i) => (
             <StatusBadge key={`${b.label}-${i}`} tone={b.tone} label={b.label} />
-          ))}
-        </span>
-      )}
-
-      {actions && actions.length > 0 && (
-        <span className="mt-[10px] flex flex-wrap items-center gap-2">
-          {actions.map(a => (
-            <button
-              key={a.id}
-              type="button"
-              onClick={e => {
-                e.stopPropagation();
-                a.onClick();
-              }}
-              className={
-                'inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[12px] font-bold ' +
-                (a.tone === 'primary'
-                  ? 'bg-[hsl(var(--pv-success))] text-[hsl(var(--pv-brand-ink))]'
-                  : 'text-[hsl(var(--pv-brand))]')
-              }
-            >
-              {a.label}
-            </button>
           ))}
         </span>
       )}

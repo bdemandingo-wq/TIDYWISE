@@ -1,8 +1,4 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { ServicesMobileBody } from '@/pages/admin/SimpleWiredPages';
-import { SegmentedTabs } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
 import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,12 +18,6 @@ import { SEOHead } from '@/components/SEOHead';
 
 
 export default function ServicesPage() {
-  const isMobile = useIsMobile();
-  /* The desktop <Tabs> is uncontrolled (defaultValue), so the phone keeps its
-     own tab state rather than reaching into it. Same four ids. */
-  const [mobileTab, setMobileTab] = useState<
-    'custom-services' | 'service-pricing' | 'extras' | 'frequencies'
-  >('custom-services');
   const { organization } = useOrganization();
   const { servicePricing, loading: pricingLoading } = useServicePricing();
   const [downloading, setDownloading] = useState(false);
@@ -147,62 +137,6 @@ export default function ServicesPage() {
       setDownloading(false);
     }
   }, [organization?.id, servicePricing]);
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders ServicesMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    { id: 'csv', label: 'Download CSV', icon: <Download className="h-3.5 w-3.5" />, onClick: handleDownloadCSV },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Services & Pricing" subtitle="Manage pricing independently for each service category">
-        {/* 10d's four views, the way Staff does it: the switcher lives at page
-            level so it stays on screen whichever tab is open, and each tab
-            renders the SAME self-contained manager the desktop TabsContent
-            mounts — reused, not reimplemented. Desktop had four tabs and the
-            phone had none, so Pricing, Add-Ons and Frequencies were
-            unreachable on a phone entirely. */}
-        <div className="px-4 pb-2 pt-1">
-          <SegmentedTabs
-            tabs={[
-              { id: 'custom-services' as const, label: 'Services' },
-              { id: 'service-pricing' as const, label: 'Pricing' },
-              { id: 'extras' as const, label: 'Add-Ons' },
-              { id: 'frequencies' as const, label: 'Frequencies' },
-            ]}
-            value={mobileTab}
-            onChange={id => setMobileTab(id)}
-            label="Services view"
-          />
-        </div>
-
-        {mobileTab === 'custom-services' && (
-          <>
-            <ServicesMobileBody actions={mobileActions} />
-            {/* 10d's list ends with a tip pointing at the Pricing tab; the
-                mobile arm had the list but never this closing hint. */}
-            <div className="px-4 pb-6">
-              <div className="rounded-xl bg-[hsl(var(--pv-sunken))] p-3 text-[11.5px] leading-relaxed text-[hsl(var(--pv-ink-3))]">
-                <b className="text-[hsl(var(--pv-ink))]">Tip:</b> after creating a service, use the Service Pricing tab to set square-footage rates, bed/bath combinations, extras and more.
-              </div>
-            </div>
-          </>
-        )}
-        {mobileTab === 'service-pricing' && (
-          <div className="space-y-4 px-4 pb-6"><ServicePricingEditor /></div>
-        )}
-        {mobileTab === 'extras' && (
-          <div className="space-y-4 px-4 pb-6"><ExtrasPricingManager /></div>
-        )}
-        {mobileTab === 'frequencies' && (
-          <div className="space-y-4 px-4 pb-6"><CustomFrequenciesManager /></div>
-        )}
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout

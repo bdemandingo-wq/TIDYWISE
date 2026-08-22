@@ -1,6 +1,4 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { NotificationsMobileBody } from '@/pages/admin/SimpleWiredPages';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -39,7 +37,6 @@ const PUSH_CATEGORIES = [
 ];
 
 export default function NotificationsPage() {
-  const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgId = organization?.id ?? null;
 
@@ -157,24 +154,6 @@ export default function NotificationsPage() {
       setSendingEvening(false);
     }
   };
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders NotificationsMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  /* ── The mobile swap is REVERTED here, deliberately ────────────────────
-     NotificationsMobileBody renders the two daily-brief toggles and nothing
-     else. This page carries the whole notification system — the preset
-     chooser (Action required only / Balanced / Everything / Custom), the
-     delivery channels, and Save/Reset — which is what comp 5b shows and what
-     desktop has always had.
-
-     Swapping the arm in replaced all of that with two toggles, so a phone
-     could no longer choose a preset or turn a channel off. That is a
-     functionality regression, not a layout change, so the arm is removed
-     until the body covers the screen rather than a corner of it.
-
-     The body is still reachable at /dashboard/notifications-v2. */
 
   return (
     <AdminLayout title="Notifications" subtitle="Manage how you receive notifications">

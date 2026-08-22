@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { SegmentedTabs, InverseHeader, StatWell, ActionChipRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
 import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,7 +31,6 @@ import { CampaignEditDialog } from '@/components/admin/campaigns/CampaignEditDia
 import { CampaignWizard } from '@/components/admin/campaigns/CampaignWizard';
 import { CampaignList } from '@/components/admin/campaigns/CampaignList';
 import { useOptedOutCount } from '@/hooks/useOptOuts';
-import { useReferrals } from '@/hooks/useReferrals';
 import { useCampaignRuns } from '@/hooks/useCampaignRuns';
 import {
   useBusinessSettings,
@@ -64,7 +61,6 @@ export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const { organizationId: orgId } = useOrgId();
   const isMobile = useIsMobile();
-  const [mobileView, setMobileView] = useState<'all' | 'opted_out' | 'referrals'>('all');
 
   // Filters
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
@@ -100,7 +96,6 @@ export default function CampaignsPage() {
   const { data: conversionStats } = useCampaignConversionStats(orgId);
 
   const { data: optedOutCount = 0 } = useOptedOutCount(orgId);
-  const referralsQ = useReferrals();
 
   // Map of campaign id -> name for opt-out attribution
   const campaignNameMap = useMemo(() => {
@@ -145,125 +140,12 @@ export default function CampaignsPage() {
     );
   }
 
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders CampaignsMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    { id: 'new', label: 'New Campaign', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setCreateOpen(true) },
-  ];
-
-  if (isMobile) {
-    const sentCount = campaigns.filter(c => c.last_run_at).length;
-    const activeCount = campaigns.filter(c => c.is_active).length;
-    const referralsCount = referralsQ.data?.counts.total ?? 0;
-
-    return (
-      <AdminLayout title="Campaigns" subtitle="Manage marketing campaigns and automations">
-        <div className="portal-v2 portal-v2-scroll">
-          {/* 9c: dark hero with "Campaigns sent" headline + active / opted
-              out / referrals wells, mirrored below the app chrome. */}
-          <InverseHeader
-            eyebrow="Marketing"
-            business="Campaigns"
-            revenueLabel="Campaigns sent"
-            revenue={String(sentCount)}
-            wells={
-              <>
-                <StatWell value={String(activeCount)} caption="active" />
-                <StatWell value={String(optedOutCount)} caption="opted out" />
-                <StatWell value={String(referralsCount)} caption="referrals" />
-              </>
-            }
-          />
-
-          <ActionChipRow actions={mobileActions} label="Campaign actions" />
-
-          {/* 9c puts Campaigns / Opted Out / Referrals in the hero, and the
-              parity guard flagged that the phone had no tabs at all. These are
-              the page's OWN channelFilter values plus the Referral Program the
-              desktop renders below the list — all three reachable, none
-              decorative. */}
-          <div className="px-4 pb-2 pt-3">
-            <SegmentedTabs
-              tabs={[
-                { id: 'all', label: 'Campaigns' },
-                { id: 'opted_out', label: `Opted Out${optedOutCount > 0 ? ` ${optedOutCount}` : ''}` },
-                { id: 'referrals', label: 'Referrals' },
-              ]}
-              value={mobileView}
-              onChange={id => {
-                setMobileView(id as typeof mobileView);
-                /* Referrals is a separate panel, not a channel — leave the
-                   page's own filter alone when switching to it. */
-                if (id !== 'referrals') setChannelFilter(id as ChannelFilter);
-              }}
-              label="Campaigns view"
-            />
-          </div>
-
-          <div className="px-4 pb-6">
-            {mobileView === 'referrals' ? (
-              <ReferralDashboard />
-            ) : mobileView === 'opted_out' ? (
-              <OptedOutPanel orgId={orgId} campaignNameMap={campaignNameMap} />
-            ) : (
-              <CampaignList
-                campaigns={filteredCampaigns}
-                orgId={orgId}
-                statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
-                trackingStats={campaignTrackingStats}
-                conversionStats={conversionStats}
-                runs={campaignRuns}
-                orgTimezone={orgTimezone}
-                onOpenTracking={setDetailCampaignId}
-                onEditCampaign={setEditCampaign}
-                onNewCampaign={() => setCreateOpen(true)}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* 9d/9e: the same three-step wizard the desktop mounts below its
-            `if (isMobile) return` — which meant "+ New" here opened nothing.
-            Mounted here too so the phone's own button works. */}
-        <CampaignWizard
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          orgId={orgId}
-          businessSettings={businessSettings}
-          optedOutCount={optedOutCount}
-        />
-
-        <CampaignTrackingDialog
-          campaignId={detailCampaignId}
-          campaignName={campaigns.find(c => c.id === detailCampaignId)?.name || ""}
-          orgId={orgId}
-          trackingStats={campaignTrackingStats}
-          run={detailCampaignId ? campaignRuns[detailCampaignId] : null}
-          orgTimezone={orgTimezone}
-          onClose={() => setDetailCampaignId(null)}
-        />
-
-        <CampaignEditDialog
-          campaign={editCampaign}
-          orgId={orgId}
-          onClose={() => setEditCampaign(null)}
-        />
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout
       title="Campaigns"
       subtitle="Manage marketing campaigns and automations"
       actions={
-        /* The label is hidden below sm, so without aria-label the primary
-           action on this page is announced as just "button" — and it is the
-           only way to create a campaign. */
-        <Button className="gap-2" aria-label="New Campaign" onClick={() => setCreateOpen(true)}>
+        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">New Campaign</span>
         </Button>

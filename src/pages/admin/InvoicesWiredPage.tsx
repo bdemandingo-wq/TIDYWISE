@@ -6,9 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
-import { SimpleListView, useSimpleSearch, type SimpleListRow, InverseHeader, StatWell } from '@/components/portal-v2';
-import { ActionChipRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -69,25 +67,7 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'warn' | 'danger'> = {
   cancelled: 'warn',
 };
 
-export function InvoicesMobileBody({
-  actions,
-  onAdd,
-  onMarkPaid,
-  onSend,
-  onDuplicate,
-  onView,
-}: {
-  actions?: ActionChip[];
-  /* The shell's "+ New invoice" button had no handler, so it was dead. */
-  onAdd?: () => void;
-  /* 8a's inline row actions. Supplied by InvoicesPage, which owns the
-     mutations; absent on the -v2 route, where the rows stay read-only
-     rather than showing buttons that do nothing. */
-  onMarkPaid?: (id: string, previousStatus: string) => void;
-  onSend?: (id: string) => void;
-  onDuplicate?: (id: string) => void;
-  onView?: (id: string) => void;
-} = {}) {
+export default function InvoicesWiredPage() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -152,15 +132,13 @@ export function InvoicesMobileBody({
         return {
           id: inv.id,
           title: who ?? 'No recipient on this invoice',
-          /* 8a packs the supporting facts onto ONE line — `#1042 · due Aug 19
-             · 3 items` — instead of stacking three. The row is half the
-             height the stacked version was, which is what the comp shows. */
-          meta: [
-            `#${inv.invoice_number}`,
-            inv.due_date ? `due ${fmtDay(inv.due_date)}` : 'no due date',
-            itemCount === 0 ? 'no line items' : `${itemCount} item${itemCount === 1 ? '' : 's'}`,
-          ].join(' \u00b7 '),
+          meta: `#${inv.invoice_number}`,
           lines: [
+            inv.due_date ? `Due ${fmtDay(inv.due_date)}` : 'No due date',
+            /* A total with nothing behind it is worth saying. */
+            itemCount === 0
+              ? 'No line items'
+              : `${itemCount} line item${itemCount === 1 ? '' : 's'}`,
             duePassed
               ? 'Due date has passed — not yet marked overdue'
               : inv.paid_at
@@ -173,31 +151,6 @@ export function InvoicesMobileBody({
              total nothing. Only an unread figure becomes "—", and phase is
              what tells them apart. */
           money: ready ? money(total) : '—',
-          /* 8a: an unpaid invoice offers Mark Paid + Send/Resend; a settled
-             one offers View · Duplicate. Cancelled offers neither Mark Paid
-             nor Send — marking a cancelled invoice paid is not a thing. */
-          actions: (() => {
-            const a: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[] = [];
-            const settled = inv.status === 'paid' || inv.status === 'cancelled';
-            if (!settled && onMarkPaid) {
-              a.push({
-                id: 'paid',
-                label: 'Mark Paid',
-                tone: 'primary',
-                onClick: () => onMarkPaid(inv.id, inv.status),
-              });
-            }
-            if (!settled && onSend) {
-              a.push({
-                id: 'send',
-                label: inv.status === 'draft' ? 'Send' : 'Resend',
-                onClick: () => onSend(inv.id),
-              });
-            }
-            if (onView) a.push({ id: 'view', label: 'View', onClick: () => onView(inv.id) });
-            if (onDuplicate) a.push({ id: 'dup', label: 'Duplicate', onClick: () => onDuplicate(inv.id) });
-            return a;
-          })(),
           badges: [
             {
               tone: STATUS_TONE[inv.status] ?? 'info',
@@ -207,7 +160,7 @@ export function InvoicesMobileBody({
           ],
         };
       }),
-    [q.data, ready, fmtDay, orgToday, onMarkPaid, onSend, onDuplicate, onView],
+    [q.data, ready, fmtDay, orgToday],
   );
 
   const filtered = useSimpleSearch(rows, search);
@@ -229,67 +182,27 @@ export function InvoicesMobileBody({
     [q.data],
   );
 
-  /* 8a's four wells. `overdue` is computed against the org's today, not the
-     device's — a due date is a calendar day in the business's zone. */
-  const counts = useMemo(() => {
-    const d = q.data ?? [];
-    const n = (f: (i: any) => boolean) => d.filter(f).length;
-    return {
-      total: d.length,
-      paid: n(i => i.status === 'paid'),
-      overdue: n(i => i.status !== 'paid' && i.status !== 'cancelled' && i.due_date && i.due_date < orgToday),
-      drafts: n(i => i.status === 'draft'),
-    };
-  }, [q.data, orgToday]);
-
-  const outstanding = useMemo(
-    () =>
-      (q.data ?? [])
-        .filter((i: any) => i.status !== 'paid' && i.status !== 'cancelled')
-        .reduce((s: number, i: any) => s + Number(i.total_amount ?? 0), 0),
-    [q.data],
-  );
-
   return (
-    <>
+    <AdminLayout title="Invoices" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {ready && rows.length > 0 && (
+          <div className="px-4 pt-3">
+            <div className="rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-[18px] py-3.5">
+              <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[hsl(var(--pv-ink-3))]">
+                Collected from invoices
+              </p>
+              <p className="mt-1 text-[24px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-ink))]">
+                {money(paidTotal)}
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-[hsl(var(--pv-ink-3))]">
+                Paid invoices only — {rows.length} invoice
+                {rows.length === 1 ? '' : 's'} in total
+              </p>
+            </div>
+          </div>
+        )}
+
         <SimpleListView
-          /* 8a leads with Total paid and the outstanding figure beside it,
-             then total / paid / overdue / drafts as wells. This replaced a
-             light "Collected from invoices" card that showed the same paid
-             total but none of the rest, and only when the list was non-empty
-             — so an org with one cancelled invoice saw no figures at all. */
-          header={
-            <InverseHeader
-              eyebrow="Finance"
-              business="Invoices"
-              revenueLabel="Total paid"
-              revenue={ready ? money(paidTotal) : '—'}
-              trend={
-                ready && outstanding > 0
-                  ? { direction: 'down', label: `${money(outstanding)} outstanding` }
-                  : undefined
-              }
-              error={phase === 'error' || phase === 'offline'}
-              onRetry={() => q.refetch()}
-              action={onAdd ? { label: 'New', onClick: onAdd } : undefined}
-              wells={
-                <>
-                  <StatWell value={ready ? String(counts.total) : '—'} caption="total" />
-                  <StatWell value={ready ? String(counts.paid) : '—'} caption="paid" />
-                  <StatWell value={ready ? String(counts.overdue) : '—'} caption="overdue" />
-                  <StatWell value={ready ? String(counts.drafts) : '—'} caption="drafts" />
-                </>
-              }
-            />
-          }
-          actions={actions}
-          onAdd={onAdd}
-          /* The hero already carries the title and the New-invoice action;
-             8a has no second title row, no tabs and no section label. */
-          hideTitle
-          hideTabs
-          hideSectionLabel
           title="Invoices"
           phase={listState}
           rows={filtered}
@@ -308,27 +221,6 @@ export function InvoicesMobileBody({
           }
         />
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export default function InvoicesWiredPage() {
-  return (
-    <AdminLayout title="Invoices" subtitle="Mobile layout, live data">
-      <InvoicesMobileBody />
     </AdminLayout>
   );
 }

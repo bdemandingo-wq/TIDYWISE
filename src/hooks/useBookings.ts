@@ -46,17 +46,6 @@ export interface BookingWithDetails {
     last_name: string;
     email: string;
     phone: string | null;
-    /* Address fields are selected ONLY as a fallback for bookings that have
-       none of their own — see formatFullAddress. Without them the cleaner
-       broadcast sends "Address: Address not provided" for jobs whose address
-       the database is holding one table away. */
-    address: string | null;
-    /* NOTE: customers has no apt_suite column — only bookings does. Asking
-       for one makes PostgREST reject the whole query, which would have taken
-       the entire bookings list down, not just the address. */
-    city: string | null;
-    state: string | null;
-    zip_code: string | null;
   } | null;
   service: {
     id: string;
@@ -198,7 +187,7 @@ export function useBookings() {
           .from('bookings')
           .select(`
             *,
-            customer:customers(id, first_name, last_name, email, phone, address, city, state, zip_code),
+            customer:customers(id, first_name, last_name, email, phone),
             service:services(id, name, description, price, duration),
             staff:staff(id, name, email, phone),
             booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
@@ -245,7 +234,7 @@ export function useBookingsByDateRange(startDate: Date, endDate: Date) {
         .from('bookings')
         .select(`
           *,
-          customer:customers(id, first_name, last_name, email, phone, address, city, state, zip_code),
+          customer:customers(id, first_name, last_name, email, phone),
           service:services(id, name, description, price, duration),
           staff:staff(id, name, email, phone),
           booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))
@@ -284,7 +273,7 @@ export function useDraftBookings() {
         .from('bookings')
         .select(`
           *,
-          customer:customers(id, first_name, last_name, email, phone, address, city, state, zip_code),
+          customer:customers(id, first_name, last_name, email, phone),
           service:services(id, name, description, price, duration),
           staff:staff(id, name, email, phone),
           booking_team_assignments(staff_id, pay_share, is_primary, staff:staff(id, name))

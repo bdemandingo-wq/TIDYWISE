@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { BookingPhotosMobileBody } from '@/pages/admin/OpsWiredPages';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,7 +90,6 @@ function SignedVideo({ src, bucket, className }: { src: string; bucket: string; 
 }
 
 export default function BookingPhotosPage() {
-  const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const queryClient = useQueryClient();
@@ -324,18 +321,6 @@ export default function BookingPhotosPage() {
 
   const videoCount = photos.filter((photo) => isVideoMedia(photo)).length;
   const photoCount = photos.length - videoCount;
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders BookingPhotosMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  if (isMobile) {
-    return (
-      <AdminLayout title="Booking Media">
-        <BookingPhotosMobileBody />
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout title="Booking Media">

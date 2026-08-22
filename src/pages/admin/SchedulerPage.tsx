@@ -1,9 +1,5 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { SchedulerMobileBody } from '@/pages/admin/SchedulerBenchmarksWiredPages';
-import type { ActionChip } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { SchedulerCalendar } from '@/components/admin/SchedulerCalendar';
 import { useStaff, useBookings } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
@@ -44,7 +40,6 @@ const filterLabels: Record<StatusFilter, string> = {
 };
 
 export default function SchedulerPage() {
-  const isMobile = useIsMobile();
   const { data: staff = [] } = useStaff();
   const { data: bookings = [] } = useBookings();
   const orgTz = useOrgTimezone();
@@ -144,67 +139,6 @@ export default function SchedulerPage() {
       setExporting(false);
     }
   };
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders SchedulerMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const mobileActions: ActionChip[] = [
-    { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: () => handleExport('csv') },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Scheduler" subtitle="Manage your bookings and appointments">
-        <SchedulerMobileBody
-          actions={mobileActions}
-          onFilter={() => setMobileFiltersOpen(true)}
-          filterCount={(staffFilter ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
-        />
-
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Filter schedule</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 pt-2">
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Staff</p>
-                <Select
-                  value={staffFilter || 'all'}
-                  onValueChange={(v) => setStaffFilter(v === 'all' ? null : v)}
-                >
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Staff" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Staff</SelectItem>
-                    {staff.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{maskName(s.name)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Status</p>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="All Bookings" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Bookings</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>Show results</Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout

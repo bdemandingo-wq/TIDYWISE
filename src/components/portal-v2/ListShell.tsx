@@ -1,4 +1,4 @@
-import { Search, Plus, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, SlidersHorizontal } from 'lucide-react';
 import { Card, Skeleton } from './Card';
 import { Button } from './Button';
 import { SegmentedTabs } from './SegmentedTabs';
@@ -29,7 +29,6 @@ export function ListShell<T extends string>({
   searchPlaceholder = 'Search',
   onFilter,
   filterCount = 0,
-  merge,
   tabs,
   tab,
   onTab,
@@ -38,9 +37,6 @@ export function ListShell<T extends string>({
   errorLabel = "Couldn't load this list",
   onRetry,
   skeletonRows = 4,
-  hideTitle = false,
-  hideSearch = false,
-  hideTabs = false,
   children,
 }: {
   title: string;
@@ -50,11 +46,6 @@ export function ListShell<T extends string>({
   searchPlaceholder?: string;
   onFilter?: () => void;
   filterCount?: number;
-  /* Comp 7g: an inline "⇅ Merge" control beside the search box, distinct
-     from onFilter (a panel) and from a row action — it opens the app's
-     real duplicate-merge flow. Optional so every other ListShell caller is
-     unaffected. */
-  merge?: { label?: string; onClick: () => void };
   tabs?: { id: T; label: string; count?: number }[];
   tab?: T;
   onTab?: (id: T) => void;
@@ -64,16 +55,10 @@ export function ListShell<T extends string>({
   errorLabel?: string;
   onRetry?: () => void;
   skeletonRows?: number;
-  /* Set when the page's hero already carries the title / search / tabs, so
-     the shell does not render a second copy of the same control. */
-  hideTitle?: boolean;
-  hideSearch?: boolean;
-  hideTabs?: boolean;
   children?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {!hideTitle && (
       <div className="flex items-center gap-3">
         <h1 className="min-w-0 flex-1 truncate text-[19px] font-extrabold text-[hsl(var(--pv-ink))]">
           {title}
@@ -88,10 +73,8 @@ export function ListShell<T extends string>({
           </Button>
         )}
       </div>
-      )}
 
       {/* Search and filter stay live in every state, including error. */}
-      {!hideSearch && (
       <div className="flex gap-2">
         <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3">
           <Search className="h-4 w-4 shrink-0 text-[hsl(var(--pv-ink-3))]" aria-hidden />
@@ -103,16 +86,6 @@ export function ListShell<T extends string>({
             className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:outline-none"
           />
         </label>
-        {merge && (
-          <button
-            type="button"
-            onClick={merge.onClick}
-            className="flex h-11 shrink-0 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3 text-[11px] font-bold text-[hsl(var(--pv-ink))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]"
-          >
-            <ArrowUpDown className="h-3.5 w-3.5" aria-hidden />
-            {merge.label ?? 'Merge'}
-          </button>
-        )}
         {onFilter && (
           <button
             type="button"
@@ -132,9 +105,8 @@ export function ListShell<T extends string>({
           </button>
         )}
       </div>
-      )}
 
-      {!hideTabs && tabs && tab && onTab && (
+      {tabs && tab && onTab && (
         <SegmentedTabs tabs={tabs} value={tab} onChange={onTab} label={`${title} filter`} />
       )}
 

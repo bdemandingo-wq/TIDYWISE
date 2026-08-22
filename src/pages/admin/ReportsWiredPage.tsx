@@ -1,12 +1,11 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
-import { useMemo, useState } from 'react';
-import { Card, CardTitle, StatCard, Sparkline, SegmentedTabs, ActionChipRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, Sparkline } from '@/components/portal-v2';
 
 /**
  * /dashboard/reports-v2 — the reports overview on real data. ADDITIVE.
@@ -44,23 +43,8 @@ import type { ActionChip } from '@/components/portal-v2';
 const money = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/**
- * `actions` is the live ReportsPage's date-range control. Reports with no
- * stated period are the same trap as payroll — a number is meaningless
- * until you know the window. Optional, so /dashboard/reports-v2 is
- * unchanged.
- */
-export function ReportsMobileBody({
-  actions,
-}: {
-  actions?: ActionChip[];
-} = {}) {
+export default function ReportsWiredPage() {
   const { organization } = useOrganization();
-  /* Booked by default — it is the series that actually has shape, and an
-     operator plans against work scheduled. Labelled and switchable, because
-     the defect on the live screen was never "booked revenue", it was booked
-     revenue presented as though it were collected. */
-  const [basis, setBasis] = useState<'booked' | 'collected'>('booked');
   const orgTz = useOrgTimezone();
 
   const q = useQuery({
@@ -111,18 +95,13 @@ export function ReportsMobileBody({
     const payingCustomers = new Set(paid.map(b => b.customer_id).filter(Boolean));
     const spendPerPayer = payingCustomers.size > 0 ? collected / payingCustomers.size : null;
 
-    /* Two monthly series. Which one the chart draws is the caller's choice
-       and is always named on screen. */
-    const monthly = (src: any[]) => {
-      const byMonth = new Map<string, number>();
-      for (const b of src) {
-        const k = String(b.scheduled_at).slice(0, 7);
-        byMonth.set(k, (byMonth.get(k) ?? 0) + Number(b.total_amount ?? 0));
-      }
-      return [...byMonth.entries()].sort(([a], [b2]) => a.localeCompare(b2)).map(([, v]) => v);
-    };
-    const seriesBooked = monthly(rows.filter(b => b.status !== 'cancelled'));
-    const seriesCollected = monthly(paid);
+    /* Monthly series of collected money, for the one chart this screen has. */
+    const byMonth = new Map<string, number>();
+    for (const b of paid) {
+      const k = String(b.scheduled_at).slice(0, 7);
+      byMonth.set(k, (byMonth.get(k) ?? 0) + Number(b.total_amount ?? 0));
+    }
+    const series = [...byMonth.entries()].sort(([a], [b2]) => a.localeCompare(b2)).map(([, v]) => v);
 
     return {
       total: rows.length,
@@ -132,18 +111,15 @@ export function ReportsMobileBody({
       collected,
       spendPerPayer,
       payingCustomers: payingCustomers.size,
-      seriesBooked,
-      seriesCollected,
+      series,
     };
   }, [q.data]);
-
-  const series = basis === 'booked' ? m.seriesBooked : m.seriesCollected;
 
   const newCustomers = (customersQ.data ?? []).length;
 
   if (phase === 'error' || phase === 'offline') {
     return (
-      <>
+      <AdminLayout title="Reports" subtitle="Mobile layout, live data">
         <div className="portal-v2 mx-auto w-full max-w-[430px] px-5 py-4">
           <Card>
             <CardTitle>Couldn&rsquo;t load your reports</CardTitle>
@@ -153,17 +129,13 @@ export function ReportsMobileBody({
             </p>
           </Card>
         </div>
-      </>
+      </AdminLayout>
     );
   }
 
   return (
-    <>
+    <AdminLayout title="Reports" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
-        {actions && actions.length > 0 && (
-          <ActionChipRow actions={actions} label="Report period" />
-        )}
-
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">Loading…</p>
         ) : (
@@ -192,36 +164,21 @@ export function ReportsMobileBody({
             )}
 
             <Card>
-              <CardTitle>
-                {basis === 'booked' ? 'Booked over time' : 'Collected over time'}
-              </CardTitle>
-              <div className="mt-2">
-                <SegmentedTabs<'booked' | 'collected'>
-                  tabs={[
-                    { id: 'booked', label: 'Booked' },
-                    { id: 'collected', label: 'Collected' },
-                  ]}
-                  value={basis}
-                  onChange={setBasis}
-                  label="Revenue basis"
-                />
-              </div>
-              <p className="mt-2 text-[11.5px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
-                {basis === 'booked'
-                  ? 'Work booked each month, whether or not it has been paid for.'
-                  : 'Money actually taken, by month.'}
+              <CardTitle>Collected over time</CardTitle>
+              <p className="mt-0.5 text-[11.5px] text-[hsl(var(--pv-ink-3))]">
+                Money actually taken, by month.
               </p>
               <div className="mt-2.5">
                 {/* null, not zeroes — a flat line along the bottom of a revenue
                     chart reads as a collapse, not as an absent read. */}
                 <Sparkline
-                  points={series.length >= 2 ? series : null}
+                  points={m.series.length >= 2 ? m.series : null}
                   height={56}
-                  label={`${basis === 'booked' ? 'Booked' : 'Collected'} revenue by month`}
+                  label="Collected revenue by month"
                   caption={
-                    series.length === 0
-                      ? basis === 'booked' ? 'Nothing booked yet' : 'Nothing collected yet'
-                      : `Only one month of ${basis === 'booked' ? 'bookings' : 'payments'} — no trend to draw`
+                    m.series.length === 0
+                      ? 'Nothing collected yet'
+                      : 'Only one month of payments — no trend to draw'
                   }
                 />
               </div>
@@ -276,27 +233,6 @@ export function ReportsMobileBody({
           </>
         )}
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export default function ReportsWiredPage() {
-  return (
-    <AdminLayout title="Reports" subtitle="Mobile layout, live data">
-      <ReportsMobileBody />
     </AdminLayout>
   );
 }

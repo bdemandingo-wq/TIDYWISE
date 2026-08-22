@@ -111,17 +111,14 @@ export default function StaffJobDetailPage() {
     queryKey: ['staff-job-team', id, staffRow?.id],
     enabled: !!id && !!staffRow?.id,
     queryFn: async () => {
-      /* Widened from this cleaner's single row to the whole booking's team.
-         The row is still what carries their pay_share, but the COUNT is what
-         the percentage-only rescue needs, and a query scoped to one staff_id
-         can never see it. */
       const { data, error } = await supabase
         .from('booking_team_assignments')
-        .select('staff_id, pay_share, is_primary')
-        .eq('booking_id', id!);
+        .select('pay_share, is_primary')
+        .eq('booking_id', id!)
+        .eq('staff_id', staffRow!.id)
+        .maybeSingle();
       if (error) throw error;
-      const mine = (data ?? []).find(r => r.staff_id === staffRow!.id) ?? null;
-      return { mine, teamCount: (data ?? []).length };
+      return data;
     },
   });
 
@@ -132,10 +129,7 @@ export default function StaffJobDetailPage() {
      cannot promise money payroll would not pay. Team share is priority 1. */
   const pay = useMemo(() => {
     if (!job || !profileQ.data) return null;
-    /* No assignment rows means this cleaner is on it alone via staff_id —
-       one person, not zero. */
-    const teamSize = teamQ.data?.teamCount || 1;
-    return resolveCleanerPay(job as never, profileQ.data as never, teamQ.data?.mine?.pay_share ?? null, teamSize);
+    return resolveCleanerPay(job as never, profileQ.data as never, teamQ.data?.pay_share ?? null);
   }, [job, profileQ.data, teamQ.data]);
 
   /* phase() before any "no data" branch. A PAUSED query — React Query's
@@ -166,7 +160,7 @@ export default function StaffJobDetailPage() {
       mode={mode}
       job={job ? ({ ...job, extraLabels: extrasToLabels(job.extras, orgExtras) } as never) : null}
       pay={pay}
-      team={teamQ.data?.mine ?? null}
+      team={teamQ.data ?? null}
       orgTz={orgTz}
       onBack={() => navigate('/staff')}
       onRetry={() => {

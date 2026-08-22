@@ -1,7 +1,5 @@
-import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
-import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { ListRow } from './ListRow';
 import { leadStatusBadge, leadSourceLabel } from '@/lib/leadStatus';
 
@@ -31,11 +29,6 @@ export function LeadsListView({
   onSelect,
   onRetry,
   sectionLabel,
-  actions,
-  onAdd,
-  onFilter,
-  filterCount,
-  header,
 }: {
   phase: ListState;
   rows: LeadsRow[];
@@ -44,40 +37,13 @@ export function LeadsListView({
   onSelect?: (r: LeadsRow) => void;
   onRetry?: () => void;
   sectionLabel?: string;
-  actions?: ActionChip[];
-  onAdd?: () => void;
-  /** Status / source / month, which do not fit in a chip row. */
-  onFilter?: () => void;
-  filterCount?: number;
-  /* ── Comp header slot ──────────────────────────────────────────────────
-     7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
-     headline figure and its stat wells. It is page chrome, not list content,
-     so it renders BEFORE the shell and is unaffected by list state — an
-     empty list still shows the totals above it.
-
-     Optional, so the states previews and any caller that does not want one
-     are unchanged. */
-  header?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
-    <>
-      {header}
-      {/* Outside ListShell — the shell renders children only when
-          state === 'ready', so actions inside it vanish on an empty or
-          failed list. */}
-      {actions && actions.length > 0 && (
-        <div className="px-5 pb-1.5 pt-1">
-          <ActionChipRow actions={actions} label="Lead actions" />
-        </div>
-      )}
-
     <ListShell<'all'>
       title="Leads"
-      action={{ label: 'Add', onClick: onAdd }}
-      onFilter={onFilter}
-      filterCount={filterCount ?? 0}
+      action={{ label: 'Add' }}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, email, phone, or source..."
@@ -128,7 +94,6 @@ export function LeadsListView({
         />
       ))}
     </ListShell>
-    </>
   );
 }
 

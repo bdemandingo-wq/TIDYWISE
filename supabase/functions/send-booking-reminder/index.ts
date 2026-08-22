@@ -414,21 +414,10 @@ const handler = async (req: Request): Promise<Response> => {
       if (payload?.bookingId) {
         const { data: addrBooking } = await supabase
           .from("bookings")
-          .select(
-            // bookings has apt_suite; customers does not. Asking customers for it
-            // makes PostgREST reject the whole query.
-            "address, apt_suite, city, state, zip_code, customer:customers(address, city, state, zip_code)",
-          )
+          .select("address, apt_suite, city, state, zip_code")
           .eq("id", payload.bookingId)
           .maybeSingle();
-        // The customer is joined solely as the fallback below. A booking can
-        // point at a second property, so it still wins whenever it has one.
-        if (addrBooking) {
-          address = formatFullAddress(
-            addrBooking as any,
-            (addrBooking as any).customer,
-          );
-        }
+        if (addrBooking) address = formatFullAddress(addrBooking as any);
       }
       if (!address) address = payload?.address || "";
 
@@ -526,9 +515,7 @@ const handler = async (req: Request): Promise<Response> => {
         const scheduledDate = new Date(booking.scheduled_at);
         const formattedDate = formatLocalDate(scheduledDate);
         const formattedTime = formatLocalTime(scheduledDate);
-        // customers(*) is already selected above, so the fallback costs
-        // nothing here — no extra round trip, no wider query.
-        const address = formatFullAddress(booking as any, booking.customer as any);
+        const address = formatFullAddress(booking as any);
         const serviceName = booking.service?.name || "cleaning";
 
         // --- CLIENT REMINDER ---

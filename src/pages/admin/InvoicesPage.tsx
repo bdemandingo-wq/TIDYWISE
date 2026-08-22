@@ -1,9 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { InvoicesMobileBody } from '@/pages/admin/InvoicesWiredPage';
-import type { ActionChip } from '@/components/portal-v2';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -157,7 +154,6 @@ function editBlockedReason(status: Invoice['status']): string {
 }
 
 export default function InvoicesPage() {
-  const isMobile = useIsMobile();
   const [formDialogOpen, setFormDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -410,62 +406,6 @@ export default function InvoicesPage() {
     totalPaid: invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total_amount, 0),
     totalOutstanding: invoices.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.total_amount, 0),
   };
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders InvoicesMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  /* No chip for New Invoice. 8a shows ONE primary action and the shell
-     already renders it in the title row — a chip as well as the header
-     button as well as the shell button was three affordances for one job. */
-  if (isMobile) {
-    return (
-      <AdminLayout title="Invoices" subtitle={`${invoices.length} total invoices`}>
-        <InvoicesMobileBody
-          onAdd={() => { setEditingInvoice(null); setFormDialogOpen(true); }}
-          /* The page owns these mutations; the body only renders the buttons. */
-          onMarkPaid={(id, previousStatus) =>
-            /* The body types this as a plain string; this page keeps the
-               narrower union the mutation expects. */
-            markPaidMutation.mutate({ id, previousStatus: previousStatus as Invoice['status'] })
-          }
-          onSend={id => {
-            const inv = invoices.find(i => i.id === id);
-            if (inv) sendInvoiceEmail(inv);
-          }}
-          onDuplicate={id => {
-            const inv = invoices.find(i => i.id === id);
-            if (inv) duplicateInvoice(inv);
-          }}
-          onView={id => {
-            const inv = invoices.find(i => i.id === id);
-            if (inv) { setViewingInvoice(inv); setViewDialogOpen(true); }
-          }}
-        />
-
-
-        {/* Mounted in the mobile arm too. The new dead-control guard caught
-            this — a SEVENTH instance of the same pattern, in a screen I had
-            already 'finished'. Without these, New Invoice and the row's View
-            action both did nothing on a phone. */}
-        <InvoiceFormDialog
-          open={formDialogOpen}
-          onOpenChange={(open) => {
-            setFormDialogOpen(open);
-            if (!open) setEditingInvoice(null);
-          }}
-          invoice={editingInvoice}
-          customers={customers}
-          leads={leads}
-          services={services}
-          defaultTaxPercent={defaultTaxPercent}
-          organizationId={organization?.id || ''}
-        />
-
-        <InvoiceViewDialog open={viewDialogOpen} onOpenChange={setViewDialogOpen} invoice={viewingInvoice} />
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout

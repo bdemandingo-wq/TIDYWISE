@@ -18,7 +18,6 @@ import {
   CalendarDays, Clock, ChevronLeft, AlertCircle, Zap, UserX, X, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { stopComplianceError, withStopSentence } from "./stopCompliance";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -93,7 +92,6 @@ export function CampaignWizard({
   optedOutCount: number;
 }) {
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const setCreateOpen = onOpenChange;
   const [searchParams] = useSearchParams();
@@ -622,9 +620,6 @@ export function CampaignWizard({
                       Generate
                     </Button>
                   </div>
-                  {isMobile && (
-                    <p className="text-[10.5px] text-muted-foreground mt-1.5">Tones: Professional · Friendly · Urgent · Seasonal</p>
-                  )}
                   {aiTemplates.length > 0 && (
                     <div className="grid gap-2 mt-3 grid-cols-1 md:grid-cols-3">
                       {aiTemplates.map((t, i) => (
@@ -674,7 +669,7 @@ export function CampaignWizard({
               )}
 
               {(campaignForm.channel === "email" || campaignForm.channel === "both") && (
-                <div className={cn(isMobile && "border rounded-2xl p-4 space-y-4 bg-card")}>
+                <>
                   <div className="space-y-2">
                     <Label>Email Subject</Label>
                     <Input
@@ -695,7 +690,7 @@ export function CampaignWizard({
                       Placeholders: {"{first_name}"}, {"{last_name}"}, {"{company_name}"}, {"{booking_link}"}
                     </p>
                   </div>
-                </div>
+                </>
               )}
 
               {/* Live Preview */}
@@ -753,41 +748,23 @@ export function CampaignWizard({
                     </p>
                   </div>
                 </div>
-                {isMobile ? (
-                  (() => {
-                    const parts: string[] = [];
-                    if (optedOutCount > 0) parts.push(`${optedOutCount} opted-out contacts excluded`);
-                    if (campaignForm.excludeAlreadyReceived) parts.push("excluding already received");
-                    if (campaignForm.excludeRecentDays > 0) parts.push(`skip contacted in last ${campaignForm.excludeRecentDays}d`);
-                    if (campaignForm.onlyAfterDate) parts.push(`only after ${format(campaignForm.onlyAfterDate, "MMM d")}`);
-                    const throttleLabel = THROTTLE_OPTIONS.find(o => o.value === campaignForm.throttleSeconds)?.label
-                      ?? `one every ${campaignForm.throttleSeconds}s`;
-                    parts.push(throttleLabel.toLowerCase());
-                    return parts.length > 0 ? (
-                      <p className="text-xs text-muted-foreground mt-1">{parts.join(" · ")}</p>
-                    ) : null;
-                  })()
-                ) : (
-                  <>
-                    {optedOutCount > 0 && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
-                      </p>
+                {optedOutCount > 0 && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <UserX className="w-3 h-3" /> {optedOutCount} opted-out contacts will be excluded
+                  </p>
+                )}
+                {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {campaignForm.excludeAlreadyReceived && (
+                      <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
                     )}
-                    {(campaignForm.excludeAlreadyReceived || campaignForm.excludeRecentDays > 0 || campaignForm.onlyAfterDate) && (
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {campaignForm.excludeAlreadyReceived && (
-                          <Badge variant="secondary" className="text-xs">Excluding already received</Badge>
-                        )}
-                        {campaignForm.excludeRecentDays > 0 && (
-                          <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
-                        )}
-                        {campaignForm.onlyAfterDate && (
-                          <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
-                        )}
-                      </div>
+                    {campaignForm.excludeRecentDays > 0 && (
+                      <Badge variant="secondary" className="text-xs">Skip contacted in last {campaignForm.excludeRecentDays}d</Badge>
                     )}
-                  </>
+                    {campaignForm.onlyAfterDate && (
+                      <Badge variant="secondary" className="text-xs">Only after {format(campaignForm.onlyAfterDate, "MMM d, yyyy")}</Badge>
+                    )}
+                  </div>
                 )}
               </div>
 

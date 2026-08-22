@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { BenchmarksMobileBody } from '@/pages/admin/SchedulerBenchmarksWiredPages';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useBenchmarks, type CohortType, type ServiceBucket } from '@/hooks/useBenchmarks';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,7 +33,6 @@ const ALL_BUCKETS: ServiceBucket[] = [
 ];
 
 export default function BenchmarksPage() {
-  const isMobile = useIsMobile();
   const { organizationId } = useOrgId();
   const { data, isLoading } = useBenchmarks(organizationId);
   const [cohort, setCohort] = useState<CohortType>('local');
@@ -118,18 +115,6 @@ export default function BenchmarksPage() {
       recurring_share: avg('recurring_share'),
     };
   }, [peerCohort]);
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders BenchmarksMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  if (isMobile) {
-    return (
-      <AdminLayout title="Benchmarks">
-        <BenchmarksMobileBody />
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout title="Benchmarks">

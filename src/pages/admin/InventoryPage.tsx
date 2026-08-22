@@ -1,9 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { InventoryMobileBody } from '@/pages/admin/SimpleWiredPages';
-import type { ActionChip } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -77,7 +73,6 @@ type SortField = 'name' | 'category' | 'quantity' | 'min_quantity' | 'cost_per_u
 type SortDir = 'asc' | 'desc';
 
 export default function InventoryPage() {
-  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -292,157 +287,6 @@ export default function InventoryPage() {
     ...DEFAULT_CATEGORIES.map(c => ({ key: c, label: c.charAt(0).toUpperCase() + c.slice(1), count: items.filter(i => i.category.toLowerCase() === c).length })),
     ...customCategories.filter(c => !DEFAULT_CATEGORIES.includes(c.name.toLowerCase())).map(c => ({ key: c.name, label: c.name, count: items.filter(i => i.category.toLowerCase() === c.name.toLowerCase()).length })),
   ];
-
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders InventoryMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const mobileActions: ActionChip[] = [
-    /* Only while something is selected. A bulk action with nothing selected
-       is a button that cannot do anything, and selecting rows with no action
-       to run is selection that leads nowhere — both halves have to exist. */
-    ...(selectedIds.size > 0
-      ? [
-          {
-            id: 'bulk-delete',
-            label: `Delete ${selectedIds.size}`,
-            icon: <Trash2 className="h-3.5 w-3.5" />,
-            tone: 'danger' as const,
-            onClick: () => bulkDeleteMutation.mutate(Array.from(selectedIds)),
-          },
-          {
-            id: 'bulk-clear',
-            label: 'Clear selection',
-            onClick: () => setSelectedIds(new Set()),
-          },
-        ]
-      : []),
-    { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: handleExport },
-    { id: 'settings', label: 'Settings', icon: <Settings className="h-3.5 w-3.5" />, onClick: () => setSettingsDialogOpen(true) },
-    { id: 'add', label: 'Add Item', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => { setEditingItem(null); setDialogOpen(true); } },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Inventory" subtitle={`${items.length} items tracked`}>
-        <InventoryMobileBody
-          /* Bulk select, which desktop has and the phone had lost. */
-          selectedIds={selectedIds}
-          onSelectRow={(id, next) =>
-            setSelectedIds(prev => {
-              const s = new Set(prev);
-              if (next) s.add(id);
-              else s.delete(id);
-              return s;
-            })
-          }
-          actions={mobileActions}
-          onFilter={() => setMobileFiltersOpen(true)}
-          filterCount={activeTab === 'all' ? 0 : 1}
-          /* The category tab the desktop chips set, applied to the body's own
-             rows. Without this the sheet would change a value nothing on
-             screen reads. */
-          rowFilter={raw => {
-            const r = raw as Pick<InventoryItem, 'category' | 'quantity' | 'min_quantity'>;
-            if (activeTab === 'all') return true;
-            if (activeTab === 'low_stock') return Number(r.quantity) <= Number(r.min_quantity);
-            return String(r.category ?? '').toLowerCase() === activeTab.toLowerCase();
-          }}
-        />
-
-        {/* 11b closes with a Categories card listing every category as a chip
-            plus "+ Custom"; the mobile arm had category filtering in the sheet
-            but never this always-visible summary. Tapping opens the same
-            Settings dialog desktop uses to manage categories. */}
-        <div className="px-4 pb-6">
-          <button
-            type="button"
-            onClick={() => setSettingsDialogOpen(true)}
-            className="w-full rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4 text-left"
-          >
-            <div className="text-[12.5px] font-extrabold text-[hsl(var(--pv-ink))]">Categories</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {allCategories.filter(c => c.toLowerCase() !== 'other').map(c => (
-                <span
-                  key={c}
-                  className="rounded-full bg-[hsl(var(--pv-sunken))] px-2.5 py-1 text-[10.5px] font-semibold text-[hsl(var(--pv-ink-3))]"
-                >
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </span>
-              ))}
-              <span className="rounded-full bg-[hsl(var(--pv-brand)/0.12)] px-2.5 py-1 text-[10.5px] font-bold text-[hsl(var(--pv-brand))]">
-                + Custom
-              </span>
-            </div>
-          </button>
-        </div>
-
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Filter inventory</SheetTitle>
-            </SheetHeader>
-            {/* The same tab list the desktop chips render, as a plain list —
-                seven categories do not fit across 390px without truncating,
-                and a half-rendered category name is not a category name. */}
-            <div className="flex flex-col gap-1 pt-2">
-              {tabs.map(t => (
-                <Button
-                  key={t.key}
-                  variant={activeTab === t.key ? 'default' : 'ghost'}
-                  className="h-11 justify-between rounded-xl"
-                  onClick={() => { setActiveTab(t.key); setMobileFiltersOpen(false); }}
-                >
-                  <span>{t.label}</span>
-                  <span className="text-xs opacity-70">{t.count}</span>
-                </Button>
-              ))}
-            </div>
-
-            {/* Per-page, which desktop has in its pagination bar and the phone
-                had lost. It belongs with the filters rather than in the chip
-                row: it shapes the list rather than acting on it. */}
-            <div className="mt-4 border-t border-border/50 pt-4">
-              <p className="mb-1.5 text-sm font-medium text-muted-foreground">Items per page</p>
-              <Select value={String(perPage)} onValueChange={v => setPerPage(Number(v))}>
-                <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[25, 50, 100].map(n => (
-                    <SelectItem key={n} value={String(n)}>{n} per page</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </SheetContent>
-        </Sheet>
-
-        {/* Both dialogs must be mounted inside the mobile arm too — the mobile
-            "Add Item", "Settings" and Categories chips call these setters, and
-            without these the taps were silently inert. */}
-        <InventoryDialog
-          open={dialogOpen}
-          onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingItem(null); }}
-          item={editingItem}
-          categories={allCategories}
-          onSave={(data) => {
-            if (editingItem) {
-              updateMutation.mutate({ id: editingItem.id, ...data });
-            } else {
-              createMutation.mutate(data);
-            }
-          }}
-        />
-        <InventorySettingsDialog
-          open={settingsDialogOpen}
-          onOpenChange={setSettingsDialogOpen}
-          categories={customCategories}
-          organizationId={organization?.id || ''}
-        />
-      </AdminLayout>
-
-    );
-  }
 
   return (
     <AdminLayout

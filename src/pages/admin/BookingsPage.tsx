@@ -12,8 +12,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { BookingsMobileBody } from '@/pages/admin/BookingsWiredPage';
-import type { ActionChip } from '@/components/portal-v2';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -123,12 +121,6 @@ import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
 import { formatFullAddress } from '@/lib/formatAddress';
-
-/* All four cleaner notifications on this page pass the customer as the
-   address fallback. Each of them printed "Address not provided" when the
-   booking had no address of its own — including for jobs whose address the
-   customer record was holding all along. The booking still wins whenever it
-   has one; a customer can book a second property. */
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
@@ -255,14 +247,6 @@ export default function BookingsPage() {
   const [actionSheetBooking, setActionSheetBooking] = useState<BookingWithDetails | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
-
-  /* ── The five toolbar actions, relocated for phones ────────────────────
-     The handlers and dialogs stay here because this page owns them. Only
-     the rendering moves into BookingsMobileBody, as chips. Export keeps
-     its five formats by driving the same MobileActionSheet through its
-     controlled `open` prop rather than a trigger. */
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [mobileExportOpen, setMobileExportOpen] = useState(false);
   const [deleteConfirmBooking, setDeleteConfirmBooking] = useState<BookingWithDetails | null>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
   const [bulkDeleteCount, setBulkDeleteCount] = useState(0);
@@ -1126,7 +1110,7 @@ export default function BookingsPage() {
     
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = formatFullAddress(booking as any, booking.customer);
+      const fullAddress = formatFullAddress(booking as any);
 
       // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
@@ -1227,7 +1211,7 @@ export default function BookingsPage() {
       for (const booking of bookingsWithCleaners) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any, booking.customer);
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1293,7 +1277,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = formatFullAddress(booking as any, booking.customer);
+      const fullAddress = formatFullAddress(booking as any);
 
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
@@ -1425,7 +1409,7 @@ export default function BookingsPage() {
       for (const booking of upcomingWeekBookings) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any, booking.customer);
+          const fullAddress = formatFullAddress(booking as any);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1696,40 +1680,6 @@ export default function BookingsPage() {
   // chance to run, and so the rest of the page (tabs, stats) doesn't go
   // fully blank on a fetch error.
 
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'notify',
-      label: "Notify Week's Cleaners",
-      icon: <Bell className="h-3.5 w-3.5" />,
-      onClick: handleBulkNotifyWeekCleaners,
-      busy: bulkNotifyingWeek,
-    },
-    {
-      id: 'remind',
-      label: 'Remind Clients',
-      icon: <Phone className="h-3.5 w-3.5" />,
-      onClick: handlePrepareWeeklyReminders,
-    },
-    {
-      id: 'bulk',
-      label: 'Bulk Edit',
-      icon: <Edit className="h-3.5 w-3.5" />,
-      onClick: () => setBulkEditOpen(true),
-    },
-    {
-      id: 'export',
-      label: 'Export',
-      icon: <Download className="h-3.5 w-3.5" />,
-      onClick: () => setMobileExportOpen(true),
-      busy: exporting,
-    },
-  ];
-
-  /* Date range and status are compound controls, so they go behind
-     ListShell's filter button rather than becoming chips. The count is what
-     tells someone a filter is on when the control itself is out of sight. */
-  const mobileFilterCount = (dateRange?.from ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0);
-
   return (
     <AdminLayout
       title="Bookings"
@@ -1738,8 +1688,6 @@ export default function BookingsPage() {
       <div className="portal-v2">
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        {/* Desktop only. BookingsMobileBody draws its own tabs. */}
-        {!isMobile && (
         <TabsList className="bg-secondary/50">
           <TabsTrigger value="all" className="gap-2">
             <Calendar className="w-4 h-4" />
@@ -1747,10 +1695,7 @@ export default function BookingsPage() {
           </TabsTrigger>
           <TabsTrigger value="drafts" className="gap-2">
             <Clock className="w-4 h-4" />
-            {/* Not just drafts: this tab has always included non-draft rows on
-                pending status AND pending payment. 31 of the 32 here are booked
-                jobs awaiting payment, not unfinished bookings. */}
-            Drafts &amp; unpaid
+            Drafts
             {draftBookings.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                 {draftBookings.length}
@@ -1766,12 +1711,9 @@ export default function BookingsPage() {
             Cleaner Wages
           </TabsTrigger>
         </TabsList>
-        )}
 
         <TabsContent value="all" className="space-y-6">
         {/* Stats Cards */}
-          {/* Desktop only. BookingsMobileBody draws its own summary cards from the same numbers. */}
-          {!isMobile && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
             <div className="group relative bg-gradient-to-br from-card to-secondary/30 rounded-2xl p-5 border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1831,11 +1773,8 @@ export default function BookingsPage() {
               </div>
             </div>
           </div>
-          )}
 
       {/* Filters */}
-      {/* Desktop only. On a phone the search lives in BookingsMobileBody and these five actions render as chips inside it — see mobileActions below. Rendering both put two identical search fields on one screen. */}
-      {!isMobile && (
       <div className="flex flex-col sm:flex-row gap-2 md:gap-4 mb-4 md:mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1981,7 +1920,6 @@ export default function BookingsPage() {
           )}
         </div>
       </div>
-      )}
 
       <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden animate-fade-in" style={{ animationDelay: '0.2s' }}>
         {isLoading ? (
@@ -2023,33 +1961,115 @@ export default function BookingsPage() {
             </Button>
           </div>
         ) : isMobile ? (
-          /* ========== MOBILE ==========
-             The phone layout is BookingsMobileBody — the same component
-             /dashboard/bookings-v2 renders, minus its AdminLayout wrapper.
-             It owns its own queries, states and §5.1 rules.
-
-             The desktop table below is untouched. This branch is the only
-             thing that changed: 109 lines of hand-rolled mobile cards
-             replaced by the component that was built against the mockups
-             and verified against live data.
-
-             The old cards are not deleted from history — they are in git,
-             and the -v2 route still renders the same body if this needs
-             comparing side by side. */
-          <BookingsMobileBody
-            actions={mobileActions}
-            onFilter={() => setMobileFiltersOpen(true)}
-            filterCount={mobileFilterCount}
-            /* Rows open the 4d action sheet — the same BookingActionSheet the
-               desktop rows use, with View Details, Mark Paid and the rest.
-               Without this the body fell back to navigating to
-               ?booking=<id>, which this page never reads, so tapping a row
-               did nothing at all. */
-            onSelectBooking={id => {
-              const b = bookings.find(x => x.id === id);
-              if (b) setActionSheetBooking(b);
-            }}
-          />
+          /* ========== MOBILE CARD VIEW ========== */
+          <div
+            className="divide-y divide-border overflow-y-auto"
+            {...pullHandlers}
+          >
+            <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
+          {filteredBookings.map((booking, index) => {
+              const paymentInfo = getPaymentStatusInfo(booking);
+              const scheduledDate = new Date(booking.scheduled_at);
+              const isCleaned = booking.status === 'completed';
+              const isCancelled = booking.status === 'cancelled';
+              const isPaid = booking.payment_status === 'paid';
+              
+              return (
+                <div
+                  key={booking.id}
+                  className="p-3 active:bg-muted/30 transition-colors"
+                  onClick={() => setActionSheetBooking(booking)}
+                >
+                  {/* Top row: booking number + amount */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-mono text-xs font-bold text-primary">
+                      #{booking.booking_number}
+                    </span>
+                    <span className="font-bold text-sm text-foreground">{maskAmount(booking.total_amount)}</span>
+                  </div>
+                  
+                  {/* Client name */}
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    {booking.customer 
+                      ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
+                      : 'Unknown'
+                    }
+                  </p>
+                  
+                  {/* Service + date */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                    <span>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</span>
+                    <span>•</span>
+                    <span>{formatInTimezone(scheduledDate, orgTz, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
+                  </div>
+                  
+                  {/* Staff */}
+                  <div className="text-xs text-muted-foreground mb-2">
+                    {(() => {
+                      const team = booking.booking_team_assignments?.filter(a => a.staff?.name) || [];
+                      if (team.length > 1) {
+                        return <span>{team.map(a => maskName(a.staff!.name)).join(', ')}</span>;
+                      }
+                      return (
+                        <span className={cn(!booking.staff?.name && "italic")}>
+                          {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  
+                  {/* Badges row */}
+                  <div className="flex items-center gap-2">
+                    {/* Clean status badge */}
+                    <div className={cn(
+                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                      isCancelled
+                        ? "bg-destructive/15 text-destructive"
+                        : isCleaned
+                          ? "bg-success/10 text-success"
+                          : "bg-destructive/10 text-destructive"
+                    )}>
+                      {isCancelled ? (
+                        <>
+                          <XCircle className="w-3 h-3" />
+                          cancelled
+                        </>
+                      ) : isCleaned ? (
+                        <>
+                          <CheckCircle className="w-3 h-3" />
+                          completed
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-info" />
+                          scheduled
+                        </>
+                      )}
+                    </div>
+                    {/* Payment badge */}
+                    <div className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
+                      isPaid
+                        ? "bg-success/10 text-success"
+                        : "bg-warning/10 text-warning"
+                    )}>
+                      {isPaid ? (
+                        <>
+                          <CheckCircle className="w-3 h-3" />
+                          Paid
+                        </>
+                      ) : (
+                        <>
+                          <span>○</span>
+                          {paymentInfo.label}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
           /* ========== DESKTOP TABLE VIEW ========== */
           <div className="overflow-x-auto" data-no-swipe>
@@ -2539,11 +2559,9 @@ export default function BookingsPage() {
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold">Drafts &amp; unpaid</h3>
+                <h3 className="text-lg font-semibold">Draft Bookings</h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Two kinds of booking sit here: drafts that were never finished, and
-                  booked jobs still waiting on payment. Complete the booking or the
-                  payment to move it to active bookings.
+                  These are bookings saved as drafts with pending payment status. Complete the booking or payment to move them to active bookings.
                 </p>
               </div>
               {selectedDrafts.size > 0 && (
@@ -3254,84 +3272,6 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* ── Mobile hosts for the two controls that are not chips ───────────
-          Both used to live inside the desktop filter bar, which no longer
-          renders on a phone. They are mounted here so the chip row and the
-          filter button have something to open.
-
-          The export sheet is the SAME MobileActionSheet the desktop bar
-          used, driven through its controlled `open` prop with no trigger.
-          Rebuilding it would have meant a second copy of the five export
-          formats, and two copies drift. */}
-      {isMobile && (
-        <>
-          <MobileActionSheet
-            open={mobileExportOpen}
-            onOpenChange={setMobileExportOpen}
-            trigger={null}
-            title="Export Bookings"
-            items={[
-              { label: 'Export as CSV', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('csv') },
-              { label: 'Export as JSON', icon: <Download className="w-4 h-4" />, onClick: () => handleExport('json') },
-              { label: 'Export as Excel', icon: <FileSpreadsheet className="w-4 h-4" />, onClick: () => handleExport('xlsx') },
-              { label: 'Export as PDF', icon: <FileText className="w-4 h-4" />, onClick: () => handleExport('pdf') },
-              { label: 'Print View', icon: <Printer className="w-4 h-4" />, onClick: () => handleExport('print') },
-            ]}
-          />
-
-          <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-            <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-              <SheetHeader className="pb-2">
-                <SheetTitle className="text-base">Filter bookings</SheetTitle>
-              </SheetHeader>
-
-              <div className="flex flex-col gap-4 pt-2">
-                <div>
-                  <p className="mb-1.5 text-sm font-medium text-muted-foreground">Date range</p>
-                  {/* Same CalendarComponent and the same dateRange state the
-                      desktop bar drives. No second date path, so the org
-                      timezone handling stays in one place. */}
-                  <CalendarComponent
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={1}
-                    className="rounded-xl border border-border/50 p-2"
-                  />
-                  {dateRange?.from && (
-                    <Button
-                      variant="ghost"
-                      className="mt-1 h-9 px-2 text-sm"
-                      onClick={() => setDateRange(undefined)}
-                    >
-                      Clear dates
-                    </Button>
-                  )}
-                </div>
-
-                <div>
-                  <p className="mb-1.5 text-sm font-medium text-muted-foreground">Status</p>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="h-11 rounded-xl">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Bookings</SelectItem>
-                      <SelectItem value="pending">Upcoming Cleans</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>
-                  Show results
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </>
-      )}
 
       </div>
     </AdminLayout>

@@ -1,14 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-// mobile-control-allow: Tabs — 6d puts Transactions / P&L Calendar / Tax by
-// Zip / P&L in the hero, and all four are real views here. None is ported to
-// the phone yet and a tab that switches to nothing is worse than no tab, so
-// the mobile hero carries booked / collected / owed instead until the views
-// follow. Recorded rather than silently missing.
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { FinanceMobileBody } from '@/pages/admin/FinanceWiredPage';
-import type { ActionChip } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,8 +63,6 @@ export default function FinancePage() {
   const organizationId = organization?.id;
   const orgTz = useOrgTimezone();
   
-  const isMobile = useIsMobile();
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     // Placeholder; corrected below once orgTz resolves.
     /* eslint-disable-next-line local/no-device-local-dates -- provisional, replaced once the org zone resolves */
@@ -422,66 +411,6 @@ export default function FinancePage() {
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`${filename}-${orgDateKey(new Date(), orgTz)}.csv`, csv, 'text/csv');
   };
-
-  /* ── Mobile arm ────────────────────────────────────────────────────────
-     Desktop untouched below. The four toolbar actions become chips, using
-     their FULL names rather than the desktop breakpoint's "QB" / "Income" /
-     "Sales Tax" abbreviations — a chip row scrolls, so there is no reason to
-     shorten a label on the smaller screen. The date range goes in a sheet;
-     same dateRange state, same Calendar. */
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'stripe',
-      label: 'Sync with Stripe',
-      icon: <RefreshCw className="h-3.5 w-3.5" />,
-      onClick: handleSyncStripe,
-      busy: isSyncing || stripeLoading,
-    },
-    {
-      id: 'dates',
-      label: `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`,
-      icon: <CalendarIcon className="h-3.5 w-3.5" />,
-      onClick: () => setMobileFiltersOpen(true),
-      tone: 'primary',
-    },
-    { id: 'qb', label: 'QuickBooks/Xero', icon: <Download className="h-3.5 w-3.5" />, onClick: exportQuickBooksCSV },
-    { id: 'income', label: 'Income Report', icon: <Download className="h-3.5 w-3.5" />, onClick: exportAnnualIncome },
-    { id: 'tax', label: 'Sales Tax by Zip', icon: <Download className="h-3.5 w-3.5" />, onClick: exportSalesTaxByZip },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Finance & Taxes" subtitle="Profit & loss, transactions, and tax exports">
-        <SEOHead title="Finance | TidyWise" description="Manage finances and tax reporting" noIndex />
-        <FinanceMobileBody actions={mobileActions} />
-
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Date range</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 pt-2">
-              <Calendar
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(range) => {
-                  if (range?.from && range?.to) {
-                    rangeTouchedRef.current = true;
-                    setDateRange({ from: range.from, to: range.to });
-                  }
-                }}
-                numberOfMonths={1}
-                className="rounded-xl border border-border/50 p-2"
-              />
-              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>
-                Show results
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout

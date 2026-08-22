@@ -1,9 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { LeadsMobileBody, LeadsHero } from '@/pages/admin/LeadsWiredPage';
-import type { ActionChip } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,7 +44,6 @@ import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval, formatDi
 import { useTestMode } from '@/contexts/TestModeContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { LeadPipelineBoard } from '@/components/admin/LeadPipelineBoard';
-import { LeadPipelineMobile } from '@/components/admin/LeadPipelineMobile';
 import { SEOHead } from '@/components/SEOHead';
 import { useLeadSmartSync } from '@/hooks/useLeadSmartSync';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -112,7 +107,6 @@ const SOURCE_OPTIONS = [
 ];
 
 export default function LeadsPage() {
-  const isMobile = useIsMobile();
   // Leads are grouped and exported by the BUSINESS's month and day.
   const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -438,284 +432,6 @@ export default function LeadsPage() {
     toast.success('Leads exported successfully');
   };
 
-  /* ── Mobile arm ──────────────────────────────────────────────────────
-     Desktop untouched below. The phone renders LeadsMobileBody — the same
-     component its -v2 route shows — with this page's own toolbar
-     actions as chips. Handlers stay here; only rendering moves. */
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  /* Pipeline first: it is the view the board was designed for and the one a
-     phone benefits from most. List and Abandoned come across rather than
-     being dropped — Abandoned is a different query entirely (booking links
-     opened and never finished), and List is the only view that shows a lead
-     whose status is outside the board's five stages. */
-  /* booking_link_tracking is queried with `.from(... as any)` because the
-     table is not in the generated types, so the query's inferred type is a
-     SelectQueryError. This names the columns the two mobile call sites read
-     rather than reaching for `any` at each one. */
-  type AbandonedLink = {
-    id: string;
-    customer_name: string | null;
-    customer_email: string | null;
-    customer_phone: string | null;
-    link_sent_at: string | null;
-    link_opened_at: string | null;
-    booking_completed_at: string | null;
-  };
-
-  const [mobileView, setMobileView] = useState<'pipeline' | 'table' | 'funnel' | 'sync'>('pipeline');
-
-  /* The same count the desktop tab shows: opened and never completed, not
-     every row in the table. */
-  const abandonedOpen = (abandonedLinks as unknown as AbandonedLink[]).filter(
-    l => l.link_opened_at && !l.booking_completed_at,
-  ).length;
-  const mobileActions: ActionChip[] = [
-    { id: 'sync', label: 'Smart Sync', icon: <RefreshCw className="h-3.5 w-3.5" />, onClick: () => runSync(leads), busy: isSyncing },
-    { id: 'funnel', label: 'Funnel Report', icon: <TrendingDown className="h-3.5 w-3.5" />, onClick: () => setShowFunnel(!showFunnel) },
-    { id: 'export', label: 'Export Excel', icon: <Download className="h-3.5 w-3.5" />, onClick: exportLeadsExcel },
-    { id: 'add', label: 'Add Lead', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Leads" subtitle="Track and manage your sales leads">
-        {/* 8g puts the hero ABOVE the switcher, so the totals are there
-            whichever view is open — not only in the list. */}
-        <div className="portal-v2 mx-auto w-full max-w-[430px]">
-          <LeadsHero
-            leads={leads as { status?: string | null }[]}
-            ready={!isLoading}
-          />
-        </div>
-
-        <div className="flex gap-1 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {([
-            ['pipeline', 'Pipeline'],
-            ['table', 'Table'],
-            ['funnel', 'Funnel Report'],
-            ['sync', 'Smart Sync'],
-          ] as const).map(([id, label]) => (
-            <Button
-              key={id}
-              size="sm"
-              variant={mobileView === id ? 'default' : 'ghost'}
-              className="h-9 shrink-0 rounded-full px-3.5 text-[12.5px]"
-              onClick={() => setMobileView(id)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-
-        {mobileView === 'pipeline' && (
-          <LeadPipelineMobile
-            leads={filteredLeads}
-            onStatusChange={(leadId, newStatus) => updateMutation.mutate({ id: leadId, status: newStatus })}
-            onEdit={(lead) => { setEditingLead(lead); setDialogOpen(true); }}
-            onDelete={(id) => deleteMutation.mutate(id)}
-            onConvert={convertToCustomer}
-            maskName={maskName}
-            maskEmail={maskEmail}
-            maskPhone={maskPhone}
-            showDelete
-          />
-        )}
-
-        {mobileView === 'funnel' && (
-          <div className="flex flex-col gap-3 px-4 pb-6">
-            {/* Same funnelData/sourceBreakdown the desktop Funnel Report
-                card computes — real content, not a mobile-only stub. */}
-            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
-              <p className="mb-3 text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Lead conversion funnel</p>
-              <div className="flex flex-col gap-3">
-                {funnelData.map((stage) => (
-                  <div key={stage.stage}>
-                    <div className="mb-1 flex items-center justify-between text-[12px]">
-                      <span className="font-bold text-[hsl(var(--pv-ink))]">{stage.label}</span>
-                      <span className="text-[hsl(var(--pv-ink-3))]">{stage.count} leads</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[hsl(var(--pv-sunken))]">
-                      <div
-                        className={`h-full ${STATUS_CONFIG[stage.stage].color} rounded-full transition-all duration-500`}
-                        style={{ width: `${stage.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3.5 py-2.5 text-[12.5px]">
-                <span className="font-extrabold text-[hsl(var(--pv-ink))]">Overall conversion rate</span>
-                <span className="font-extrabold text-[hsl(var(--pv-success))]">
-                  {stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0}%
-                </span>
-              </div>
-            </div>
-            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
-              <p className="mb-3 text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Leads by source</p>
-              <div className="flex flex-col gap-2.5">
-                {sourceBreakdown.map(item => (
-                  <div key={item.source} className="flex items-center gap-2.5 text-[12.5px]">
-                    <span className="min-w-0 flex-1 truncate font-bold capitalize text-[hsl(var(--pv-ink))]">
-                      {item.source}
-                      <span className="ml-1.5 font-medium text-[hsl(var(--pv-ink-3))]">
-                        · {item.total} leads · {item.converted} converted
-                      </span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-[hsl(var(--pv-brand))] px-2.5 py-1 text-[10.5px] font-extrabold text-[hsl(var(--pv-brand-ink))]">
-                      {item.rate}%
-                    </span>
-                  </div>
-                ))}
-                {sourceBreakdown.length === 0 && (
-                  <p className="py-4 text-center text-[12.5px] text-[hsl(var(--pv-ink-3))]">No lead data yet</p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {mobileView === 'sync' && (
-          <div className="flex flex-col gap-3 px-4 pb-6">
-            {/* The exact runSync mutation the desktop "Smart Sync" toolbar
-                button calls — writes real status reverts and returns real
-                flagged leads, not a mobile-only readout. */}
-            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
-              <p className="text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Smart Sync</p>
-              <p className="mt-1 text-[12px] text-[hsl(var(--pv-ink-3))]">
-                Checks leads marked "converted" against your customer list and flags
-                any that never actually got a matching customer record.
-              </p>
-              <Button
-                className="mt-3 w-full gap-2"
-                onClick={() => runSync(leads)}
-                disabled={isSyncing}
-              >
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                {isSyncing ? 'Syncing…' : 'Run sync'}
-              </Button>
-            </div>
-            {flaggedLeadIds.size > 0 && (
-              <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
-                <p className="text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
-                  {flaggedLeadIds.size} converted lead{flaggedLeadIds.size === 1 ? '' : 's'} flagged
-                </p>
-                <p className="mt-1 text-[12px] text-[hsl(var(--pv-ink-3))]">
-                  No matching customer record was found for these — worth a manual check.
-                </p>
-                <div className="mt-2 flex flex-col gap-1.5">
-                  {leads
-                    .filter((l: any) => flaggedLeadIds.has(l.id))
-                    .map((l: any) => (
-                      <button
-                        key={l.id}
-                        type="button"
-                        onClick={() => { setEditingLead(l); setDialogOpen(true); }}
-                        className="rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3 py-2 text-left text-[12.5px] font-semibold text-[hsl(var(--pv-ink))]"
-                      >
-                        {l.name || 'Unnamed lead'}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {mobileView === 'table' && (
-        <LeadsMobileBody
-          hideHero
-          actions={mobileActions}
-          onFilter={() => setMobileFiltersOpen(true)}
-          filterCount={
-            (statusFilter !== 'all' ? 1 : 0) +
-            (sourceFilter !== 'all' ? 1 : 0) +
-            (monthFilter !== 'all' ? 1 : 0)
-          }
-          /* The same three values the desktop table filters on. The body
-             applies them to its own rows — see LeadsMobileBody. */
-          filters={{ status: statusFilter, source: sourceFilter, month: monthFilter }}
-          onSelectLead={id => {
-            const l = leads.find(x => x.id === id);
-            if (l) { setEditingLead(l); setDialogOpen(true); }
-          }}
-        />
-        )}
-
-        {/* Mounted inside the mobile arm as well as the desktop branch.
-            The arm early-returns, so a dialog that only exists below it never
-            renders on a phone — which is why the Add Lead chip and a row tap
-            both did nothing. */}
-        <LeadDialog
-          open={dialogOpen}
-          onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) setEditingLead(null);
-          }}
-          lead={editingLead}
-          tagSuggestions={tagSuggestions}
-          onSave={(data) => {
-            if (editingLead) {
-              updateMutation.mutate({ id: editingLead.id, ...data } as any);
-            } else {
-              createMutation.mutate(data as any);
-            }
-          }}
-        />
-
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Filter leads</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 pt-2">
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Status</p>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Status" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Source</p>
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Source" /></SelectTrigger>
-                  <SelectContent>
-                    {SOURCE_OPTIONS.map(({ value, label }) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Month</p>
-                <Select value={monthFilter} onValueChange={setMonthFilter}>
-                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Month" /></SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map(({ value, label }) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(statusFilter !== 'all' || sourceFilter !== 'all' || monthFilter !== 'all') && (
-                <Button variant="ghost" className="h-11"
-                  onClick={() => { setStatusFilter('all'); setSourceFilter('all'); setMonthFilter('all'); }}>
-                  Clear filters
-                </Button>
-              )}
-              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>Show results</Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout
       title="Leads"
@@ -750,6 +466,8 @@ export default function LeadsPage() {
             >
               <AlertTriangle className="w-4 h-4" />
               Abandoned ({abandonedLinks.filter((l: any) => l.link_opened_at && !l.booking_completed_at).length})
+              <Table2 className="w-4 h-4" />
+              Table
             </Button>
           </div>
           <Button

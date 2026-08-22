@@ -1,9 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { OperationsMobileBody } from '@/pages/admin/CampaignsOpsWiredPages';
-import type { ActionChip } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -63,8 +59,6 @@ export default function OperationsTrackerPage() {
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   
-  const isMobile = useIsMobile();
-  const [mobileDatesOpen, setMobileDatesOpen] = useState(false);
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     from: subDays(new Date(), 30),
     to: new Date()
@@ -213,62 +207,6 @@ export default function OperationsTrackerPage() {
       return isWithinInterval(date, { start: dateRange.from, end: dateRange.to });
     });
   }, [entries, dateRange]);
-
-  /* ── Mobile arm ────────────────────────────────────────────────────────
-     Desktop untouched below. Export and Add Entry are chips; the range is
-     a chip labelled with the period it covers, opening a sheet with the
-     same Calendar bound to the same dateRange state.
-
-     The period matters more here than on most screens: these figures are
-     typed in by hand, so a low number can mean a quiet week or a week
-     nobody filled in — and the date window is the first thing you need to
-     tell those apart. */
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'range',
-      label: `${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`,
-      icon: <CalendarDays className="h-3.5 w-3.5" />,
-      onClick: () => setMobileDatesOpen(true),
-      tone: 'primary',
-    },
-    { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: exportToExcel },
-    { id: 'add', label: 'Add Entry', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Operations Tracker" subtitle="Track daily calls, deals, and revenue">
-        <SEOHead title="Operations | TidyWise" description="Track daily cleaning operations" noIndex />
-        <OperationsMobileBody actions={mobileActions} />
-
-        <Sheet open={mobileDatesOpen} onOpenChange={setMobileDatesOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Date range</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 pt-2">
-              <Calendar
-                mode="range"
-                selected={{ from: dateRange.from, to: dateRange.to }}
-                onSelect={(range) => {
-                  if (range?.from && range?.to) {
-                    setDateRange({ from: range.from, to: range.to });
-                  } else if (range?.from) {
-                    setDateRange({ from: range.from, to: range.from });
-                  }
-                }}
-                numberOfMonths={1}
-                className="rounded-xl border border-border/50 p-2"
-              />
-              <Button className="h-11 rounded-xl" onClick={() => setMobileDatesOpen(false)}>
-                Show results
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout

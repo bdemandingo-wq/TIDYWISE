@@ -73,14 +73,6 @@ export default function StaffHomePage() {
     queryKey: ['staff-home-jobs', staffRow?.id],
     enabled: !!staffRow?.id,
     queryFn: async () => {
-      /* booking_team_assignments is joined for its COUNT, not its contents:
-         the percentage-only wage rescue needs the team size, and without it
-         every pay figure on this page treats the team as unknown — which
-         resolves a percentage-only cleaner to $0.00 on their own home screen.
-
-         The comment lives here rather than inside the select string, because
-         PostgREST parses that string and a JS comment inside it is a syntax
-         error the generated types catch as a ParserError. */
       const { data, error } = await supabase
         .from('bookings')
         .select(`
@@ -89,8 +81,7 @@ export default function StaffHomePage() {
           total_amount, subtotal, discount_amount,
           cleaner_wage, cleaner_wage_type, cleaner_actual_payment, cleaner_pay_expected,
           cleaner_override_hours, cleaner_checkin_at, cleaner_checkout_at,
-          service:services(name),
-          booking_team_assignments(staff_id)
+          service:services(name)
         `)
         .eq('staff_id', staffRow!.id)
         .in('status', ['pending', 'confirmed', 'in_progress'])
@@ -182,21 +173,10 @@ export default function StaffHomePage() {
 
   const profile = profileQ.data;
 
-  /* One place so the two pay call sites below cannot drift. */
-  const teamSizeOf = (b: any): number => {
-    const ids = new Set<string>(((b.booking_team_assignments ?? []) as any[]).map(a => a.staff_id));
-    if (b.staff_id) ids.add(b.staff_id);
-    return ids.size || 1;
-  };
-
   const jobs: HomeJob[] = useMemo(() => {
     if (!jobsQ.data || !profile) return [];
     return jobsQ.data.map((b) => {
-      /* Union of assignment rows and the primary staff_id. These jobs are
-         all filtered to staff_id = this cleaner, so there is always at least
-         one member. */
-      const teamSize = teamSizeOf(b);
-      const pay = resolveCleanerPay(b as never, profile as never, null, teamSize);
+      const pay = resolveCleanerPay(b as never, profile as never, null);
       const start = b.scheduled_at ? timeLabel(b.scheduled_at, orgTz) : '';
       const end =
         b.scheduled_at && b.duration
@@ -226,7 +206,7 @@ export default function StaffHomePage() {
     let earned = 0;
     let hours = 0;
     for (const b of weekQ.data) {
-      const p = resolveCleanerPay(b as never, profile as never, null, teamSizeOf(b));
+      const p = resolveCleanerPay(b as never, profile as never, null);
       if (!p.isMissingPay) earned += p.calculatedPay;
       hours += p.hoursWorked;
     }

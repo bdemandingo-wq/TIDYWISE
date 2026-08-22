@@ -1130,9 +1130,9 @@ export default function MessagesPage() {
           setContextMenuPosition({ x: e.clientX, y: e.clientY });
         }}
         className={cn(
-          "w-full flex items-center gap-3 transition-colors cursor-pointer select-none text-left",
+          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none text-left",
           isMobile
-            ? "bg-[hsl(var(--pv-surface))] active:bg-[hsl(var(--pv-sunken))] border border-[hsl(var(--pv-border))] rounded-2xl px-[18px] py-[14px] mx-4 mb-3 gap-3 items-start"
+            ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
             : cn(
                 "hover:bg-muted/50",
                 selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]",
@@ -1150,21 +1150,17 @@ export default function MessagesPage() {
             />
           </div>
         )}
-        {/* Unread blue dot — only when actually unread. 8d puts it at the
-            END of the row on mobile, so it is rendered after the text block
-            there and before the avatar on desktop. */}
-        {!bulkEditMode && !isMobile && (
+        {/* Unread blue dot — only when actually unread */}
+        {!bulkEditMode && (
           <div className="w-[10px] shrink-0 flex justify-center">
             {isUnread && (
               <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
             )}
           </div>
         )}
-        {/* 8d's avatar is 38px, not 52 — the larger circle squeezed the name
-            and timestamp onto a line that could not hold both. */}
-        <Avatar className={cn("shrink-0", isMobile ? "h-[38px] w-[38px]" : "h-12 w-12")}>
+        <Avatar className={cn("shrink-0", isMobile ? "h-[52px] w-[52px]" : "h-12 w-12")}>
           <AvatarFallback className={cn(
-            isMobile ? "text-[11px] font-extrabold" : "text-lg font-semibold",
+            "text-lg font-semibold",
             conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#E5E5EA] dark:bg-[#3A3A3C] text-[#3C3C43] dark:text-[#EBEBF5]"
           )}>
             {conv.conversation_type === 'cleaner'
@@ -1174,20 +1170,19 @@ export default function MessagesPage() {
         </Avatar>
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center justify-between gap-2">
-            <span className={cn(isMobile ? "text-[13.5px] font-extrabold" : "text-[16px]", "truncate", isUnread ? "font-semibold text-[#1C1C1E] dark:text-white" : "font-normal text-[#1C1C1E] dark:text-white")}>
+            <span className={cn("text-[16px] truncate", isUnread ? "font-semibold text-[#1C1C1E] dark:text-white" : "font-normal text-[#1C1C1E] dark:text-white")}>
               {conv.customer_name || conv.customer_phone}
             </span>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className={cn(isMobile ? "text-[10.5px]" : "text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
+              <span className={cn("text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
                 {formatConversationTime(conv.last_message_at, orgTimezone)}
               </span>
-              {/* 8d has no chevron — the row is the affordance. */}
-              {!bulkEditMode && !isMobile && (
+              {!bulkEditMode && (
                 <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />
               )}
             </div>
           </div>
-          <p className={cn(isMobile ? "text-[11.5px]" : "text-[14px]", "truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
+          <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
           {needsReply && (
@@ -1196,9 +1191,6 @@ export default function MessagesPage() {
             </span>
           )}
         </div>
-        {isMobile && !bulkEditMode && isUnread && (
-          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--pv-brand))]" />
-        )}
       </button>
     );
 
@@ -1208,192 +1200,118 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   // RENDER: Conversation List
   // ═══════════════════════════════════════════════════
-  const aiSummaryProps = organizationId ? {
-    organizationId,
-    getNeedsReplyConversations: () =>
-      conversations
-        .filter(c => c.unread_count > 0)
-        .map(c => ({
-          name: c.customer_name || c.customer_phone,
-          lastMessage: c.last_message_preview || '',
-          hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
-        })),
-  } : null;
-
   const renderConversationList = () => (
-    <div className={cn("flex flex-col h-full", isMobile ? "bg-[hsl(var(--pv-bg))]" : "bg-background")}>
+    <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
       {/* Header */}
-      {isMobile && !bulkEditMode ? (
-        <div className="sticky top-0 z-20 bg-[hsl(var(--pv-inverse))] text-[hsl(var(--pv-on-inverse))] rounded-b-[26px] px-5 pb-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))]">
-          <div className="flex items-center gap-3 mt-2">
+      <div className={cn(
+        "flex items-center px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit gap-2",
+        isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
+        !isMobile && "border-b pb-2"
+      )}>
+        {/* Spacer for sidebar hamburger on mobile; refresh on desktop */}
+        {isMobile ? (
+          <div className="w-10 shrink-0" aria-hidden="true" />
+        ) : (
+          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
+          </Button>
+        )}
+        <h1 className={cn(
+          "font-semibold text-foreground flex-1",
+          isMobile ? "text-[17px]" : "text-base"
+        )}>Messages</h1>
+        <div className="flex items-center gap-2">
+        {isMobile && (
+          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
+          </Button>
+        )}
+          {bulkEditMode ? (
             <button
-              type="button"
-              aria-label="Open menu"
-              onClick={() => window.dispatchEvent(new CustomEvent('tw:open-mobile-sidebar'))}
-              className="h-[34px] w-[34px] rounded-[10px] bg-[hsl(var(--pv-inverse-well))] flex items-center justify-center shrink-0"
+              onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+              className="text-[#007AFF] text-[15px] font-medium"
             >
-              <MessageCircle className="h-4 w-4 opacity-0" />
-              <span className="sr-only">Menu</span>
-              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] -ml-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              Done
             </button>
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold text-[hsl(var(--pv-on-inverse-muted))]">Inbox</div>
-              <div className="text-[16px] font-extrabold truncate">Messages</div>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {aiSummaryProps && <AIInboxSummaryButton {...aiSummaryProps} variant="icon" />}
-              <button
-                type="button"
-                onClick={() => setNewConversationOpen(true)}
-                aria-label="New conversation"
-                className="h-[34px] w-[34px] rounded-[10px] bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))] flex items-center justify-center"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative mt-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--pv-on-inverse-muted))]" />
-            <Input
-              ref={searchInputRef}
-              placeholder="Search messages…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
-              className="pl-9 pr-9 h-[38px] rounded-[11px] border-0 bg-[hsl(var(--pv-inverse-well))] text-[hsl(var(--pv-on-inverse))] placeholder:text-[hsl(var(--pv-on-inverse-muted))] focus-visible:ring-1 focus-visible:ring-white/30 text-[13px]"
-            />
-            {searchingContent && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[hsl(var(--pv-on-inverse-muted))]" />
-            )}
-          </div>
-
-          {/* Filter pills */}
-          <div className="flex gap-1.5 mt-3.5 overflow-x-auto no-scrollbar">
-            {([
-              { key: 'all', label: 'All' },
-              { key: 'clients', label: 'Clients' },
-              { key: 'cleaners', label: 'Cleaners' },
-              { key: 'unread', label: 'Unread' },
-            ] as { key: ConversationTab; label: string }[]).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => { setActiveTab(tab.key); hapticImpact('light'); }}
-                className={cn(
-                  "text-[11px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors",
-                  activeTab === tab.key
-                    ? "bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]"
-                    : "text-[hsl(var(--pv-on-inverse-muted))]"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className={cn(
-          "flex items-center px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit gap-2",
-          isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
-          !isMobile && "border-b pb-2"
-        )}>
-          {/* Spacer for sidebar hamburger on mobile; refresh on desktop */}
-          {isMobile ? (
-            <div className="w-10 shrink-0" aria-hidden="true" />
           ) : (
-            <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
-              <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
-            </Button>
-          )}
-          <h1 className={cn(
-            "font-semibold text-foreground flex-1",
-            isMobile ? "text-[17px]" : "text-base"
-          )}>Messages</h1>
-          <div className="flex items-center gap-2">
-          {isMobile && (
-            <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
-              <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
-            </Button>
-          )}
-            {bulkEditMode ? (
-              <button
-                onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
-                className="text-[#007AFF] text-[15px] font-medium"
-              >
-                Done
-              </button>
-            ) : (
-              <>
-                {aiSummaryProps && (
-                  <AIInboxSummaryButton {...aiSummaryProps} />
-                )}
-                <button
-                  onClick={async () => {
-                    if (!organizationId) return;
-                    const { error } = await supabase
-                      .from('sms_conversations')
-                      .update({ unread_count: 0 })
-                      .eq('organization_id', organizationId)
-                      .gt('unread_count', 0);
-                    if (error) { toast.error('Failed to mark all read'); return; }
-                    setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
-                    queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
-                    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
-                    toast.success('All conversations marked as read');
-                  }}
-                  title="Mark all as read"
-                  className="text-[#007AFF]"
-                >
-                  <CheckCheck className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
-                  aria-label="Select conversations"
-                  className="text-[#007AFF]"
-                >
-                  <Pencil className="h-5 w-5" />
-                </button>
-                <button onClick={() => setNewConversationOpen(true)} aria-label="New conversation" className="text-[#007AFF]">
-                  <Plus className="h-5 w-5" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Search (desktop, and mobile bulk-edit mode which keeps the plain header) */}
-      {(!isMobile || bulkEditMode) && (
-        <div className="px-4 pt-2 pb-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
-            <Input
-              placeholder="Search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); } }}
-              className={cn(
-                "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
-                isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
+            <>
+              {organizationId && (
+                <AIInboxSummaryButton
+                  organizationId={organizationId}
+                  getNeedsReplyConversations={() =>
+                    conversations
+                      .filter(c => c.unread_count > 0)
+                      .map(c => ({
+                        name: c.customer_name || c.customer_phone,
+                        lastMessage: c.last_message_preview || '',
+                        hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
+                      }))
+                  }
+                />
               )}
-            />
-            {searchingContent ? (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
-            ) : isMobile ? (
-              <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
-            ) : (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
-            )}
-          </div>
+              <button
+                onClick={async () => {
+                  if (!organizationId) return;
+                  const { error } = await supabase
+                    .from('sms_conversations')
+                    .update({ unread_count: 0 })
+                    .eq('organization_id', organizationId)
+                    .gt('unread_count', 0);
+                  if (error) { toast.error('Failed to mark all read'); return; }
+                  setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                  queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+                  queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+                  toast.success('All conversations marked as read');
+                }}
+                title="Mark all as read"
+                className="text-[#007AFF]"
+              >
+                <CheckCheck className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
+                className="text-[#007AFF]"
+              >
+                <Pencil className="h-5 w-5" />
+              </button>
+              <button onClick={() => setNewConversationOpen(true)} className="text-[#007AFF]">
+                <Plus className="h-5 w-5" />
+              </button>
+            </>
+          )}
         </div>
-      )}
+      </div>
+
+      {/* Search */}
+      <div className="px-4 pt-2 pb-1">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+          <Input
+            ref={searchInputRef}
+            placeholder="Search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
+            className={cn(
+              "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
+              isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
+            )}
+          />
+          {searchingContent ? (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
+          ) : isMobile ? (
+            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+          ) : (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
+          )}
+        </div>
+      </div>
 
       {/* Pinned */}
       {!bulkEditMode && renderPinnedRow()}
 
-      {/* Filter pills (desktop, and mobile bulk-edit mode) */}
-      {(!isMobile || bulkEditMode) && renderFilterPills()}
+      {/* Filter pills */}
+      {renderFilterPills()}
 
       {/* Bulk edit: Select All */}
       {bulkEditMode && (
@@ -1414,7 +1332,7 @@ export default function MessagesPage() {
       )}
 
       {/* Conversation rows */}
-      <div className={cn("flex-1 overflow-y-auto", isMobile && "pt-4")} {...(bulkEditMode ? {} : pullHandlers)}>
+      <div className="flex-1 overflow-y-auto" {...(bulkEditMode ? {} : pullHandlers)}>
         {!bulkEditMode && <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />}
         {syncingMessages && !loading && (
           <div className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground border-b">
@@ -1438,11 +1356,6 @@ export default function MessagesPage() {
             {unpinnedConversations.map((conv, i) => (
               <div key={conv.id}>{renderConversationRow(conv, pinnedConversations.length + i)}</div>
             ))}
-            {isMobile && !bulkEditMode && aiSummaryProps && (
-              <div className="px-4 pt-1 pb-3">
-                <AIInboxSummaryButton {...aiSummaryProps} variant="card" />
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1573,7 +1486,7 @@ export default function MessagesPage() {
         {/* Messages — add top padding on mobile for fixed header */}
         <div
           ref={scrollContainerRef}
-          className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 relative", isMobile && "pt-[calc(5.5rem+env(safe-area-inset-top,0px))]")}
+          className={cn("flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 relative", isMobile && "pt-[calc(3.5rem+env(safe-area-inset-top,0px))]")}
           style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
           onScroll={() => {
             if (!scrollContainerRef.current) return;
@@ -1587,10 +1500,7 @@ export default function MessagesPage() {
               if (item.type === 'timestamp') {
                 return (
                   <div key={`ts-${i}`} className="flex justify-center py-3">
-                    <span className={cn(
-                      "text-[11px] font-medium px-3 py-1 rounded-full",
-                      isMobile ? "text-[hsl(var(--pv-ink-3))] bg-[hsl(var(--pv-sunken))]" : "text-muted-foreground bg-muted/60"
-                    )}>
+                    <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
                       {item.date}
                     </span>
                   </div>
@@ -1602,9 +1512,7 @@ export default function MessagesPage() {
                 <div key={msg.id} className={cn("flex", isOutbound ? 'justify-end' : 'justify-start', item.isFirst && 'mt-2')}>
                   <div className={cn(
                     "max-w-[75%] px-3.5 py-2 relative",
-                    isOutbound
-                      ? (isMobile ? "bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]" : "bg-[#007AFF] text-white")
-                      : (isMobile ? "bg-[hsl(var(--pv-surface))] border border-[hsl(var(--pv-border))] text-[hsl(var(--pv-ink))]" : "bg-muted text-foreground"),
+                    isOutbound ? 'bg-[#007AFF] text-white' : 'bg-muted text-foreground',
                     item.isFirst && item.isLast
                       ? 'rounded-2xl'
                       : item.isFirst
@@ -1632,12 +1540,7 @@ export default function MessagesPage() {
                     )}
                     <p className="text-[15px] leading-snug whitespace-pre-wrap break-words">{msg.content}</p>
                     {item.isLast && (
-                      <p className={cn(
-                        "text-[10px] mt-0.5",
-                        isOutbound
-                          ? (isMobile ? "text-[hsl(var(--pv-brand-ink))]/60 text-right" : "text-white/60 text-right")
-                          : (isMobile ? "text-[hsl(var(--pv-ink-3))]" : "text-muted-foreground")
-                      )}>
+                      <p className={cn("text-[10px] mt-0.5", isOutbound ? 'text-white/60 text-right' : 'text-muted-foreground')}>
                         {/* Initials, no colour: the bubble is already carrying
                             direction through colour, and a second colour axis
                             would compete with it. Rendered only when the name
@@ -1674,10 +1577,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Input bar */}
-        <div className={cn(
-          "px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]",
-          isMobile ? "bg-[hsl(var(--pv-bg))] border-t border-[hsl(var(--pv-border))]" : "border-t bg-background/80 backdrop-blur-xl"
-        )}>
+        <div className="px-3 py-2 border-t bg-background/80 backdrop-blur-xl pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
           <div className="flex items-end gap-2">
             {organizationId && (
               <MessageTemplatesPicker organizationId={organizationId} onSelect={(content) => setNewMessage(content)} />
@@ -1694,16 +1594,11 @@ export default function MessagesPage() {
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
-                placeholder="Text message…"
+                placeholder="iMessage"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                className={cn(
-                  "min-h-[36px] max-h-[120px] resize-none text-[15px] py-2 px-3.5",
-                  isMobile
-                    ? "rounded-xl bg-[hsl(var(--pv-surface))] border border-[hsl(var(--pv-border))] text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:ring-1 focus-visible:ring-[hsl(var(--pv-brand))]"
-                    : "rounded-2xl bg-muted/40 border border-border/50 focus-visible:ring-1 focus-visible:ring-[#007AFF]"
-                )}
+                className="min-h-[36px] max-h-[120px] resize-none text-[15px] rounded-2xl bg-muted/40 border border-border/50 py-2 px-3.5 focus-visible:ring-1 focus-visible:ring-[#007AFF]"
                 rows={1}
               />
             </div>
@@ -1712,11 +1607,10 @@ export default function MessagesPage() {
               disabled={sending}
               size="icon"
               className={cn(
-                "shrink-0 transition-all",
-                isMobile ? "h-11 w-11 rounded-xl" : "h-9 w-9 rounded-full",
+                "h-9 w-9 rounded-full shrink-0 transition-all",
                 newMessage.trim()
-                  ? (isMobile ? "bg-[hsl(var(--pv-brand))] hover:bg-[hsl(var(--pv-brand-hover))] text-[hsl(var(--pv-brand-ink))] shadow-sm" : "bg-[#007AFF] hover:bg-[#0066DD] text-white shadow-sm")
-                  : (isMobile ? "bg-transparent text-[hsl(var(--pv-brand))] hover:bg-[hsl(var(--pv-brand-soft))]" : "bg-transparent text-[#007AFF] hover:bg-[#007AFF]/10")
+                  ? "bg-[#007AFF] hover:bg-[#0066DD] text-white shadow-sm"
+                  : "bg-transparent text-[#007AFF] hover:bg-[#007AFF]/10"
               )}
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : newMessage.trim() ? <Send className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
@@ -1836,10 +1730,7 @@ export default function MessagesPage() {
       <SubscriptionGate feature="Messages">
         {!isMobile && <MessagesHealthBanner />}
         {isMobile ? (
-          /* No negative margin: it made the list 12px wider than its
-             clipping parent, which is what cut the timestamps off the right
-             edge at 390px. */
-          <div className="flex flex-col h-[calc(100dvh-3.5rem)] bg-[hsl(var(--pv-bg))]">
+          <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
         ) : (

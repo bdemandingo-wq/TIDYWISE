@@ -16,7 +16,7 @@
     "test:qa:setup": "playwright test -c playwright.qa.config.ts --project=setup",
     "test:qa:report": "playwright show-report qa-report",
     "check:tokens": "node scripts/check-color-pairs.mjs",
-    "prebuild": "node scripts/check-ignored-sources.mjs && node scripts/check-data-slot-hooks.mjs && node scripts/check-color-pairs.mjs && node scripts/check-pv-tokens.mjs && node scripts/check-mobile-arm-handlers.mjs && node scripts/check-mobile-control-parity.mjs && npm run typecheck",
+    "prebuild": "node scripts/check-ignored-sources.mjs && node scripts/check-data-slot-hooks.mjs && node scripts/check-color-pairs.mjs && node scripts/check-pv-tokens.mjs && npm run typecheck",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:sources": "node scripts/check-ignored-sources.mjs",
     "check:slots": "node scripts/check-data-slot-hooks.mjs"

@@ -6,8 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase } from '@/lib/queryState';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
-import { ListShell, ListSectionLabel, PersonRow, ActionChipRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -63,23 +62,7 @@ type PayRow = {
   percentRate: number | null;
 };
 
-/**
- * Supplied when this body is the mobile arm of the live PayrollPage, which
- * owns Export CSV and the pay-period controls. The handlers stay there;
- * only the rendering moves here. Without them the -v2 route is unchanged.
- */
-export function PayrollMobileBody({
-  actions,
-  onFilter,
-  filterCount,
-  periodLabel,
-}: {
-  actions?: ActionChip[];
-  onFilter?: () => void;
-  filterCount?: number;
-  /** e.g. "Aug 1 - Aug 31, 2026" — shown so the figures below are dated. */
-  periodLabel?: string;
-} = {}) {
+export default function PayrollWiredPage() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -147,12 +130,7 @@ export function PayrollMobileBody({
 
       for (const t of targets) {
         const staff = staffById.get(t.staffId);
-        /* teamSize opts into the percentage-only rescue landed in
-           fix/percentage-wage-fallback. No assignment rows means one cleaner
-           staffed via staff_id — solo, so the rescue is allowed to apply.
-           Without this argument the fix is present in the library and never
-           reached by this screen. */
-        const r = resolveCleanerPay(b, staff ?? null, t.payShare, targets.length || 1);
+        const r = resolveCleanerPay(b, staff ?? null, t.payShare);
         /* A resolved pay of exactly 0 for someone who HAS a wage configured
            is not a wage of zero — it is a wage that could not be worked out.
            Specifically: a cleaner paid on percentage_rate alone. The computed
@@ -183,31 +161,20 @@ export function PayrollMobileBody({
     return out;
   }, [bookingsQ.data, staffById, fmtDay]);
 
-  /* PersonRow — the 11c payroll comp uses it, and payroll IS a list of
-     people. The `facts` slot carries the pay and its basis; the badge carries
-     whether the figure is locked in or still an estimate. */
-  type Row = {
-    id: string; name: string; facts: string[]; lines: string[];
-    badges: { tone: 'info' | 'success' | 'warn' | 'danger'; label: string }[];
-  };
-
-  const rows: Row[] = useMemo(
+  const rows: SimpleListRow[] = useMemo(
     () =>
       payRows.map(r => ({
         id: r.bookingId,
-        name: r.staffName ?? 'Unassigned',
-        facts: [
-          /* §5.1: an unresolved wage shows NO figure at all. */
-          ...(r.unresolved ? [] : [`$${r.pay.toFixed(2)}`]),
-          `#${r.bookingNumber}`,
-          r.scheduledLabel,
-        ],
+        title: r.staffName ?? 'Unassigned',
+        meta: `#${r.bookingNumber} · ${r.scheduledLabel}`,
         lines: r.unresolved
           ? [
               `Set to ${r.percentRate}% of the booking, with no hourly rate`,
               'This booking is priced hourly, so the percentage never applies — payroll would pay nothing.',
             ]
           : [
+              /* Names the basis. "$62.50" alone does not say how it was
+                 arrived at, and four of five staff here are hourly. */
               r.wageType === 'percentage'
                 ? `${r.wageRate}% of the booking`
                 : r.wageType === 'hourly'
@@ -217,6 +184,8 @@ export function PayrollMobileBody({
                 ? 'Locked in — this is what payroll will pay'
                 : 'Estimate — rate or hours can still change',
             ],
+        /* Never "$0.00" for an unresolved wage. */
+        money: r.unresolved ? undefined : `$${r.pay.toFixed(2)}`,
         badges: r.unresolved
           ? [{ tone: 'danger' as const, label: 'Wage unresolved' }]
           : r.isExact
@@ -226,13 +195,7 @@ export function PayrollMobileBody({
     [payRows],
   );
 
-  const filtered = useMemo(() => {
-    const qy = search.trim().toLowerCase();
-    if (!qy) return rows;
-    return rows.filter(
-      r => r.name.toLowerCase().includes(qy) || r.facts.some(fa => fa.toLowerCase().includes(qy)),
-    );
-  }, [rows, search]);
+  const filtered = useSimpleSearch(rows, search);
 
   const phase = combinedPhase([staffQ, bookingsQ]);
   const listState: ListState =
@@ -254,7 +217,7 @@ export function PayrollMobileBody({
   const estimatedTotal = resolved.filter(r => !r.isExact).reduce((s, r) => s + r.pay, 0);
 
   return (
-    <>
+    <AdminLayout title="Payroll" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {phase === 'ready' && payRows.length > 0 && (
           <div className="px-4 pt-3">
@@ -284,77 +247,28 @@ export function PayrollMobileBody({
           </div>
         )}
 
-        {/* Outside ListShell on purpose — the shell renders children only when
-            state === 'ready'. Inside it, the actions AND the period these
-            figures cover would disappear on an empty or failed read, which is
-            precisely when an unexplained blank payroll screen needs a date on
-            it. */}
-        {actions && actions.length > 0 && (
-          <div className="px-5 pb-1 pt-1">
-            <ActionChipRow actions={actions} label="Payroll actions" />
-          </div>
-        )}
-        {periodLabel && (
-          <p className="px-5 pb-1.5 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
-            {periodLabel}
-          </p>
-        )}
-
-        <ListShell<'all'>
+        <SimpleListView
           title="Payroll"
-          action={{ label: 'Run payroll' }}
-          onFilter={onFilter}
-          filterCount={filterCount ?? 0}
+          phase={listState}
+          rows={filtered}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by cleaner or booking #..."
-          tabs={[{ id: 'all', label: 'All shifts', count: filtered.length }]}
-          tab="all"
-          onTab={() => undefined}
-          state={listState}
-          empty={{
-            title: 'Nothing to pay yet',
-            hint: 'Completed bookings with an assigned cleaner will show here.',
-            action: { label: 'Run payroll' },
-          }}
+          emptyTitle="Nothing to pay yet"
+          emptyHint="Completed bookings with an assigned cleaner will show here."
           errorLabel="Couldn't load payroll"
+          addLabel="Run payroll"
           onRetry={() => {
             staffQ.refetch();
             bookingsQ.refetch();
           }}
-          skeletonRows={5}
-        >
-          <ListSectionLabel>
-            {search.trim()
+          sectionLabel={
+            search.trim()
               ? `${filtered.length} of ${rows.length}`
-              : `${exactCount} locked in · ${estimated} estimated`}
-          </ListSectionLabel>
-          {filtered.map(r => (
-            <PersonRow key={r.id} name={r.name} facts={r.facts} lines={r.lines} badges={r.badges} />
-          ))}
-        </ListShell>
+              : `${exactCount} locked in · ${estimated} estimated`
+          }
+        />
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export default function PayrollWiredPage() {
-  return (
-    <AdminLayout title="Payroll" subtitle="Mobile layout, live data">
-      <PayrollMobileBody />
     </AdminLayout>
   );
 }

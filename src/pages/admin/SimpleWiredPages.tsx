@@ -3,10 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
-import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -51,49 +49,20 @@ import type { ListState } from '@/components/portal-v2';
  */
 
 type Cfg = {
-  /** PostgREST select. Defaults to '*'. */
-  select?: string;
-  /** 7f / 10c right-align their status pills; 4c does not. */
-  badgeAlign?: 'left' | 'right';
-  /* Describes the row's on/off control. Returns null for a row that has
-     none. The MUTATION is not here — the page owns it and passes onToggle —
-     so cfg.map stays a pure projection of a row. */
-  toggle?: (raw: RawRow) => { checked: boolean; label: string } | null;
-  /* Bulk-selection checkbox. Same split as toggle: the shape is described
-     here, the state and the action live on the page. */
-  selectable?: (raw: RawRow) => { checked: boolean; label: string } | null;
   title: string;
   table: string;
   order: { col: string; asc: boolean };
   emptyTitle: string;
   emptyHint: string;
-  /** `fmtDay` renders a date in the ORG's timezone — never the device's. */
-  map: (r: any, fmtDay: (iso: string | null | undefined) => string | null) => SimpleListRow;
+  map: (r: any) => SimpleListRow;
   searchPlaceholder?: string;
   /** Used when the count is exactly 1. */
   singular?: string;
-  /* ── The comp's InverseHeader ──────────────────────────────────────────
-     Most of these screens open with a dark hero carrying a headline figure
-     and two or three wells. Built from the loaded rows, so it is a function
-     rather than a node — and it takes the phase, because §5.1 applies to a
-     hero figure exactly as it does to a row: an errored header passes "—"
-     and sets InverseHeader's own `error` flag rather than rendering a
-     confident zero in 32px type. */
-  header?: (rows: any[], ready: boolean) => { eyebrow: string; label: string; value: string; wells: { value: string; caption: string }[] };
 };
 
-/** A row straight off the table, before cfg.map turns it into a display row. */
-type RawRow = Record<string, unknown>;
-
 /** Shared plumbing: one query, one phase, one view. */
-function useSimpleScreen(
-  cfg: Cfg,
-  rowFilter?: (raw: RawRow) => boolean,
-  onToggle?: (id: string, next: boolean) => void,
-  onSelectRow?: (id: string, next: boolean) => void,
-) {
+function useSimpleScreen(cfg: Cfg) {
   const { organization } = useOrganization();
-  const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
 
   const q = useQuery({
@@ -102,9 +71,7 @@ function useSimpleScreen(
       if (!organization?.id) return [];
       const { data, error } = await supabase
         .from(cfg.table as never)
-        /* cfg.select lets a screen ask for more than its own columns —
-           Checklists needs an embedded item count. Defaults to '*'. */
-        .select(cfg.select ?? '*')
+        .select('*')
         .eq('organization_id', organization.id)
         .order(cfg.order.col, { ascending: cfg.order.asc })
         /* Unique tiebreaker on every one of these. None uses .range() today,
@@ -117,48 +84,7 @@ function useSimpleScreen(
     enabled: !!organization?.id,
   });
 
-  /* rowFilter runs on the RAW row, before cfg.map, so a caller can filter on
-     columns the display row does not carry — Inventory's category and
-     low-stock are both like that. Applied before the search so the count
-     under the search box describes what is on screen. */
-  /* A day formatted in the ORG's zone. Screens were rendering raw ISO
-     ("2026-01-22") straight from the column, which is a database value, not a
-     date a person reads. Passed into cfg.map so every screen formats the same
-     way and none reaches for the device's locale. */
-  const fmtDay = useMemo(() => {
-    const f = new Intl.DateTimeFormat('en-US', {
-      timeZone: orgTz,
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-    return (iso: string | null | undefined) => {
-      if (!iso) return null;
-      const d = new Date(iso);
-      return Number.isNaN(d.getTime()) ? null : f.format(d);
-    };
-  }, [orgTz]);
-
-  const all = useMemo(
-    () =>
-      (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(r => {
-        const row = cfg.map(r, fmtDay);
-        const t = cfg.toggle?.(r);
-        /* Only attach a control the page can actually service. Rendering a
-           toggle with no handler is the dead-control pattern again. */
-        const sel = cfg.selectable?.(r);
-        return {
-          ...row,
-          ...(t && onToggle
-            ? { toggle: { ...t, onChange: (next: boolean) => onToggle(row.id, next) } }
-            : {}),
-          ...(sel && onSelectRow
-            ? { select: { ...sel, onChange: (next: boolean) => onSelectRow(row.id, next) } }
-            : {}),
-        };
-      }),
-    [q.data, cfg, rowFilter, fmtDay, onToggle, onSelectRow],
-  );
+  const all = useMemo(() => (q.data ?? []).map(cfg.map), [q.data, cfg]);
   const rows = useSimpleSearch(all, search);
   const phase = queryPhase(q);
 
@@ -174,48 +100,12 @@ function useSimpleScreen(
   return { q, rows, all, search, setSearch, listState };
 }
 
-/** The toolbar props every one of these screens forwards untouched. */
-type ToolbarProps = {
-  /** Filters raw rows before they are mapped for display. */
-  rowFilter?: (raw: RawRow) => boolean;
-  /** Flips the row's toggle. Supplied by the page, which owns the mutation. */
-  onToggle?: (id: string, next: boolean) => void;
-  /** Marks / unmarks a row for a bulk action. */
-  onSelectRow?: (id: string, next: boolean) => void;
-  actions?: ActionChip[];
-  onAdd?: () => void;
-  onFilter?: () => void;
-  filterCount?: number;
-};
-
-function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter, onToggle, onSelectRow }: { cfg: Cfg; rowFilter?: (raw: RawRow) => boolean } & ToolbarProps) {
-  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg, rowFilter, onToggle, onSelectRow);
-  const ready = listState === 'ready' || listState === 'empty';
-  const h = cfg.header?.(q.data ?? [], ready);
+function Screen({ cfg }: { cfg: Cfg }) {
+  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg);
   return (
-    <>
+    <AdminLayout title={cfg.title} subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
-          badgeAlign={cfg.badgeAlign}
-          actions={actions}
-          onAdd={onAdd}
-          onFilter={onFilter}
-          filterCount={filterCount}
-          header={
-            h ? (
-              <InverseHeader
-                eyebrow={h.eyebrow}
-                business={cfg.title}
-                revenueLabel={h.label}
-                revenue={h.value}
-                error={!ready}
-                onRetry={() => q.refetch()}
-                wells={h.wells.map((w, i) => (
-                  <StatWell key={i} value={w.value} caption={w.caption} />
-                ))}
-              />
-            ) : undefined
-          }
           title={cfg.title}
           phase={listState}
           rows={rows}
@@ -235,7 +125,7 @@ function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter, onToggl
           }
         />
       </div>
-    </>
+    </AdminLayout>
   );
 }
 
@@ -243,20 +133,11 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Services ──────────────────────────────────────────────────────────── */
-export function ServicesMobileBody(toolbar: ToolbarProps = {}) {
+export function ServicesWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Services',
-        header: (rows, ready) => ({
-          eyebrow: 'Catalog',
-          label: 'Active services',
-          value: ready ? String(rows.length) : '—',
-          wells: [
-            { value: ready ? String(rows.filter((r: any) => r.deposit_amount != null).length) : '—', caption: 'take a deposit' },
-          ],
-        }),
         singular: 'service',
         table: 'services',
         order: { col: 'name', asc: true },
@@ -283,25 +164,13 @@ export function ServicesMobileBody(toolbar: ToolbarProps = {}) {
 }
 
 /* ── Discounts ─────────────────────────────────────────────────────────── */
-export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
+export function DiscountsWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Discounts',
-        header: (rows, ready) => ({
-          eyebrow: 'Promotions',
-          label: 'Discount codes',
-          value: ready ? String(rows.length) : '—',
-          wells: [
-            { value: ready ? String(rows.filter((r: any) => r.is_active === true).length) : '—', caption: 'active' },
-            { value: ready ? String(rows.filter((r: any) => r.is_active !== true).length) : '—', caption: 'off' },
-          ],
-        }),
         singular: 'discount',
         table: 'discounts',
-        /* The active toggle desktop has and the phone had lost. */
-        toggle: d => ({ checked: d.is_active === true, label: `Active: ${String(d.code ?? d.name ?? 'discount')}` }),
         order: { col: 'created_at', asc: false },
         emptyTitle: 'No discounts yet',
         emptyHint: 'Codes you create will show here.',
@@ -339,34 +208,13 @@ export function DiscountsMobileBody(toolbar: ToolbarProps = {}) {
 }
 
 /* ── Inventory ─────────────────────────────────────────────────────────── */
-export function InventoryMobileBody({
-  selectedIds = new Set<string>(),
-  ...toolbar
-}: ToolbarProps & {
-  /* The page owns the selection set; the body only reflects it. */
-  selectedIds?: Set<string>;
-} = {}) {
+export function InventoryWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Inventory',
-        header: (rows, ready) => {
-          const low = rows.filter((r: any) => r.min_quantity != null && Number(r.quantity) <= Number(r.min_quantity));
-          return {
-            eyebrow: 'Supplies',
-            label: 'Items tracked',
-            value: ready ? String(rows.length) : '—',
-            /* Low stock leads because it is the only figure here that needs
-               an action today. */
-            wells: [{ value: ready ? String(low.length) : '—', caption: 'low stock' }],
-          };
-        },
         singular: 'item',
         table: 'inventory_items',
-        /* Checked-ness comes from the page's selection set, read through the
-           closure the page builds when it constructs this body. */
-        selectable: i => ({ checked: selectedIds.has(String(i.id)), label: `Select ${String(i.name ?? 'item')}` }),
         order: { col: 'name', asc: true },
         emptyTitle: 'Nothing in inventory',
         emptyHint: 'Supplies you track will show here.',
@@ -400,28 +248,13 @@ export function InventoryMobileBody({
 }
 
 /* ── Checklists ────────────────────────────────────────────────────────── */
-export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
+export function ChecklistsWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Checklists',
-        header: (rows, ready) => ({
-          eyebrow: 'Quality',
-          label: 'Checklist templates',
-          value: ready ? String(rows.length) : '—',
-          wells: [
-            { value: ready ? String(rows.filter((r: any) => r.service_id).length) : '—', caption: 'linked to a service' },
-          ],
-        }),
         singular: 'checklist',
         table: 'checklist_templates',
-        /* 11a's row reads "11 items · assigned to X". The count comes from an
-           embedded aggregate rather than a second query per row. */
-        select: '*, checklist_items(count)',
-        /* 11a puts an active toggle on every template; desktop has one and
-           the phone had lost it. */
-        toggle: t => ({ checked: t.is_active !== false, label: `Active: ${String(t.name ?? 'checklist')}` }),
         order: { col: 'name', asc: true },
         emptyTitle: 'No checklists yet',
         emptyHint: 'Templates you build will show here.',
@@ -430,16 +263,7 @@ export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
           id: t.id,
           title: t.name,
           meta: t.description ? t.description : null,
-          lines: [
-            /* PostgREST returns the aggregate as [{ count }]. Undefined means
-               the embed did not come back, which is not the same as zero
-               items — so it says nothing rather than claiming none. */
-            (() => {
-              const n = Array.isArray(t.checklist_items) ? t.checklist_items[0]?.count : undefined;
-              return typeof n === 'number' ? `${n} item${n === 1 ? '' : 's'}` : null;
-            })(),
-            t.service_id ? 'Linked to a service' : 'Not linked to a service',
-          ],
+          lines: [t.service_id ? 'Linked to a service' : 'Not linked to a service'],
         }),
       }}
     />
@@ -447,20 +271,11 @@ export function ChecklistsMobileBody(toolbar: ToolbarProps = {}) {
 }
 
 /* ── Tasks & notes ─────────────────────────────────────────────────────── */
-export function TasksMobileBody(toolbar: ToolbarProps = {}) {
+export function TasksWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Tasks',
-        header: (rows, ready) => ({
-          eyebrow: 'Work',
-          label: 'Open tasks',
-          value: ready ? String(rows.filter((r: any) => r.is_completed !== true).length) : '—',
-          wells: [
-            { value: ready ? String(rows.filter((r: any) => r.is_completed === true).length) : '—', caption: 'done' },
-          ],
-        }),
         singular: 'task',
         table: 'tasks_and_notes',
         order: { col: 'created_at', asc: false },
@@ -489,36 +304,18 @@ export function TasksMobileBody(toolbar: ToolbarProps = {}) {
 }
 
 /* ── Client feedback ───────────────────────────────────────────────────── */
-export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
+export function FeedbackWiredPage() {
   return (
     <Screen
-      {...toolbar}
       cfg={{
         title: 'Feedback',
-        /* 10c puts the Open / Resolved pill at the right of the row. */
-        badgeAlign: 'right',
-        header: (rows, ready) => {
-          const rated = rows.filter((r: any) => r.rating != null);
-          const avg = rated.length ? rated.reduce((s: number, r: any) => s + Number(r.rating), 0) / rated.length : null;
-          return {
-            eyebrow: 'Clients',
-            label: 'Average rating',
-            /* Null when nobody has rated — not 0.0, which reads as unanimous
-               one-star. */
-            value: ready && avg !== null ? avg.toFixed(1) : '—',
-            wells: [
-              { value: ready ? String(rows.length) : '—', caption: 'responses' },
-              { value: ready ? String(rows.filter((r: any) => r.is_resolved !== true).length) : '—', caption: 'unresolved' },
-            ],
-          };
-        },
         singular: 'response',
         table: 'client_feedback',
         order: { col: 'created_at', asc: false },
         emptyTitle: 'No feedback yet',
         emptyHint: 'Ratings and comments from clients will show here.',
         searchPlaceholder: 'Search feedback...',
-        map: (fb: any, fmtDay): SimpleListRow => ({
+        map: (fb: any): SimpleListRow => ({
           id: fb.id,
           title:
             fb.rating === null || fb.rating === undefined
@@ -527,7 +324,7 @@ export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
           meta: fb.issue_description ? fb.issue_description : null,
           lines: [
             fb.resolution ? `Resolution: ${fb.resolution}` : null,
-            fmtDay(fb.created_at),
+            String(fb.created_at).slice(0, 10),
           ],
           badges: [
             /* Both are nullable in the schema. Null means nobody has decided
@@ -560,7 +357,7 @@ export function FeedbackMobileBody(toolbar: ToolbarProps = {}) {
    waiting for a morning brief that the screen has quietly told them is
    switched off. So the toggles do not render at all until the read succeeds.
    ────────────────────────────────────────────────────────────────────────── */
-export function NotificationsMobileBody() {
+export function NotificationsWiredPage() {
   const { organization } = useOrganization();
 
   const q = useQuery({
@@ -584,36 +381,7 @@ export function NotificationsMobileBody() {
   const phase = queryPhase(q);
 
   return (
-    <>
-      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        {/* 5b opens with the hero too. The wells report the two briefings as
-            three-state, because the columns are nullable and "not set" is not
-            "off" — a brand-new org has chosen neither. */}
-        <InverseHeader
-          eyebrow="Alerts"
-          business="Notifications"
-          revenueLabel="Daily briefings"
-          revenue={
-            phase !== 'ready' || !q.data
-              ? '—'
-              : `${[q.data.notify_morning_brief, q.data.notify_evening_brief].filter(v => v === true).length} of 2 on`
-          }
-          error={phase === 'error' || phase === 'offline'}
-          onRetry={() => q.refetch()}
-          wells={
-            <>
-              <StatWell
-                value={phase !== 'ready' || !q.data ? '—' : q.data.notify_morning_brief === true ? 'On' : q.data.notify_morning_brief === false ? 'Off' : 'Not set'}
-                caption="morning"
-              />
-              <StatWell
-                value={phase !== 'ready' || !q.data ? '—' : q.data.notify_evening_brief === true ? 'On' : q.data.notify_evening_brief === false ? 'Off' : 'Not set'}
-                caption="evening"
-              />
-            </>
-          }
-        />
-      </div>
+    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
         {phase === 'error' || phase === 'offline' ? (
           <div className="rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-[18px]">
@@ -681,75 +449,6 @@ export function NotificationsMobileBody() {
           </div>
         )}
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export function ServicesWiredPage() {
-  return (
-    <AdminLayout title="Services" subtitle="Mobile layout, live data">
-      <ServicesMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function DiscountsWiredPage() {
-  return (
-    <AdminLayout title="Discounts" subtitle="Mobile layout, live data">
-      <DiscountsMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function InventoryWiredPage() {
-  return (
-    <AdminLayout title="Inventory" subtitle="Mobile layout, live data">
-      <InventoryMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function ChecklistsWiredPage() {
-  return (
-    <AdminLayout title="Checklists" subtitle="Mobile layout, live data">
-      <ChecklistsMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function TasksWiredPage() {
-  return (
-    <AdminLayout title="Tasks" subtitle="Mobile layout, live data">
-      <TasksMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function FeedbackWiredPage() {
-  return (
-    <AdminLayout title="Feedback" subtitle="Mobile layout, live data">
-      <FeedbackMobileBody />
-    </AdminLayout>
-  );
-}
-
-export function NotificationsWiredPage() {
-  return (
-    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
-      <NotificationsMobileBody />
     </AdminLayout>
   );
 }

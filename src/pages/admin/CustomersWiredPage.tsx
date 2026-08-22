@@ -12,9 +12,8 @@ import {
   customerDisplayName,
   type CustomerBookingStats,
 } from '@/lib/customerStatus';
-import { CustomersListView, useCustomerSearch, type CustomersRow, InverseHeader, StatWell } from '@/components/portal-v2';
+import { CustomersListView, useCustomerSearch, type CustomersRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
-import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/customers-v2 — the mobile customers list on real data.
@@ -36,36 +35,11 @@ import type { ActionChip } from '@/components/portal-v2';
  * customers.
  */
 
-/**
- * onSelectCustomer — supplied when this body is the mobile arm of the live
- * CustomersPage, which owns the profile sheet and the dialogs it opens.
- * Without it (the -v2 preview route) the row navigates instead, which is the
- * standalone behaviour. Extending rather than replacing: the preview keeps
- * working unchanged and the live page keeps its sheet.
- */
-export function CustomersMobileBody({
-  onSelectCustomer,
-  actions,
-  onAdd,
-  onMerge,
-  onRowAction,
-}: {
-  onSelectCustomer?: (id: string) => void;
-  /* Import / Export / Merge, owned by the live CustomersPage. */
-  actions?: ActionChip[];
-  onAdd?: () => void;
-  /** Comp 7g's "⇅ Merge" control. Wired by CustomersPage to the real
-      /dashboard/customers/duplicates flow; omitted on the standalone -v2
-      preview route, which has no merge destination of its own. */
-  onMerge?: () => void;
-  /** The row kebab — same actions desktop's icon row offers. */
-  onRowAction?: (row: CustomersRow, action: 'edit' | 'payment' | 'message' | 'delete') => void;
-} = {}) {
+export default function CustomersWiredPage() {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
-  const [typeTab, setTypeTab] = useState<'all' | 'customer' | 'lead'>('all');
 
   const customersQ = useCustomers();
 
@@ -153,15 +127,7 @@ export function CustomersMobileBody({
     [customersQ.data, statsById, statsOk, fmtDay],
   );
 
-  const typeFiltered = useMemo(
-    () =>
-      typeTab === 'all'
-        ? all
-        : all.filter(r => (typeTab === 'lead' ? r.status === 'lead' : r.status !== 'lead')),
-    [all, typeTab],
-  );
-
-  const rows = useCustomerSearch(typeFiltered, search);
+  const rows = useCustomerSearch(all, search);
 
   const listState: ListState =
     customersPhase === 'error' || customersPhase === 'offline'
@@ -173,35 +139,9 @@ export function CustomersMobileBody({
           : 'ready';
 
   return (
-    <>
+    <AdminLayout title="Customers" subtitle="Mobile layout, live data">
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        {/* 7g's hero. The comp leads with the contact TOTAL and its split,
-            not with the list — so the figures sit above the shell and survive
-            an empty or filtered list. "leads" here means rows whose resolved
-            status is lead, which is what the badge on each row shows. */}
         <CustomersListView
-          header={
-            <InverseHeader
-              eyebrow="CRM"
-              business="Customers"
-              revenueLabel="All contacts"
-              revenue={customersPhase === 'ready' ? String(all.length) : '—'}
-              error={customersPhase === 'error' || customersPhase === 'offline'}
-              onRetry={() => customersQ.refetch()}
-              wells={
-                <>
-                  <StatWell
-                    value={customersPhase === 'ready' ? String(all.filter(r => r.status !== 'lead').length) : '—'}
-                    caption="customers"
-                  />
-                  <StatWell
-                    value={customersPhase === 'ready' ? String(all.filter(r => r.status === 'lead').length) : '—'}
-                    caption="leads"
-                  />
-                </>
-              }
-            />
-          }
           phase={listState}
           rows={rows}
           search={search}
@@ -209,49 +149,16 @@ export function CustomersMobileBody({
           statsUnavailable={customersPhase === 'ready' && !statsOk}
           sectionLabel={
             search.trim()
-              ? `${rows.length} of ${typeFiltered.length} customers`
-              : `${typeFiltered.length} customers`
+              ? `${rows.length} of ${all.length} customers`
+              : `${all.length} customers`
           }
-          actions={actions}
-          onAdd={onAdd}
-          onMerge={onMerge}
-          typeTab={typeTab}
-          onTypeTab={setTypeTab}
-          customerCount={all.filter(r => r.status !== 'lead').length}
-          leadCount={all.filter(r => r.status === 'lead').length}
-          onSelect={r =>
-            onSelectCustomer
-              ? onSelectCustomer(r.id)
-              : navigate(`/dashboard/customers?customer=${r.id}`)
-          }
+          onSelect={r => navigate(`/dashboard/customers?customer=${r.id}`)}
           onRetry={() => {
             customersQ.refetch();
             statsQ.refetch();
           }}
-          onRowAction={onRowAction}
         />
       </div>
-    </>
-  );
-}
-
-/* ── Layout-free bodies ───────────────────────────────────────────────────
-   Each screen is exported twice.
-
-   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
-   page chrome. That is what an existing admin page drops into its mobile
-   branch, without nesting AdminLayout inside AdminLayout and getting two
-   headers and two sidebars.
-
-   The default/named *WiredPage export keeps the layout and is what the
-   /dashboard/*-v2 route renders, so those routes are unchanged.
-   ──────────────────────────────────────────────────────────────────────── */
-
-
-export default function CustomersWiredPage() {
-  return (
-    <AdminLayout title="Customers" subtitle="Mobile layout, live data">
-      <CustomersMobileBody />
     </AdminLayout>
   );
 }

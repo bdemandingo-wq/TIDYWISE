@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { TrackingMobileBody } from '@/pages/admin/OpsWiredPages';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Navigation, Clock, MapPin, Car, User, Loader2, ChevronDown, ChevronUp, ArrowLeft } from 'lucide-react';
@@ -250,9 +248,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
   );
 }
 
-// mobile-control-allow: Switch — mobile arm renders the same 5 SMS toggles via TrackingMobileBody's own custom switch control (TrackingToggleRow), not shadcn Switch, so the parity scan can't see it.
 export default function TrackingPage() {
-  const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgId = organization?.id;
@@ -380,40 +376,6 @@ export default function TrackingPage() {
     setSavingToggle(false);
   };
 
-  /* ── Mobile arm ────────────────────────────────────────────────────────
-     Unlike the other swapped screens this page has no AdminLayout — it
-     returns a bare div — so the arm returns the body inside the same safe
-     area padding rather than a layout wrapper. Comp 6c's hero, notification
-     toggles, active-job list and completed-routes summary all live inside
-     TrackingMobileBody now, fed by this page's own live queries and
-     handleToggle so there is one source of truth for smsSettings. */
-  if (isMobile) {
-    const mobileActiveJobs = activeJobs.map((job) => {
-      const staff = Array.isArray(job.staff) ? job.staff[0] : job.staff;
-      const booking = Array.isArray(job.booking) ? job.booking[0] : job.booking;
-      return {
-        id: job.id,
-        staffName: (staff as any)?.name ?? 'Unknown cleaner',
-        bookingNumber: (booking as any)?.booking_number ?? null,
-      };
-    });
-    const mobileHistoricalJobs = historicalJobs.map((job) => ({ id: job.id }));
-
-    return (
-      <div className="pt-[env(safe-area-inset-top)]">
-        <TrackingMobileBody
-          activeJobs={mobileActiveJobs}
-          historicalJobs={mobileHistoricalJobs}
-          loading={loading}
-          smsSettings={smsSettings}
-          savingToggle={savingToggle}
-          onToggle={handleToggle}
-          onBack={() => navigate(-1)}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 pt-[env(safe-area-inset-top)]">
       {/* Header */}
@@ -421,7 +383,6 @@ export default function TrackingPage() {
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Go back"
           onClick={() => navigate(-1)}
           className="min-h-[44px] min-w-[44px] shrink-0"
         >

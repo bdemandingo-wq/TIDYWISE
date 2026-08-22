@@ -1,6 +1,5 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
-import { ActionChipRow, type ActionChip } from './ActionChipRow';
 import { ListRow } from './ListRow';
 import {
   adminBookingStatusBadge,
@@ -56,7 +55,7 @@ export function bookingStaffLine(r: BookingsRow): string {
   return r.staff_name || 'Unassigned';
 }
 
-export function BookingsListView<T extends string = 'all'>({
+export function BookingsListView({
   phase,
   rows,
   search,
@@ -64,15 +63,6 @@ export function BookingsListView<T extends string = 'all'>({
   onSelect,
   onRetry,
   sectionLabel,
-  tabs,
-  tab,
-  onTab,
-  summary,
-  actions,
-  onFilter,
-  filterCount,
-  header,
-  children,
 }: {
   phase: ListState;
   rows: BookingsRow[];
@@ -82,66 +72,19 @@ export function BookingsListView<T extends string = 'all'>({
   onRetry?: () => void;
   /** Overridable so a wired caller can say "46 bookings" vs "3 matching". */
   sectionLabel?: string;
-  /* ── Added when the wiring pass met the 4c mockup ──────────────────────
-     The row was already comp-matched — it was extracted from the 4c preview
-     and renders the identical ListRow. What the extracted view dropped was
-     the SCREEN chrome: 4c's four tabs and the 2x2 summary grid between the
-     tabs and the list. These props put it back without touching the row.
-
-     Optional throughout, so the states preview keeps rendering a plain
-     single-tab list and only the wired caller opts in. */
-  tabs?: { id: T; label: string; count?: number }[];
-  tab?: T;
-  onTab?: (t: T) => void;
-  /** 4c's summary cards. Rendered between the tabs and the section label. */
-  summary?: ReactNode;
-  /* ── Added when the toolbar moved off the live page ────────────────────
-     The comp gives this screen one action. The live Bookings screen has
-     five, and they used to sit in desktop chrome that also rendered on
-     phones. They render here now so the swap does not delete them. */
-  actions?: ActionChip[];
-  /** Date-range / status filters, surfaced through ListShell's filter button. */
-  onFilter?: () => void;
-  filterCount?: number;
-  /* ── Comp header slot ──────────────────────────────────────────────────
-     7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
-     headline figure and its stat wells. It is page chrome, not list content,
-     so it renders BEFORE the shell and is unaffected by list state — an
-     empty list still shows the totals above it.
-
-     Optional, so the states previews and any caller that does not want one
-     are unchanged. */
-  header?: ReactNode;
-
-  /** Content for a tab that is not the booking list (drafts, quotes, wages). */
-  children?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
-  const singleTab = [{ id: 'all' as T, label: 'All bookings', count: rows.length }];
 
   return (
-    <>
-      {header}
-      {/* Outside ListShell on purpose — the shell renders children only
-          when state === 'ready', so a chip row inside it vanishes on an
-          empty, loading or failed list, taking the actions with it. */}
-      {actions && actions.length > 0 && (
-        <div className="px-5 pb-1 pt-1">
-          <ActionChipRow actions={actions} label="Booking actions" />
-        </div>
-      )}
-
-    <ListShell<T>
-      onFilter={onFilter}
-      filterCount={filterCount ?? 0}
+    <ListShell<'all'>
       title="Bookings"
-      action={{ label: 'Create' }}
+      action={{ label: 'Add' }}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, service, or booking #..."
-      tabs={tabs ?? singleTab}
-      tab={tab ?? ('all' as T)}
-      onTab={onTab ?? (() => undefined)}
+      tabs={[{ id: 'all', label: 'All bookings', count: rows.length }]}
+      tab="all"
+      onTab={() => undefined}
       state={phase}
       empty={
         filtered
@@ -160,14 +103,6 @@ export function BookingsListView<T extends string = 'all'>({
       onRetry={onRetry}
       skeletonRows={6}
     >
-      {/* 4c puts four summary cards between the tabs and the list: a 2x2
-          grid at 10px gaps. Rendered above the section label so it reads as
-          a header for the whole screen rather than for the list. */}
-      {summary}
-
-
-      {children ?? (
-        <>
       <ListSectionLabel>{sectionLabel ?? `${rows.length} bookings`}</ListSectionLabel>
       {rows.map(r => (
         <ListRow
@@ -199,10 +134,7 @@ export function BookingsListView<T extends string = 'all'>({
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}
-        </>
-      )}
     </ListShell>
-    </>
   );
 }
 

@@ -19,15 +19,11 @@ export function SegmentedTabs<T extends string>({
   value,
   onChange,
   label,
-  onInverse = false,
 }: {
   tabs: { id: T; label: string; count?: number }[];
   value: T;
   onChange: (id: T) => void;
   label: string;
-  /* Comps 10g / 11d place the tab row inside the navy hero, where the light
-     surface treatment is invisible. */
-  onInverse?: boolean;
 }) {
   return (
     /* Wraps rather than scrolls. Four tabs with the comps' own words
@@ -37,16 +33,7 @@ export function SegmentedTabs<T extends string>({
        strip unusable at this width. Wrapping keeps every label intact and
        every destination visible, which the comp cares about more than the
        row count. */
-    <div
-      role="group"
-      aria-label={label}
-      /* Scrolls, does not wrap. Both 4c and 7g put every tab on one row;
-         flex-wrap dropped Bookings' fourth tab onto a second line, which
-         pushed the whole list down a row on the screen with the most tabs.
-         The items already carry shrink-0, so scrolling cannot truncate a
-         label — the same rule the action chips follow. */
-      className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    >
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
       {tabs.map((t) => {
         const active = t.id === value;
         return (
@@ -59,13 +46,9 @@ export function SegmentedTabs<T extends string>({
               'flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5',
               'text-[12.5px] font-bold transition-colors duration-150 ease-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--pv-bg))]',
-              onInverse
-                ? active
-                  ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
-                  : 'bg-[hsl(var(--pv-inverse-well))] text-[hsl(var(--pv-on-inverse-muted))]'
-                : active
-                  ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
-                  : 'border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-3))]',
+              active
+                ? 'bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]'
+                : 'border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] text-[hsl(var(--pv-ink-3))]',
             )}
           >
             {t.label}
@@ -75,9 +58,7 @@ export function SegmentedTabs<T extends string>({
                   'tabular-nums',
                   active
                     ? 'text-[hsl(var(--pv-brand-ink))]'
-                    : onInverse
-                      ? 'text-[hsl(var(--pv-on-inverse-muted))]'
-                      : 'text-[hsl(var(--pv-ink-4))]',
+                    : 'text-[hsl(var(--pv-ink-4))]',
                 )}
               >
                 {t.count}

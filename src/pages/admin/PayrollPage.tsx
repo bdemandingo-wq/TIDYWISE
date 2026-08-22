@@ -1,11 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { PayrollMobileBody } from '@/pages/admin/PayrollWiredPage';
-import type { ActionChip, PayrollStaffRow } from '@/components/portal-v2';
-import { PayrollReport, SegmentedTabs } from '@/components/portal-v2';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -210,16 +205,6 @@ export default function PayrollPage() {
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
-  const isMobile = useIsMobile();
-  const [mobilePayrollTab, setMobilePayrollTab] = useState<'summary' | 'details' | 'settings'>('summary');
-  /* 11d's three tabs. Declared once so the hero copy and the non-summary copy
-     can never drift apart. */
-  const payrollTabs = [
-    { id: 'summary' as const, label: 'Staff Summary' },
-    { id: 'details' as const, label: 'Booking Details' },
-    { id: 'settings' as const, label: 'Settings' },
-  ];
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
@@ -699,17 +684,8 @@ export default function PayrollPage() {
   // mirrors the payout engine. The only thing added here is `actualPay` — the
   // "confirmed vs estimated" column this page renders. Never reorder the
   // priorities here; change the resolver so every surface moves together.
-  const calcWage = (
-    booking: any,
-    staffMember: any,
-    payShareOverride?: number | null,
-    /* How many cleaners are on this booking. Required for the percentage-only
-       rescue in wageCalculation — omitting it means "caller does not know",
-       and an unknown team is treated as a team, so a percentage-only cleaner
-       resolves to $0. Every caller below can derive it. */
-    teamSize?: number,
-  ) => {
-    const r = resolveCleanerPay(booking, staffMember, payShareOverride, teamSize);
+  const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
+    const r = resolveCleanerPay(booking, staffMember, payShareOverride);
     return {
       calculatedPay: r.calculatedPay,
       actualPay: r.isExact ? r.calculatedPay : null,
@@ -727,13 +703,7 @@ export default function PayrollPage() {
     for (const b of primaryBookings) {
       const assignment = assignmentList.find((a: any) => a.booking_id === b.id && a.staff_id === staffId);
       const payShareOverride = assignment?.pay_share != null ? Number(assignment.pay_share) : null;
-      /* Team size is the UNION of assignment rows and the primary staff_id —
-         the same membership rule the itemised table and the payout engine
-         use. A booking with no assignment rows is one cleaner, not zero. */
-      const bookingAssignments = assignmentList.filter((a: any) => a.booking_id === b.id);
-      const memberIds = new Set<string>(bookingAssignments.map((a: any) => a.staff_id));
-      if (b.staff_id) memberIds.add(b.staff_id);
-      const wageInfo = calcWage(b, staffMember, payShareOverride, memberIds.size || 1);
+      const wageInfo = calcWage(b, staffMember, payShareOverride);
       entries.push({ booking: b, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
     }
     const teamEntries = assignmentList.filter((a: any) => a.staff_id === staffId && !primaryBookings.find((b: any) => b.id === a.booking_id));
@@ -741,11 +711,7 @@ export default function PayrollPage() {
       const booking = bookingList.find((b: any) => b.id === a.booking_id && b.status !== 'cancelled');
       if (!booking) continue;
       const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
-      const teamIds = new Set<string>(
-        assignmentList.filter((x: any) => x.booking_id === a.booking_id).map((x: any) => x.staff_id),
-      );
-      if (booking.staff_id) teamIds.add(booking.staff_id);
-      const wageInfo = calcWage(booking, staffMember, payShareOverride, teamIds.size || 1);
+      const wageInfo = calcWage(booking, staffMember, payShareOverride);
       entries.push({ booking, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
     }
     return entries;
@@ -795,7 +761,7 @@ export default function PayrollPage() {
         const member = staff.find((s) => s.id === m.staffId);
         const wageInfo = isReclean
           ? { calculatedPay: 0, actualPay: 0, wageType: 'reclean', wageRate: 0, hoursWorked: 0, isMissingPay: false }
-          : calcWage(b, member, m.payShare, members.length || 1);
+          : calcWage(b, member, m.payShare);
         totalBookingLabor += wageInfo.calculatedPay;
         memberDetails.push({ m, member, wageInfo });
       }
@@ -918,7 +884,7 @@ export default function PayrollPage() {
           const member = staff.find((s) => s.id === id);
           const a = assignments.find((x: any) => x.staff_id === id);
           const ps = a?.pay_share != null ? Number(a.pay_share) : null;
-          totalLabor += calcWage(b, member, ps, memberIds.size || 1).calculatedPay;
+          totalLabor += calcWage(b, member, ps).calculatedPay;
         }
       }
 
@@ -1192,190 +1158,6 @@ export default function PayrollPage() {
       </CardContent>
     </Card>
   );
-
-  /* ── Mobile arm ────────────────────────────────────────────────────────
-     Desktop is untouched below. The phone renders PayrollMobileBody — the
-     same component /dashboard/payroll-v2 shows — with this page's own
-     Export CSV as a chip, and the two date controls behind the filter
-     button because a calendar and a period switcher do not fit in a chip.
-
-     Same dateRange state and the same Calendar as desktop, so there is one
-     date path and the org-timezone handling is not duplicated. */
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'export',
-      label: 'Export CSV',
-      icon: <Download className="h-3.5 w-3.5" />,
-      onClick: exportCSV,
-    },
-  ];
-
-  if (isMobile) {
-    return (
-      <AdminLayout title="Payroll Report" subtitle="Staff wages, profitability, and forecasting">
-        <SEOHead title="Payroll | TidyWise" description="Manage staff payroll and wages" noIndex />
-        {/* This page's own warning, which lived only in the desktop branch
-            below the early return — so on a phone a failed source showed no
-            warning at all while the totals rendered as fact. On a screen
-            people pay from, that is the worst place for it to be missing. */}
-        {loadFailures.length > 0 && (
-          <div className="mx-4 mb-3 rounded-[14px] border border-[hsl(var(--pv-danger))] bg-[hsl(var(--pv-danger-soft))] px-4 py-3">
-            <p className="text-[13px] font-extrabold text-[hsl(var(--pv-danger))]">
-              These figures are incomplete
-            </p>
-            <p className="mt-1 text-[12.5px] font-semibold leading-[1.45] text-[hsl(var(--pv-ink-2))]">
-              Do not pay from these totals until they load. Failed:{' '}
-              {loadFailures.map(([label]) => label).join(', ')}.
-            </p>
-          </div>
-        )}
-
-        {/* 11d's tab bar — Staff Summary / Booking Details / Settings. This
-            gap was confirmed against the comp: the mobile arm had no way to
-            reach the payroll period/cost settings at all, and the desktop
-            <PayrollPeriodSettings>/<PayrollCostSettings> pair was mounted
-            only below the desktop early-return, so a phone user could never
-            open it. Mounted here, inside the mobile arm, so the Save /
-            Send-report controls actually work on a phone. */}
-        {/* 11c's report and 11d's staff summary, stacked ABOVE the roster the
-            wiring pass built. 11c has no list and the live screen is all list;
-            rendering both means the screen reads report-then-detail rather
-            than one replacing the other.
-
-            Every figure comes from this page's own derivation — the report
-            computes nothing. Deriving them a second time inside the component
-            is how two numbers on one screen start disagreeing. */}
-        <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        {mobilePayrollTab !== 'summary' && (
-          <div className="px-5 pb-1 pt-3">
-            <SegmentedTabs
-              tabs={payrollTabs}
-              value={mobilePayrollTab}
-              onChange={(id) => setMobilePayrollTab(id as typeof mobilePayrollTab)}
-              label="Payroll view"
-            />
-          </div>
-        )}
-
-        {mobilePayrollTab === 'summary' && (
-          <PayrollReport
-            /* 11d's tab bar lives INSIDE the hero. It used to render above it
-               as bare pills, which put the screen's controls before its
-               headline figure and outside the portal-v2 wrapper. */
-            tabs={
-              <SegmentedTabs
-                tabs={payrollTabs}
-                value={mobilePayrollTab}
-                onChange={(id) => setMobilePayrollTab(id as typeof mobilePayrollTab)}
-                label="Payroll view"
-                onInverse
-              />
-            }
-            ready={loadFailures.length === 0}
-            periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
-            totalPayroll={totalPayroll}
-            avgLaborPct={avgLaborPct}
-            revenueNet={totalRevenue}
-            profit={totalProfit}
-            hours={totalHours}
-            cleans={totalCleans}
-            negativeMarginCount={negativeMarginCount}
-            contractorsNeedingFiling={contractorsNeedingFiling}
-            current={{
-              label: getPeriodTitle(periodConfig, 'current'),
-              revenueNet: currentWeekForecast.revenueNet,
-              laborTotal: currentWeekForecast.laborTotal,
-              profit: currentWeekForecast.profit,
-              laborPct: currentWeekForecast.laborPct,
-              bookingCount: currentWeekForecast.bookingCount,
-            }}
-            next={{
-              label: getPeriodTitle(periodConfig, 'next'),
-              revenueNet: nextWeekForecast.revenueNet,
-              laborTotal: nextWeekForecast.laborTotal,
-              profit: nextWeekForecast.profit,
-              missingPay: nextWeekForecast.missingPay,
-            }}
-            staff={effectivePayrollData.map((s): PayrollStaffRow => ({
-              id: s.id,
-              name: maskName(s.name),
-              /* 11d chips the classification. Null stays null — an unset
-                 classification is not the same as W-2. */
-              classification: s.tax_classification === '1099' ? '1099' : s.tax_classification === 'w2' ? 'W-2' : null,
-              cleans: s.assignedCleans,
-              hours: s.totalHours,
-              ytd: s.ytdEarnings,
-              pay: s.totalPay,
-              laborPct: s.revenueAttributed > 0 ? (s.totalPay / s.revenueAttributed) * 100 : null,
-            }))}
-            onExport={exportCSV}
-          />
-        )}
-
-        {mobilePayrollTab === 'details' && (
-          <PayrollMobileBody
-            actions={mobileActions}
-            onFilter={() => setMobileFiltersOpen(true)}
-            filterCount={payPeriodSelected ? 1 : 0}
-            periodLabel={`${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`}
-          />
-        )}
-
-        {mobilePayrollTab === 'settings' && (
-          <div className="flex w-full flex-col gap-3 px-4 pb-6 pt-3">
-            <PayrollPeriodSettings />
-            <PayrollCostSettings />
-          </div>
-        )}
-        </div>
-
-        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
-          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
-            <SheetHeader className="pb-2">
-              <SheetTitle className="text-base">Pay period</SheetTitle>
-            </SheetHeader>
-            <div className="flex flex-col gap-4 pt-2">
-              <Button
-                variant="secondary"
-                className="h-11 gap-2 rounded-xl"
-                onClick={() => {
-                  const period = getCurrentPeriod(periodConfig, orgTimezone);
-                  rangeTouchedRef.current = true;
-                  setDateRange({ from: period.start, to: period.end });
-                  setPayPeriodSelected(true);
-                  setMobileFiltersOpen(false);
-                }}
-              >
-                <Briefcase className="w-4 h-4" />
-                {getPeriodTitle(periodConfig, 'current')}
-              </Button>
-
-              <div>
-                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Or pick a range</p>
-                <Calendar
-                  mode="range"
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(range) => {
-                    if (range?.from) {
-                      rangeTouchedRef.current = true;
-                      setDateRange({ from: range.from, to: range.to || range.from });
-                      setPayPeriodSelected(true);
-                    }
-                  }}
-                  numberOfMonths={1}
-                  className="rounded-xl border border-border/50 p-2"
-                />
-              </div>
-
-              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>
-                Show results
-              </Button>
-            </div>
-          </SheetContent>
-        </Sheet>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout
