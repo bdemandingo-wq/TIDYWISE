@@ -23,6 +23,7 @@ export function InverseHeader({
   notifications = 0,
   error = false,
   onRetry,
+  onMenu,
 }: {
   eyebrow: string;
   business: string;
@@ -33,6 +34,8 @@ export function InverseHeader({
   notifications?: number;
   error?: boolean;
   onRetry?: () => void;
+  /** Defaults to opening the app's mobile sidebar. */
+  onMenu?: () => void;
 }) {
   const badge = notifications > 9 ? '9+' : String(notifications);
 
@@ -41,7 +44,12 @@ export function InverseHeader({
       <div className="flex items-center gap-3">
         <button
           type="button"
-          aria-label="Menu"
+          aria-label="Open navigation menu"
+          /* AdminSidebar listens for this event — it is how the app's own
+             fixed hamburger opens the drawer, and the sidebar's open state is
+             local to that component. Without it this button was decorative on
+             every screen carrying a hero. */
+          onClick={onMenu ?? (() => window.dispatchEvent(new Event('tw:open-mobile-sidebar')))}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-[hsl(var(--pv-inverse-well))] text-[hsl(var(--pv-on-inverse))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-on-inverse))]"
         >
           <Menu className="h-[18px] w-[18px]" aria-hidden />

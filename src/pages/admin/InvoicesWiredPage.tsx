@@ -72,10 +72,21 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'warn' | 'danger'> = {
 export function InvoicesMobileBody({
   actions,
   onAdd,
+  onMarkPaid,
+  onSend,
+  onDuplicate,
+  onView,
 }: {
   actions?: ActionChip[];
   /* The shell's "+ New invoice" button had no handler, so it was dead. */
   onAdd?: () => void;
+  /* 8a's inline row actions. Supplied by InvoicesPage, which owns the
+     mutations; absent on the -v2 route, where the rows stay read-only
+     rather than showing buttons that do nothing. */
+  onMarkPaid?: (id: string, previousStatus: string) => void;
+  onSend?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
+  onView?: (id: string) => void;
 } = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -160,6 +171,31 @@ export function InvoicesMobileBody({
              total nothing. Only an unread figure becomes "—", and phase is
              what tells them apart. */
           money: ready ? money(total) : '—',
+          /* 8a: an unpaid invoice offers Mark Paid + Send/Resend; a settled
+             one offers View · Duplicate. Cancelled offers neither Mark Paid
+             nor Send — marking a cancelled invoice paid is not a thing. */
+          actions: (() => {
+            const a: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[] = [];
+            const settled = inv.status === 'paid' || inv.status === 'cancelled';
+            if (!settled && onMarkPaid) {
+              a.push({
+                id: 'paid',
+                label: 'Mark Paid',
+                tone: 'primary',
+                onClick: () => onMarkPaid(inv.id, inv.status),
+              });
+            }
+            if (!settled && onSend) {
+              a.push({
+                id: 'send',
+                label: inv.status === 'draft' ? 'Send' : 'Resend',
+                onClick: () => onSend(inv.id),
+              });
+            }
+            if (onView) a.push({ id: 'view', label: 'View', onClick: () => onView(inv.id) });
+            if (onDuplicate) a.push({ id: 'dup', label: 'Duplicate', onClick: () => onDuplicate(inv.id) });
+            return a;
+          })(),
           badges: [
             {
               tone: STATUS_TONE[inv.status] ?? 'info',
@@ -169,7 +205,7 @@ export function InvoicesMobileBody({
           ],
         };
       }),
-    [q.data, ready, fmtDay, orgToday],
+    [q.data, ready, fmtDay, orgToday, onMarkPaid, onSend, onDuplicate, onView],
   );
 
   const filtered = useSimpleSearch(rows, search);

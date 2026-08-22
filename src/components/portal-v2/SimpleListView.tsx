@@ -27,6 +27,8 @@ export type SimpleListRow = {
   /** Pre-formatted. Pass undefined for "no figure", never "$0.00". */
   money?: string;
   badges?: { tone: 'success' | 'info' | 'warn' | 'danger'; label: string }[];
+  /** Inline row actions — 8a's Mark Paid / Resend / View · Duplicate. */
+  actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
 };
 
 export function SimpleListView({
@@ -141,6 +143,7 @@ export function SimpleListView({
           lines={(r.lines ?? []).filter((l): l is string => !!l)}
           money={r.money}
           status={r.badges}
+          actions={r.actions}
           onClick={onSelect ? () => onSelect(r) : undefined}
         />
       ))}

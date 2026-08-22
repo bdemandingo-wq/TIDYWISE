@@ -423,6 +423,24 @@ export default function InvoicesPage() {
       <AdminLayout title="Invoices" subtitle={`${invoices.length} total invoices`}>
         <InvoicesMobileBody
           onAdd={() => { setEditingInvoice(null); setFormDialogOpen(true); }}
+          /* The page owns these mutations; the body only renders the buttons. */
+          onMarkPaid={(id, previousStatus) =>
+            /* The body types this as a plain string; this page keeps the
+               narrower union the mutation expects. */
+            markPaidMutation.mutate({ id, previousStatus: previousStatus as Invoice['status'] })
+          }
+          onSend={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) sendInvoiceEmail(inv);
+          }}
+          onDuplicate={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) duplicateInvoice(inv);
+          }}
+          onView={id => {
+            const inv = invoices.find(i => i.id === id);
+            if (inv) { setViewingInvoice(inv); setViewDialogOpen(true); }
+          }}
         />
       </AdminLayout>
     );

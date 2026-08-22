@@ -44,6 +44,7 @@ export function ListRow({
   lines,
   money,
   status,
+  actions,
   onClick,
   className,
 }: {
@@ -66,6 +67,16 @@ export function ListRow({
      dropping the second badge would remove the fact the screen is organised
      around. Existing callers pass a single object and are unaffected. */
   status?: Badge | Badge[];
+  /* ── Per-row actions ───────────────────────────────────────────────────
+     8a puts them inline on the row: green "Mark Paid" and "Resend" on an
+     overdue invoice, "View · Duplicate" on a paid one. Rendered on their own
+     line beneath the badges rather than beside them, because at 390px an
+     amount, two badges and two buttons on one line is how labels get
+     truncated.
+
+     They stopPropagation, so tapping an action never also fires the row's
+     own onClick — otherwise "Mark Paid" would mark it paid AND open it. */
+  actions?: { id: string; label: string; onClick: () => void; tone?: 'primary' | 'plain' }[];
   onClick?: () => void;
   className?: string;
 }) {
@@ -143,6 +154,29 @@ export function ListRow({
         <span className="mt-[9px] flex flex-wrap items-center gap-1.5">
           {badges.map((b, i) => (
             <StatusBadge key={`${b.label}-${i}`} tone={b.tone} label={b.label} />
+          ))}
+        </span>
+      )}
+
+      {actions && actions.length > 0 && (
+        <span className="mt-[10px] flex flex-wrap items-center gap-2">
+          {actions.map(a => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={e => {
+                e.stopPropagation();
+                a.onClick();
+              }}
+              className={
+                'inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-[12px] font-bold ' +
+                (a.tone === 'primary'
+                  ? 'bg-[hsl(var(--pv-success))] text-[hsl(var(--pv-brand-ink))]'
+                  : 'text-[hsl(var(--pv-brand))]')
+              }
+            >
+              {a.label}
+            </button>
           ))}
         </span>
       )}
