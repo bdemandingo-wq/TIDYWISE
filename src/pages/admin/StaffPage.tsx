@@ -354,6 +354,20 @@ export default function StaffPage() {
         {activeTab === 'team' && (
         <StaffMobileBody
           hideHero
+          /* Turning the switch OFF routes through the same confirmation the
+             desktop row uses — that dialog is what makes a destructive control
+             safe to put on a phone. Turning it back ON is not destructive and
+             applies directly, exactly as desktop does. */
+          onToggleActive={(id, next) => {
+            const member = staff.find(m => m.id === id);
+            if (!member) return;
+            if (!next) {
+              setStaffToDelete(member);
+              setDeleteDialogOpen(true);
+            } else {
+              handleToggleActive(member, true);
+            }
+          }}
         />
         )}
 
@@ -386,6 +400,38 @@ export default function StaffPage() {
             <TimeOffRequestsPanel />
           </div>
         )}
+
+
+        {/* The confirmation itself, mounted in the arm. Without this the
+            switch would open nothing — the pattern the dead-control guard
+            now catches. */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate Staff Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to deactivate <strong>{staffToDelete?.name}</strong>?
+              <br /><br />
+              • They will be marked as <strong>Inactive</strong> and remain in your staff list
+              <br />
+              • They will be <strong>excluded from booking assignment</strong> dropdowns
+              <br />
+              • Their records, history, and data will be <strong>fully preserved</strong>
+              <br />
+              • You can <strong>reactivate them at any time</strong> with a single toggle
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeactivate}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </AdminLayout>
     );
   }

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
 import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
+import { Switch } from '@/components/ui/switch';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
@@ -93,7 +94,12 @@ export function StaffMobileBody({
   tab,
   onTab,
   hideHero,
+  onToggleActive,
 }: {
+  /* The per-row active switch desktop has. Turning it OFF is destructive —
+     the page routes that through its confirmation dialog — so the control is
+     only rendered when the page supplies the handler that does. */
+  onToggleActive?: (id: string, next: boolean) => void;
   /* StaffPage renders the hero and the four tabs itself, above the tab
      content, so they stay on screen when a non-team tab is open. Without
      that, switching to Documents unmounted this body and took the tab bar
@@ -510,6 +516,15 @@ export function StaffMobileBody({
               lines={r.lines}
               inactive={r.inactive}
               badges={r.badges}
+              actions={
+                onToggleActive ? (
+                  <Switch
+                    checked={!r.inactive}
+                    onCheckedChange={next => onToggleActive(r.id, next)}
+                    aria-label={`Active: ${r.name}`}
+                  />
+                ) : undefined
+              }
             />
           ))}
         </ListShell>
