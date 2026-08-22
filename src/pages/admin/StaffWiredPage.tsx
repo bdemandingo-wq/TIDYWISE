@@ -4,11 +4,18 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, PersonRowMenu, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
 import { Switch } from '@/components/ui/switch';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Calendar, Edit, KeyRound, Trash2 } from 'lucide-react';
 
 /**
  * /dashboard/staff-v2 — the team on real data. ADDITIVE.
@@ -95,6 +102,8 @@ export function StaffMobileBody({
   onTab,
   hideHero,
   onToggleActive,
+  onAddStaff,
+  onRowAction,
 }: {
   /* The per-row active switch desktop has. Turning it OFF is destructive —
      the page routes that through its confirmation dialog — so the control is
@@ -111,6 +120,14 @@ export function StaffMobileBody({
   tabs?: { id: string; label: string; count?: number }[];
   tab?: string;
   onTab?: (id: string) => void;
+  /* Wires the shell's title-row "Add staff" button — without this it renders
+     and does nothing, the same dead-control bug the kebab menu below fixes. */
+  onAddStaff?: () => void;
+  /* The per-row kebab's four items. Desktop routes all four through its own
+     handlers (Edit / Resend link / View schedule / Permanent delete); mobile
+     reuses the exact same ones via this callback instead of re-implementing
+     them, so there is one source of truth for what each action does. */
+  onRowAction?: (id: string, action: 'edit' | 'resend' | 'schedule' | 'delete-permanent') => void;
 } = {}) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
