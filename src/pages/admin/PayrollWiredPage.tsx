@@ -6,7 +6,8 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase } from '@/lib/queryState';
 import { resolveCleanerPay } from '@/lib/wageCalculation';
-import { ListShell, ListSectionLabel, PersonRow } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -62,7 +63,23 @@ type PayRow = {
   percentRate: number | null;
 };
 
-export function PayrollMobileBody() {
+/**
+ * Supplied when this body is the mobile arm of the live PayrollPage, which
+ * owns Export CSV and the pay-period controls. The handlers stay there;
+ * only the rendering moves here. Without them the -v2 route is unchanged.
+ */
+export function PayrollMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+  periodLabel,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+  /** e.g. "Aug 1 - Aug 31, 2026" — shown so the figures below are dated. */
+  periodLabel?: string;
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -270,6 +287,8 @@ export function PayrollMobileBody() {
         <ListShell<'all'>
           title="Payroll"
           action={{ label: 'Run payroll' }}
+          onFilter={onFilter}
+          filterCount={filterCount ?? 0}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by cleaner or booking #..."
@@ -289,6 +308,22 @@ export function PayrollMobileBody() {
           }}
           skeletonRows={5}
         >
+          {actions && actions.length > 0 && (
+            <div className="px-5 pb-1.5 pt-0.5">
+              <ActionChipRow actions={actions} label="Payroll actions" />
+            </div>
+          )}
+
+          {/* The period these figures cover. Payroll numbers without a date
+              range are unreadable — "$2,400" means nothing until you know
+              which weeks it counts, and the control that sets it is behind
+              the filter button. */}
+          {periodLabel && (
+            <p className="px-5 pb-1 pt-0.5 text-[11.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+              {periodLabel}
+            </p>
+          )}
+
           <ListSectionLabel>
             {search.trim()
               ? `${filtered.length} of ${rows.length}`

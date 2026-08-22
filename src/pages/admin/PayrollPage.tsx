@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { PayrollMobileBody } from '@/pages/admin/PayrollWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -205,6 +209,8 @@ export default function PayrollPage() {
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
+  const isMobile = useIsMobile();
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
@@ -1158,6 +1164,82 @@ export default function PayrollPage() {
       </CardContent>
     </Card>
   );
+
+  /* ── Mobile arm ────────────────────────────────────────────────────────
+     Desktop is untouched below. The phone renders PayrollMobileBody — the
+     same component /dashboard/payroll-v2 shows — with this page's own
+     Export CSV as a chip, and the two date controls behind the filter
+     button because a calendar and a period switcher do not fit in a chip.
+
+     Same dateRange state and the same Calendar as desktop, so there is one
+     date path and the org-timezone handling is not duplicated. */
+  const mobileActions: ActionChip[] = [
+    {
+      id: 'export',
+      label: 'Export CSV',
+      icon: <Download className="h-3.5 w-3.5" />,
+      onClick: exportCSV,
+    },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Payroll Report" subtitle="Staff wages, profitability, and forecasting">
+        <SEOHead title="Payroll | TidyWise" description="Manage staff payroll and wages" noIndex />
+        <PayrollMobileBody
+          actions={mobileActions}
+          onFilter={() => setMobileFiltersOpen(true)}
+          filterCount={payPeriodSelected ? 1 : 0}
+          periodLabel={`${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`}
+        />
+
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
+            <SheetHeader className="pb-2">
+              <SheetTitle className="text-base">Pay period</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 pt-2">
+              <Button
+                variant="secondary"
+                className="h-11 gap-2 rounded-xl"
+                onClick={() => {
+                  const period = getCurrentPeriod(periodConfig, orgTimezone);
+                  rangeTouchedRef.current = true;
+                  setDateRange({ from: period.start, to: period.end });
+                  setPayPeriodSelected(true);
+                  setMobileFiltersOpen(false);
+                }}
+              >
+                <Briefcase className="w-4 h-4" />
+                {getPeriodTitle(periodConfig, 'current')}
+              </Button>
+
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Or pick a range</p>
+                <Calendar
+                  mode="range"
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range) => {
+                    if (range?.from) {
+                      rangeTouchedRef.current = true;
+                      setDateRange({ from: range.from, to: range.to || range.from });
+                      setPayPeriodSelected(true);
+                    }
+                  }}
+                  numberOfMonths={1}
+                  className="rounded-xl border border-border/50 p-2"
+                />
+              </div>
+
+              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>
+                Show results
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
