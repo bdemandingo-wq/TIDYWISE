@@ -14,8 +14,9 @@ import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Cloc
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
+import { PIPELINE_COLUMNS } from '@/components/admin/leadPipeline';
 
-interface Lead {
+export interface Lead {
   id: string;
   name: string;
   email: string;
@@ -46,13 +47,6 @@ interface Lead {
   tags?: unknown;
 }
 
-const PIPELINE_COLUMNS = [
-  { id: 'new', label: 'New', color: 'bg-info', borderColor: 'border-t-info' },
-  { id: 'follow_up', label: 'Follow Up', color: 'bg-warning', borderColor: 'border-t-warning' },
-  { id: 'quoted', label: 'Quoted', color: 'bg-purple-500', borderColor: 'border-t-purple-500' },
-  { id: 'converted', label: 'Converted', color: 'bg-success', borderColor: 'border-t-success' },
-  { id: 'lost', label: 'Lost', color: 'bg-destructive', borderColor: 'border-t-destructive' },
-];
 
 interface LeadPipelineBoardProps {
   leads: Lead[];
@@ -201,7 +195,18 @@ export function LeadPipelineBoard({
   );
 }
 
-function LeadCard({
+/**
+ * Shared by the desktop board and the phone board.
+ *
+ * `html5Drag` and `hideMenu` exist so the phone can reuse this card verbatim
+ * without inheriting the two things that do not work there: HTML5 drag, which
+ * no mobile browser fires from touch, and a hover dropdown, which competes
+ * with long-press-to-drag. The phone passes html5Drag={false} hideMenu and
+ * puts Edit / Convert / Delete in a sheet instead.
+ *
+ * Defaults keep desktop byte-identical.
+ */
+export function LeadCard({
   lead,
   memberNames,
   isDragging,
@@ -214,12 +219,16 @@ function LeadCard({
   maskEmail,
   maskPhone,
   showDelete,
+  html5Drag = true,
+  hideMenu = false,
 }: {
   lead: Lead;
   memberNames: Record<string, string>;
   isDragging: boolean;
-  onDragStart: (e: React.DragEvent, id: string) => void;
-  onDragEnd: () => void;
+  onDragStart?: (e: React.DragEvent, id: string) => void;
+  onDragEnd?: () => void;
+  html5Drag?: boolean;
+  hideMenu?: boolean;
   onEdit: (lead: Lead) => void;
   onDelete: (id: string) => void;
   onConvert: (lead: Lead) => void;
@@ -230,9 +239,9 @@ function LeadCard({
 }) {
   return (
     <Card
-      draggable
-      onDragStart={(e) => onDragStart(e, lead.id)}
-      onDragEnd={onDragEnd}
+      draggable={html5Drag}
+      onDragStart={html5Drag && onDragStart ? (e) => onDragStart(e, lead.id) : undefined}
+      onDragEnd={html5Drag ? onDragEnd : undefined}
       /* Mockup 8h: radius 14px, padding 13/15. */
       className={`rounded-[14px] cursor-grab active:cursor-grabbing transition-all ${
         isDragging ? 'opacity-40 scale-95' : 'hover:shadow-md'
@@ -245,6 +254,7 @@ function LeadCard({
             <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
             <span className="text-[13px] font-extrabold truncate">{maskName(lead.name)}</span>
           </div>
+          {hideMenu ? null : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-6 w-6 flex-shrink-0">
@@ -272,6 +282,7 @@ function LeadCard({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
 
         {/* Contact Info */}
