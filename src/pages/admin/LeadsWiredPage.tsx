@@ -7,7 +7,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { leadDisplayName } from '@/lib/leadStatus';
-import { LeadsListView, useLeadSearch, StatCard, type LeadsRow } from '@/components/portal-v2';
+import { LeadsListView, useLeadSearch, InverseHeader, StatWell, type LeadsRow } from '@/components/portal-v2';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
@@ -36,12 +36,62 @@ import type { ListState } from '@/components/portal-v2';
  * that changes a value nothing on screen reads — controls that look like
  * they work and do nothing, which is worse than not offering them.
  */
+
+/**
+ * 8g's hero, exported because it is PAGE chrome, not list content.
+ *
+ * The comp shows it above the Pipeline / Table / … switcher, so it is visible
+ * whichever view is open. LeadsMobileBody renders it when it is standalone
+ * (the -v2 route); LeadsPage renders it above the switcher and tells the body
+ * to omit its own, so there is one hero and one implementation.
+ */
+export function LeadsHero({
+  leads,
+  ready,
+  error,
+  onRetry,
+}: {
+  leads: { status?: string | null }[];
+  ready: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+}) {
+  const n = (st: string) => leads.filter(l => l.status === st).length;
+  const converted = n('converted');
+  const lost = n('lost');
+  const followUps = n('follow_up');
+  const resolved = converted + lost;
+  /* A RATIO — suppressed rather than zeroed when nothing has resolved.
+     "0% conversion" is a verdict on the whole pipeline, not a reading. */
+  const pct = resolved > 0 ? Math.round((converted / resolved) * 100) : null;
+
+  return (
+    <InverseHeader
+      eyebrow="CRM"
+      business="Leads"
+      revenueLabel="Total leads"
+      revenue={ready ? String(leads.length) : '—'}
+      trend={ready && followUps > 0 ? { direction: 'down', label: `${followUps} need follow-up` } : undefined}
+      error={!!error}
+      onRetry={onRetry}
+      wells={
+        <>
+          <StatWell value={ready && pct !== null ? `${pct}%` : '—'} caption="conversion" />
+          <StatWell value={ready ? String(converted) : '—'} caption="converted" />
+          <StatWell value={ready ? String(lost) : '—'} caption="lost" />
+        </>
+      }
+    />
+  );
+}
+
 export function LeadsMobileBody({
   actions,
   onFilter,
   filterCount,
   filters,
   onSelectLead,
+  hideHero,
 }: {
   actions?: ActionChip[];
   onFilter?: () => void;
@@ -50,6 +100,8 @@ export function LeadsMobileBody({
   /* Without this the row navigated to ?lead=<id>, which LeadsPage never
      reads — so tapping a lead did nothing. */
   onSelectLead?: (id: string) => void;
+  /** LeadsPage renders the hero above its view switcher instead. */
+  hideHero?: boolean;
 } = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
@@ -147,37 +199,30 @@ export function LeadsMobileBody({
      lead has landed either way. Distinct again from a failed read, which also
      shows "—" but says so in the caption. */
   const resolved = converted + lost;
+  const followUps = (leadsQ.data ?? []).filter((l: any) => l.status === 'follow_up').length;
   const conversionPct = resolved > 0 ? Math.round((converted / resolved) * 100) : null;
   const ready = phase === 'ready';
 
   return (
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        <div className="px-4 pt-3">
-          <div className="grid grid-cols-2 gap-2.5">
-            <StatCard
-              label="Total leads"
-              value={ready ? String(all.length) : '—'}
-              caption={
-                ready
-                  ? `${(leadsQ.data ?? []).filter((l: any) => l.status === 'follow_up').length} need follow-up`
-                  : 'across all sources'
-              }
-            />
-            <StatCard
-              label="Conversion"
-              value={ready && conversionPct !== null ? `${conversionPct}%` : '—'}
-              caption={
-                !ready
-                  ? 'converted / resolved'
-                  : conversionPct === null
-                    ? 'no leads resolved yet'
-                    : `${converted} converted · ${lost} lost`
-              }
-            />
-          </div>
-        </div>
+        {/* 8g's hero. The comp carries these figures in the dark header
+            rather than as cards below it: headline Total leads, the amber
+            follow-up count beside it, then conversion / converted / lost as
+            wells. Conversion is a RATIO, so it is suppressed rather than
+            zeroed on a failed read — "0% conversion" is a verdict on the
+            whole pipeline, not a reading. */}
         <LeadsListView
+          header={
+            hideHero ? null : (
+              <LeadsHero
+                leads={(leadsQ.data ?? []) as { status?: string | null }[]}
+                ready={ready}
+                error={phase === 'error' || phase === 'offline'}
+                onRetry={() => leadsQ.refetch()}
+              />
+            )
+          }
           actions={actions}
           onFilter={onFilter}
           filterCount={filterCount}

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { LeadsMobileBody } from '@/pages/admin/LeadsWiredPage';
+import { LeadsMobileBody, LeadsHero } from '@/pages/admin/LeadsWiredPage';
 import type { ActionChip } from '@/components/portal-v2';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
@@ -479,6 +479,15 @@ export default function LeadsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Leads" subtitle="Track and manage your sales leads">
+        {/* 8g puts the hero ABOVE the switcher, so the totals are there
+            whichever view is open — not only in the list. */}
+        <div className="portal-v2 mx-auto w-full max-w-[430px]">
+          <LeadsHero
+            leads={leads as { status?: string | null }[]}
+            ready={!isLoading}
+          />
+        </div>
+
         <div className="flex gap-1 px-4 pb-2 pt-1">
           {([
             ['pipeline', 'Pipeline'],
@@ -553,6 +562,7 @@ export default function LeadsPage() {
 
         {mobileView === 'list' && (
         <LeadsMobileBody
+          hideHero
           actions={mobileActions}
           onFilter={() => setMobileFiltersOpen(true)}
           filterCount={

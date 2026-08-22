@@ -6,7 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { customerDisplayName } from '@/lib/customerStatus';
-import { SimpleListView, useSimpleSearch, type SimpleListRow } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, type SimpleListRow, InverseHeader, StatWell } from '@/components/portal-v2';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
@@ -71,8 +71,11 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'warn' | 'danger'> = {
 
 export function InvoicesMobileBody({
   actions,
+  onAdd,
 }: {
   actions?: ActionChip[];
+  /* The shell's "+ New invoice" button had no handler, so it was dead. */
+  onAdd?: () => void;
 } = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -188,28 +191,61 @@ export function InvoicesMobileBody({
     [q.data],
   );
 
+  /* 8a's four wells. `overdue` is computed against the org's today, not the
+     device's — a due date is a calendar day in the business's zone. */
+  const counts = useMemo(() => {
+    const d = q.data ?? [];
+    const n = (f: (i: any) => boolean) => d.filter(f).length;
+    return {
+      total: d.length,
+      paid: n(i => i.status === 'paid'),
+      overdue: n(i => i.status !== 'paid' && i.status !== 'cancelled' && i.due_date && i.due_date < orgToday),
+      drafts: n(i => i.status === 'draft'),
+    };
+  }, [q.data, orgToday]);
+
+  const outstanding = useMemo(
+    () =>
+      (q.data ?? [])
+        .filter((i: any) => i.status !== 'paid' && i.status !== 'cancelled')
+        .reduce((s: number, i: any) => s + Number(i.total_amount ?? 0), 0),
+    [q.data],
+  );
+
   return (
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        {ready && rows.length > 0 && (
-          <div className="px-4 pt-3">
-            <div className="rounded-[14px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-[18px] py-3.5">
-              <p className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-[hsl(var(--pv-ink-3))]">
-                Collected from invoices
-              </p>
-              <p className="mt-1 text-[24px] font-extrabold leading-none tabular-nums text-[hsl(var(--pv-ink))]">
-                {money(paidTotal)}
-              </p>
-              <p className="mt-1 text-[11px] font-medium text-[hsl(var(--pv-ink-3))]">
-                Paid invoices only — {rows.length} invoice
-                {rows.length === 1 ? '' : 's'} in total
-              </p>
-            </div>
-          </div>
-        )}
-
         <SimpleListView
+          /* 8a leads with Total paid and the outstanding figure beside it,
+             then total / paid / overdue / drafts as wells. This replaced a
+             light "Collected from invoices" card that showed the same paid
+             total but none of the rest, and only when the list was non-empty
+             — so an org with one cancelled invoice saw no figures at all. */
+          header={
+            <InverseHeader
+              eyebrow="Finance"
+              business="Invoices"
+              revenueLabel="Total paid"
+              revenue={ready ? money(paidTotal) : '—'}
+              trend={
+                ready && outstanding > 0
+                  ? { direction: 'down', label: `${money(outstanding)} outstanding` }
+                  : undefined
+              }
+              error={phase === 'error' || phase === 'offline'}
+              onRetry={() => q.refetch()}
+              wells={
+                <>
+                  <StatWell value={ready ? String(counts.total) : '—'} caption="total" />
+                  <StatWell value={ready ? String(counts.paid) : '—'} caption="paid" />
+                  <StatWell value={ready ? String(counts.overdue) : '—'} caption="overdue" />
+                  <StatWell value={ready ? String(counts.drafts) : '—'} caption="drafts" />
+                </>
+              }
+            />
+          }
           actions={actions}
+          onAdd={onAdd}
           title="Invoices"
           phase={listState}
           rows={filtered}

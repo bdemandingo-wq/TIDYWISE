@@ -33,7 +33,16 @@ export function SegmentedTabs<T extends string>({
        strip unusable at this width. Wrapping keeps every label intact and
        every destination visible, which the comp cares about more than the
        row count. */
-    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+    <div
+      role="group"
+      aria-label={label}
+      /* Scrolls, does not wrap. Both 4c and 7g put every tab on one row;
+         flex-wrap dropped Bookings' fourth tab onto a second line, which
+         pushed the whole list down a row on the screen with the most tabs.
+         The items already carry shrink-0, so scrolling cannot truncate a
+         label — the same rule the action chips follow. */
+      className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {tabs.map((t) => {
         const active = t.id === value;
         return (

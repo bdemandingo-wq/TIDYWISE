@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
 import { ActionChipRow, type ActionChip } from './ActionChipRow';
@@ -39,6 +40,7 @@ export function CustomersListView({
   statsUnavailable,
   actions,
   onAdd,
+  header,
 }: {
   phase: ListState;
   rows: CustomersRow[];
@@ -54,11 +56,21 @@ export function CustomersListView({
   actions?: ActionChip[];
   /** Wires the comp's "+ Add" header button to the real dialog. */
   onAdd?: () => void;
+  /* ── Comp header slot ──────────────────────────────────────────────────
+     7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
+     headline figure and its stat wells. It is page chrome, not list content,
+     so it renders BEFORE the shell and is unaffected by list state — an
+     empty list still shows the totals above it.
+
+     Optional, so the states previews and any caller that does not want one
+     are unchanged. */
+  header?: ReactNode;
 }) {
   const filtered = search.trim().length > 0;
 
   return (
     <>
+      {header}
       {/* Outside ListShell on purpose — the shell renders children only when
           state === 'ready', so a chip row inside it vanishes on an empty,
           loading or failed list, taking the actions with it. */}

@@ -12,7 +12,7 @@ import {
   customerDisplayName,
   type CustomerBookingStats,
 } from '@/lib/customerStatus';
-import { CustomersListView, useCustomerSearch, type CustomersRow } from '@/components/portal-v2';
+import { CustomersListView, useCustomerSearch, type CustomersRow, InverseHeader, StatWell } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 
@@ -158,7 +158,33 @@ export function CustomersMobileBody({
   return (
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {/* 7g's hero. The comp leads with the contact TOTAL and its split,
+            not with the list — so the figures sit above the shell and survive
+            an empty or filtered list. "leads" here means rows whose resolved
+            status is lead, which is what the badge on each row shows. */}
         <CustomersListView
+          header={
+            <InverseHeader
+              eyebrow="CRM"
+              business="Customers"
+              revenueLabel="All contacts"
+              revenue={customersPhase === 'ready' ? String(all.length) : '—'}
+              error={customersPhase === 'error' || customersPhase === 'offline'}
+              onRetry={() => customersQ.refetch()}
+              wells={
+                <>
+                  <StatWell
+                    value={customersPhase === 'ready' ? String(all.filter(r => r.status !== 'lead').length) : '—'}
+                    caption="customers"
+                  />
+                  <StatWell
+                    value={customersPhase === 'ready' ? String(all.filter(r => r.status === 'lead').length) : '—'}
+                    caption="leads"
+                  />
+                </>
+              }
+            />
+          }
           phase={listState}
           rows={rows}
           search={search}

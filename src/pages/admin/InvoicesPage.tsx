@@ -415,19 +415,15 @@ export default function InvoicesPage() {
      Desktop untouched below. The phone renders InvoicesMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    {
-      id: 'new',
-      label: 'New Invoice',
-      icon: <Plus className="h-3.5 w-3.5" />,
-      onClick: () => { setEditingInvoice(null); setFormDialogOpen(true); },
-    },
-  ];
-
+  /* No chip for New Invoice. 8a shows ONE primary action and the shell
+     already renders it in the title row — a chip as well as the header
+     button as well as the shell button was three affordances for one job. */
   if (isMobile) {
     return (
       <AdminLayout title="Invoices" subtitle={`${invoices.length} total invoices`}>
-        <InvoicesMobileBody actions={mobileActions} />
+        <InvoicesMobileBody
+          onAdd={() => { setEditingInvoice(null); setFormDialogOpen(true); }}
+        />
       </AdminLayout>
     );
   }
