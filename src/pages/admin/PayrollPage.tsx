@@ -1239,14 +1239,31 @@ export default function PayrollPage() {
             computes nothing. Deriving them a second time inside the component
             is how two numbers on one screen start disagreeing. */}
         <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        {mobilePayrollTab !== 'summary' && (
+          <div className="px-5 pb-1 pt-3">
+            <SegmentedTabs
+              tabs={payrollTabs}
+              value={mobilePayrollTab}
+              onChange={(id) => setMobilePayrollTab(id as typeof mobilePayrollTab)}
+              label="Payroll view"
+            />
+          </div>
+        )}
+
         {mobilePayrollTab === 'summary' && (
           <PayrollReport
             /* 11d's tab bar lives INSIDE the hero. It used to render above it
                as bare pills, which put the screen's controls before its
                headline figure and outside the portal-v2 wrapper. */
-            tabs={payrollTabs}
-            tab={mobilePayrollTab}
-            onTab={setMobilePayrollTab}
+            tabs={
+              <SegmentedTabs
+                tabs={payrollTabs}
+                value={mobilePayrollTab}
+                onChange={(id) => setMobilePayrollTab(id as typeof mobilePayrollTab)}
+                label="Payroll view"
+                onInverse
+              />
+            }
             ready={loadFailures.length === 0}
             periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
             totalPayroll={totalPayroll}
@@ -1298,11 +1315,12 @@ export default function PayrollPage() {
         )}
 
         {mobilePayrollTab === 'settings' && (
-          <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3 px-4 pb-6">
+          <div className="flex w-full flex-col gap-3 px-4 pb-6 pt-3">
             <PayrollPeriodSettings />
             <PayrollCostSettings />
           </div>
         )}
+        </div>
 
         <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
