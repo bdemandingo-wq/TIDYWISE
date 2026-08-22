@@ -621,46 +621,6 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {false && (
-          <div className="flex flex-col gap-2.5 px-4 pb-6">
-            {abandonedLoading ? (
-              <p className="py-8 text-center text-[12.5px] text-muted-foreground">Loading…</p>
-            ) : abandonedLinks.length === 0 ? (
-              <p className="py-8 text-center text-[12.5px] text-muted-foreground">
-                No abandoned bookings.
-              </p>
-            ) : (
-              (abandonedLinks as unknown as AbandonedLink[]).map(link => (
-                <Card key={link.id} className="rounded-[14px]">
-                  <CardContent className="space-y-1 px-[15px] py-[13px]">
-                    <p className="text-[13px] font-extrabold">
-                      {maskName(link.customer_name || 'Unknown')}
-                    </p>
-                    {link.customer_email && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {maskEmail(link.customer_email)}
-                      </p>
-                    )}
-                    {link.customer_phone && (
-                      <p className="text-xs text-muted-foreground">{maskPhone(link.customer_phone)}</p>
-                    )}
-                    {/* Opened-but-never-finished is the whole point of this
-                        view, so the elapsed time since opening is the fact
-                        that matters, not the send date. */}
-                    <p className="pt-1 text-[11.5px] text-muted-foreground">
-                      {link.link_opened_at
-                        ? `Opened ${formatDistanceToNow(new Date(link.link_opened_at), { addSuffix: true })}`
-                        : link.link_sent_at
-                          ? `Sent ${formatDistanceToNow(new Date(link.link_sent_at), { addSuffix: true })} · never opened`
-                          : 'Not sent'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
-        )}
-
         {mobileView === 'table' && (
         <LeadsMobileBody
           hideHero
