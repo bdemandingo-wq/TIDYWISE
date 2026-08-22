@@ -1150,8 +1150,10 @@ export default function MessagesPage() {
             />
           </div>
         )}
-        {/* Unread blue dot — only when actually unread */}
-        {!bulkEditMode && (
+        {/* Unread blue dot — only when actually unread. 8d puts it at the
+            END of the row on mobile, so it is rendered after the text block
+            there and before the avatar on desktop. */}
+        {!bulkEditMode && !isMobile && (
           <div className="w-[10px] shrink-0 flex justify-center">
             {isUnread && (
               <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
@@ -1194,6 +1196,9 @@ export default function MessagesPage() {
             </span>
           )}
         </div>
+        {isMobile && !bulkEditMode && isUnread && (
+          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--pv-brand))]" />
+        )}
       </button>
     );
 
