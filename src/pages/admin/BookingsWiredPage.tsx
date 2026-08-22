@@ -218,7 +218,7 @@ export function BookingsMobileBody() {
 
   const tabs = [
     { id: 'all' as Tab, label: 'All', count: all.length },
-    { id: 'drafts' as Tab, label: 'Drafts', count: draftRows.length },
+    { id: 'drafts' as Tab, label: 'Drafts & unpaid', count: draftRows.length },
     { id: 'quotes' as Tab, label: 'Quotes', count: (quotesQ.data ?? []).length },
     { id: 'wages' as Tab, label: 'Wages' },
   ];

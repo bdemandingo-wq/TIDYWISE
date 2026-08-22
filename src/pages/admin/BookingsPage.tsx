@@ -1696,7 +1696,10 @@ export default function BookingsPage() {
           </TabsTrigger>
           <TabsTrigger value="drafts" className="gap-2">
             <Clock className="w-4 h-4" />
-            Drafts
+            {/* Not just drafts: this tab has always included non-draft rows on
+                pending status AND pending payment. 31 of the 32 here are booked
+                jobs awaiting payment, not unfinished bookings. */}
+            Drafts &amp; unpaid
             {draftBookings.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                 {draftBookings.length}
@@ -2465,9 +2468,11 @@ export default function BookingsPage() {
           <div className="bg-card rounded-xl border border-border/50 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold">Draft Bookings</h3>
+                <h3 className="text-lg font-semibold">Drafts &amp; unpaid</h3>
                 <p className="text-muted-foreground text-sm mt-1">
-                  These are bookings saved as drafts with pending payment status. Complete the booking or payment to move them to active bookings.
+                  Two kinds of booking sit here: drafts that were never finished, and
+                  booked jobs still waiting on payment. Complete the booking or the
+                  payment to move it to active bookings.
                 </p>
               </div>
               {selectedDrafts.size > 0 && (
