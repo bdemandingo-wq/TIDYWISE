@@ -519,7 +519,7 @@ export function TrackingMobileBody({
 
   return (
     <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col bg-[hsl(var(--pv-bg))]">
-      <div className="rounded-b-[26px] bg-[hsl(var(--pv-brand-strong,var(--pv-brand)))] px-5 pb-[22px] pt-3.5 text-white">
+      <div className="rounded-b-[26px] bg-[hsl(var(--pv-brand))] px-5 pb-[22px] pt-3.5 text-white">
         <div className="flex items-center gap-3">
           <button
             type="button"
