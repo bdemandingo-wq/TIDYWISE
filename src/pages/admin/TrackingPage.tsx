@@ -389,6 +389,75 @@ export default function TrackingPage() {
     return (
       <div className="pt-[env(safe-area-inset-top)]">
         <TrackingMobileBody />
+
+        {/* 6c puts a Notifications card with these five switches directly on
+            the tracking screen, and the parity guard flagged that the phone
+            had none of them. This is the SAME block the desktop settings bar
+            renders, driving the same smsSettings state — reused rather than
+            reimplemented, so the two cannot drift. */}
+        <div className="px-4 pb-6 pt-2">
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap gap-6">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-admin"
+                checked={smsSettings.notify_admin_on_the_way}
+                onCheckedChange={(v) => handleToggle('notify_admin_on_the_way', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-admin" className="text-sm cursor-pointer">
+                Notify Admin when cleaner goes On My Way
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client"
+                checked={smsSettings.notify_client_on_the_way}
+                onCheckedChange={(v) => handleToggle('notify_client_on_the_way', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client" className="text-sm cursor-pointer">
+                Notify Client when cleaner goes On My Way
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client-eta"
+                checked={smsSettings.notify_client_distance_eta}
+                onCheckedChange={(v) => handleToggle('notify_client_distance_eta', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client-eta" className="text-sm cursor-pointer">
+                Include distance &amp; ETA in client SMS
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-client-arrived"
+                checked={smsSettings.notify_client_arrived}
+                onCheckedChange={(v) => handleToggle('notify_client_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-client-arrived" className="text-sm cursor-pointer">
+                Notify client when cleaner has arrived
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="notify-admin-arrived"
+                checked={smsSettings.notify_admin_arrived}
+                onCheckedChange={(v) => handleToggle('notify_admin_arrived', v)}
+                disabled={savingToggle}
+              />
+              <Label htmlFor="notify-admin-arrived" className="text-sm cursor-pointer">
+                Notify admin when cleaner has arrived
+              </Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+        </div>
       </div>
     );
   }
