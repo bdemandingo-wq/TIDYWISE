@@ -4,7 +4,8 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SegmentedTabs } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/finance-v2 — the P&L on real data. ADDITIVE.
@@ -46,7 +47,17 @@ import { Card, CardTitle, StatCard, SegmentedTabs } from '@/components/portal-v2
 const money = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export function FinanceMobileBody() {
+/**
+ * `actions` are the live FinancePage's exports (QuickBooks/Xero, Income
+ * Report, Sales Tax by Zip) and Sync with Stripe. This screen has no list,
+ * so they render as a chip row above the cards rather than inside a shell.
+ * Optional, so /dashboard/finance-v2 is unchanged.
+ */
+export function FinanceMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
   /* 6d's P&L calendar. Booked by DEFAULT, because that is what the comp shows
@@ -184,6 +195,10 @@ export function FinanceMobileBody() {
   return (
     <>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
+        {actions && actions.length > 0 && (
+          <ActionChipRow actions={actions} label="Finance actions" />
+        )}
+
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
             Loading this month&rsquo;s figures…
