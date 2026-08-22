@@ -1230,28 +1230,6 @@ export default function PayrollPage() {
             only below the desktop early-return, so a phone user could never
             open it. Mounted here, inside the mobile arm, so the Save /
             Send-report controls actually work on a phone. */}
-        <div className="mx-auto flex w-full max-w-[430px] gap-1.5 px-5 pb-1 pt-3">
-          {([
-            { id: 'summary', label: 'Staff Summary' },
-            { id: 'details', label: 'Booking Details' },
-            { id: 'settings', label: 'Settings' },
-          ] as const).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setMobilePayrollTab(t.id)}
-              className={cn(
-                'rounded-full px-3.5 py-1.5 text-[11px] font-bold whitespace-nowrap transition-colors',
-                mobilePayrollTab === t.id
-                  ? 'bg-[hsl(var(--pv-brand))] text-white'
-                  : 'bg-[hsl(var(--pv-sunken))] text-[hsl(var(--pv-ink-3))]',
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
         {/* 11c's report and 11d's staff summary, stacked ABOVE the roster the
             wiring pass built. 11c has no list and the live screen is all list;
             rendering both means the screen reads report-then-detail rather
@@ -1260,8 +1238,15 @@ export default function PayrollPage() {
             Every figure comes from this page's own derivation — the report
             computes nothing. Deriving them a second time inside the component
             is how two numbers on one screen start disagreeing. */}
+        <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {mobilePayrollTab === 'summary' && (
           <PayrollReport
+            /* 11d's tab bar lives INSIDE the hero. It used to render above it
+               as bare pills, which put the screen's controls before its
+               headline figure and outside the portal-v2 wrapper. */
+            tabs={payrollTabs}
+            tab={mobilePayrollTab}
+            onTab={setMobilePayrollTab}
             ready={loadFailures.length === 0}
             periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
             totalPayroll={totalPayroll}

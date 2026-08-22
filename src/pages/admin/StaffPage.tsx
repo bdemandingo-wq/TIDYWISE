@@ -335,20 +335,25 @@ export default function StaffPage() {
             open — 10g puts both in the hero, and a tab bar that vanishes when
             you use it is worse than no tab bar. Same structure as Leads. */}
         <div className="portal-v2 mx-auto w-full max-w-[430px]">
-          <StaffHero staff={staff} ready={!isLoading} />
-          <div className="px-5 pb-1 pt-2">
-            <SegmentedTabs
-              tabs={[
-                { id: 'team', label: 'Team' },
-                { id: 'documents', label: 'Documents' },
-                { id: 'activity', label: 'Activity' },
-                { id: 'time-off', label: 'Time Off' },
-              ]}
-              value={activeTab}
-              onChange={handleTabChange}
-              label="Staff view"
-            />
-          </div>
+          <StaffHero
+            staff={staff}
+            ready={!isLoading}
+            onAddStaff={() => setAddDialogOpen(true)}
+            tabs={
+              <SegmentedTabs
+                tabs={[
+                  { id: 'team', label: 'Team' },
+                  { id: 'documents', label: 'Documents' },
+                  { id: 'activity', label: 'Activity' },
+                  { id: 'time-off', label: 'Time Off' },
+                ]}
+                value={activeTab}
+                onChange={handleTabChange}
+                label="Staff view"
+                onInverse
+              />
+            }
+          />
         </div>
 
         {activeTab === 'team' && (
