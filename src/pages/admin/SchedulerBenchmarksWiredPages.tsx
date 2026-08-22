@@ -240,6 +240,20 @@ export function SchedulerMobileBody({
   return (
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
+        <SimpleListView
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
+          onSelect={(r) => {
+            const b = todays.find(bb => bb.id === r.id);
+            if (b) setDetailBooking(b);
+          }}
+          onAdd={() => setAddOpen(true)}
+          /* 6a order: hero first, month grid under it, then the day's jobs.
+             The calendar used to render ABOVE the hero, which put the
+             screen's headline figure in the middle of the page. */
+          beforeList={
+            <>
         {phase === 'ready' && (
           <div className="px-4 pt-3">
             <SegmentedTabs
@@ -298,16 +312,13 @@ export function SchedulerMobileBody({
             )}
           </div>
         )}
-
-        <SimpleListView
-          actions={actions}
-          onFilter={onFilter}
-          filterCount={filterCount}
-          onSelect={(r) => {
-            const b = todays.find(bb => bb.id === r.id);
-            if (b) setDetailBooking(b);
-          }}
-          onAdd={() => setAddOpen(true)}
+            </>
+          }
+          /* The hero carries the title and the New-booking action; 6a has no
+             second title row and no search box on this screen. */
+          hideTitle
+          hideSearch
+          hideTabs
           header={
             <InverseHeader
               eyebrow="Schedule"
@@ -316,6 +327,7 @@ export function SchedulerMobileBody({
               revenue={phase === 'ready' ? String(monthBookings.length) : '—'}
               error={phase !== 'ready'}
               onRetry={() => q.refetch()}
+              action={{ label: 'New', onClick: () => setAddOpen(true) }}
               wells={
                 <>
                   <StatWell

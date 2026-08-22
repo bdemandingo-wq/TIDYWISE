@@ -67,9 +67,15 @@ const DOC_LABEL: Record<string, string> = {
 export function StaffHero({
   staff,
   ready,
+  onAddStaff,
+  tabs,
 }: {
   staff: { is_active?: boolean | null; hourly_rate?: number | null; base_wage?: number | null; percentage_rate?: number | null }[];
   ready: boolean;
+  /* 10g puts "+ Add Staff" in the hero, not in a title row below it. */
+  onAddStaff?: () => void;
+  /* 10g keeps the four tabs inside the hero. */
+  tabs?: React.ReactNode;
 }) {
   const active = staff.filter(s => s.is_active === true).length;
   /* The one thing on this screen that costs somebody money: nobody with a
@@ -84,13 +90,14 @@ export function StaffHero({
       business="Staff"
       revenueLabel="All staff"
       revenue={ready ? String(staff.length) : '—'}
-      wells={
-        <>
-          <StatWell value={ready ? String(active) : '—'} caption="active" />
-          <StatWell value={ready ? String(staff.length - active) : '—'} caption="inactive" />
-          <StatWell value={ready ? String(payoutIssues) : '—'} caption="payout issues" />
-        </>
+      action={onAddStaff ? { label: 'Add Staff', onClick: onAddStaff } : undefined}
+      /* 10g states the split on one line rather than as three tiles. */
+      subline={
+        ready
+          ? `${active} active \u00b7 ${staff.length - active} inactive \u00b7 ${payoutIssues} payout issue${payoutIssues === 1 ? '' : 's'}`
+          : undefined
       }
+      tabs={tabs}
     />
   );
 }
@@ -414,82 +421,12 @@ export function StaffMobileBody({
           </div>
         )}
 
-        {/* 10g's compliance card. Rendered above the shell so it survives an
-            empty or failed list — who still owes paperwork does not depend on
-            whether the roster below rendered. */}
-        {phase === 'ready' && compliance.length > 0 && (
-          <div className="px-5 pb-1.5 pt-1">
-            <Card>
-              <div className="flex items-center gap-2">
-                <CardTitle>Staff compliance</CardTitle>
-                <span
-                  className={
-                    'ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ' +
-                    (complianceReady === compliance.length
-                      ? 'bg-[hsl(var(--pv-success-soft))] text-[hsl(var(--pv-success))]'
-                      : 'bg-[hsl(var(--pv-warn-soft))] text-[hsl(var(--pv-ink-2))]')
-                  }
-                >
-                  {complianceReady}/{compliance.length} ready
-                </span>
-              </div>
-
-              <div className="mt-2.5">
-                {compliance.map(c => (
-                  <div key={c.id} className="pb-3 last:pb-0">
-                    <div className="flex items-baseline gap-2">
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
-                        {c.name}
-                      </span>
-                      <span
-                        className={
-                          'shrink-0 text-[13px] font-extrabold tabular-nums ' +
-                          (c.pct === 100
-                            ? 'text-[hsl(var(--pv-success))]'
-                            : c.pct === 0
-                              ? 'text-[hsl(var(--pv-danger))]'
-                              : 'text-[hsl(var(--pv-brand))]')
-                        }
-                      >
-                        {c.pct}%
-                      </span>
-                    </div>
-
-                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pv-sunken))]">
-                      <div
-                        className={
-                          'h-full rounded-full ' +
-                          (c.pct === 100
-                            ? 'bg-[hsl(var(--pv-success))]'
-                            : 'bg-[hsl(var(--pv-brand))]')
-                        }
-                        style={{ width: `${c.pct}%` }}
-                      />
-                    </div>
-
-                    <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] font-semibold">
-                      {c.checks.map(ck => (
-                        <span
-                          key={ck.label}
-                          className={
-                            ck.ok
-                              ? 'text-[hsl(var(--pv-ink-3))]'
-                              : 'text-[hsl(var(--pv-danger))]'
-                          }
-                        >
-                          {ck.ok ? '\u2713' : '!'} {ck.label}
-                        </span>
-                      ))}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )}
-
         <ListShell<string>
           title="Staff"
+          /* StaffPage's hero already carries the title, the Add-staff button
+             and the tabs — 10g shows one of each, not two. */
+          hideTitle={hideHero}
+          hideTabs={hideHero}
           /* StaffPage supplies 10g's four real tabs. Standalone (-v2) there
              is no page to switch, so the shell keeps its single all-tab. */
           tabs={tabs ?? [{ id: 'all', label: 'All staff', count: filtered.length }]}
@@ -573,6 +510,81 @@ export function StaffMobileBody({
             />
           ))}
         </ListShell>
+
+        {/* 10g's compliance card. Rendered BELOW the roster: 10g leads
+            with the staff cards and puts compliance under them. It sits
+            outside the shell so it survives an empty or failed list — who still owes paperwork does not depend on
+            whether the roster below rendered. */}
+        {phase === 'ready' && compliance.length > 0 && (
+          <div className="px-5 pb-1.5 pt-1">
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Staff compliance</CardTitle>
+                <span
+                  className={
+                    'ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ' +
+                    (complianceReady === compliance.length
+                      ? 'bg-[hsl(var(--pv-success-soft))] text-[hsl(var(--pv-success))]'
+                      : 'bg-[hsl(var(--pv-warn-soft))] text-[hsl(var(--pv-ink-2))]')
+                  }
+                >
+                  {complianceReady}/{compliance.length} ready
+                </span>
+              </div>
+
+              <div className="mt-2.5">
+                {compliance.map(c => (
+                  <div key={c.id} className="pb-3 last:pb-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
+                        {c.name}
+                      </span>
+                      <span
+                        className={
+                          'shrink-0 text-[13px] font-extrabold tabular-nums ' +
+                          (c.pct === 100
+                            ? 'text-[hsl(var(--pv-success))]'
+                            : c.pct === 0
+                              ? 'text-[hsl(var(--pv-danger))]'
+                              : 'text-[hsl(var(--pv-brand))]')
+                        }
+                      >
+                        {c.pct}%
+                      </span>
+                    </div>
+
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pv-sunken))]">
+                      <div
+                        className={
+                          'h-full rounded-full ' +
+                          (c.pct === 100
+                            ? 'bg-[hsl(var(--pv-success))]'
+                            : 'bg-[hsl(var(--pv-brand))]')
+                        }
+                        style={{ width: `${c.pct}%` }}
+                      />
+                    </div>
+
+                    <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] font-semibold">
+                      {c.checks.map(ck => (
+                        <span
+                          key={ck.label}
+                          className={
+                            ck.ok
+                              ? 'text-[hsl(var(--pv-ink-3))]'
+                              : 'text-[hsl(var(--pv-danger))]'
+                          }
+                        >
+                          {ck.ok ? '\u2713' : '!'} {ck.label}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </>
   );

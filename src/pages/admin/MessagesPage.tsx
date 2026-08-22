@@ -1132,7 +1132,7 @@ export default function MessagesPage() {
         className={cn(
           "w-full flex items-center gap-3 transition-colors cursor-pointer select-none text-left",
           isMobile
-            ? "bg-[hsl(var(--pv-surface))] active:bg-[hsl(var(--pv-sunken))] border border-[hsl(var(--pv-border))] rounded-2xl px-[18px] py-[14px] mx-4 mb-3"
+            ? "bg-[hsl(var(--pv-surface))] active:bg-[hsl(var(--pv-sunken))] border border-[hsl(var(--pv-border))] rounded-2xl px-[18px] py-[14px] mx-4 mb-3 gap-3 items-start"
             : cn(
                 "hover:bg-muted/50",
                 selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]",
@@ -1150,17 +1150,21 @@ export default function MessagesPage() {
             />
           </div>
         )}
-        {/* Unread blue dot — only when actually unread */}
-        {!bulkEditMode && (
+        {/* Unread blue dot — only when actually unread. 8d puts it at the
+            END of the row on mobile, so it is rendered after the text block
+            there and before the avatar on desktop. */}
+        {!bulkEditMode && !isMobile && (
           <div className="w-[10px] shrink-0 flex justify-center">
             {isUnread && (
               <span className="w-[10px] h-[10px] rounded-full bg-[#007AFF]" />
             )}
           </div>
         )}
-        <Avatar className={cn("shrink-0", isMobile ? "h-[52px] w-[52px]" : "h-12 w-12")}>
+        {/* 8d's avatar is 38px, not 52 — the larger circle squeezed the name
+            and timestamp onto a line that could not hold both. */}
+        <Avatar className={cn("shrink-0", isMobile ? "h-[38px] w-[38px]" : "h-12 w-12")}>
           <AvatarFallback className={cn(
-            "text-lg font-semibold",
+            isMobile ? "text-[11px] font-extrabold" : "text-lg font-semibold",
             conv.conversation_type === 'cleaner' ? "bg-amber-100 text-amber-700" : "bg-[#E5E5EA] dark:bg-[#3A3A3C] text-[#3C3C43] dark:text-[#EBEBF5]"
           )}>
             {conv.conversation_type === 'cleaner'
@@ -1170,19 +1174,20 @@ export default function MessagesPage() {
         </Avatar>
         <div className="flex-1 min-w-0 text-left">
           <div className="flex items-center justify-between gap-2">
-            <span className={cn("text-[16px] truncate", isUnread ? "font-semibold text-[#1C1C1E] dark:text-white" : "font-normal text-[#1C1C1E] dark:text-white")}>
+            <span className={cn(isMobile ? "text-[13.5px] font-extrabold" : "text-[16px]", "truncate", isUnread ? "font-semibold text-[#1C1C1E] dark:text-white" : "font-normal text-[#1C1C1E] dark:text-white")}>
               {conv.customer_name || conv.customer_phone}
             </span>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className={cn("text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
+              <span className={cn(isMobile ? "text-[10.5px]" : "text-[14px]", isUnread ? "text-[#1C1C1E] dark:text-white" : "text-[#8E8E93]")}>
                 {formatConversationTime(conv.last_message_at, orgTimezone)}
               </span>
-              {!bulkEditMode && (
+              {/* 8d has no chevron — the row is the affordance. */}
+              {!bulkEditMode && !isMobile && (
                 <ChevronLeft className="h-3.5 w-3.5 text-[#C7C7CC] dark:text-[#48484A] rotate-180" />
               )}
             </div>
           </div>
-          <p className={cn("text-[14px] truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
+          <p className={cn(isMobile ? "text-[11.5px]" : "text-[14px]", "truncate mt-0.5", isUnread ? "font-medium text-[#1C1C1E] dark:text-[#EBEBF5]" : "text-[#8E8E93]")}>
             {hasMessages ? conv.last_message_preview : 'No messages yet'}
           </p>
           {needsReply && (
@@ -1191,6 +1196,9 @@ export default function MessagesPage() {
             </span>
           )}
         </div>
+        {isMobile && !bulkEditMode && isUnread && (
+          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--pv-brand))]" />
+        )}
       </button>
     );
 
@@ -1828,7 +1836,10 @@ export default function MessagesPage() {
       <SubscriptionGate feature="Messages">
         {!isMobile && <MessagesHealthBanner />}
         {isMobile ? (
-          <div className="flex flex-col h-[calc(100dvh-3.5rem)] -mx-1.5 bg-white dark:bg-[#1C1C1E]">
+          /* No negative margin: it made the list 12px wider than its
+             clipping parent, which is what cut the timestamps off the right
+             edge at 390px. */
+          <div className="flex flex-col h-[calc(100dvh-3.5rem)] bg-[hsl(var(--pv-bg))]">
             {!selectedConversation ? renderConversationList() : renderChatView()}
           </div>
         ) : (

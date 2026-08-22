@@ -38,6 +38,9 @@ export function ListShell<T extends string>({
   errorLabel = "Couldn't load this list",
   onRetry,
   skeletonRows = 4,
+  hideTitle = false,
+  hideSearch = false,
+  hideTabs = false,
   children,
 }: {
   title: string;
@@ -61,10 +64,16 @@ export function ListShell<T extends string>({
   errorLabel?: string;
   onRetry?: () => void;
   skeletonRows?: number;
+  /* Set when the page's hero already carries the title / search / tabs, so
+     the shell does not render a second copy of the same control. */
+  hideTitle?: boolean;
+  hideSearch?: boolean;
+  hideTabs?: boolean;
   children?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-3">
+      {!hideTitle && (
       <div className="flex items-center gap-3">
         <h1 className="min-w-0 flex-1 truncate text-[19px] font-extrabold text-[hsl(var(--pv-ink))]">
           {title}
@@ -79,8 +88,10 @@ export function ListShell<T extends string>({
           </Button>
         )}
       </div>
+      )}
 
       {/* Search and filter stay live in every state, including error. */}
+      {!hideSearch && (
       <div className="flex gap-2">
         <label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3">
           <Search className="h-4 w-4 shrink-0 text-[hsl(var(--pv-ink-3))]" aria-hidden />
@@ -121,8 +132,9 @@ export function ListShell<T extends string>({
           </button>
         )}
       </div>
+      )}
 
-      {tabs && tab && onTab && (
+      {!hideTabs && tabs && tab && onTab && (
         <SegmentedTabs tabs={tabs} value={tab} onChange={onTab} label={`${title} filter`} />
       )}
 
