@@ -5,6 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
 import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell } from '@/components/portal-v2';
+import { ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -48,7 +50,11 @@ const DOC_LABEL: Record<string, string> = {
   certification: 'Certification',
 };
 
-export function StaffMobileBody() {
+export function StaffMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
 
@@ -234,6 +240,15 @@ export function StaffMobileBody() {
             </>
           }
         />
+        {/* Outside ListShell — the shell renders children only when
+            state === 'ready', so actions inside it vanish on an empty or
+            failed list. */}
+        {actions && actions.length > 0 && (
+          <div className="px-5 pb-1.5 pt-1">
+            <ActionChipRow actions={actions} label="Staff actions" />
+          </div>
+        )}
+
         <ListShell<'all'>
           title="Staff"
           action={{ label: 'Add staff' }}

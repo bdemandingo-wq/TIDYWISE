@@ -1,5 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { InventoryMobileBody } from '@/pages/admin/SimpleWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +77,7 @@ type SortField = 'name' | 'category' | 'quantity' | 'min_quantity' | 'cost_per_u
 type SortDir = 'asc' | 'desc';
 
 export default function InventoryPage() {
+  const isMobile = useIsMobile();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -287,6 +292,62 @@ export default function InventoryPage() {
     ...DEFAULT_CATEGORIES.map(c => ({ key: c, label: c.charAt(0).toUpperCase() + c.slice(1), count: items.filter(i => i.category.toLowerCase() === c).length })),
     ...customCategories.filter(c => !DEFAULT_CATEGORIES.includes(c.name.toLowerCase())).map(c => ({ key: c.name, label: c.name, count: items.filter(i => i.category.toLowerCase() === c.name.toLowerCase()).length })),
   ];
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders InventoryMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const mobileActions: ActionChip[] = [
+    { id: 'export', label: 'Export', icon: <Download className="h-3.5 w-3.5" />, onClick: handleExport },
+    { id: 'settings', label: 'Settings', icon: <Settings className="h-3.5 w-3.5" />, onClick: () => setSettingsDialogOpen(true) },
+    { id: 'add', label: 'Add Item', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => { setEditingItem(null); setDialogOpen(true); } },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Inventory" subtitle={`${items.length} items tracked`}>
+        <InventoryMobileBody
+          actions={mobileActions}
+          onFilter={() => setMobileFiltersOpen(true)}
+          filterCount={activeTab === 'all' ? 0 : 1}
+          /* The category tab the desktop chips set, applied to the body's own
+             rows. Without this the sheet would change a value nothing on
+             screen reads. */
+          rowFilter={raw => {
+            const r = raw as Pick<InventoryItem, 'category' | 'quantity' | 'min_quantity'>;
+            if (activeTab === 'all') return true;
+            if (activeTab === 'low_stock') return Number(r.quantity) <= Number(r.min_quantity);
+            return String(r.category ?? '').toLowerCase() === activeTab.toLowerCase();
+          }}
+        />
+
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
+            <SheetHeader className="pb-2">
+              <SheetTitle className="text-base">Filter inventory</SheetTitle>
+            </SheetHeader>
+            {/* The same tab list the desktop chips render, as a plain list —
+                seven categories do not fit across 390px without truncating,
+                and a half-rendered category name is not a category name. */}
+            <div className="flex flex-col gap-1 pt-2">
+              {tabs.map(t => (
+                <Button
+                  key={t.key}
+                  variant={activeTab === t.key ? 'default' : 'ghost'}
+                  className="h-11 justify-between rounded-xl"
+                  onClick={() => { setActiveTab(t.key); setMobileFiltersOpen(false); }}
+                >
+                  <span>{t.label}</span>
+                  <span className="text-xs opacity-70">{t.count}</span>
+                </Button>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

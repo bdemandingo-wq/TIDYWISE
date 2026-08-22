@@ -8,6 +8,8 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
 import { leadDisplayName } from '@/lib/leadStatus';
 import { LeadsListView, useLeadSearch, StatCard, type LeadsRow } from '@/components/portal-v2';
+import { ActionChipRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -25,7 +27,26 @@ import type { ListState } from '@/components/portal-v2';
  * an additive route, but it is worth knowing.
  */
 
-export function LeadsMobileBody() {
+/**
+ * `filters` is applied to the rows HERE, not on the live page.
+ *
+ * The live LeadsPage keeps statusFilter / sourceFilter / monthFilter for its
+ * own desktop table, and this body has its own query. Handing the sheet the
+ * page's state without applying it here would have produced a filter panel
+ * that changes a value nothing on screen reads — controls that look like
+ * they work and do nothing, which is worse than not offering them.
+ */
+export function LeadsMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+  filters,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+  filters?: { status?: string; source?: string; month?: string };
+} = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -57,7 +78,11 @@ export function LeadsMobileBody() {
     return (iso: string) => f.format(new Date(iso));
   }, [orgTz]);
 
-  const all: LeadsRow[] = useMemo(
+  /* Local, not on the shared LeadsRow: createdMonth is a filter key, not
+     something any row renders. */
+  type Row = LeadsRow & { createdMonth: string };
+
+  const all: Row[] = useMemo(
     () =>
       (leadsQ.data ?? []).map((l: any) => ({
         id: l.id,
@@ -74,12 +99,27 @@ export function LeadsMobileBody() {
         serviceInterest: l.service_interest ? l.service_interest : null,
         estimatedValue: l.estimated_value === null ? null : Number(l.estimated_value),
         createdLabel: fmtDay(l.created_at),
+        createdMonth: (l.created_at ?? '').slice(0, 7),
         hasMessage: !!l.message,
       })),
     [leadsQ.data, fmtDay],
   );
 
-  const rows = useLeadSearch(all, search);
+  /* Applied before the search so the count under the search box describes
+     what is actually on screen. `month` is the created_at YYYY-MM, matching
+     the live page's monthOptions values. */
+  const filteredAll = useMemo(() => {
+    const f = filters;
+    if (!f) return all;
+    return all.filter(r => {
+      if (f.status && f.status !== 'all' && r.status !== f.status) return false;
+      if (f.source && f.source !== 'all' && r.source !== f.source) return false;
+      if (f.month && f.month !== 'all' && !(r.createdMonth ?? '').startsWith(f.month)) return false;
+      return true;
+    });
+  }, [all, filters]);
+
+  const rows = useLeadSearch(filteredAll, search);
   const phase = queryPhase(leadsQ);
 
   const listState: ListState =
@@ -134,12 +174,21 @@ export function LeadsMobileBody() {
           </div>
         </div>
         <LeadsListView
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           phase={listState}
           rows={rows}
           search={search}
           onSearch={setSearch}
+          /* Counts the set actually on screen. Reporting all.length while a
+             status or month filter is narrowing the list would have the label
+             contradict the rows underneath it — the filter would look broken
+             even when it worked. */
           sectionLabel={
-            search.trim() ? `${rows.length} of ${all.length} leads` : `${all.length} leads`
+            search.trim() || filteredAll.length !== all.length
+              ? `${rows.length} of ${all.length} leads`
+              : `${all.length} leads`
           }
           onSelect={r => navigate(`/dashboard/leads?lead=${r.id}`)}
           onRetry={() => leadsQ.refetch()}

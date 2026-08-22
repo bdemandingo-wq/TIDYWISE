@@ -69,8 +69,11 @@ type Cfg = {
   header?: (rows: any[], ready: boolean) => { eyebrow: string; label: string; value: string; wells: { value: string; caption: string }[] };
 };
 
+/** A row straight off the table, before cfg.map turns it into a display row. */
+type RawRow = Record<string, unknown>;
+
 /** Shared plumbing: one query, one phase, one view. */
-function useSimpleScreen(cfg: Cfg) {
+function useSimpleScreen(cfg: Cfg, rowFilter?: (raw: RawRow) => boolean) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
 
@@ -93,7 +96,14 @@ function useSimpleScreen(cfg: Cfg) {
     enabled: !!organization?.id,
   });
 
-  const all = useMemo(() => (q.data ?? []).map(cfg.map), [q.data, cfg]);
+  /* rowFilter runs on the RAW row, before cfg.map, so a caller can filter on
+     columns the display row does not carry — Inventory's category and
+     low-stock are both like that. Applied before the search so the count
+     under the search box describes what is on screen. */
+  const all = useMemo(
+    () => (rowFilter ? (q.data ?? []).filter(rowFilter) : (q.data ?? [])).map(cfg.map),
+    [q.data, cfg, rowFilter],
+  );
   const rows = useSimpleSearch(all, search);
   const phase = queryPhase(q);
 
@@ -111,14 +121,16 @@ function useSimpleScreen(cfg: Cfg) {
 
 /** The toolbar props every one of these screens forwards untouched. */
 type ToolbarProps = {
+  /** Filters raw rows before they are mapped for display. */
+  rowFilter?: (raw: RawRow) => boolean;
   actions?: ActionChip[];
   onAdd?: () => void;
   onFilter?: () => void;
   filterCount?: number;
 };
 
-function Screen({ cfg, actions, onAdd, onFilter, filterCount }: { cfg: Cfg } & ToolbarProps) {
-  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg);
+function Screen({ cfg, actions, onAdd, onFilter, filterCount, rowFilter }: { cfg: Cfg; rowFilter?: (raw: RawRow) => boolean } & ToolbarProps) {
+  const { q, rows, all, search, setSearch, listState } = useSimpleScreen(cfg, rowFilter);
   const ready = listState === 'ready' || listState === 'empty';
   const h = cfg.header?.(q.data ?? [], ready);
   return (

@@ -1,5 +1,9 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { LeadsMobileBody } from '@/pages/admin/LeadsWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -107,6 +111,7 @@ const SOURCE_OPTIONS = [
 ];
 
 export default function LeadsPage() {
+  const isMobile = useIsMobile();
   // Leads are grouped and exported by the BUSINESS's month and day.
   const orgTimezone = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -431,6 +436,88 @@ export default function LeadsPage() {
     await exportFile(`leads-export-${orgDateKey(new Date(), orgTimezone)}.csv`, csv, 'text/csv');
     toast.success('Leads exported successfully');
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders LeadsMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const mobileActions: ActionChip[] = [
+    { id: 'sync', label: 'Smart Sync', icon: <RefreshCw className="h-3.5 w-3.5" />, onClick: () => runSync(leads), busy: isSyncing },
+    { id: 'funnel', label: 'Funnel Report', icon: <TrendingDown className="h-3.5 w-3.5" />, onClick: () => setShowFunnel(!showFunnel) },
+    { id: 'export', label: 'Export Excel', icon: <Download className="h-3.5 w-3.5" />, onClick: exportLeadsExcel },
+    { id: 'add', label: 'Add Lead', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Leads" subtitle="Track and manage your sales leads">
+        <LeadsMobileBody
+          actions={mobileActions}
+          onFilter={() => setMobileFiltersOpen(true)}
+          filterCount={
+            (statusFilter !== 'all' ? 1 : 0) +
+            (sourceFilter !== 'all' ? 1 : 0) +
+            (monthFilter !== 'all' ? 1 : 0)
+          }
+          /* The same three values the desktop table filters on. The body
+             applies them to its own rows — see LeadsMobileBody. */
+          filters={{ status: statusFilter, source: sourceFilter, month: monthFilter }}
+        />
+
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
+            <SheetHeader className="pb-2">
+              <SheetTitle className="text-base">Filter leads</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 pt-2">
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Status</p>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {Object.entries(STATUS_CONFIG).map(([value, { label }]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Source</p>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Source" /></SelectTrigger>
+                  <SelectContent>
+                    {SOURCE_OPTIONS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <p className="mb-1.5 text-sm font-medium text-muted-foreground">Month</p>
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                  <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Month" /></SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(statusFilter !== 'all' || sourceFilter !== 'all' || monthFilter !== 'all') && (
+                <Button variant="ghost" className="h-11"
+                  onClick={() => { setStatusFilter('all'); setSourceFilter('all'); setMonthFilter('all'); }}>
+                  Clear filters
+                </Button>
+              )}
+              <Button className="h-11 rounded-xl" onClick={() => setMobileFiltersOpen(false)}>Show results</Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

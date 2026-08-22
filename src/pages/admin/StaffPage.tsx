@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { StaffMobileBody } from '@/pages/admin/StaffWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
 import { useAllStaff } from '@/hooks/useBookings';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,6 +76,7 @@ interface StaffMember {
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 export default function StaffPage() {
+  const isMobile = useIsMobile();
   const { hasFinancialAccess } = useOrgRole();
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -315,6 +319,22 @@ export default function StaffPage() {
       toast.error('Failed to deactivate staff member');
     }
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders StaffMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'add', label: 'Add Staff', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setAddDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Staff" subtitle={`${staff.length} team members`}>
+        <StaffMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

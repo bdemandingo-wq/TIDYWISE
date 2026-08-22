@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { TasksMobileBody } from '@/pages/admin/SimpleWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +58,7 @@ interface Task {
 }
 
 export default function TasksPage() {
+  const isMobile = useIsMobile();
   // Task resets and due dates are the business's calendar days.
   const orgTimezone = useOrgTimezone();
   const { organizationId } = useOrgId();
@@ -234,6 +238,22 @@ export default function TasksPage() {
       case 'note': return 'General Notes';
     }
   };
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders TasksMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'add', label: 'Add New', icon: <Plus className="h-3.5 w-3.5" />, onClick: () => setAddDialogOpen(true) },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Tasks & Notes" subtitle="Manage your reminders, tasks, and notes">
+        <TasksMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout 

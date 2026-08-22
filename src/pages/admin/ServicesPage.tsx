@@ -1,4 +1,7 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ServicesMobileBody } from '@/pages/admin/SimpleWiredPages';
+import type { ActionChip } from '@/components/portal-v2';
 import { matrixToCsv } from '@/lib/orgDataExport';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,6 +21,7 @@ import { SEOHead } from '@/components/SEOHead';
 
 
 export default function ServicesPage() {
+  const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const { servicePricing, loading: pricingLoading } = useServicePricing();
   const [downloading, setDownloading] = useState(false);
@@ -137,6 +141,22 @@ export default function ServicesPage() {
       setDownloading(false);
     }
   }, [organization?.id, servicePricing]);
+
+  /* ── Mobile arm ──────────────────────────────────────────────────────
+     Desktop untouched below. The phone renders ServicesMobileBody — the same
+     component its -v2 route shows — with this page's own toolbar
+     actions as chips. Handlers stay here; only rendering moves. */
+  const mobileActions: ActionChip[] = [
+    { id: 'csv', label: 'Download CSV', icon: <Download className="h-3.5 w-3.5" />, onClick: handleDownloadCSV },
+  ];
+
+  if (isMobile) {
+    return (
+      <AdminLayout title="Services & Pricing" subtitle="Manage pricing independently for each service category">
+        <ServicesMobileBody actions={mobileActions} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
