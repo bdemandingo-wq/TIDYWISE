@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase, combinedPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SimpleListView, useSimpleSearch, InverseHeader, StatWell, ActionChipRow, type SimpleListRow } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
 /**
@@ -208,7 +209,15 @@ export function CampaignsMobileBody() {
    showing that entry's figures as though they were current would be wrong in
    the most ordinary way available.
    ────────────────────────────────────────────────────────────────────────── */
-export function OperationsMobileBody() {
+/**
+ * `actions` are the live OperationsTrackerPage's Export, Add Entry and its
+ * date range. Optional, so /dashboard/operations-v2 is unchanged.
+ */
+export function OperationsMobileBody({
+  actions,
+}: {
+  actions?: ActionChip[];
+} = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
 
@@ -259,6 +268,10 @@ export function OperationsMobileBody() {
   return (
     <>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
+        {actions && actions.length > 0 && (
+          <ActionChipRow actions={actions} label="Operations actions" />
+        )}
+
         {phase === 'error' || phase === 'offline' ? (
           <Card>
             <CardTitle>Couldn&rsquo;t load your operations log</CardTitle>
