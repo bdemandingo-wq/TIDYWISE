@@ -495,7 +495,7 @@ export function StaffMobileBody({
           tabs={tabs ?? [{ id: 'all', label: 'All staff', count: filtered.length }]}
           tab={tab ?? 'all'}
           onTab={onTab ?? (() => undefined)}
-          action={{ label: 'Add staff' }}
+          action={{ label: 'Add staff', onClick: onAddStaff }}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by name or email..."
@@ -503,7 +503,7 @@ export function StaffMobileBody({
           empty={{
             title: 'No team members yet',
             hint: 'Cleaners and office staff you add will show here.',
-            action: { label: 'Add staff' },
+            action: { label: 'Add staff', onClick: onAddStaff },
           }}
           errorLabel="Couldn't load your team"
           onRetry={() => {
@@ -534,12 +534,40 @@ export function StaffMobileBody({
               inactive={r.inactive}
               badges={r.badges}
               actions={
-                onToggleActive ? (
-                  <Switch
-                    checked={!r.inactive}
-                    onCheckedChange={next => onToggleActive(r.id, next)}
-                    aria-label={`Active: ${r.name}`}
-                  />
+                onToggleActive || onRowAction ? (
+                  <span className="flex items-center gap-0.5">
+                    {onToggleActive && (
+                      <Switch
+                        checked={!r.inactive}
+                        onCheckedChange={next => onToggleActive(r.id, next)}
+                        aria-label={`Active: ${r.name}`}
+                      />
+                    )}
+                    {onRowAction && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <PersonRowMenu label={`More actions: ${r.name}`} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'schedule')}>
+                            <Calendar className="h-4 w-4" /> View Schedule
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'edit')}>
+                            <Edit className="h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'resend')}>
+                            <KeyRound className="h-4 w-4" /> Resend Password Link
+                          </DropdownMenuItem>
+                          {r.inactive && (
+                            <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'delete-permanent')}>
+                              <Trash2 className="h-4 w-4 text-[hsl(var(--pv-danger))]" />
+                              <span className="text-[hsl(var(--pv-danger))]">Delete Permanently</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </span>
                 ) : undefined
               }
             />
