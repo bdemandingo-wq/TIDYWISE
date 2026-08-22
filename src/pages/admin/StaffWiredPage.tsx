@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
@@ -50,10 +50,61 @@ const DOC_LABEL: Record<string, string> = {
   certification: 'Certification',
 };
 
+
+/**
+ * 10g's hero, exported because StaffPage renders it above the tab switcher —
+ * the same reason LeadsHero is exported. Computed from the raw staff rows so
+ * there is one implementation rather than two that can disagree.
+ */
+export function StaffHero({
+  staff,
+  ready,
+}: {
+  staff: { is_active?: boolean | null; hourly_rate?: number | null; base_wage?: number | null; percentage_rate?: number | null }[];
+  ready: boolean;
+}) {
+  const active = staff.filter(s => s.is_active === true).length;
+  /* The one thing on this screen that costs somebody money: nobody with a
+     wage set at all would be paid $0 for the work they do. */
+  const payoutIssues = staff.filter(
+    s => s.hourly_rate == null && s.base_wage == null && s.percentage_rate == null,
+  ).length;
+
+  return (
+    <InverseHeader
+      eyebrow="Team"
+      business="Staff"
+      revenueLabel="All staff"
+      revenue={ready ? String(staff.length) : '—'}
+      wells={
+        <>
+          <StatWell value={ready ? String(active) : '—'} caption="active" />
+          <StatWell value={ready ? String(staff.length - active) : '—'} caption="inactive" />
+          <StatWell value={ready ? String(payoutIssues) : '—'} caption="payout issues" />
+        </>
+      }
+    />
+  );
+}
+
 export function StaffMobileBody({
   actions,
+  tabs,
+  tab,
+  onTab,
+  hideHero,
 }: {
+  /* StaffPage renders the hero and the four tabs itself, above the tab
+     content, so they stay on screen when a non-team tab is open. Without
+     that, switching to Documents unmounted this body and took the tab bar
+     with it — no way back. */
+  hideHero?: boolean;
   actions?: ActionChip[];
+  /* 10g's Team / Documents / Activity / Time Off. Supplied by StaffPage,
+     which owns the real tab state — these are not decorative. */
+  tabs?: { id: string; label: string; count?: number }[];
+  tab?: string;
+  onTab?: (id: string) => void;
 } = {}) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
@@ -68,6 +119,40 @@ export function StaffMobileBody({
         .eq('organization_id', organization.id)
         .order('name', { ascending: true })
         .order('id', { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!organization?.id,
+  });
+
+  /* 10g's compliance card needs what each person still owes. Both tables
+     exist and are org-scoped; this org has none of either, which is why
+     everyone reads as having nothing outstanding rather than as failing. */
+  const signableQ = useQuery({
+    queryKey: ['staff-v2-signable', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('staff_signable_documents')
+        .select('id')
+        .eq('organization_id', organization.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!organization?.id,
+  });
+
+  const signaturesQ = useQuery({
+    queryKey: ['staff-v2-signatures', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return [];
+      const { data, error } = await supabase
+        .from('staff_signatures')
+        /* signable_document_id, not document_id — the column typecheck
+             caught before this could fail at runtime the way the customers
+             apt_suite select would have. */
+        .select('staff_id, signable_document_id')
+        .eq('organization_id', organization.id);
       if (error) throw error;
       return data ?? [];
     },
@@ -208,6 +293,54 @@ export function StaffMobileBody({
   const phase = combinedPhase([staffQ]);
   const activeCount = (staffQ.data ?? []).filter((s: any) => s.is_active === true).length;
 
+  /* ── 10g's compliance card ────────────────────────────────────────────
+     THREE dimensions, not the comp's four. The comp shows Hours as a pass /
+     fail, but this schema documents the opposite rule: absent working_hours
+     means AVAILABLE, not unconfigured (useCleanerConflicts.ts:160, and the
+     comment at the top of this file). Marking it a failure would flag every
+     cleaner who simply has not restricted their availability, which is most
+     of them. So Hours is left out rather than shown as a red cross that is
+     not true.
+
+     Sigs counts documents this org actually requires. With none required
+     there is nothing outstanding, so it passes — an org that has not set up
+     signable documents should not read as one where everybody is delinquent. */
+  const compliance = useMemo(() => {
+    const requiredSignables = (signableQ.data ?? []).length;
+    const signedByStaff = new Map<string, number>();
+    for (const sg of (signaturesQ.data ?? []) as { staff_id: string }[]) {
+      signedByStaff.set(sg.staff_id, (signedByStaff.get(sg.staff_id) ?? 0) + 1);
+    }
+
+    type StaffRecord = {
+      id: string;
+      name: string | null;
+      hourly_rate: number | null;
+      base_wage: number | null;
+      percentage_rate: number | null;
+    };
+    return ((staffQ.data ?? []) as StaffRecord[]).map(st => {
+      const docs = (docsByStaff.get(st.id) ?? []).length > 0;
+      const sigs = requiredSignables === 0 || (signedByStaff.get(st.id) ?? 0) >= requiredSignables;
+      const payout =
+        st.hourly_rate != null || st.base_wage != null || st.percentage_rate != null;
+      const checks = [
+        { label: 'Docs', ok: docs },
+        { label: 'Sigs', ok: sigs },
+        { label: 'Payout', ok: payout },
+      ];
+      const passed = checks.filter(c => c.ok).length;
+      return {
+        id: st.id,
+        name: st.name ?? 'Unnamed',
+        pct: Math.round((passed / checks.length) * 100),
+        checks,
+      };
+    });
+  }, [staffQ.data, docsByStaff, signableQ.data, signaturesQ.data]);
+
+  const complianceReady = compliance.filter(c => c.pct === 100).length;
+
   const listState: ListState =
     phase === 'error' || phase === 'offline'
       ? 'error'
@@ -221,6 +354,7 @@ export function StaffMobileBody({
     <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {/* 10g opens with the head-count and its split. */}
+        {!hideHero && (
         <InverseHeader
           eyebrow="Team"
           business="Staff"
@@ -231,15 +365,23 @@ export function StaffMobileBody({
           wells={
             <>
               <StatWell value={phase === 'ready' ? String(activeCount) : '—'} caption="active" />
+              {/* 10g splits the head-count three ways. Inactive is stated
+                  rather than inferred — "17 total, 15 active" leaves the
+                  reader to subtract. */}
+              <StatWell
+                value={phase === 'ready' ? String(rows.length - activeCount) : '—'}
+                caption="inactive"
+              />
               {/* The wage trap, surfaced in the hero as well as the row —
                   it is the one thing on this screen that costs somebody money. */}
               <StatWell
                 value={phase === 'ready' ? String(rows.filter(r => r.badges.some(bd => bd.label === 'Would be paid $0')).length) : '—'}
-                caption="wage unset"
+                caption="payout issues"
               />
             </>
           }
         />
+        )}
         {/* Outside ListShell — the shell renders children only when
             state === 'ready', so actions inside it vanish on an empty or
             failed list. */}
@@ -249,15 +391,91 @@ export function StaffMobileBody({
           </div>
         )}
 
-        <ListShell<'all'>
+        {/* 10g's compliance card. Rendered above the shell so it survives an
+            empty or failed list — who still owes paperwork does not depend on
+            whether the roster below rendered. */}
+        {phase === 'ready' && compliance.length > 0 && (
+          <div className="px-5 pb-1.5 pt-1">
+            <Card>
+              <div className="flex items-center gap-2">
+                <CardTitle>Staff compliance</CardTitle>
+                <span
+                  className={
+                    'ml-auto shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ' +
+                    (complianceReady === compliance.length
+                      ? 'bg-[hsl(var(--pv-success-soft))] text-[hsl(var(--pv-success))]'
+                      : 'bg-[hsl(var(--pv-warn-soft))] text-[hsl(var(--pv-ink-2))]')
+                  }
+                >
+                  {complianceReady}/{compliance.length} ready
+                </span>
+              </div>
+
+              <div className="mt-2.5">
+                {compliance.map(c => (
+                  <div key={c.id} className="pb-3 last:pb-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
+                        {c.name}
+                      </span>
+                      <span
+                        className={
+                          'shrink-0 text-[13px] font-extrabold tabular-nums ' +
+                          (c.pct === 100
+                            ? 'text-[hsl(var(--pv-success))]'
+                            : c.pct === 0
+                              ? 'text-[hsl(var(--pv-danger))]'
+                              : 'text-[hsl(var(--pv-brand))]')
+                        }
+                      >
+                        {c.pct}%
+                      </span>
+                    </div>
+
+                    <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-[hsl(var(--pv-sunken))]">
+                      <div
+                        className={
+                          'h-full rounded-full ' +
+                          (c.pct === 100
+                            ? 'bg-[hsl(var(--pv-success))]'
+                            : 'bg-[hsl(var(--pv-brand))]')
+                        }
+                        style={{ width: `${c.pct}%` }}
+                      />
+                    </div>
+
+                    <p className="mt-1 flex flex-wrap gap-x-2 text-[11px] font-semibold">
+                      {c.checks.map(ck => (
+                        <span
+                          key={ck.label}
+                          className={
+                            ck.ok
+                              ? 'text-[hsl(var(--pv-ink-3))]'
+                              : 'text-[hsl(var(--pv-danger))]'
+                          }
+                        >
+                          {ck.ok ? '\u2713' : '!'} {ck.label}
+                        </span>
+                      ))}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+        )}
+
+        <ListShell<string>
           title="Staff"
+          /* StaffPage supplies 10g's four real tabs. Standalone (-v2) there
+             is no page to switch, so the shell keeps its single all-tab. */
+          tabs={tabs ?? [{ id: 'all', label: 'All staff', count: filtered.length }]}
+          tab={tab ?? 'all'}
+          onTab={onTab ?? (() => undefined)}
           action={{ label: 'Add staff' }}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by name or email..."
-          tabs={[{ id: 'all', label: 'All staff', count: filtered.length }]}
-          tab="all"
-          onTab={() => undefined}
           state={listState}
           empty={{
             title: 'No team members yet',
