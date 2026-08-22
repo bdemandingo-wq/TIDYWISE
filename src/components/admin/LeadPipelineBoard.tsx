@@ -14,6 +14,7 @@ import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Cloc
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
+import { leadSourceLabel } from '@/lib/leadStatus';
 import { PIPELINE_COLUMNS } from '@/components/admin/leadPipeline';
 
 export interface Lead {
@@ -335,8 +336,11 @@ export function LeadCard({
 
         {/* Footer: Source + last toucher + Time */}
         <div className="flex items-center justify-between pt-1 border-t">
-          <Badge variant="secondary" className="text-[10px] h-4 px-1 capitalize">
-            {lead.source}
+          {/* leadSourceLabel, not the raw column. `capitalize` turned
+              customer_import into "Customer_import" — an enum slug with an
+              underscore, shown to the user on every imported lead. */}
+          <Badge variant="secondary" className="text-[10px] h-4 px-1">
+            {leadSourceLabel(lead.source)}
           </Badge>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             {/* Initials, no colour: the column headers already carry stage
