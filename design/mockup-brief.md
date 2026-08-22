@@ -92,3 +92,11 @@ async with session(width=390) as (page, browser):
 
 Verified: renders the real Staff page as an authenticated admin. Use `session(width=1280)` for
 desktop checks.
+
+### Clicking Radix menus/dialogs in headless
+
+Use Playwright's `locator.click()` (it auto-scrolls). Raw `page.mouse.click(x, y)` silently misses
+any control below the fold, which reads as a "dead control" that is really a harness mistake. If a
+kebab appears inert, first check the trigger exists: `page.locator('button[aria-haspopup="menu"]')`
+— a count of 0 means the trigger component isn't forwarding its ref/props to Radix (a real bug),
+not that the menu failed to open.
