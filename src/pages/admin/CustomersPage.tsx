@@ -5,6 +5,7 @@ import { Share } from '@capacitor/share';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { CustomersMobileBody } from '@/pages/admin/CustomersWiredPage';
+import type { ActionChip } from '@/components/portal-v2';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -99,6 +100,18 @@ export default function CustomersPage() {
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  /* One Add handler for both the desktop header button and the mobile
+     chip. The plan-limit check has to run on both paths — a phone that
+     skipped it would open a dialog that fails on save. */
+  const handleAddCustomer = () => {
+    if (atCustomerLimit) {
+      toast.error(`Basic plan limited to ${maxCustomers} customers. Upgrade to add more.`);
+      setShowSubscriptionDialog(true);
+    } else {
+      setAddDialogOpen(true);
+    }
+  };
   const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<'delete' | 'inactive' | 'remove_campaigns' | null>(null);
   const [customerToDelete, setCustomerToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -843,6 +856,34 @@ export default function CustomersPage() {
   const customerCount = customers.filter(c => getEffectiveStatus(c) === 'active').length;
   const leadCount = customers.filter(c => getEffectiveStatus(c) === 'lead').length;
 
+  /* The header's four actions, as chips, for the phone. isAdmin gates the
+     same two it gates on desktop — a chip row is not a reason to widen who
+     can export a customer list. */
+  const mobileCustomerActions: ActionChip[] = [
+    ...(isAdmin
+      ? [
+          {
+            id: 'duplicates',
+            label: 'Find duplicates',
+            icon: <GitMerge className="h-3.5 w-3.5" />,
+            onClick: () => navigate('/dashboard/customers/duplicates'),
+          },
+          {
+            id: 'export',
+            label: 'Export CSV',
+            icon: <Download className="h-3.5 w-3.5" />,
+            onClick: exportToCsv,
+          },
+        ]
+      : []),
+    {
+      id: 'import',
+      label: 'Import',
+      icon: <Upload className="h-3.5 w-3.5" />,
+      onClick: () => setImportDialogOpen(true),
+    },
+  ];
+
   return (
     <AdminLayout
       title="Customers"
@@ -850,6 +891,10 @@ export default function CustomersPage() {
       actions={
         <div className="flex gap-2">
       <SEOHead title="Customers | TidyWise" description="Manage your customer database" noIndex />
+          {/* The same four actions render as chips inside CustomersMobileBody
+              on a phone. SEOHead stays outside the guard — it is not chrome. */}
+          {!isMobile && (
+            <>
           {isAdmin && (
             <Button
               variant="outline"
@@ -871,17 +916,12 @@ export default function CustomersPage() {
             <Upload className="w-4 h-4" />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => {
-            if (atCustomerLimit) {
-              toast.error(`Basic plan limited to ${maxCustomers} customers. Upgrade to add more.`);
-              setShowSubscriptionDialog(true);
-            } else {
-              setAddDialogOpen(true);
-            }
-          }}>
+          <Button size="sm" className="gap-2" onClick={handleAddCustomer}>
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">Add Customer</span>
           </Button>
+            </>
+          )}
         </div>
       }
     >
@@ -897,6 +937,11 @@ export default function CustomersPage() {
         </div>
       )}
       {/* Tabs + Search + Bulk Actions */}
+      {/* Desktop only. On a phone the tabs, search and bulk-action bar all
+          live inside CustomersMobileBody, and the header actions render as
+          chips in it. Rendering both put two search fields and two tab rows
+          on one 390px screen. */}
+      {!isMobile && (
       <div className="space-y-4 mb-4">
         <Tabs value={tabFilter} onValueChange={(v) => setTabFilter(v as TabFilter)} className="w-full">
           <TabsList className="w-full sm:w-auto">
@@ -984,6 +1029,7 @@ export default function CustomersPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* Mobile: Virtualized card list */}
       {isMobile ? (
@@ -999,6 +1045,8 @@ export default function CustomersPage() {
 
            The desktop table below is untouched. */
         <CustomersMobileBody
+          actions={mobileCustomerActions}
+          onAdd={handleAddCustomer}
           onSelectCustomer={id => {
             const c = customers?.find(x => x.id === id);
             if (!c) return;

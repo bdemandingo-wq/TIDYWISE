@@ -16,6 +16,7 @@ import {
   type BookingsRow,
 } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/bookings-v2 — the mobile bookings list on real data.
@@ -82,7 +83,24 @@ function toRow(b: BookingWithDetails, fmt: (iso: string) => string): BookingsRow
 
 type Tab = 'all' | 'drafts' | 'quotes' | 'wages';
 
-export function BookingsMobileBody() {
+/**
+ * `actions`, `onFilter`, `filterCount` and `onSelectBooking` are supplied
+ * when this body is the mobile arm of the live BookingsPage. That page owns
+ * the five toolbar actions and their dialogs, so the handlers stay there and
+ * only the rendering moves here. Without them (the -v2 preview route) the
+ * body renders exactly as it did before.
+ */
+export function BookingsMobileBody({
+  actions,
+  onFilter,
+  filterCount,
+  onSelectBooking,
+}: {
+  actions?: ActionChip[];
+  onFilter?: () => void;
+  filterCount?: number;
+  onSelectBooking?: (id: string) => void;
+} = {}) {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
@@ -322,12 +340,19 @@ export function BookingsMobileBody() {
           tab={tab}
           onTab={setTab}
           summary={summary}
+          actions={actions}
+          onFilter={onFilter}
+          filterCount={filterCount}
           sectionLabel={
             search.trim()
               ? `${rows.length} of ${all.length} bookings`
               : `${all.length} bookings`
           }
-          onSelect={r => navigate(`/dashboard/bookings?booking=${r.id}`)}
+          onSelect={r =>
+            onSelectBooking
+              ? onSelectBooking(r.id)
+              : navigate(`/dashboard/bookings?booking=${r.id}`)
+          }
           onRetry={() => {
             bookingsQ.refetch();
             draftsQ.refetch();

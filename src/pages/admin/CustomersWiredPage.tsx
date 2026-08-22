@@ -14,6 +14,7 @@ import {
 } from '@/lib/customerStatus';
 import { CustomersListView, useCustomerSearch, type CustomersRow } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
+import type { ActionChip } from '@/components/portal-v2';
 
 /**
  * /dashboard/customers-v2 — the mobile customers list on real data.
@@ -44,8 +45,13 @@ import type { ListState } from '@/components/portal-v2';
  */
 export function CustomersMobileBody({
   onSelectCustomer,
+  actions,
+  onAdd,
 }: {
   onSelectCustomer?: (id: string) => void;
+  /* Import / Export / Merge, owned by the live CustomersPage. */
+  actions?: ActionChip[];
+  onAdd?: () => void;
 } = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
@@ -163,6 +169,8 @@ export function CustomersMobileBody({
               ? `${rows.length} of ${all.length} customers`
               : `${all.length} customers`
           }
+          actions={actions}
+          onAdd={onAdd}
           onSelect={r =>
             onSelectCustomer
               ? onSelectCustomer(r.id)

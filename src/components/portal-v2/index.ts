@@ -21,6 +21,8 @@ export type { PickableDate } from './DayPicker';
 export { TimeChipRow, OTHER_TIME, formatTime24 } from './TimeChipRow';
 export type { TimeChoice } from './TimeChipRow';
 export { BookingRow } from './BookingRow';
+export { ActionChipRow } from './ActionChipRow';
+export type { ActionChip } from './ActionChipRow';
 export { LoyaltyBanner } from './LoyaltyBanner';
 export { ShortcutCard } from './ShortcutCard';
 export { StickyFooterBar } from './StickyFooterBar';
