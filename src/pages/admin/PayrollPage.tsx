@@ -4,7 +4,7 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { PayrollMobileBody } from '@/pages/admin/PayrollWiredPage';
 import type { ActionChip, PayrollStaffRow } from '@/components/portal-v2';
-import { PayrollReport } from '@/components/portal-v2';
+import { PayrollReport, SegmentedTabs } from '@/components/portal-v2';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -212,6 +212,13 @@ export default function PayrollPage() {
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
   const isMobile = useIsMobile();
   const [mobilePayrollTab, setMobilePayrollTab] = useState<'summary' | 'details' | 'settings'>('summary');
+  /* 11d's three tabs. Declared once so the hero copy and the non-summary copy
+     can never drift apart. */
+  const payrollTabs = [
+    { id: 'summary' as const, label: 'Staff Summary' },
+    { id: 'details' as const, label: 'Booking Details' },
+    { id: 'settings' as const, label: 'Settings' },
+  ];
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
