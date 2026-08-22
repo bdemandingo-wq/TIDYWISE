@@ -123,6 +123,12 @@ import { MobileActionSheet } from '@/components/ui/mobile-action-sheet';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
 import { formatFullAddress } from '@/lib/formatAddress';
+
+/* All four cleaner notifications on this page pass the customer as the
+   address fallback. Each of them printed "Address not provided" when the
+   booking had no address of its own — including for jobs whose address the
+   customer record was holding all along. The booking still wins whenever it
+   has one; a customer can book a second property. */
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
@@ -1120,7 +1126,7 @@ export default function BookingsPage() {
     
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = formatFullAddress(booking as any);
+      const fullAddress = formatFullAddress(booking as any, booking.customer);
 
       // Get team members for this booking (org-scoped)
       const { data: teamAssignments } = await supabase
@@ -1221,7 +1227,7 @@ export default function BookingsPage() {
       for (const booking of bookingsWithCleaners) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any);
+          const fullAddress = formatFullAddress(booking as any, booking.customer);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
@@ -1287,7 +1293,7 @@ export default function BookingsPage() {
 
     try {
       const scheduledDate = new Date(booking.scheduled_at);
-      const fullAddress = formatFullAddress(booking as any);
+      const fullAddress = formatFullAddress(booking as any, booking.customer);
 
       const { error } = await supabase.functions.invoke('notify-cleaners-open-job', {
         body: {
@@ -1419,7 +1425,7 @@ export default function BookingsPage() {
       for (const booking of upcomingWeekBookings) {
         try {
           const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any);
+          const fullAddress = formatFullAddress(booking as any, booking.customer);
 
           const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
