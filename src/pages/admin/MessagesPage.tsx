@@ -1666,7 +1666,10 @@ export default function MessagesPage() {
         </div>
 
         {/* Input bar */}
-        <div className="px-3 py-2 border-t bg-background/80 backdrop-blur-xl pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+        <div className={cn(
+          "px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]",
+          isMobile ? "bg-[hsl(var(--pv-bg))] border-t border-[hsl(var(--pv-border))]" : "border-t bg-background/80 backdrop-blur-xl"
+        )}>
           <div className="flex items-end gap-2">
             {organizationId && (
               <MessageTemplatesPicker organizationId={organizationId} onSelect={(content) => setNewMessage(content)} />
@@ -1683,11 +1686,16 @@ export default function MessagesPage() {
             <div className="flex-1 relative">
               <Textarea
                 ref={textareaRef}
-                placeholder="iMessage"
+                placeholder="Text message…"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
-                className="min-h-[36px] max-h-[120px] resize-none text-[15px] rounded-2xl bg-muted/40 border border-border/50 py-2 px-3.5 focus-visible:ring-1 focus-visible:ring-[#007AFF]"
+                className={cn(
+                  "min-h-[36px] max-h-[120px] resize-none text-[15px] py-2 px-3.5",
+                  isMobile
+                    ? "rounded-xl bg-[hsl(var(--pv-surface))] border border-[hsl(var(--pv-border))] text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:ring-1 focus-visible:ring-[hsl(var(--pv-brand))]"
+                    : "rounded-2xl bg-muted/40 border border-border/50 focus-visible:ring-1 focus-visible:ring-[#007AFF]"
+                )}
                 rows={1}
               />
             </div>
@@ -1696,10 +1704,11 @@ export default function MessagesPage() {
               disabled={sending}
               size="icon"
               className={cn(
-                "h-9 w-9 rounded-full shrink-0 transition-all",
+                "shrink-0 transition-all",
+                isMobile ? "h-11 w-11 rounded-xl" : "h-9 w-9 rounded-full",
                 newMessage.trim()
-                  ? "bg-[#007AFF] hover:bg-[#0066DD] text-white shadow-sm"
-                  : "bg-transparent text-[#007AFF] hover:bg-[#007AFF]/10"
+                  ? (isMobile ? "bg-[hsl(var(--pv-brand))] hover:bg-[hsl(var(--pv-brand-hover))] text-[hsl(var(--pv-brand-ink))] shadow-sm" : "bg-[#007AFF] hover:bg-[#0066DD] text-white shadow-sm")
+                  : (isMobile ? "bg-transparent text-[hsl(var(--pv-brand))] hover:bg-[hsl(var(--pv-brand-soft))]" : "bg-transparent text-[#007AFF] hover:bg-[#007AFF]/10")
               )}
             >
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : newMessage.trim() ? <Send className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
