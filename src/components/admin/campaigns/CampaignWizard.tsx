@@ -18,6 +18,7 @@ import {
   CalendarDays, Clock, ChevronLeft, AlertCircle, Zap, UserX, X, Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { stopComplianceError, withStopSentence } from "./stopCompliance";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +93,7 @@ export function CampaignWizard({
   optedOutCount: number;
 }) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const setCreateOpen = onOpenChange;
   const [searchParams] = useSearchParams();
@@ -620,6 +622,9 @@ export function CampaignWizard({
                       Generate
                     </Button>
                   </div>
+                  {isMobile && (
+                    <p className="text-[10.5px] text-muted-foreground mt-1.5">Tones: Professional · Friendly · Urgent · Seasonal</p>
+                  )}
                   {aiTemplates.length > 0 && (
                     <div className="grid gap-2 mt-3 grid-cols-1 md:grid-cols-3">
                       {aiTemplates.map((t, i) => (
