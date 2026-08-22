@@ -67,9 +67,15 @@ const DOC_LABEL: Record<string, string> = {
 export function StaffHero({
   staff,
   ready,
+  onAddStaff,
+  tabs,
 }: {
   staff: { is_active?: boolean | null; hourly_rate?: number | null; base_wage?: number | null; percentage_rate?: number | null }[];
   ready: boolean;
+  /* 10g puts "+ Add Staff" in the hero, not in a title row below it. */
+  onAddStaff?: () => void;
+  /* 10g keeps the four tabs inside the hero. */
+  tabs?: React.ReactNode;
 }) {
   const active = staff.filter(s => s.is_active === true).length;
   /* The one thing on this screen that costs somebody money: nobody with a
@@ -84,13 +90,14 @@ export function StaffHero({
       business="Staff"
       revenueLabel="All staff"
       revenue={ready ? String(staff.length) : '—'}
-      wells={
-        <>
-          <StatWell value={ready ? String(active) : '—'} caption="active" />
-          <StatWell value={ready ? String(staff.length - active) : '—'} caption="inactive" />
-          <StatWell value={ready ? String(payoutIssues) : '—'} caption="payout issues" />
-        </>
+      action={onAddStaff ? { label: 'Add Staff', onClick: onAddStaff } : undefined}
+      /* 10g states the split on one line rather than as three tiles. */
+      subline={
+        ready
+          ? `${active} active \u00b7 ${staff.length - active} inactive \u00b7 ${payoutIssues} payout issue${payoutIssues === 1 ? '' : 's'}`
+          : undefined
       }
+      tabs={tabs}
     />
   );
 }
@@ -490,6 +497,10 @@ export function StaffMobileBody({
 
         <ListShell<string>
           title="Staff"
+          /* StaffPage's hero already carries the title, the Add-staff button
+             and the tabs — 10g shows one of each, not two. */
+          hideTitle={hideHero}
+          hideTabs={hideHero}
           /* StaffPage supplies 10g's four real tabs. Standalone (-v2) there
              is no page to switch, so the shell keeps its single all-tab. */
           tabs={tabs ?? [{ id: 'all', label: 'All staff', count: filtered.length }]}
