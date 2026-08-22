@@ -149,7 +149,18 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
                safe-area term stays because the bubble's own offset includes
                it, so the two have to move together. Desktop is unchanged —
                md:pb-4 with the bubble at bottom-6. */
-            "px-3 py-3 md:p-4 pb-[calc(11.5rem+env(safe-area-inset-bottom))] md:pb-4"
+            "px-3 py-3 md:p-4 pb-[calc(11.5rem+env(safe-area-inset-bottom))] md:pb-4",
+            /* When AdminHeader renders it carries the top safe-area padding
+               itself. When it does not — scheduler, messages, calendar — the
+               page begins at the physical top of the screen, because the iOS
+               config sets contentInset: "never" and the webview is therefore
+               NOT inset for the notch. Without this the first row of those
+               screens renders under the status bar.
+
+               3.25rem on top of the inset clears the hamburger too: it is
+               fixed at 0.25rem + safe-area and is 44px tall, so anything in
+               the first ~48px of the content area sits under it. */
+            hideHeader && "pt-[calc(env(safe-area-inset-top)+3.25rem)] md:pt-3"
           )}
         >
           <EmailIdentityBanner />

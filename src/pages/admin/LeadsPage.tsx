@@ -563,8 +563,33 @@ export default function LeadsPage() {
           /* The same three values the desktop table filters on. The body
              applies them to its own rows — see LeadsMobileBody. */
           filters={{ status: statusFilter, source: sourceFilter, month: monthFilter }}
+          onSelectLead={id => {
+            const l = leads.find(x => x.id === id);
+            if (l) { setEditingLead(l); setDialogOpen(true); }
+          }}
         />
         )}
+
+        {/* Mounted inside the mobile arm as well as the desktop branch.
+            The arm early-returns, so a dialog that only exists below it never
+            renders on a phone — which is why the Add Lead chip and a row tap
+            both did nothing. */}
+        <LeadDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditingLead(null);
+          }}
+          lead={editingLead}
+          tagSuggestions={tagSuggestions}
+          onSave={(data) => {
+            if (editingLead) {
+              updateMutation.mutate({ id: editingLead.id, ...data } as any);
+            } else {
+              createMutation.mutate(data as any);
+            }
+          }}
+        />
 
         <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">

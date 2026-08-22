@@ -41,11 +41,15 @@ export function LeadsMobileBody({
   onFilter,
   filterCount,
   filters,
+  onSelectLead,
 }: {
   actions?: ActionChip[];
   onFilter?: () => void;
   filterCount?: number;
   filters?: { status?: string; source?: string; month?: string };
+  /* Without this the row navigated to ?lead=<id>, which LeadsPage never
+     reads — so tapping a lead did nothing. */
+  onSelectLead?: (id: string) => void;
 } = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
@@ -190,7 +194,9 @@ export function LeadsMobileBody({
               ? `${rows.length} of ${all.length} leads`
               : `${all.length} leads`
           }
-          onSelect={r => navigate(`/dashboard/leads?lead=${r.id}`)}
+          onSelect={r =>
+            onSelectLead ? onSelectLead(r.id) : navigate(`/dashboard/leads?lead=${r.id}`)
+          }
           onRetry={() => leadsQ.refetch()}
         />
       </div>
