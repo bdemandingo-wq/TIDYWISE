@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { queryPhase } from '@/lib/queryState';
-import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, type SimpleListRow } from '@/components/portal-v2';
+import { SimpleListView, useSimpleSearch, InverseHeader, StatWell, SegmentedTabs, MediaGrid, Lightbox, type SimpleListRow, type MediaItem } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
 
@@ -166,19 +166,23 @@ export function ExpensesMobileBody({
   );
 }
 
-/* ── Booking media ─────────────────────────────────────────────────────── */
-export function BookingPhotosMobileBody({
-  actions,
-  onFilter,
-  filterCount,
-}: {
-  actions?: ActionChip[];
-  onFilter?: () => void;
-  filterCount?: number;
-} = {}) {
+/* ── Booking media ─────────────────────────────────────────────────────── *
+ * 6f is a photo grid, not a list: two-column tiles carrying the before/after
+ * badge, a hero with the upload counts, a type filter and search, and
+ * "Load more" underneath. MediaGrid/MediaTile/Lightbox are the shared
+ * primitives the three portal-v2 media screens already use for exactly this
+ * shape, so this reuses them instead of the generic SimpleListView, which
+ * has no way to show an image at all. */
+const PHOTO_PAGE_SIZE = 8;
+
+export function BookingPhotosMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'before' | 'after' | 'inspection'>('all');
+  const [visible, setVisible] = useState(PHOTO_PAGE_SIZE);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
   const q = useQuery({
     queryKey: ['photos-v2', organization?.id],
@@ -187,8 +191,8 @@ export function BookingPhotosMobileBody({
       const { data, error } = await supabase
         .from('booking_photos')
         .select(`
-          id, photo_type, media_type, caption, issue_category, created_at,
-          booking:bookings(booking_number),
+          id, photo_url, photo_type, media_type, caption, issue_category, created_at,
+          booking:bookings(booking_number, customer:customers(first_name, last_name)),
           staff:staff(name)
         `)
         .eq('organization_id', organization.id)
@@ -208,83 +212,144 @@ export function BookingPhotosMobileBody({
   }, [orgTz]);
 
   const phase = queryPhase(q);
-  const rows: SimpleListRow[] = useMemo(
-    () =>
-      (q.data ?? []).map((p: any) => ({
-        id: p.id,
-        /* photo_type is nullable — an upload with no stage recorded is not a
-           "before" by default, and pairing it as one would misrepresent the
-           job. */
-        title: p.photo_type
-          ? (PHOTO_TYPE[p.photo_type] ?? p.photo_type)
-          : 'Stage not recorded',
-        meta: p.booking?.booking_number ? `#${p.booking.booking_number}` : 'No booking linked',
-        lines: [
-          p.staff?.name ? p.staff.name : 'Uploader unknown',
-          p.media_type === 'video' ? 'Video' : 'Photo',
-          p.caption ? p.caption : null,
-          p.issue_category ? `Issue: ${p.issue_category}` : null,
-          p.created_at ? fmt(p.created_at) : null,
-        ],
-      })),
-    [q.data, fmt],
-  );
+  const all = (q.data ?? []) as any[];
 
-  const filtered = useSimpleSearch(rows, search);
-  const listState: ListState =
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return all.filter((p) => {
+      if (typeFilter !== 'all' && p.photo_type !== typeFilter) return false;
+      if (!term) return true;
+      const customer = p.booking?.customer
+        ? `${p.booking.customer.first_name} ${p.booking.customer.last_name}`.toLowerCase()
+        : '';
+      const staffName = p.staff?.name?.toLowerCase() ?? '';
+      const bookingNum = p.booking?.booking_number ? String(p.booking.booking_number) : '';
+      return customer.includes(term) || staffName.includes(term) || bookingNum.includes(term);
+    });
+  }, [all, search, typeFilter]);
+
+  const isVideo = (p: any) => {
+    if (p.media_type === 'video') return true;
+    const url = String(p.photo_url ?? '').toLowerCase();
+    return url.endsWith('.mp4') || url.endsWith('.mov') || url.endsWith('.m4v');
+  };
+
+  const videoCount = all.filter(isVideo).length;
+  const beforeCount = all.filter((p) => p.photo_type === 'before').length;
+  const afterCount = all.filter((p) => p.photo_type === 'after').length;
+
+  const shown = filtered.slice(0, visible);
+
+  // Storage is a private bucket — the grid needs a signed URL per photo, not
+  // the bare stored path. Resolve only what is on screen, and only once.
+  useEffect(() => {
+    const missing = shown.filter((p) => !isVideo(p) && !signedUrls[p.id]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        missing.map(async (p) => {
+          const { data } = await supabase.storage.from('booking-photos').createSignedUrl(p.photo_url, 3600);
+          return [p.id, data?.signedUrl ?? ''] as const;
+        }),
+      );
+      if (cancelled) return;
+      setSignedUrls((prev) => {
+        const next = { ...prev };
+        for (const [id, url] of entries) if (url) next[id] = url;
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown.map((p) => p.id).join(',')]);
+
+  const items: MediaItem[] = shown.map((p) => ({
+    id: p.id,
+    src: signedUrls[p.id] ?? '',
+    alt: p.photo_type ? `${PHOTO_TYPE[p.photo_type] ?? p.photo_type} photo` : 'Booking photo',
+    badge: p.photo_type ? (PHOTO_TYPE[p.photo_type] ?? p.photo_type) : undefined,
+    caption: [
+      p.staff?.name ?? 'Unknown cleaner',
+      [p.booking?.customer ? `${p.booking.customer.first_name} ${p.booking.customer.last_name}` : null, p.created_at ? fmt(p.created_at) : null]
+        .filter(Boolean)
+        .join(' · '),
+    ].join(' — '),
+  }));
+
+  const gridState: 'ready' | 'loading' | 'empty' | 'error' =
     phase === 'error' || phase === 'offline' ? 'error'
       : phase === 'loading' ? 'loading'
       : filtered.length === 0 ? 'empty' : 'ready';
 
   return (
     <>
-      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        <SimpleListView
-          actions={actions}
-          onFilter={onFilter}
-          filterCount={filterCount}
-          header={
-            <InverseHeader
-              eyebrow="Booking photos"
-              business="Media"
-              revenueLabel="Uploads from cleaners"
-              revenue={phase === 'ready' ? String(rows.length) : '—'}
-              error={phase !== 'ready'}
-              onRetry={() => q.refetch()}
-              wells={
-                <>
-                  <StatWell
-                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.photo_type === 'before').length) : '—'}
-                    caption="before"
-                  />
-                  <StatWell
-                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.photo_type === 'after').length) : '—'}
-                    caption="after"
-                  />
-                  <StatWell
-                    value={phase === 'ready' ? String((q.data ?? []).filter((x: any) => x.media_type === 'video').length) : '—'}
-                    caption="videos"
-                  />
-                </>
-              }
-            />
+      <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-4 pb-6 pt-3">
+        <InverseHeader
+          eyebrow="Booking photos"
+          business="Booking Media"
+          revenueLabel="Uploads from cleaners"
+          revenue={phase === 'ready' ? String(all.length) : '—'}
+          error={phase !== 'ready'}
+          onRetry={() => q.refetch()}
+          wells={
+            <>
+              <StatWell value={phase === 'ready' ? String(beforeCount) : '—'} caption="before" />
+              <StatWell value={phase === 'ready' ? String(afterCount) : '—'} caption="after" />
+              <StatWell value={phase === 'ready' ? String(videoCount) : '—'} caption="videos" />
+            </>
           }
-          title="Media"
-          phase={listState}
-          rows={filtered}
-          search={search}
-          onSearch={setSearch}
-          searchPlaceholder="Search by booking, cleaner, or caption..."
+        />
+
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setVisible(PHOTO_PAGE_SIZE); }}
+          placeholder="Search customer, cleaner, booking #…"
+          className="h-11 w-full rounded-[11px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3.5 text-[13px] font-medium text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))]"
+        />
+
+        <SegmentedTabs
+          label="Filter by type"
+          value={typeFilter}
+          onChange={(v) => { setTypeFilter(v); setVisible(PHOTO_PAGE_SIZE); }}
+          tabs={[
+            { id: 'all', label: 'All types' },
+            { id: 'before', label: 'Before' },
+            { id: 'after', label: 'After' },
+            { id: 'inspection', label: 'Inspection' },
+          ]}
+        />
+
+        <MediaGrid
+          items={items}
+          state={gridState}
           emptyTitle="No photos or video yet"
           emptyHint="Before and after uploads from cleaners will show here."
           errorLabel="Couldn't load booking media"
-          addLabel="Upload"
           onRetry={() => q.refetch()}
-          sectionLabel={
-            search.trim() ? `${filtered.length} of ${rows.length}` : `${rows.length} upload${rows.length === 1 ? '' : 's'}`
+          onOpen={(i) => setLightboxIndex(i)}
+          actions={
+            filtered.length > shown.length ? (
+              <button
+                type="button"
+                onClick={() => setVisible((v) => v + PHOTO_PAGE_SIZE)}
+                className="w-full rounded-[11px] border-[1.5px] border-[hsl(var(--pv-brand))] py-2.5 text-[12.5px] font-extrabold text-[hsl(var(--pv-brand))]"
+              >
+                Load more
+              </button>
+            ) : undefined
           }
         />
       </div>
+
+      <Lightbox
+        open={lightboxIndex !== null}
+        items={items.map((it) => ({ src: it.src, alt: it.alt, caption: it.caption, badge: it.badge }))}
+        index={lightboxIndex ?? 0}
+        onIndex={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
     </>
   );
 }

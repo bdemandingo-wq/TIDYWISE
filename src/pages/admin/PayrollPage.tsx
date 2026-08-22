@@ -211,6 +211,7 @@ export default function PayrollPage() {
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
   const isMobile = useIsMobile();
+  const [mobilePayrollTab, setMobilePayrollTab] = useState<'summary' | 'details' | 'settings'>('summary');
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
@@ -1222,6 +1223,35 @@ export default function PayrollPage() {
           </div>
         )}
 
+        {/* 11d's tab bar — Staff Summary / Booking Details / Settings. This
+            gap was confirmed against the comp: the mobile arm had no way to
+            reach the payroll period/cost settings at all, and the desktop
+            <PayrollPeriodSettings>/<PayrollCostSettings> pair was mounted
+            only below the desktop early-return, so a phone user could never
+            open it. Mounted here, inside the mobile arm, so the Save /
+            Send-report controls actually work on a phone. */}
+        <div className="mx-auto flex w-full max-w-[430px] gap-1.5 px-5 pb-1 pt-3">
+          {([
+            { id: 'summary', label: 'Staff Summary' },
+            { id: 'details', label: 'Booking Details' },
+            { id: 'settings', label: 'Settings' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setMobilePayrollTab(t.id)}
+              className={cn(
+                'rounded-full px-3.5 py-1.5 text-[11px] font-bold whitespace-nowrap transition-colors',
+                mobilePayrollTab === t.id
+                  ? 'bg-[hsl(var(--pv-brand))] text-white'
+                  : 'bg-[hsl(var(--pv-sunken))] text-[hsl(var(--pv-ink-3))]',
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* 11c's report and 11d's staff summary, stacked ABOVE the roster the
             wiring pass built. 11c has no list and the live screen is all list;
             rendering both means the screen reads report-then-detail rather
@@ -1230,53 +1260,64 @@ export default function PayrollPage() {
             Every figure comes from this page's own derivation — the report
             computes nothing. Deriving them a second time inside the component
             is how two numbers on one screen start disagreeing. */}
-        <PayrollReport
-          ready={loadFailures.length === 0}
-          periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
-          totalPayroll={totalPayroll}
-          avgLaborPct={avgLaborPct}
-          revenueNet={totalRevenue}
-          profit={totalProfit}
-          hours={totalHours}
-          cleans={totalCleans}
-          negativeMarginCount={negativeMarginCount}
-          contractorsNeedingFiling={contractorsNeedingFiling}
-          current={{
-            label: getPeriodTitle(periodConfig, 'current'),
-            revenueNet: currentWeekForecast.revenueNet,
-            laborTotal: currentWeekForecast.laborTotal,
-            profit: currentWeekForecast.profit,
-            laborPct: currentWeekForecast.laborPct,
-            bookingCount: currentWeekForecast.bookingCount,
-          }}
-          next={{
-            label: getPeriodTitle(periodConfig, 'next'),
-            revenueNet: nextWeekForecast.revenueNet,
-            laborTotal: nextWeekForecast.laborTotal,
-            profit: nextWeekForecast.profit,
-            missingPay: nextWeekForecast.missingPay,
-          }}
-          staff={effectivePayrollData.map((s): PayrollStaffRow => ({
-            id: s.id,
-            name: maskName(s.name),
-            /* 11d chips the classification. Null stays null — an unset
-               classification is not the same as W-2. */
-            classification: s.tax_classification === '1099' ? '1099' : s.tax_classification === 'w2' ? 'W-2' : null,
-            cleans: s.assignedCleans,
-            hours: s.totalHours,
-            ytd: s.ytdEarnings,
-            pay: s.totalPay,
-            laborPct: s.revenueAttributed > 0 ? (s.totalPay / s.revenueAttributed) * 100 : null,
-          }))}
-          onExport={exportCSV}
-        />
+        {mobilePayrollTab === 'summary' && (
+          <PayrollReport
+            ready={loadFailures.length === 0}
+            periodLabel={`${format(dateRange.from, 'MMM d')}–${format(dateRange.to, 'd')}`}
+            totalPayroll={totalPayroll}
+            avgLaborPct={avgLaborPct}
+            revenueNet={totalRevenue}
+            profit={totalProfit}
+            hours={totalHours}
+            cleans={totalCleans}
+            negativeMarginCount={negativeMarginCount}
+            contractorsNeedingFiling={contractorsNeedingFiling}
+            current={{
+              label: getPeriodTitle(periodConfig, 'current'),
+              revenueNet: currentWeekForecast.revenueNet,
+              laborTotal: currentWeekForecast.laborTotal,
+              profit: currentWeekForecast.profit,
+              laborPct: currentWeekForecast.laborPct,
+              bookingCount: currentWeekForecast.bookingCount,
+            }}
+            next={{
+              label: getPeriodTitle(periodConfig, 'next'),
+              revenueNet: nextWeekForecast.revenueNet,
+              laborTotal: nextWeekForecast.laborTotal,
+              profit: nextWeekForecast.profit,
+              missingPay: nextWeekForecast.missingPay,
+            }}
+            staff={effectivePayrollData.map((s): PayrollStaffRow => ({
+              id: s.id,
+              name: maskName(s.name),
+              /* 11d chips the classification. Null stays null — an unset
+                 classification is not the same as W-2. */
+              classification: s.tax_classification === '1099' ? '1099' : s.tax_classification === 'w2' ? 'W-2' : null,
+              cleans: s.assignedCleans,
+              hours: s.totalHours,
+              ytd: s.ytdEarnings,
+              pay: s.totalPay,
+              laborPct: s.revenueAttributed > 0 ? (s.totalPay / s.revenueAttributed) * 100 : null,
+            }))}
+            onExport={exportCSV}
+          />
+        )}
 
-        <PayrollMobileBody
-          actions={mobileActions}
-          onFilter={() => setMobileFiltersOpen(true)}
-          filterCount={payPeriodSelected ? 1 : 0}
-          periodLabel={`${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`}
-        />
+        {mobilePayrollTab === 'details' && (
+          <PayrollMobileBody
+            actions={mobileActions}
+            onFilter={() => setMobileFiltersOpen(true)}
+            filterCount={payPeriodSelected ? 1 : 0}
+            periodLabel={`${format(dateRange.from, 'MMM d')} – ${format(dateRange.to, 'MMM d, yyyy')}`}
+          />
+        )}
+
+        {mobilePayrollTab === 'settings' && (
+          <div className="mx-auto flex w-full max-w-[430px] flex-col gap-3 px-4 pb-6">
+            <PayrollPeriodSettings />
+            <PayrollCostSettings />
+          </div>
+        )}
 
         <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">

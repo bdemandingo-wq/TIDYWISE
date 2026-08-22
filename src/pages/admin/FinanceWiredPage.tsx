@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow, InverseHeader, StatWell } from '@/components/portal-v2';
+import { Card, CardTitle, StatCard, SegmentedTabs, ActionChipRow, InverseHeader, StatWell, ListRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 
 /**
@@ -68,6 +68,10 @@ export function FinanceMobileBody({
      Profit inherited the same basis silently. The basis is named in the card
      title, restated under it, and switchable. */
   const [basis, setBasis] = useState<'booked' | 'collected'>('booked');
+  /* 6d's four hero tabs — Transactions / P&L Calendar / Tax by Zip / P&L —
+     ported to mobile as a real tab bar under the hero. Defaults to P&L
+     Calendar, the tab the comp itself shows selected. */
+  const [view, setView] = useState<'transactions' | 'calendar' | 'tax' | 'pnl'>('calendar');
   const [range] = useState(() => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -81,7 +85,7 @@ export function FinanceMobileBody({
       if (!organizationId) return [];
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment, customer_id')
+        .select('id, booking_number, total_amount, payment_status, status, scheduled_at, cleaner_pay_expected, cleaner_actual_payment, customer_id, zip_code, customer:customers(first_name,last_name), service:services(name)')
         .eq('organization_id', organizationId)
         .gte('scheduled_at', range.start)
         .lte('scheduled_at', range.end)
@@ -146,6 +150,42 @@ export function FinanceMobileBody({
       cleanerPayKnown,
       cleanerPayUnknownCount,
     };
+  }, [bookingsQ.data]);
+
+  /* 6d's Transactions tab — one row per booking, real data, no separate fetch. */
+  const txRows = useMemo(() => {
+    const rows = (bookingsQ.data ?? []) as any[];
+    return rows.map(b => {
+      const cust = b.customer ? `${b.customer.first_name ?? ''} ${b.customer.last_name ?? ''}`.trim() : 'Unknown';
+      const tone: 'success' | 'warn' | 'danger' | 'info' =
+        b.payment_status === 'paid' ? 'success'
+          : b.payment_status === 'refunded' ? 'danger'
+          : b.payment_status === 'partial' ? 'info'
+          : 'warn';
+      return {
+        id: b.id,
+        title: cust || 'Unknown',
+        meta: `${b.service?.name ?? 'Service'} · #${b.booking_number}`,
+        money: money(Number(b.total_amount ?? 0)),
+        status: { tone, label: b.payment_status ?? 'unknown' } as const,
+      };
+    });
+  }, [bookingsQ.data]);
+
+  /* 6d's Tax by Zip tab. */
+  const zipRows = useMemo(() => {
+    const rows = (bookingsQ.data ?? []) as any[];
+    const byZip = new Map<string, { count: number; total: number }>();
+    for (const b of rows) {
+      const zip = b.zip_code || 'No zip';
+      const cur = byZip.get(zip) ?? { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(b.total_amount ?? 0);
+      byZip.set(zip, cur);
+    }
+    return Array.from(byZip.entries())
+      .map(([zip, v]) => ({ zip, count: v.count, total: v.total, tax: v.total * 0.07 }))
+      .sort((a, b) => b.total - a.total);
   }, [bookingsQ.data]);
 
   const expensesTotal = useMemo(
@@ -263,12 +303,26 @@ export function FinanceMobileBody({
           <ActionChipRow actions={actions} label="Finance actions" />
         )}
 
+        <SegmentedTabs<'transactions' | 'calendar' | 'tax' | 'pnl'>
+          tabs={[
+            { id: 'transactions', label: 'Transactions' },
+            { id: 'calendar', label: 'P&L Calendar' },
+            { id: 'tax', label: 'Tax by Zip' },
+            { id: 'pnl', label: 'P&L' },
+          ]}
+          value={view}
+          onChange={setView}
+          label="Finance view"
+        />
+
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
             Loading this month&rsquo;s figures…
           </p>
         ) : (
           <>
+            {view === 'calendar' && (
+              <>
             {/* The two numbers the live screen merges into one. */}
             <div className="grid grid-cols-2 gap-2.5">
               <StatCard
@@ -445,6 +499,79 @@ export function FinanceMobileBody({
               Figures are derived from bookings, not from your payment
               processor. Connect Stripe for the amounts it actually charged.
             </p>
+              </>
+            )}
+
+            {view === 'transactions' && (
+              phase === 'ready' && txRows.length === 0 ? (
+                <p className="px-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+                  No transactions this month.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {txRows.map(r => (
+                    <ListRow
+                      key={r.id}
+                      title={r.title}
+                      meta={r.meta}
+                      money={r.money}
+                      status={r.status}
+                    />
+                  ))}
+                </div>
+              )
+            )}
+
+            {view === 'tax' && (
+              phase === 'ready' && zipRows.length === 0 ? (
+                <p className="px-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+                  No transactions this month.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {zipRows.map(z => (
+                    <ListRow
+                      key={z.zip}
+                      title={z.zip}
+                      meta={`${z.count} transaction${z.count === 1 ? '' : 's'} · est. tax ${money(z.tax)}`}
+                      money={money(z.total)}
+                    />
+                  ))}
+                </div>
+              )
+            )}
+
+            {view === 'pnl' && (
+              <Card>
+                <CardTitle>P&amp;L breakdown</CardTitle>
+                <div className="mt-2.5">
+                  {[
+                    ['Booked (gross)', money(m.booked), false],
+                    ['Refunds', `−${money(m.refunded)}`, m.refunded === 0],
+                    ['Cleaner pay (locked in)', `−${money(m.cleanerPayKnown)}`, m.cleanerPayKnown === 0],
+                    ['Expenses', `−${money(expensesTotal)}`, expensesTotal === 0],
+                    ['Net profit (projected)', money(projectedProfit), false],
+                  ].map(([label, val]) => (
+                    <div
+                      key={label as string}
+                      className="flex items-center gap-2 border-b border-[hsl(var(--pv-border))] py-2.5 last:border-b-0"
+                    >
+                      <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
+                        {label as string}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
+                        {val as string}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] leading-[1.45] text-[hsl(var(--pv-ink-3))]">
+                  Net profit here is projected — it assumes every booked dollar gets
+                  paid. {money(realisedProfit)} is what has actually been collected.
+                </p>
+              </Card>
+            )}
+
           </>
         )}
       </div>

@@ -1130,9 +1130,9 @@ export default function MessagesPage() {
           setContextMenuPosition({ x: e.clientX, y: e.clientY });
         }}
         className={cn(
-          "w-full flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer select-none text-left",
+          "w-full flex items-center gap-3 transition-colors cursor-pointer select-none text-left",
           isMobile
-            ? "bg-white dark:bg-[#1C1C1E] active:bg-[#E5E5EA] dark:active:bg-[#2C2C2E]"
+            ? "bg-[hsl(var(--pv-surface))] active:bg-[hsl(var(--pv-sunken))] border border-[hsl(var(--pv-border))] rounded-2xl px-[18px] py-[14px] mx-4 mb-3"
             : cn(
                 "hover:bg-muted/50",
                 selectedConversation?.id === conv.id && "bg-[#007AFF]/10 border-l-2 border-l-[#007AFF]",
@@ -1200,119 +1200,192 @@ export default function MessagesPage() {
   // ═══════════════════════════════════════════════════
   // RENDER: Conversation List
   // ═══════════════════════════════════════════════════
-  const renderConversationList = () => (
-    <div className={cn("flex flex-col h-full", isMobile ? "bg-white dark:bg-[#1C1C1E]" : "bg-background")}>
-      {/* Header */}
-      <div className={cn(
-        "flex items-center px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit gap-2",
-        isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
-        !isMobile && "border-b pb-2"
-      )}>
-        {/* Spacer for sidebar hamburger on mobile; refresh on desktop */}
-        {isMobile ? (
-          <div className="w-10 shrink-0" aria-hidden="true" />
-        ) : (
-          <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
-            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
-          </Button>
-        )}
-        <h1 className={cn(
-          "font-semibold text-foreground flex-1",
-          isMobile ? "text-[17px]" : "text-base"
-        )}>Messages</h1>
-        <div className="flex items-center gap-2">
-        {isMobile && (
-          <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
-            <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
-          </Button>
-        )}
-          {bulkEditMode ? (
-            <button
-              onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
-              className="text-[#007AFF] text-[15px] font-medium"
-            >
-              Done
-            </button>
-          ) : (
-            <>
-              {organizationId && (
-                <AIInboxSummaryButton
-                  organizationId={organizationId}
-                  getNeedsReplyConversations={() =>
-                    conversations
-                      .filter(c => c.unread_count > 0)
-                      .map(c => ({
-                        name: c.customer_name || c.customer_phone,
-                        lastMessage: c.last_message_preview || '',
-                        hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
-                      }))
-                  }
-                />
-              )}
-              <button
-                onClick={async () => {
-                  if (!organizationId) return;
-                  const { error } = await supabase
-                    .from('sms_conversations')
-                    .update({ unread_count: 0 })
-                    .eq('organization_id', organizationId)
-                    .gt('unread_count', 0);
-                  if (error) { toast.error('Failed to mark all read'); return; }
-                  setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
-                  queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
-                  queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
-                  toast.success('All conversations marked as read');
-                }}
-                title="Mark all as read"
-                className="text-[#007AFF]"
-              >
-                <CheckCheck className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
-                aria-label="Select conversations"
-                className="text-[#007AFF]"
-              >
-                <Pencil className="h-5 w-5" />
-              </button>
-              <button onClick={() => setNewConversationOpen(true)} aria-label="New conversation" className="text-[#007AFF]">
-                <Plus className="h-5 w-5" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+  const aiSummaryProps = organizationId ? {
+    organizationId,
+    getNeedsReplyConversations: () =>
+      conversations
+        .filter(c => c.unread_count > 0)
+        .map(c => ({
+          name: c.customer_name || c.customer_phone,
+          lastMessage: c.last_message_preview || '',
+          hoursSinceLastInbound: (Date.now() - new Date(c.last_message_at).getTime()) / 3_600_000,
+        })),
+  } : null;
 
-      {/* Search */}
-      <div className="px-4 pt-2 pb-1">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
-          <Input
-            ref={searchInputRef}
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
-            className={cn(
-              "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
-              isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
+  const renderConversationList = () => (
+    <div className={cn("flex flex-col h-full", isMobile ? "bg-[hsl(var(--pv-bg))]" : "bg-background")}>
+      {/* Header */}
+      {isMobile && !bulkEditMode ? (
+        <div className="sticky top-0 z-20 bg-[hsl(var(--pv-inverse))] text-[hsl(var(--pv-on-inverse))] rounded-b-[26px] px-5 pb-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))]">
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              aria-label="Open menu"
+              onClick={() => window.dispatchEvent(new CustomEvent('tw:open-mobile-sidebar'))}
+              className="h-[34px] w-[34px] rounded-[10px] bg-[hsl(var(--pv-inverse-well))] flex items-center justify-center shrink-0"
+            >
+              <MessageCircle className="h-4 w-4 opacity-0" />
+              <span className="sr-only">Menu</span>
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] -ml-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-semibold text-[hsl(var(--pv-on-inverse-muted))]">Inbox</div>
+              <div className="text-[16px] font-extrabold truncate">Messages</div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {aiSummaryProps && <AIInboxSummaryButton {...aiSummaryProps} variant="icon" />}
+              <button
+                type="button"
+                onClick={() => setNewConversationOpen(true)}
+                aria-label="New conversation"
+                className="h-[34px] w-[34px] rounded-[10px] bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))] flex items-center justify-center"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative mt-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[hsl(var(--pv-on-inverse-muted))]" />
+            <Input
+              ref={searchInputRef}
+              placeholder="Search messages…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); searchInputRef.current?.blur(); } }}
+              className="pl-9 pr-9 h-[38px] rounded-[11px] border-0 bg-[hsl(var(--pv-inverse-well))] text-[hsl(var(--pv-on-inverse))] placeholder:text-[hsl(var(--pv-on-inverse-muted))] focus-visible:ring-1 focus-visible:ring-white/30 text-[13px]"
+            />
+            {searchingContent && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[hsl(var(--pv-on-inverse-muted))]" />
             )}
-          />
-          {searchingContent ? (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
-          ) : isMobile ? (
-            <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
-          ) : (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
-          )}
+          </div>
+
+          {/* Filter pills */}
+          <div className="flex gap-1.5 mt-3.5 overflow-x-auto no-scrollbar">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'clients', label: 'Clients' },
+              { key: 'cleaners', label: 'Cleaners' },
+              { key: 'unread', label: 'Unread' },
+            ] as { key: ConversationTab; label: string }[]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => { setActiveTab(tab.key); hapticImpact('light'); }}
+                className={cn(
+                  "text-[11px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap shrink-0 transition-colors",
+                  activeTab === tab.key
+                    ? "bg-[hsl(var(--pv-brand))] text-[hsl(var(--pv-brand-ink))]"
+                    : "text-[hsl(var(--pv-on-inverse-muted))]"
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className={cn(
+          "flex items-center px-4 pt-2 pb-1 sticky top-0 z-20 bg-inherit gap-2",
+          isMobile && "pt-[calc(0.5rem+env(safe-area-inset-top,0px))]",
+          !isMobile && "border-b pb-2"
+        )}>
+          {/* Spacer for sidebar hamburger on mobile; refresh on desktop */}
+          {isMobile ? (
+            <div className="w-10 shrink-0" aria-hidden="true" />
+          ) : (
+            <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8 shrink-0" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+              <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
+            </Button>
+          )}
+          <h1 className={cn(
+            "font-semibold text-foreground flex-1",
+            isMobile ? "text-[17px]" : "text-base"
+          )}>Messages</h1>
+          <div className="flex items-center gap-2">
+          {isMobile && (
+            <Button variant="outline" size="icon" aria-label="Refresh messages" className="h-8 w-8" onClick={() => syncOpenPhoneMessages(true)} disabled={syncingMessages}>
+              <RefreshCw className={cn("h-4 w-4", syncingMessages && "animate-spin")} />
+            </Button>
+          )}
+            {bulkEditMode ? (
+              <button
+                onClick={() => { setBulkEditMode(false); setSelectedForBulk(new Set()); }}
+                className="text-[#007AFF] text-[15px] font-medium"
+              >
+                Done
+              </button>
+            ) : (
+              <>
+                {aiSummaryProps && (
+                  <AIInboxSummaryButton {...aiSummaryProps} />
+                )}
+                <button
+                  onClick={async () => {
+                    if (!organizationId) return;
+                    const { error } = await supabase
+                      .from('sms_conversations')
+                      .update({ unread_count: 0 })
+                      .eq('organization_id', organizationId)
+                      .gt('unread_count', 0);
+                    if (error) { toast.error('Failed to mark all read'); return; }
+                    setConversations(prev => prev.map(c => ({ ...c, unread_count: 0 })));
+                    queryClient.invalidateQueries({ queryKey: ['sb-messages', organizationId] });
+                    queryClient.invalidateQueries({ queryKey: ['unread-messages-count'] });
+                    toast.success('All conversations marked as read');
+                  }}
+                  title="Mark all as read"
+                  className="text-[#007AFF]"
+                >
+                  <CheckCheck className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => { setBulkEditMode(true); setSelectedForBulk(new Set()); }}
+                  aria-label="Select conversations"
+                  className="text-[#007AFF]"
+                >
+                  <Pencil className="h-5 w-5" />
+                </button>
+                <button onClick={() => setNewConversationOpen(true)} aria-label="New conversation" className="text-[#007AFF]">
+                  <Plus className="h-5 w-5" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Search (desktop, and mobile bulk-edit mode which keeps the plain header) */}
+      {(!isMobile || bulkEditMode) && (
+        <div className="px-4 pt-2 pb-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') { setSearchQuery(''); } }}
+              className={cn(
+                "pl-10 pr-16 h-9 rounded-xl border-0 focus-visible:ring-1 text-[15px]",
+                isMobile ? "bg-[#E5E5EA]/60 dark:bg-[#3A3A3C] placeholder:text-[#8E8E93]" : "bg-muted/50"
+              )}
+            />
+            {searchingContent ? (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-[#8E8E93]" />
+            ) : isMobile ? (
+              <Mic className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+            ) : (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/50 font-medium pointer-events-none">⌘K</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Pinned */}
       {!bulkEditMode && renderPinnedRow()}
 
-      {/* Filter pills */}
-      {renderFilterPills()}
+      {/* Filter pills (desktop, and mobile bulk-edit mode) */}
+      {(!isMobile || bulkEditMode) && renderFilterPills()}
 
       {/* Bulk edit: Select All */}
       {bulkEditMode && (
@@ -1333,7 +1406,7 @@ export default function MessagesPage() {
       )}
 
       {/* Conversation rows */}
-      <div className="flex-1 overflow-y-auto" {...(bulkEditMode ? {} : pullHandlers)}>
+      <div className={cn("flex-1 overflow-y-auto", isMobile && "pt-4")} {...(bulkEditMode ? {} : pullHandlers)}>
         {!bulkEditMode && <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />}
         {syncingMessages && !loading && (
           <div className="flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground border-b">
@@ -1357,6 +1430,11 @@ export default function MessagesPage() {
             {unpinnedConversations.map((conv, i) => (
               <div key={conv.id}>{renderConversationRow(conv, pinnedConversations.length + i)}</div>
             ))}
+            {isMobile && !bulkEditMode && aiSummaryProps && (
+              <div className="px-4 pt-1 pb-3">
+                <AIInboxSummaryButton {...aiSummaryProps} variant="card" />
+              </div>
+            )}
           </div>
         )}
       </div>
