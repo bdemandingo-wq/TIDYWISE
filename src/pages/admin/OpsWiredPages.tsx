@@ -354,19 +354,98 @@ export function BookingPhotosMobileBody() {
   );
 }
 
-/* ── Live tracking ─────────────────────────────────────────────────────── */
-export function TrackingMobileBody({
-  actions,
-  onFilter,
-  filterCount,
+/* ── Live tracking ─────────────────────────────────────────────────────── *
+ * 6c is a hero (cleaners en route count + completed-today + two stat chips),
+ * a Notifications card of five SMS toggles, the active-jobs list (or its
+ * empty state), and a "today's completed routes" summary row. When a parent
+ * (TrackingPage) supplies live data + handlers as props, those drive the
+ * screen so there is exactly one source of truth for org SMS settings and
+ * tracking rows. Standalone (/dashboard/tracking-v2, no props) it fetches
+ * its own data so that route still works on its own. */
+export interface TrackingSmsSettingsLite {
+  notify_admin_on_the_way: boolean;
+  notify_client_on_the_way: boolean;
+  notify_client_distance_eta: boolean;
+  notify_client_arrived: boolean;
+  notify_admin_arrived: boolean;
+}
+
+export interface TrackingActiveJobLite {
+  id: string;
+  staffName: string;
+  bookingNumber?: number | null;
+}
+
+export interface TrackingHistoricalJobLite {
+  id: string;
+}
+
+const DEFAULT_SMS_SETTINGS: TrackingSmsSettingsLite = {
+  notify_admin_on_the_way: true,
+  notify_client_on_the_way: true,
+  notify_client_distance_eta: true,
+  notify_client_arrived: true,
+  notify_admin_arrived: true,
+};
+
+function TrackingToggleRow({
+  label,
+  checked,
+  disabled,
+  onChange,
 }: {
-  actions?: ActionChip[];
-  onFilter?: () => void;
-  filterCount?: number;
+  label: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex-1 text-[12.5px] font-bold text-[hsl(var(--pv-ink))]">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-10 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+          checked ? 'bg-[hsl(var(--pv-brand))]' : 'bg-[hsl(var(--pv-border))]'
+        }`}
+      >
+        <span
+          className={`absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white transition-transform ${
+            checked ? 'translate-x-[19px]' : 'translate-x-[3px]'
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+export function TrackingMobileBody({
+  activeJobs: activeJobsProp,
+  historicalJobs: historicalJobsProp,
+  loading: loadingProp,
+  smsSettings: smsSettingsProp,
+  savingToggle: savingToggleProp,
+  onToggle,
+  onBack,
+}: {
+  activeJobs?: TrackingActiveJobLite[];
+  historicalJobs?: TrackingHistoricalJobLite[];
+  loading?: boolean;
+  smsSettings?: TrackingSmsSettingsLite;
+  savingToggle?: boolean;
+  onToggle?: (field: keyof TrackingSmsSettingsLite, value: boolean) => void;
+  onBack?: () => void;
 } = {}) {
   const { organization } = useOrganization();
-  const orgTz = useOrgTimezone();
-  const [search, setSearch] = useState('');
+  const standalone = activeJobsProp === undefined;
+
+  /* Standalone fallback data (only used when no props are supplied). */
+  const [standaloneSettings, setStandaloneSettings] = useState<TrackingSmsSettingsLite>(DEFAULT_SMS_SETTINGS);
+  const [standaloneSaving, setStandaloneSaving] = useState(false);
 
   const q = useQuery({
     queryKey: ['tracking-v2', organization?.id],
@@ -375,121 +454,190 @@ export function TrackingMobileBody({
       const { data, error } = await supabase
         .from('cleaner_location_tracking')
         .select(`
-          id, latitude, longitude, recorded_at, arrived_at, is_active,
-          booking:bookings(booking_number, scheduled_at),
+          id, is_active,
+          booking:bookings(booking_number),
           staff:staff(name)
         `)
         .eq('organization_id', organization.id)
         .eq('is_active', true)
-        .order('recorded_at', { ascending: false })
         .order('id', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
-    enabled: !!organization?.id,
-    /* A live position is worthless stale. Short staleTime rather than the
-       app default of 5 minutes. */
+    enabled: standalone && !!organization?.id,
     staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000,
+    refetchInterval: standalone ? 30 * 1000 : false,
   });
 
-  const fmtTime = useMemo(() => {
-    const f = new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric', minute: '2-digit', timeZone: orgTz || 'UTC',
-    });
-    return (iso: string) => f.format(new Date(iso));
-  }, [orgTz]);
+  useEffect(() => {
+    if (!standalone || !organization?.id) return;
+    supabase
+      .from('organization_sms_settings')
+      .select('notify_admin_on_the_way, notify_client_on_the_way, notify_client_distance_eta, notify_admin_arrived, notify_client_arrived')
+      .eq('organization_id', organization.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setStandaloneSettings({
+            notify_admin_on_the_way: data.notify_admin_on_the_way ?? true,
+            notify_client_on_the_way: data.notify_client_on_the_way ?? true,
+            notify_client_distance_eta: (data as any).notify_client_distance_eta ?? true,
+            notify_admin_arrived: (data as any).notify_admin_arrived ?? true,
+            notify_client_arrived: (data as any).notify_client_arrived ?? true,
+          });
+        }
+      });
+  }, [standalone, organization?.id]);
 
-  const phase = queryPhase(q);
-  const rows: SimpleListRow[] = useMemo(
-    () =>
-      (q.data ?? []).map((t: any) => {
-        /* One row per booking, UPDATED in place — there is no position
-           history, so "last seen" is all this data can honestly support.
-           A trail would need a points table; see the tracking write-up. */
-        const age = t.recorded_at
-          ? Math.round((Date.now() - new Date(t.recorded_at).getTime()) / 60000)
-          : null;
-        return {
-          id: t.id,
-          title: t.staff?.name ?? 'Unknown cleaner',
-          meta: t.booking?.booking_number ? `#${t.booking.booking_number}` : 'No booking linked',
-          lines: [
-            t.arrived_at ? `Arrived ${fmtTime(t.arrived_at)}` : 'En route',
-            t.recorded_at ? `Last seen ${fmtTime(t.recorded_at)}` : 'Never reported a position',
-            /* A position from an hour ago is not a live position, and a map
-               pin does not say how old it is. */
-            age !== null && age > 10
-              ? `Position is ${age} minutes old — may not be current`
-              : null,
-          ],
-          badges:
-            age !== null && age > 10
-              ? [{ tone: 'warn' as const, label: 'Stale' }]
-              : [{ tone: 'success' as const, label: 'Live' }],
-        };
-      }),
-    [q.data, fmtTime],
-  );
+  const handleStandaloneToggle = async (field: keyof TrackingSmsSettingsLite, value: boolean) => {
+    if (!organization?.id) return;
+    setStandaloneSaving(true);
+    setStandaloneSettings((prev) => ({ ...prev, [field]: value }));
+    const { error } = await supabase
+      .from('organization_sms_settings')
+      .update({ [field]: value } as any)
+      .eq('organization_id', organization.id);
+    if (error) setStandaloneSettings((prev) => ({ ...prev, [field]: !value }));
+    setStandaloneSaving(false);
+  };
 
-  const filtered = useSimpleSearch(rows, search);
-  const listState: ListState =
-    phase === 'error' || phase === 'offline' ? 'error'
-      : phase === 'loading' ? 'loading'
-      : filtered.length === 0 ? 'empty' : 'ready';
+  const activeJobs: TrackingActiveJobLite[] = standalone
+    ? (q.data ?? []).map((t: any) => ({
+        id: t.id,
+        staffName: t.staff?.name ?? 'Unknown cleaner',
+        bookingNumber: t.booking?.booking_number ?? null,
+      }))
+    : (activeJobsProp ?? []);
+
+  const historicalJobs = standalone ? [] : (historicalJobsProp ?? []);
+  const loading = standalone ? q.isLoading : !!loadingProp;
+  const smsSettings = standalone ? standaloneSettings : (smsSettingsProp ?? DEFAULT_SMS_SETTINGS);
+  const savingToggle = standalone ? standaloneSaving : !!savingToggleProp;
+  const handleToggle = standalone ? handleStandaloneToggle : (onToggle ?? (() => {}));
+
+  const alertsOnCount = Object.values(smsSettings).filter(Boolean).length;
 
   return (
-    <>
-      <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
-        <SimpleListView
-          actions={actions}
-          onFilter={onFilter}
-          filterCount={filterCount}
-          header={
-            <InverseHeader
-              eyebrow="Live"
-              business="Tracking"
-              revenueLabel="Cleaners on the road"
-              revenue={phase === 'ready' ? String(rows.length) : '—'}
-              error={phase !== 'ready'}
-              onRetry={() => q.refetch()}
-              wells={
-                <>
-                  <StatWell
-                    value={phase === 'ready' ? String((q.data ?? []).filter((t: any) => t.arrived_at).length) : '—'}
-                    caption="arrived"
-                  />
-                  {/* Stale positions are the hazard on this screen, so the
-                      count is in the hero rather than only on the rows. */}
-                  <StatWell
-                    value={
-                      phase === 'ready'
-                        ? String((q.data ?? []).filter((t: any) => t.recorded_at && (Date.now() - new Date(t.recorded_at).getTime()) / 60000 > 10).length)
-                        : '—'
-                    }
-                    caption="stale"
-                  />
-                </>
-              }
-            />
-          }
-          title="Tracking"
-          phase={listState}
-          rows={filtered}
-          search={search}
-          onSearch={setSearch}
-          searchPlaceholder="Search by cleaner or booking..."
-          emptyTitle="Nobody is being tracked"
-          emptyHint="Cleaners who start a job with location sharing on will show here."
-          errorLabel="Couldn't load tracking"
-          addLabel="Refresh"
-          onRetry={() => q.refetch()}
-          sectionLabel={
-            rows.length === 0 ? 'nobody on the road' : `${rows.length} cleaner${rows.length === 1 ? '' : 's'} tracking`
-          }
-        />
+    <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col bg-[hsl(var(--pv-bg))]">
+      <div className="rounded-b-[26px] bg-[hsl(var(--pv-brand))] px-5 pb-[22px] pt-3.5 text-white">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            aria-label="Go back"
+            onClick={onBack}
+            className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-white/10"
+          >
+            ←
+          </button>
+          <div className="flex-1">
+            <div className="text-[11px] font-semibold opacity-65">Tracking</div>
+            <div className="whitespace-nowrap text-[16px] font-extrabold">Live Tracking</div>
+          </div>
+        </div>
+        <div className="mt-[18px]">
+          <div className="text-[11.5px] font-semibold opacity-65">Cleaners en route</div>
+          <div className="flex items-baseline gap-2.5">
+            <div className="text-[32px] font-extrabold">{loading ? '—' : activeJobs.length}</div>
+            <div className="text-[12px] opacity-60">
+              {loading ? '—' : historicalJobs.length} completed route{historicalJobs.length === 1 ? '' : 's'} today
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <div className="flex-1 rounded-xl bg-white/10 px-3 py-2.5">
+            <div className="text-[17px] font-extrabold">{alertsOnCount}</div>
+            <div className="text-[10px] font-semibold opacity-65">alerts on</div>
+          </div>
+          <div className="flex-1 rounded-xl bg-white/10 px-3 py-2.5">
+            <div className="text-[17px] font-extrabold">ETA</div>
+            <div className="text-[10px] font-semibold opacity-65">in client SMS</div>
+          </div>
+        </div>
       </div>
-    </>
+
+      <div className="flex flex-col gap-3.5 px-5 py-4">
+        <div className="flex flex-col gap-2.5 rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
+          <div className="text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Notifications</div>
+          <TrackingToggleRow
+            label="Notify admin — cleaner on my way"
+            checked={smsSettings.notify_admin_on_the_way}
+            disabled={savingToggle}
+            onChange={(v) => handleToggle('notify_admin_on_the_way', v)}
+          />
+          <TrackingToggleRow
+            label="Notify client — cleaner on my way"
+            checked={smsSettings.notify_client_on_the_way}
+            disabled={savingToggle}
+            onChange={(v) => handleToggle('notify_client_on_the_way', v)}
+          />
+          <TrackingToggleRow
+            label="Include distance & ETA in client SMS"
+            checked={smsSettings.notify_client_distance_eta}
+            disabled={savingToggle}
+            onChange={(v) => handleToggle('notify_client_distance_eta', v)}
+          />
+          <TrackingToggleRow
+            label="Notify client — cleaner arrived"
+            checked={smsSettings.notify_client_arrived}
+            disabled={savingToggle}
+            onChange={(v) => handleToggle('notify_client_arrived', v)}
+          />
+          <TrackingToggleRow
+            label="Notify admin — cleaner arrived"
+            checked={smsSettings.notify_admin_arrived}
+            disabled={savingToggle}
+            onChange={(v) => handleToggle('notify_admin_arrived', v)}
+          />
+        </div>
+
+        {loading ? (
+          <div className="rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-7 text-center text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
+            Loading…
+          </div>
+        ) : activeJobs.length === 0 ? (
+          <div className="rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4.5 py-7 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[hsl(var(--pv-bg))] text-[22px]">
+              🚗
+            </div>
+            <div className="mt-3 text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">
+              No cleaners currently en route
+            </div>
+            <div className="mx-auto mt-1 max-w-[270px] text-[11.5px] leading-[1.55] text-[hsl(var(--pv-ink-3))]">
+              Active tracking appears here when a cleaner presses "On My Way".
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {activeJobs.map((job) => (
+              <div
+                key={job.id}
+                className="flex items-center gap-3 rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4.5 py-3.5"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--pv-brand))]/10 text-[13px] font-bold text-[hsl(var(--pv-brand))]">
+                  {job.staffName.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13.5px] font-bold text-[hsl(var(--pv-ink))]">{job.staffName}</div>
+                  <div className="text-[11px] text-[hsl(var(--pv-ink-3))]">
+                    {job.bookingNumber ? `#${job.bookingNumber}` : 'No booking linked'}
+                  </div>
+                </div>
+                <span className="rounded-full bg-[hsl(var(--pv-success))]/15 px-2.5 py-1 text-[10px] font-bold text-[hsl(var(--pv-success))]">
+                  En Route
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-4.5 py-3.5">
+          <div className="text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">Today's completed routes</div>
+          <div className="ml-auto text-[11.5px] text-[hsl(var(--pv-ink-3))]">
+            {loading ? '—' : historicalJobs.length === 0 ? 'None yet' : historicalJobs.length}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

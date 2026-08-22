@@ -1,4 +1,4 @@
-import { Search, Plus, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { Card, Skeleton } from './Card';
 import { Button } from './Button';
 import { SegmentedTabs } from './SegmentedTabs';
@@ -29,6 +29,7 @@ export function ListShell<T extends string>({
   searchPlaceholder = 'Search',
   onFilter,
   filterCount = 0,
+  merge,
   tabs,
   tab,
   onTab,
@@ -46,6 +47,11 @@ export function ListShell<T extends string>({
   searchPlaceholder?: string;
   onFilter?: () => void;
   filterCount?: number;
+  /* Comp 7g: an inline "⇅ Merge" control beside the search box, distinct
+     from onFilter (a panel) and from a row action — it opens the app's
+     real duplicate-merge flow. Optional so every other ListShell caller is
+     unaffected. */
+  merge?: { label?: string; onClick: () => void };
   tabs?: { id: T; label: string; count?: number }[];
   tab?: T;
   onTab?: (id: T) => void;
@@ -86,6 +92,16 @@ export function ListShell<T extends string>({
             className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-[hsl(var(--pv-ink))] placeholder:text-[hsl(var(--pv-ink-3))] focus-visible:outline-none"
           />
         </label>
+        {merge && (
+          <button
+            type="button"
+            onClick={merge.onClick}
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-[10px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] px-3 text-[11px] font-bold text-[hsl(var(--pv-ink))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]"
+          >
+            <ArrowUpDown className="h-3.5 w-3.5" aria-hidden />
+            {merge.label ?? 'Merge'}
+          </button>
+        )}
         {onFilter && (
           <button
             type="button"

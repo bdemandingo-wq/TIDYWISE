@@ -149,6 +149,13 @@ export default function DiscountsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Discounts & Coupons" subtitle="Manage promotional codes">
+        {/* 10a's whole comp is the AI suggestions rail above the list — the
+            mobile arm had it nowhere at all, so "Create ->" on a suggestion
+            was unreachable on a phone. Same component desktop mounts, same
+            prefill handler. */}
+        <div className="px-4 pt-1">
+          <AIDiscountSuggestions onCreateDiscount={openWithPrefill} />
+        </div>
         <DiscountsMobileBody
           /* The active toggle. handleToggleActive takes the whole discount
              because it needs the current value to invert and to word the
@@ -157,7 +164,103 @@ export default function DiscountsPage() {
             const dsc = discounts.find(x => x.id === id);
             if (dsc) handleToggleActive(dsc);
           }}
+          onAdd={() => setIsAddDialogOpen(true)}
         />
+        {/* The desktop Add dialog is declared below the desktop return, so it
+            never mounts on this arm — a button with no dialog behind it does
+            nothing. Mount a phone-sized equivalent here, including the
+            Discount Type Select desktop has, which check-mobile-control-parity
+            flagged as missing. */}
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Discount</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Coupon Code *</Label>
+                <Input
+                  value={newDiscount.code}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g., SAVE20"
+                  className="uppercase"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Input
+                  value={newDiscount.description}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, description: e.target.value })}
+                  placeholder="e.g., 20% off first booking"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Discount Type</Label>
+                <Select
+                  value={newDiscount.discount_type}
+                  onValueChange={(value: 'percentage' | 'flat') =>
+                    setNewDiscount({ ...newDiscount, discount_type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="flat">Flat Amount ($)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>
+                  {newDiscount.discount_type === 'percentage' ? 'Percentage *' : 'Amount ($) *'}
+                </Label>
+                <Input
+                  type="number"
+                  value={newDiscount.discount_value}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, discount_value: e.target.value })}
+                  placeholder={newDiscount.discount_type === 'percentage' ? '20' : '25'}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Minimum Order ($)</Label>
+                <Input
+                  type="number"
+                  value={newDiscount.min_order_amount}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, min_order_amount: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Max Uses (optional)</Label>
+                <Input
+                  type="number"
+                  value={newDiscount.max_uses}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, max_uses: e.target.value })}
+                  placeholder="Unlimited"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Expires On (optional)</Label>
+                <Input
+                  type="date"
+                  value={newDiscount.valid_until}
+                  onChange={(e) => setNewDiscount({ ...newDiscount, valid_until: e.target.value })}
+                />
+              </div>
+
+              <Button onClick={handleCreateDiscount} className="w-full">
+                Create Discount
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </AdminLayout>
     );
   }

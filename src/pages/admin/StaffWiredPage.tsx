@@ -4,11 +4,18 @@ import { AdminLayout } from '@/components/admin/AdminLayout';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { combinedPhase, queryPhase } from '@/lib/queryState';
-import { ListShell, ListSectionLabel, PersonRow, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
+import { ListShell, ListSectionLabel, PersonRow, PersonRowMenu, InverseHeader, StatWell, Card, CardTitle } from '@/components/portal-v2';
 import { Switch } from '@/components/ui/switch';
 import { ActionChipRow } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import type { ListState } from '@/components/portal-v2';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Calendar, Edit, KeyRound, Trash2 } from 'lucide-react';
 
 /**
  * /dashboard/staff-v2 — the team on real data. ADDITIVE.
@@ -95,6 +102,8 @@ export function StaffMobileBody({
   onTab,
   hideHero,
   onToggleActive,
+  onAddStaff,
+  onRowAction,
 }: {
   /* The per-row active switch desktop has. Turning it OFF is destructive —
      the page routes that through its confirmation dialog — so the control is
@@ -111,6 +120,14 @@ export function StaffMobileBody({
   tabs?: { id: string; label: string; count?: number }[];
   tab?: string;
   onTab?: (id: string) => void;
+  /* Wires the shell's title-row "Add staff" button — without this it renders
+     and does nothing, the same dead-control bug the kebab menu below fixes. */
+  onAddStaff?: () => void;
+  /* The per-row kebab's four items. Desktop routes all four through its own
+     handlers (Edit / Resend link / View schedule / Permanent delete); mobile
+     reuses the exact same ones via this callback instead of re-implementing
+     them, so there is one source of truth for what each action does. */
+  onRowAction?: (id: string, action: 'edit' | 'resend' | 'schedule' | 'delete-permanent') => void;
 } = {}) {
   const { organization } = useOrganization();
   const [search, setSearch] = useState('');
@@ -478,7 +495,7 @@ export function StaffMobileBody({
           tabs={tabs ?? [{ id: 'all', label: 'All staff', count: filtered.length }]}
           tab={tab ?? 'all'}
           onTab={onTab ?? (() => undefined)}
-          action={{ label: 'Add staff' }}
+          action={{ label: 'Add staff', onClick: onAddStaff }}
           search={search}
           onSearch={setSearch}
           searchPlaceholder="Search by name or email..."
@@ -486,7 +503,7 @@ export function StaffMobileBody({
           empty={{
             title: 'No team members yet',
             hint: 'Cleaners and office staff you add will show here.',
-            action: { label: 'Add staff' },
+            action: { label: 'Add staff', onClick: onAddStaff },
           }}
           errorLabel="Couldn't load your team"
           onRetry={() => {
@@ -517,12 +534,40 @@ export function StaffMobileBody({
               inactive={r.inactive}
               badges={r.badges}
               actions={
-                onToggleActive ? (
-                  <Switch
-                    checked={!r.inactive}
-                    onCheckedChange={next => onToggleActive(r.id, next)}
-                    aria-label={`Active: ${r.name}`}
-                  />
+                onToggleActive || onRowAction ? (
+                  <span className="flex items-center gap-0.5">
+                    {onToggleActive && (
+                      <Switch
+                        checked={!r.inactive}
+                        onCheckedChange={next => onToggleActive(r.id, next)}
+                        aria-label={`Active: ${r.name}`}
+                      />
+                    )}
+                    {onRowAction && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <PersonRowMenu label={`More actions: ${r.name}`} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'schedule')}>
+                            <Calendar className="h-4 w-4" /> View Schedule
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'edit')}>
+                            <Edit className="h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'resend')}>
+                            <KeyRound className="h-4 w-4" /> Resend Password Link
+                          </DropdownMenuItem>
+                          {r.inactive && (
+                            <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r.id, 'delete-permanent')}>
+                              <Trash2 className="h-4 w-4 text-[hsl(var(--pv-danger))]" />
+                              <span className="text-[hsl(var(--pv-danger))]">Delete Permanently</span>
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </span>
                 ) : undefined
               }
             />

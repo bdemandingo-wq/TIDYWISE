@@ -462,7 +462,7 @@ export default function LeadsPage() {
     booking_completed_at: string | null;
   };
 
-  const [mobileView, setMobileView] = useState<'pipeline' | 'list' | 'abandoned'>('pipeline');
+  const [mobileView, setMobileView] = useState<'pipeline' | 'table' | 'funnel' | 'sync'>('pipeline');
 
   /* The same count the desktop tab shows: opened and never completed, not
      every row in the table. */
@@ -488,17 +488,18 @@ export default function LeadsPage() {
           />
         </div>
 
-        <div className="flex gap-1 px-4 pb-2 pt-1">
+        <div className="flex gap-1 overflow-x-auto px-4 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {([
             ['pipeline', 'Pipeline'],
-            ['list', 'List'],
-            ['abandoned', `Abandoned${abandonedOpen > 0 ? ` (${abandonedOpen})` : ''}`],
+            ['table', 'Table'],
+            ['funnel', 'Funnel Report'],
+            ['sync', 'Smart Sync'],
           ] as const).map(([id, label]) => (
             <Button
               key={id}
               size="sm"
               variant={mobileView === id ? 'default' : 'ghost'}
-              className="h-9 flex-1 rounded-full text-[12.5px]"
+              className="h-9 shrink-0 rounded-full px-3.5 text-[12.5px]"
               onClick={() => setMobileView(id)}
             >
               {label}
@@ -520,47 +521,107 @@ export default function LeadsPage() {
           />
         )}
 
-        {mobileView === 'abandoned' && (
-          <div className="flex flex-col gap-2.5 px-4 pb-6">
-            {abandonedLoading ? (
-              <p className="py-8 text-center text-[12.5px] text-muted-foreground">Loading…</p>
-            ) : abandonedLinks.length === 0 ? (
-              <p className="py-8 text-center text-[12.5px] text-muted-foreground">
-                No abandoned bookings.
+        {mobileView === 'funnel' && (
+          <div className="flex flex-col gap-3 px-4 pb-6">
+            {/* Same funnelData/sourceBreakdown the desktop Funnel Report
+                card computes — real content, not a mobile-only stub. */}
+            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
+              <p className="mb-3 text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Lead conversion funnel</p>
+              <div className="flex flex-col gap-3">
+                {funnelData.map((stage) => (
+                  <div key={stage.stage}>
+                    <div className="mb-1 flex items-center justify-between text-[12px]">
+                      <span className="font-bold text-[hsl(var(--pv-ink))]">{stage.label}</span>
+                      <span className="text-[hsl(var(--pv-ink-3))]">{stage.count} leads</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-[hsl(var(--pv-sunken))]">
+                      <div
+                        className={`h-full ${STATUS_CONFIG[stage.stage].color} rounded-full transition-all duration-500`}
+                        style={{ width: `${stage.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3.5 py-2.5 text-[12.5px]">
+                <span className="font-extrabold text-[hsl(var(--pv-ink))]">Overall conversion rate</span>
+                <span className="font-extrabold text-[hsl(var(--pv-success))]">
+                  {stats.total > 0 ? Math.round((stats.converted / stats.total) * 100) : 0}%
+                </span>
+              </div>
+            </div>
+            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
+              <p className="mb-3 text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Leads by source</p>
+              <div className="flex flex-col gap-2.5">
+                {sourceBreakdown.map(item => (
+                  <div key={item.source} className="flex items-center gap-2.5 text-[12.5px]">
+                    <span className="min-w-0 flex-1 truncate font-bold capitalize text-[hsl(var(--pv-ink))]">
+                      {item.source}
+                      <span className="ml-1.5 font-medium text-[hsl(var(--pv-ink-3))]">
+                        · {item.total} leads · {item.converted} converted
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-[hsl(var(--pv-brand))] px-2.5 py-1 text-[10.5px] font-extrabold text-[hsl(var(--pv-brand-ink))]">
+                      {item.rate}%
+                    </span>
+                  </div>
+                ))}
+                {sourceBreakdown.length === 0 && (
+                  <p className="py-4 text-center text-[12.5px] text-[hsl(var(--pv-ink-3))]">No lead data yet</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mobileView === 'sync' && (
+          <div className="flex flex-col gap-3 px-4 pb-6">
+            {/* The exact runSync mutation the desktop "Smart Sync" toolbar
+                button calls — writes real status reverts and returns real
+                flagged leads, not a mobile-only readout. */}
+            <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
+              <p className="text-[14px] font-extrabold text-[hsl(var(--pv-ink))]">Smart Sync</p>
+              <p className="mt-1 text-[12px] text-[hsl(var(--pv-ink-3))]">
+                Checks leads marked "converted" against your customer list and flags
+                any that never actually got a matching customer record.
               </p>
-            ) : (
-              (abandonedLinks as unknown as AbandonedLink[]).map(link => (
-                <Card key={link.id} className="rounded-[14px]">
-                  <CardContent className="space-y-1 px-[15px] py-[13px]">
-                    <p className="text-[13px] font-extrabold">
-                      {maskName(link.customer_name || 'Unknown')}
-                    </p>
-                    {link.customer_email && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {maskEmail(link.customer_email)}
-                      </p>
-                    )}
-                    {link.customer_phone && (
-                      <p className="text-xs text-muted-foreground">{maskPhone(link.customer_phone)}</p>
-                    )}
-                    {/* Opened-but-never-finished is the whole point of this
-                        view, so the elapsed time since opening is the fact
-                        that matters, not the send date. */}
-                    <p className="pt-1 text-[11.5px] text-muted-foreground">
-                      {link.link_opened_at
-                        ? `Opened ${formatDistanceToNow(new Date(link.link_opened_at), { addSuffix: true })}`
-                        : link.link_sent_at
-                          ? `Sent ${formatDistanceToNow(new Date(link.link_sent_at), { addSuffix: true })} · never opened`
-                          : 'Not sent'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))
+              <Button
+                className="mt-3 w-full gap-2"
+                onClick={() => runSync(leads)}
+                disabled={isSyncing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing…' : 'Run sync'}
+              </Button>
+            </div>
+            {flaggedLeadIds.size > 0 && (
+              <div className="rounded-[16px] border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4">
+                <p className="text-[13px] font-extrabold text-[hsl(var(--pv-ink))]">
+                  {flaggedLeadIds.size} converted lead{flaggedLeadIds.size === 1 ? '' : 's'} flagged
+                </p>
+                <p className="mt-1 text-[12px] text-[hsl(var(--pv-ink-3))]">
+                  No matching customer record was found for these — worth a manual check.
+                </p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {leads
+                    .filter((l: any) => flaggedLeadIds.has(l.id))
+                    .map((l: any) => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => { setEditingLead(l); setDialogOpen(true); }}
+                        className="rounded-[10px] bg-[hsl(var(--pv-sunken))] px-3 py-2 text-left text-[12.5px] font-semibold text-[hsl(var(--pv-ink))]"
+                      >
+                        {l.name || 'Unnamed lead'}
+                      </button>
+                    ))}
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {mobileView === 'list' && (
+        {mobileView === 'table' && (
         <LeadsMobileBody
           hideHero
           actions={mobileActions}

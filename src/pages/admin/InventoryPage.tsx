@@ -351,6 +351,33 @@ export default function InventoryPage() {
           }}
         />
 
+        {/* 11b closes with a Categories card listing every category as a chip
+            plus "+ Custom"; the mobile arm had category filtering in the sheet
+            but never this always-visible summary. Tapping opens the same
+            Settings dialog desktop uses to manage categories. */}
+        <div className="px-4 pb-6">
+          <button
+            type="button"
+            onClick={() => setSettingsDialogOpen(true)}
+            className="w-full rounded-2xl border border-[hsl(var(--pv-border))] bg-[hsl(var(--pv-surface))] p-4 text-left"
+          >
+            <div className="text-[12.5px] font-extrabold text-[hsl(var(--pv-ink))]">Categories</div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {allCategories.filter(c => c.toLowerCase() !== 'other').map(c => (
+                <span
+                  key={c}
+                  className="rounded-full bg-[hsl(var(--pv-sunken))] px-2.5 py-1 text-[10.5px] font-semibold text-[hsl(var(--pv-ink-3))]"
+                >
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </span>
+              ))}
+              <span className="rounded-full bg-[hsl(var(--pv-brand)/0.12)] px-2.5 py-1 text-[10.5px] font-bold text-[hsl(var(--pv-brand))]">
+                + Custom
+              </span>
+            </div>
+          </button>
+        </div>
+
         <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
           <SheetContent side="bottom" className="rounded-t-2xl pb-safe max-h-[85dvh] overflow-y-auto">
             <SheetHeader className="pb-2">

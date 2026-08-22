@@ -373,7 +373,7 @@ export function SchedulerMobileBody({
                             ? 'bg-[hsl(var(--pv-danger-soft))] text-[hsl(var(--pv-danger))]'
                             : badge.tone === 'warn'
                               ? 'bg-[hsl(var(--pv-warn-soft))] text-[hsl(var(--pv-warn))]'
-                              : 'bg-[hsl(var(--pv-info-soft))] text-[hsl(var(--pv-info))]')
+                              : 'bg-[hsl(var(--pv-brand-soft))] text-[hsl(var(--pv-brand))]')
                       }
                     >
                       {badge.label}

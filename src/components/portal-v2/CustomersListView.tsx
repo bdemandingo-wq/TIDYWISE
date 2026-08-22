@@ -41,6 +41,11 @@ export function CustomersListView({
   actions,
   onAdd,
   header,
+  onMerge,
+  typeTab,
+  onTypeTab,
+  customerCount,
+  leadCount,
 }: {
   phase: ListState;
   rows: CustomersRow[];
@@ -56,6 +61,19 @@ export function CustomersListView({
   actions?: ActionChip[];
   /** Wires the comp's "+ Add" header button to the real dialog. */
   onAdd?: () => void;
+  /* Comp 7g's "⇅ Merge" control beside the search box. Opens the app's real
+     duplicate-merge flow (e.g. /dashboard/customers/duplicates). Optional —
+     the states preview and any caller without a merge flow render unchanged. */
+  onMerge?: () => void;
+  /* Comp 7g's All / Customers / Leads pill row under the stat wells. All
+     four are optional together: passing none keeps today's single
+     "All customers" tab. `rows` is already the caller's list — status
+     itself resolves 'lead' vs everything else, so the counts are supplied
+     rather than recomputed here from a narrower type. */
+  typeTab?: 'all' | 'customer' | 'lead';
+  onTypeTab?: (t: 'all' | 'customer' | 'lead') => void;
+  customerCount?: number;
+  leadCount?: number;
   /* ── Comp header slot ──────────────────────────────────────────────────
      7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
      headline figure and its stat wells. It is page chrome, not list content,
@@ -80,15 +98,24 @@ export function CustomersListView({
         </div>
       )}
 
-    <ListShell<'all'>
+    <ListShell<'all' | 'customer' | 'lead'>
       title="Customers"
       action={{ label: 'Add', onClick: onAdd }}
       search={search}
       onSearch={onSearch}
       searchPlaceholder="Search by name, email, or phone..."
-      tabs={[{ id: 'all', label: 'All customers', count: rows.length }]}
-      tab="all"
-      onTab={() => undefined}
+      merge={onMerge ? { onClick: onMerge } : undefined}
+      tabs={
+        onTypeTab
+          ? [
+              { id: 'all', label: 'All', count: (customerCount ?? 0) + (leadCount ?? 0) },
+              { id: 'customer', label: 'Customers', count: customerCount ?? 0 },
+              { id: 'lead', label: 'Leads', count: leadCount ?? 0 },
+            ]
+          : [{ id: 'all', label: 'All customers', count: rows.length }]
+      }
+      tab={onTypeTab ? typeTab ?? 'all' : 'all'}
+      onTab={onTypeTab ?? (() => undefined)}
       state={phase}
       empty={
         filtered
