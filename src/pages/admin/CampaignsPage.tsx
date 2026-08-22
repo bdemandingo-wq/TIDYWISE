@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { CampaignsMobileBody } from '@/pages/admin/CampaignsOpsWiredPages';
+import { SegmentedTabs } from '@/components/portal-v2';
 import type { ActionChip } from '@/components/portal-v2';
 import { PlanFeatureGate } from "@/components/admin/PlanFeatureGate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +64,7 @@ export default function CampaignsPage() {
   const queryClient = useQueryClient();
   const { organizationId: orgId } = useOrgId();
   const isMobile = useIsMobile();
+  const [mobileView, setMobileView] = useState<'all' | 'opted_out' | 'referrals'>('all');
 
   // Filters
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all");
@@ -153,7 +155,36 @@ export default function CampaignsPage() {
   if (isMobile) {
     return (
       <AdminLayout title="Campaigns" subtitle="Manage marketing campaigns and automations">
-        <CampaignsMobileBody actions={mobileActions} />
+        {/* 9c puts Campaigns / Opted Out / Referrals in the hero, and the
+            parity guard flagged that the phone had no tabs at all. These are
+            the page's OWN channelFilter values plus the Referral Program the
+            desktop renders below the list — all three reachable, none
+            decorative. */}
+        <div className="px-4 pb-2 pt-1">
+          <SegmentedTabs
+            tabs={[
+              { id: 'all', label: 'Campaigns' },
+              { id: 'opted_out', label: 'Opted Out' },
+              { id: 'referrals', label: 'Referrals' },
+            ]}
+            value={mobileView}
+            onChange={id => {
+              setMobileView(id as typeof mobileView);
+              /* Referrals is a separate panel, not a channel — leave the
+                 page's own filter alone when switching to it. */
+              if (id !== 'referrals') setChannelFilter(id as ChannelFilter);
+            }}
+            label="Campaigns view"
+          />
+        </div>
+
+        {mobileView === 'referrals' ? (
+          <div className="px-4 pb-6">
+            <ReferralDashboard />
+          </div>
+        ) : (
+          <CampaignsMobileBody actions={mobileActions} />
+        )}
       </AdminLayout>
     );
   }
