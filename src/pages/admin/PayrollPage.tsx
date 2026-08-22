@@ -684,8 +684,17 @@ export default function PayrollPage() {
   // mirrors the payout engine. The only thing added here is `actualPay` — the
   // "confirmed vs estimated" column this page renders. Never reorder the
   // priorities here; change the resolver so every surface moves together.
-  const calcWage = (booking: any, staffMember: any, payShareOverride?: number | null) => {
-    const r = resolveCleanerPay(booking, staffMember, payShareOverride);
+  const calcWage = (
+    booking: any,
+    staffMember: any,
+    payShareOverride?: number | null,
+    /* How many cleaners are on this booking. Required for the percentage-only
+       rescue in wageCalculation — omitting it means "caller does not know",
+       and an unknown team is treated as a team, so a percentage-only cleaner
+       resolves to $0. Every caller below can derive it. */
+    teamSize?: number,
+  ) => {
+    const r = resolveCleanerPay(booking, staffMember, payShareOverride, teamSize);
     return {
       calculatedPay: r.calculatedPay,
       actualPay: r.isExact ? r.calculatedPay : null,
@@ -703,7 +712,13 @@ export default function PayrollPage() {
     for (const b of primaryBookings) {
       const assignment = assignmentList.find((a: any) => a.booking_id === b.id && a.staff_id === staffId);
       const payShareOverride = assignment?.pay_share != null ? Number(assignment.pay_share) : null;
-      const wageInfo = calcWage(b, staffMember, payShareOverride);
+      /* Team size is the UNION of assignment rows and the primary staff_id —
+         the same membership rule the itemised table and the payout engine
+         use. A booking with no assignment rows is one cleaner, not zero. */
+      const bookingAssignments = assignmentList.filter((a: any) => a.booking_id === b.id);
+      const memberIds = new Set<string>(bookingAssignments.map((a: any) => a.staff_id));
+      if (b.staff_id) memberIds.add(b.staff_id);
+      const wageInfo = calcWage(b, staffMember, payShareOverride, memberIds.size || 1);
       entries.push({ booking: b, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
     }
     const teamEntries = assignmentList.filter((a: any) => a.staff_id === staffId && !primaryBookings.find((b: any) => b.id === a.booking_id));
@@ -711,7 +726,11 @@ export default function PayrollPage() {
       const booking = bookingList.find((b: any) => b.id === a.booking_id && b.status !== 'cancelled');
       if (!booking) continue;
       const payShareOverride = a.pay_share != null ? Number(a.pay_share) : null;
-      const wageInfo = calcWage(booking, staffMember, payShareOverride);
+      const teamIds = new Set<string>(
+        assignmentList.filter((x: any) => x.booking_id === a.booking_id).map((x: any) => x.staff_id),
+      );
+      if (booking.staff_id) teamIds.add(booking.staff_id);
+      const wageInfo = calcWage(booking, staffMember, payShareOverride, teamIds.size || 1);
       entries.push({ booking, pay: wageInfo.calculatedPay, hours: wageInfo.hoursWorked });
     }
     return entries;
@@ -761,7 +780,7 @@ export default function PayrollPage() {
         const member = staff.find((s) => s.id === m.staffId);
         const wageInfo = isReclean
           ? { calculatedPay: 0, actualPay: 0, wageType: 'reclean', wageRate: 0, hoursWorked: 0, isMissingPay: false }
-          : calcWage(b, member, m.payShare);
+          : calcWage(b, member, m.payShare, members.length || 1);
         totalBookingLabor += wageInfo.calculatedPay;
         memberDetails.push({ m, member, wageInfo });
       }
@@ -884,7 +903,7 @@ export default function PayrollPage() {
           const member = staff.find((s) => s.id === id);
           const a = assignments.find((x: any) => x.staff_id === id);
           const ps = a?.pay_share != null ? Number(a.pay_share) : null;
-          totalLabor += calcWage(b, member, ps).calculatedPay;
+          totalLabor += calcWage(b, member, ps, memberIds.size || 1).calculatedPay;
         }
       }
 

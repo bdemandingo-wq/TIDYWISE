@@ -245,7 +245,13 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
   // Pay shown here is resolved by the one shared resolver, so this card, the
   // Earnings tab and admin Payroll can never show three different numbers for
   // the same job. Do not compute pay inline — change lib/wageCalculation.ts.
-  const payResult = resolveCleanerPay(booking, staffInfo, booking.team_pay_share);
+  /* team_members is built in StaffPortal.tsx:437 as the UNION of the
+     assignment names and the primary staff name — and deliberately blanked to
+     [] when that union is 1, because the "Team Clean" panel only shows for a
+     real team. So an empty array here means exactly one cleaner, not zero,
+     and `|| 1` is reading the convention rather than guessing a default. */
+  const teamSize = booking.team_members?.length || 1;
+  const payResult = resolveCleanerPay(booking, staffInfo, booking.team_pay_share, teamSize);
   const pay = {
     amount: payResult.calculatedPay,
     type: describeCleanerPay(payResult),
