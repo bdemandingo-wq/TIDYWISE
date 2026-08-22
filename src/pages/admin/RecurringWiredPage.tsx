@@ -169,8 +169,8 @@ export function RecurringMobileBody({
           onAdd={onAdd}
           header={
             <InverseHeader
-              eyebrow="Schedules"
-              business="Recurring"
+              eyebrow="Recurring"
+              business="Schedules"
               revenueLabel="Recurring schedules"
               revenue={phase === 'ready' ? String(rows.length) : '—'}
               error={phase !== 'ready'}

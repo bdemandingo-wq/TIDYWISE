@@ -12,6 +12,10 @@ interface ConvSummary { name: string; lastMessage: string; hoursSinceLastInbound
 interface Props {
   organizationId: string;
   getNeedsReplyConversations: () => ConvSummary[];
+  /** 'button' (default) — small ghost text button, used on desktop.
+   *  'icon' — bare sparkle icon, for the mobile navy header.
+   *  'card' — the full inbox-summary card inline in the mobile list (comp 8d). */
+  variant?: 'button' | 'icon' | 'card';
 }
 
 interface SectionItem {
@@ -92,7 +96,7 @@ function parseSummary(raw: string): { sections: Section[]; recommendation: strin
   return { sections, recommendation };
 }
 
-export function AIInboxSummaryButton({ organizationId, getNeedsReplyConversations }: Props) {
+export function AIInboxSummaryButton({ organizationId, getNeedsReplyConversations, variant = 'button' }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string>('');
@@ -126,18 +130,54 @@ export function AIInboxSummaryButton({ organizationId, getNeedsReplyConversation
     }
   };
 
+  const urgentCount = parsed.sections.find(s => s.key === 'urgent')?.items.length ?? 0;
+
+  const trigger = variant === 'icon' ? (
+    <button
+      type="button"
+      onClick={() => void run()}
+      aria-label="AI inbox summary"
+      className="h-[34px] w-[34px] rounded-[10px] bg-white/10 flex items-center justify-center text-white"
+    >
+      <Sparkles className="h-4 w-4" />
+    </button>
+  ) : variant === 'card' ? (
+    <button
+      type="button"
+      onClick={() => void run()}
+      className="w-full text-left bg-[hsl(var(--pv-surface))] border border-[hsl(var(--pv-border))] rounded-2xl px-[18px] py-4"
+    >
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 text-[hsl(var(--pv-ai))]" />
+        <span className="text-[13.5px] font-extrabold text-[hsl(var(--pv-ink))]">AI inbox summary</span>
+        {urgentCount > 0 && (
+          <span className="ml-auto text-[10px] font-bold text-[hsl(var(--pv-danger))] bg-[hsl(var(--pv-danger-soft))] px-2.5 py-1 rounded-full">
+            {urgentCount} urgent
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-[hsl(var(--pv-ink-3))] leading-relaxed mt-2">
+        {loading
+          ? 'Analyzing your inbox…'
+          : parsed.recommendation || 'Tap to see which conversations need a reply first.'}
+      </p>
+    </button>
+  ) : (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      onClick={() => void run()}
+      className="h-8 gap-1.5 text-indigo-500 hover:bg-indigo-500/10 hover:text-indigo-600"
+    >
+      <Sparkles className="h-3.5 w-3.5" />
+      <span className="text-xs font-medium">AI Summary</span>
+    </Button>
+  );
+
   return (
     <>
-      <Button
-        type="button"
-        size="sm"
-        variant="ghost"
-        onClick={() => void run()}
-        className="h-8 gap-1.5 text-indigo-500 hover:bg-indigo-500/10 hover:text-indigo-600"
-      >
-        <Sparkles className="h-3.5 w-3.5" />
-        <span className="text-xs font-medium">AI Summary</span>
-      </Button>
+      {trigger}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
