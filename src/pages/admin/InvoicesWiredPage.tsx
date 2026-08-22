@@ -67,7 +67,7 @@ const STATUS_TONE: Record<string, 'success' | 'info' | 'warn' | 'danger'> = {
   cancelled: 'warn',
 };
 
-export default function InvoicesWiredPage() {
+export function InvoicesMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -183,7 +183,7 @@ export default function InvoicesWiredPage() {
   );
 
   return (
-    <AdminLayout title="Invoices" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {ready && rows.length > 0 && (
           <div className="px-4 pt-3">
@@ -221,6 +221,27 @@ export default function InvoicesWiredPage() {
           }
         />
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function InvoicesWiredPage() {
+  return (
+    <AdminLayout title="Invoices" subtitle="Mobile layout, live data">
+      <InvoicesMobileBody />
     </AdminLayout>
   );
 }

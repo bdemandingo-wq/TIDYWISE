@@ -25,7 +25,7 @@ import type { ListState } from '@/components/portal-v2';
  * an additive route, but it is worth knowing.
  */
 
-export default function LeadsWiredPage() {
+export function LeadsMobileBody() {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -107,7 +107,7 @@ export default function LeadsWiredPage() {
   const ready = phase === 'ready';
 
   return (
-    <AdminLayout title="Leads" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <div className="px-4 pt-3">
           <div className="grid grid-cols-2 gap-2.5">
@@ -145,6 +145,27 @@ export default function LeadsWiredPage() {
           onRetry={() => leadsQ.refetch()}
         />
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function LeadsWiredPage() {
+  return (
+    <AdminLayout title="Leads" subtitle="Mobile layout, live data">
+      <LeadsMobileBody />
     </AdminLayout>
   );
 }

@@ -113,7 +113,7 @@ function Screen({ cfg }: { cfg: Cfg }) {
   const ready = listState === 'ready' || listState === 'empty';
   const h = cfg.header?.(q.data ?? [], ready);
   return (
-    <AdminLayout title={cfg.title} subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           header={
@@ -150,7 +150,7 @@ function Screen({ cfg }: { cfg: Cfg }) {
           }
         />
       </div>
-    </AdminLayout>
+    </>
   );
 }
 
@@ -158,7 +158,7 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Services ──────────────────────────────────────────────────────────── */
-export function ServicesWiredPage() {
+export function ServicesMobileBody() {
   return (
     <Screen
       cfg={{
@@ -197,7 +197,7 @@ export function ServicesWiredPage() {
 }
 
 /* ── Discounts ─────────────────────────────────────────────────────────── */
-export function DiscountsWiredPage() {
+export function DiscountsMobileBody() {
   return (
     <Screen
       cfg={{
@@ -250,7 +250,7 @@ export function DiscountsWiredPage() {
 }
 
 /* ── Inventory ─────────────────────────────────────────────────────────── */
-export function InventoryWiredPage() {
+export function InventoryMobileBody() {
   return (
     <Screen
       cfg={{
@@ -301,7 +301,7 @@ export function InventoryWiredPage() {
 }
 
 /* ── Checklists ────────────────────────────────────────────────────────── */
-export function ChecklistsWiredPage() {
+export function ChecklistsMobileBody() {
   return (
     <Screen
       cfg={{
@@ -332,7 +332,7 @@ export function ChecklistsWiredPage() {
 }
 
 /* ── Tasks & notes ─────────────────────────────────────────────────────── */
-export function TasksWiredPage() {
+export function TasksMobileBody() {
   return (
     <Screen
       cfg={{
@@ -373,7 +373,7 @@ export function TasksWiredPage() {
 }
 
 /* ── Client feedback ───────────────────────────────────────────────────── */
-export function FeedbackWiredPage() {
+export function FeedbackMobileBody() {
   return (
     <Screen
       cfg={{
@@ -441,7 +441,7 @@ export function FeedbackWiredPage() {
    waiting for a morning brief that the screen has quietly told them is
    switched off. So the toggles do not render at all until the read succeeds.
    ────────────────────────────────────────────────────────────────────────── */
-export function NotificationsWiredPage() {
+export function NotificationsMobileBody() {
   const { organization } = useOrganization();
 
   const q = useQuery({
@@ -465,7 +465,7 @@ export function NotificationsWiredPage() {
   const phase = queryPhase(q);
 
   return (
-    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {/* 5b opens with the hero too. The wells report the two briefings as
             three-state, because the columns are nullable and "not set" is not
@@ -562,6 +562,75 @@ export function NotificationsWiredPage() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export function ServicesWiredPage() {
+  return (
+    <AdminLayout title="Services" subtitle="Mobile layout, live data">
+      <ServicesMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function DiscountsWiredPage() {
+  return (
+    <AdminLayout title="Discounts" subtitle="Mobile layout, live data">
+      <DiscountsMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function InventoryWiredPage() {
+  return (
+    <AdminLayout title="Inventory" subtitle="Mobile layout, live data">
+      <InventoryMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function ChecklistsWiredPage() {
+  return (
+    <AdminLayout title="Checklists" subtitle="Mobile layout, live data">
+      <ChecklistsMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function TasksWiredPage() {
+  return (
+    <AdminLayout title="Tasks" subtitle="Mobile layout, live data">
+      <TasksMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function FeedbackWiredPage() {
+  return (
+    <AdminLayout title="Feedback" subtitle="Mobile layout, live data">
+      <FeedbackMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function NotificationsWiredPage() {
+  return (
+    <AdminLayout title="Notifications" subtitle="Mobile layout, live data">
+      <NotificationsMobileBody />
     </AdminLayout>
   );
 }

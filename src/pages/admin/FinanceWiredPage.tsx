@@ -46,7 +46,7 @@ import { Card, CardTitle, StatCard, SegmentedTabs } from '@/components/portal-v2
 const money = (n: number) =>
   `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function FinanceWiredPage() {
+export function FinanceMobileBody() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
   /* 6d's P&L calendar. Booked by DEFAULT, because that is what the comp shows
@@ -166,7 +166,7 @@ export default function FinanceWiredPage() {
 
   if (phase === 'error' || phase === 'offline') {
     return (
-      <AdminLayout title="Finance" subtitle="Mobile layout, live data">
+      <>
         <div className="portal-v2 mx-auto w-full max-w-[430px] px-5 py-4">
           <Card>
             <CardTitle>Couldn&rsquo;t load your finances</CardTitle>
@@ -177,12 +177,12 @@ export default function FinanceWiredPage() {
             </p>
           </Card>
         </div>
-      </AdminLayout>
+      </>
     );
   }
 
   return (
-    <AdminLayout title="Finance" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
         {phase === 'loading' ? (
           <p className="text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
@@ -312,6 +312,27 @@ export default function FinanceWiredPage() {
           </>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function FinanceWiredPage() {
+  return (
+    <AdminLayout title="Finance" subtitle="Mobile layout, live data">
+      <FinanceMobileBody />
     </AdminLayout>
   );
 }

@@ -82,7 +82,7 @@ function toRow(b: BookingWithDetails, fmt: (iso: string) => string): BookingsRow
 
 type Tab = 'all' | 'drafts' | 'quotes' | 'wages';
 
-export default function BookingsWiredPage() {
+export function BookingsMobileBody() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('all');
@@ -282,7 +282,7 @@ export default function BookingsWiredPage() {
     );
 
   return (
-    <AdminLayout title="Bookings" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <BookingsListView<Tab>
           phase={listState}
@@ -308,6 +308,27 @@ export default function BookingsWiredPage() {
           {tabBody}
         </BookingsListView>
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function BookingsWiredPage() {
+  return (
+    <AdminLayout title="Bookings" subtitle="Mobile layout, live data">
+      <BookingsMobileBody />
     </AdminLayout>
   );
 }

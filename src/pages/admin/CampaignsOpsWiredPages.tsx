@@ -36,7 +36,7 @@ const CAMPAIGN_TYPE: Record<string, string> = {
    that has never fired says so on its own row rather than being counted in a
    total that implies activity.
    ────────────────────────────────────────────────────────────────────────── */
-export function CampaignsWiredPage() {
+export function CampaignsMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -139,7 +139,7 @@ export function CampaignsWiredPage() {
       : filtered.length === 0 ? 'empty' : 'ready';
 
   return (
-    <AdminLayout title="Campaigns" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         {phase === 'ready' && neverRunCount > 0 && (
           <div className="px-4 pt-3">
@@ -198,7 +198,7 @@ export function CampaignsWiredPage() {
           }
         />
       </div>
-    </AdminLayout>
+    </>
   );
 }
 
@@ -208,7 +208,7 @@ export function CampaignsWiredPage() {
    showing that entry's figures as though they were current would be wrong in
    the most ordinary way available.
    ────────────────────────────────────────────────────────────────────────── */
-export function OperationsWiredPage() {
+export function OperationsMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
 
@@ -257,7 +257,7 @@ export function OperationsWiredPage() {
   const num = (v: unknown) => (v === null || v === undefined ? '—' : String(v));
 
   return (
-    <AdminLayout title="Operations" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto flex w-full max-w-[430px] flex-col gap-3.5 bg-[hsl(var(--pv-bg))] px-5 py-4">
         {phase === 'error' || phase === 'offline' ? (
           <Card>
@@ -335,6 +335,35 @@ export function OperationsWiredPage() {
           </>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export function CampaignsWiredPage() {
+  return (
+    <AdminLayout title="Campaigns" subtitle="Mobile layout, live data">
+      <CampaignsMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function OperationsWiredPage() {
+  return (
+    <AdminLayout title="Operations" subtitle="Mobile layout, live data">
+      <OperationsMobileBody />
     </AdminLayout>
   );
 }

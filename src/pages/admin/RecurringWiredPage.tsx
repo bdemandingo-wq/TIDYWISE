@@ -39,7 +39,7 @@ import type { ListState } from '@/components/portal-v2';
  * means "no end date", not "ended", and the two must not read alike.
  */
 
-export default function RecurringWiredPage() {
+export function RecurringMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -149,7 +149,7 @@ export default function RecurringWiredPage() {
           : 'ready';
 
   return (
-    <AdminLayout title="Recurring" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           header={
@@ -198,6 +198,27 @@ export default function RecurringWiredPage() {
           }
         />
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export default function RecurringWiredPage() {
+  return (
+    <AdminLayout title="Recurring" subtitle="Mobile layout, live data">
+      <RecurringMobileBody />
     </AdminLayout>
   );
 }

@@ -51,7 +51,7 @@ const money = (n: unknown) =>
   n === null || n === undefined ? undefined : `$${Number(n).toFixed(2)}`;
 
 /* ── Expenses ──────────────────────────────────────────────────────────── */
-export function ExpensesWiredPage() {
+export function ExpensesMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -112,7 +112,7 @@ export function ExpensesWiredPage() {
       : filtered.length === 0 ? 'empty' : 'ready';
 
   return (
-    <AdminLayout title="Expenses" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           header={
@@ -156,12 +156,12 @@ export function ExpensesWiredPage() {
           }
         />
       </div>
-    </AdminLayout>
+    </>
   );
 }
 
 /* ── Booking media ─────────────────────────────────────────────────────── */
-export function BookingPhotosWiredPage() {
+export function BookingPhotosMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -223,7 +223,7 @@ export function BookingPhotosWiredPage() {
       : filtered.length === 0 ? 'empty' : 'ready';
 
   return (
-    <AdminLayout title="Booking media" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           header={
@@ -268,12 +268,12 @@ export function BookingPhotosWiredPage() {
           }
         />
       </div>
-    </AdminLayout>
+    </>
   );
 }
 
 /* ── Live tracking ─────────────────────────────────────────────────────── */
-export function TrackingWiredPage() {
+export function TrackingMobileBody() {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
   const [search, setSearch] = useState('');
@@ -349,7 +349,7 @@ export function TrackingWiredPage() {
       : filtered.length === 0 ? 'empty' : 'ready';
 
   return (
-    <AdminLayout title="Tracking" subtitle="Mobile layout, live data">
+    <>
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           header={
@@ -396,6 +396,43 @@ export function TrackingWiredPage() {
           }
         />
       </div>
+    </>
+  );
+}
+
+/* ── Layout-free bodies ───────────────────────────────────────────────────
+   Each screen is exported twice.
+
+   *MobileBody renders the screen and NOTHING around it — no AdminLayout, no
+   page chrome. That is what an existing admin page drops into its mobile
+   branch, without nesting AdminLayout inside AdminLayout and getting two
+   headers and two sidebars.
+
+   The default/named *WiredPage export keeps the layout and is what the
+   /dashboard/*-v2 route renders, so those routes are unchanged.
+   ──────────────────────────────────────────────────────────────────────── */
+
+
+export function ExpensesWiredPage() {
+  return (
+    <AdminLayout title="Expenses" subtitle="Mobile layout, live data">
+      <ExpensesMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function BookingPhotosWiredPage() {
+  return (
+    <AdminLayout title="Booking media" subtitle="Mobile layout, live data">
+      <BookingPhotosMobileBody />
+    </AdminLayout>
+  );
+}
+
+export function TrackingWiredPage() {
+  return (
+    <AdminLayout title="Tracking" subtitle="Mobile layout, live data">
+      <TrackingMobileBody />
     </AdminLayout>
   );
 }
