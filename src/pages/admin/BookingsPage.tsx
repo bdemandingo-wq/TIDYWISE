@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { BookingsMobileBody } from '@/pages/admin/BookingsWiredPage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1961,115 +1962,20 @@ export default function BookingsPage() {
             </Button>
           </div>
         ) : isMobile ? (
-          /* ========== MOBILE CARD VIEW ========== */
-          <div
-            className="divide-y divide-border overflow-y-auto"
-            {...pullHandlers}
-          >
-            <PullToRefreshIndicator pullDistance={pullDistance} refreshing={refreshing} />
-          {filteredBookings.map((booking, index) => {
-              const paymentInfo = getPaymentStatusInfo(booking);
-              const scheduledDate = new Date(booking.scheduled_at);
-              const isCleaned = booking.status === 'completed';
-              const isCancelled = booking.status === 'cancelled';
-              const isPaid = booking.payment_status === 'paid';
-              
-              return (
-                <div
-                  key={booking.id}
-                  className="p-3 active:bg-muted/30 transition-colors"
-                  onClick={() => setActionSheetBooking(booking)}
-                >
-                  {/* Top row: booking number + amount */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-mono text-xs font-bold text-primary">
-                      #{booking.booking_number}
-                    </span>
-                    <span className="font-bold text-sm text-foreground">{maskAmount(booking.total_amount)}</span>
-                  </div>
-                  
-                  {/* Client name */}
-                  <p className="text-sm font-medium text-foreground mb-1">
-                    {booking.customer 
-                      ? maskName(`${booking.customer.first_name} ${booking.customer.last_name}`)
-                      : 'Unknown'
-                    }
-                  </p>
-                  
-                  {/* Service + date */}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                    <span>{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</span>
-                    <span>•</span>
-                    <span>{formatInTimezone(scheduledDate, orgTz, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</span>
-                  </div>
-                  
-                  {/* Staff */}
-                  <div className="text-xs text-muted-foreground mb-2">
-                    {(() => {
-                      const team = booking.booking_team_assignments?.filter(a => a.staff?.name) || [];
-                      if (team.length > 1) {
-                        return <span>{team.map(a => maskName(a.staff!.name)).join(', ')}</span>;
-                      }
-                      return (
-                        <span className={cn(!booking.staff?.name && "italic")}>
-                          {booking.staff?.name ? maskName(booking.staff.name) : 'Unassigned'}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  
-                  {/* Badges row */}
-                  <div className="flex items-center gap-2">
-                    {/* Clean status badge */}
-                    <div className={cn(
-                      "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                      isCancelled
-                        ? "bg-destructive/15 text-destructive"
-                        : isCleaned
-                          ? "bg-success/10 text-success"
-                          : "bg-destructive/10 text-destructive"
-                    )}>
-                      {isCancelled ? (
-                        <>
-                          <XCircle className="w-3 h-3" />
-                          cancelled
-                        </>
-                      ) : isCleaned ? (
-                        <>
-                          <CheckCircle className="w-3 h-3" />
-                          completed
-                        </>
-                      ) : (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-info" />
-                          scheduled
-                        </>
-                      )}
-                    </div>
-                    {/* Payment badge */}
-                    <div className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium",
-                      isPaid
-                        ? "bg-success/10 text-success"
-                        : "bg-warning/10 text-warning"
-                    )}>
-                      {isPaid ? (
-                        <>
-                          <CheckCircle className="w-3 h-3" />
-                          Paid
-                        </>
-                      ) : (
-                        <>
-                          <span>○</span>
-                          {paymentInfo.label}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          /* ========== MOBILE ==========
+             The phone layout is BookingsMobileBody — the same component
+             /dashboard/bookings-v2 renders, minus its AdminLayout wrapper.
+             It owns its own queries, states and §5.1 rules.
+
+             The desktop table below is untouched. This branch is the only
+             thing that changed: 109 lines of hand-rolled mobile cards
+             replaced by the component that was built against the mockups
+             and verified against live data.
+
+             The old cards are not deleted from history — they are in git,
+             and the -v2 route still renders the same body if this needs
+             comparing side by side. */
+          <BookingsMobileBody />
         ) : (
           /* ========== DESKTOP TABLE VIEW ========== */
           <div className="overflow-x-auto" data-no-swipe>

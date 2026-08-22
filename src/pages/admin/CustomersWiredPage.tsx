@@ -35,7 +35,18 @@ import type { ListState } from '@/components/portal-v2';
  * customers.
  */
 
-export function CustomersMobileBody() {
+/**
+ * onSelectCustomer — supplied when this body is the mobile arm of the live
+ * CustomersPage, which owns the profile sheet and the dialogs it opens.
+ * Without it (the -v2 preview route) the row navigates instead, which is the
+ * standalone behaviour. Extending rather than replacing: the preview keeps
+ * working unchanged and the live page keeps its sheet.
+ */
+export function CustomersMobileBody({
+  onSelectCustomer,
+}: {
+  onSelectCustomer?: (id: string) => void;
+} = {}) {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -152,7 +163,11 @@ export function CustomersMobileBody() {
               ? `${rows.length} of ${all.length} customers`
               : `${all.length} customers`
           }
-          onSelect={r => navigate(`/dashboard/customers?customer=${r.id}`)}
+          onSelect={r =>
+            onSelectCustomer
+              ? onSelectCustomer(r.id)
+              : navigate(`/dashboard/customers?customer=${r.id}`)
+          }
           onRetry={() => {
             customersQ.refetch();
             statsQ.refetch();
