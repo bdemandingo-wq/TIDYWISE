@@ -1,0 +1,64 @@
+# Mobile mockup-matching brief
+
+The source of truth is `design/mockups/TidyWise-Mockups.html` (also `TidyWise_Mockups_dc.html`) —
+76 screens as real HTML/CSS. Read spacing, radii, font weights and sizes out of that markup rather
+than eyeballing a screenshot. Comp ids (`4c`, `7g`, `10a`, ...) are section ids in that file and are
+the canonical name for each screen.
+
+## What matching means
+
+Match the layout, order, spacing, type scale and every element the comp shows. Where the comp shows
+something that does not exist yet, build it — wired to the real data and the real handlers desktop
+uses, never to stubs.
+
+## Judgement rules
+
+1. A comp reproducing a limitation is not a spec. If the comp shows a degraded or buggy version of
+   something the app already does better, keep the better behaviour and say so in your report.
+2. Where the comp is silent, follow the surrounding app conventions.
+3. Every control must WORK, not merely render. Every button opens its real dialog, every toggle
+   writes and persists, every tab switches to real content, every row opens what it should.
+
+## Hard constraints
+
+- **Colour**: `--pv-*` tokens only. The comps' blue `#2B5CE6` is wrong — translate it. No raw hex.
+- **Desktop must not change.** Every page renders desktop and mobile from one file; only the mobile
+  arm changes. Screenshot each screen at 1280px before and after and confirm the desktop table,
+  toolbar and layout are identical. Anything in a shared component must be gated behind the
+  codebase's `useIsMobile` hook.
+- `src/components/portal-v2/` is shared — check every consumer before changing it, and change it
+  additively (new optional props) only.
+- **Money**: a failed read renders an em-dash, never `$0.00`.
+- Dialogs a mobile arm opens must be MOUNTED INSIDE that mobile arm — mounting them only under the
+  desktop return is the single most common defect in this work, and it produces buttons that look
+  fine and do nothing.
+
+## Verify, don't assume
+
+For each screen, at 390px and 1280px: render it, screenshot it, compare against the comp, and click
+every control. Use short Playwright timeouts. In headless Chromium close dialogs with a real
+close/cancel click rather than Escape, and re-query a kebab trigger after each dialog closes.
+Never restart the dev server (http://localhost:8080) — if it refuses connections, poll until it
+answers.
+
+Never trigger real side effects during verification: no real SMS or email sends, no campaign sends,
+no staff deletions. Confirm the dialog opens, then cancel.
+
+## Guards (run all of these before reporting)
+
+```sh
+node scripts/check-pv-tokens.mjs
+node scripts/check-mobile-arm-handlers.mjs
+node scripts/check-mobile-control-parity.mjs
+node scripts/check-color-pairs.mjs
+npx tsc --noEmit -p tsconfig.app.json   # slow; the -p flag is NOT optional
+```
+
+`check-color-pairs` has one known base-theme contrast failure; that one is expected.
+
+## Report format
+
+- Per screen: what matched, what you changed, and what you clicked with the observed result.
+- Anything you could not verify, stated plainly as unverified.
+- Guard results, each one named with its outcome.
+- Any divergence from the comp you chose deliberately, with the reason.
