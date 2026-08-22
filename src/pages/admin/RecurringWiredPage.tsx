@@ -43,8 +43,11 @@ import type { ListState } from '@/components/portal-v2';
 
 export function RecurringMobileBody({
   actions,
+  onAdd,
 }: {
   actions?: ActionChip[];
+  /* The shell's title-row button had no handler, so it was dead. */
+  onAdd?: () => void;
 } = {}) {
   const { organization } = useOrganization();
   const orgTz = useOrgTimezone();
@@ -159,6 +162,7 @@ export function RecurringMobileBody({
       <div className="portal-v2 mx-auto w-full max-w-[430px] bg-[hsl(var(--pv-bg))]">
         <SimpleListView
           actions={actions}
+          onAdd={onAdd}
           header={
             <InverseHeader
               eyebrow="Schedules"

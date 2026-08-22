@@ -437,14 +437,153 @@ export default function ChecklistsPage() {
      Desktop untouched below. The phone renders ChecklistsMobileBody — the same
      component its -v2 route shows — with this page's own toolbar
      actions as chips. Handlers stay here; only rendering moves. */
-  const mobileActions: ActionChip[] = [
-    { id: 'create', label: 'Create Checklist', icon: <Plus className="h-3.5 w-3.5" />, onClick: openCreateDialog },
-  ];
-
+  /* One primary action, as the comp shows. The shell already renders it in
+     the title row; a chip as well was a second affordance for the same job —
+     the same duplication Invoices and Staff had. */
   if (isMobile) {
     return (
       <AdminLayout title="Cleaning Checklists" subtitle="Create and manage cleaning checklists">
-        <ChecklistsMobileBody actions={mobileActions} />
+        <ChecklistsMobileBody
+          
+          onAdd={openCreateDialog}
+        />
+
+
+        {/* Mounted in the mobile arm too — see the sibling pages. The arm
+            early-returns, so this dialog never rendered on a phone and the
+            Add button did nothing. */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => !open && closeDialog()}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTemplate ? 'Edit Checklist Template' : 'Create Checklist Template'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Template Name</Label>
+              <Input
+                placeholder="Standard Home Cleaning Checklist"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Textarea
+                placeholder="Describe what this checklist covers..."
+                value={formData.description}
+                onChange={e => setFormData({ ...formData, description: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Assign to Service (optional)</Label>
+              <Select
+                value={formData.service_id || "all"}
+                onValueChange={value => setFormData({ ...formData, service_id: value === "all" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All services</SelectItem>
+                  {services.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Checklist Items */}
+            <div className="border-t pt-4">
+              <Label className="mb-3 block">
+                Checklist Items ({formData.items.length})
+                {formData.items.length > 1 && (
+                  <span className="text-xs font-normal text-muted-foreground ml-2">
+                    Drag to reorder
+                  </span>
+                )}
+              </Label>
+              
+              {/* Added items list with drag and drop */}
+              {formData.items.length > 0 && (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={formData.items.map(item => item._key)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2 mb-4">
+                      {formData.items.map((item, index) => (
+                        <SortableChecklistItem
+                          key={item._key}
+                          item={item}
+                          index={index}
+                          onRemove={removeItemFromForm}
+                          onToggleRequiresPhoto={(idx, requires) => {
+                            const updated = [...formData.items];
+                            updated[idx] = { ...updated[idx], requires_photo: requires };
+                            setFormData({ ...formData, items: updated });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              )}
+              
+              {/* Add new item form */}
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+                <Input
+                  placeholder="Item title (e.g., 'Clean kitchen counters')"
+                  value={newItem.title}
+                  onChange={e => setNewItem({ ...newItem, title: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addItemToForm())}
+                />
+                <Input
+                  placeholder="Optional description"
+                  value={newItem.description}
+                  onChange={e => setNewItem({ ...newItem, description: e.target.value })}
+                />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="requires-photo"
+                      checked={newItem.requires_photo}
+                      onCheckedChange={(checked) => 
+                        setNewItem({ ...newItem, requires_photo: checked as boolean })
+                      }
+                    />
+                    <Label htmlFor="requires-photo" className="flex items-center gap-2 cursor-pointer">
+                      <Camera className="w-4 h-4" />
+                      Photo required
+                    </Label>
+                  </div>
+                  <Button type="button" size="sm" onClick={addItemToForm} disabled={!newItem.title.trim()}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={!formData.name || formData.items.length === 0 || isSubmitting}
+            >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              {editingTemplate 
+                ? `Update Checklist (${formData.items.length} items)` 
+                : `Create Checklist (${formData.items.length} items)`
+              }
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       </AdminLayout>
     );
   }
