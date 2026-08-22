@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from './Card';
@@ -36,12 +36,28 @@ export function MediaTile({
   const [status, setStatus] = useState<'loading' | 'ok' | 'failed'>('loading');
   const [nonce, setNonce] = useState(0);
 
+  /**
+   * Signed URLs arrive a beat after the grid mounts, so a tile's first render
+   * often carries src="". An <img> with an empty src fires onError immediately,
+   * and without this the tile latched to 'failed' and stayed there even once the
+   * real URL arrived — every photo read "Couldn't load". A src change re-arms it.
+   */
+  useEffect(() => {
+    setStatus('loading');
+  }, [src]);
+
+  // An empty src is "not resolved yet", not "broken": hold the skeleton.
+  const resolved = src.length > 0;
+
+
+
   return (
     <figure className={cn('min-w-0', className)}>
       <div className="relative aspect-square overflow-hidden rounded-[10px] bg-[hsl(var(--pv-sunken))]">
         {status === 'loading' && <Skeleton className="absolute inset-0 rounded-[10px]" />}
 
-        {status !== 'failed' && (
+        {resolved && status !== 'failed' && (
+
           <img
             key={nonce}
             src={src}

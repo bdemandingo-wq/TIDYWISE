@@ -1,4 +1,6 @@
+import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+
 import { cn } from '@/lib/utils';
 import { Avatar } from './Avatar';
 import { StatusBadge } from './StatusBadge';
@@ -158,16 +160,31 @@ export function PersonRow({
   );
 }
 
-/** The kebab most person lists use — four-ish actions, not one. */
-export function PersonRowMenu({ label = 'More actions', onClick }: { label?: string; onClick?: () => void }) {
+/**
+ * The kebab most person lists use — four-ish actions, not one.
+ *
+ * Must forward its ref and spread the rest of its props: it is used as a Radix
+ * `DropdownMenuTrigger asChild`, and Radix attaches its ref plus the pointer and
+ * aria handlers to the child. Without forwarding, the trigger is silently inert —
+ * the kebab renders, taps do nothing, and no menu ever opens.
+ */
+export const PersonRowMenu = forwardRef<
+  HTMLButtonElement,
+  ComponentPropsWithoutRef<'button'> & { label?: string }
+>(function PersonRowMenu({ label = 'More actions', className, ...props }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
-      onClick={onClick}
       aria-label={label}
-      className="flex h-11 w-11 items-center justify-center rounded-full text-[hsl(var(--pv-ink-3))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]"
+      {...props}
+      className={cn(
+        'flex h-11 w-11 items-center justify-center rounded-full text-[hsl(var(--pv-ink-3))] transition-colors duration-150 ease-out active:bg-[hsl(var(--pv-sunken))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--pv-brand))]',
+        className,
+      )}
     >
       <MoreHorizontal className="h-4 w-4" aria-hidden />
     </button>
   );
-}
+});
+

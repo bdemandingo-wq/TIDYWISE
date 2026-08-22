@@ -1048,6 +1048,17 @@ export default function CustomersPage() {
           actions={mobileCustomerActions}
           onAdd={handleAddCustomer}
           onMerge={isAdmin ? () => navigate('/dashboard/customers/duplicates') : undefined}
+          onRowAction={(row, action) => {
+            const customer = customers.find(c => c.id === row.id);
+            if (!customer) return;
+            if (action === 'edit') { setSelectedCustomer(customer); setEditDialogOpen(true); }
+            else if (action === 'payment') { setSelectedCustomer(customer); setPaymentHistoryOpen(true); }
+            else if (action === 'message') {
+              setMessageCustomer({ id: customer.id, name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(), phone: customer.phone ?? '' });
+              setMessageText('');
+              setMessageDialogOpen(true);
+            } else if (action === 'delete') { handleDeleteClick(customer); }
+          }}
           onSelectCustomer={id => {
             const c = customers?.find(x => x.id === id);
             if (!c) return;

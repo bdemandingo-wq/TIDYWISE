@@ -2,7 +2,14 @@ import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { ListShell, ListSectionLabel, type ListState } from './ListShell';
 import { ActionChipRow, type ActionChip } from './ActionChipRow';
-import { PersonRow } from './PersonRow';
+import { PersonRow, PersonRowMenu } from './PersonRow';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Edit, DollarSign, MessageSquare, Trash2 } from 'lucide-react';
 import { customerStatusBadge } from '@/lib/customerStatus';
 
 /**
@@ -46,6 +53,7 @@ export function CustomersListView({
   onTypeTab,
   customerCount,
   leadCount,
+  onRowAction,
 }: {
   phase: ListState;
   rows: CustomersRow[];
@@ -74,6 +82,10 @@ export function CustomersListView({
   onTypeTab?: (t: 'all' | 'customer' | 'lead') => void;
   customerCount?: number;
   leadCount?: number;
+  /** The kebab on each row — same four actions the desktop icon row offers.
+      Optional: omitted callers (e.g. the states preview) get no kebab, not a
+      dead one. */
+  onRowAction?: (row: CustomersRow, action: 'edit' | 'payment' | 'message' | 'delete') => void;
   /* ── Comp header slot ──────────────────────────────────────────────────
      7g, 8g and 8a all open with a dark InverseHeader carrying the screen's
      headline figure and its stat wells. It is page chrome, not list content,
@@ -195,6 +207,34 @@ export function CustomersListView({
               : []),
           ]}
           onClick={onSelect ? () => onSelect(r) : undefined}
+          actions={
+            onRowAction ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <PersonRowMenu label={`More actions: ${r.name ?? 'customer'}`} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r, 'edit')}>
+                    <Edit className="h-3.5 w-3.5" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r, 'payment')}>
+                    <DollarSign className="h-3.5 w-3.5" /> Payment History
+                  </DropdownMenuItem>
+                  {r.phone && (
+                    <DropdownMenuItem className="gap-2" onClick={() => onRowAction(r, 'message')}>
+                      <MessageSquare className="h-3.5 w-3.5" /> Send Message
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="gap-2 text-destructive focus:text-destructive"
+                    onClick={() => onRowAction(r, 'delete')}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : undefined
+          }
         />
       ))}
     </ListShell>

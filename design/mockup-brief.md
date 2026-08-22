@@ -62,3 +62,41 @@ npx tsc --noEmit -p tsconfig.app.json   # slow; the -p flag is NOT optional
 - Anything you could not verify, stated plainly as unverified.
 - Guard results, each one named with its outcome.
 - Any divergence from the comp you chose deliberately, with the reason.
+
+## Browser recipe (sandbox-specific — use exactly this)
+
+Playwright's bundled Chromium is missing system libraries in this sandbox and will fail with
+`libglib-2.0.so.0: cannot open shared object file`. Do NOT try to install it or fetch libs with
+`nix build` — that burns the whole budget. Use the system browser instead:
+
+```python
+b = await p.chromium.launch(headless=True, executable_path="/bin/chromium", args=["--no-sandbox"])
+```
+
+Confirmed working. Restore the Supabase session (see LOVABLE_BROWSER_AUTH_STATUS and the cookie /
+localStorage restore snippet) BEFORE navigating to a /dashboard route, or you land on /login.
+
+### Logged-in session helper
+
+Routes under /dashboard redirect to /login unless the Supabase session is restored. A working
+helper already exists — use it, do not roll your own:
+
+```python
+import sys; sys.path.insert(0, "/tmp/browser")
+from pwsetup import session          # launches /bin/chromium + restores the session
+
+async with session(width=390) as (page, browser):
+    await page.goto("http://localhost:8080/dashboard/staff", wait_until="domcontentloaded")
+    await page.wait_for_timeout(6000)   # the app hydrates and fetches before content appears
+```
+
+Verified: renders the real Staff page as an authenticated admin. Use `session(width=1280)` for
+desktop checks.
+
+### Clicking Radix menus/dialogs in headless
+
+Use Playwright's `locator.click()` (it auto-scrolls). Raw `page.mouse.click(x, y)` silently misses
+any control below the fold, which reads as a "dead control" that is really a harness mistake. If a
+kebab appears inert, first check the trigger exists: `page.locator('button[aria-haspopup="menu"]')`
+— a count of 0 means the trigger component isn't forwarding its ref/props to Radix (a real bug),
+not that the menu failed to open.
