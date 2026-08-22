@@ -152,13 +152,15 @@ export function InvoicesMobileBody({
         return {
           id: inv.id,
           title: who ?? 'No recipient on this invoice',
-          meta: `#${inv.invoice_number}`,
+          /* 8a packs the supporting facts onto ONE line — `#1042 · due Aug 19
+             · 3 items` — instead of stacking three. The row is half the
+             height the stacked version was, which is what the comp shows. */
+          meta: [
+            `#${inv.invoice_number}`,
+            inv.due_date ? `due ${fmtDay(inv.due_date)}` : 'no due date',
+            itemCount === 0 ? 'no line items' : `${itemCount} item${itemCount === 1 ? '' : 's'}`,
+          ].join(' \u00b7 '),
           lines: [
-            inv.due_date ? `Due ${fmtDay(inv.due_date)}` : 'No due date',
-            /* A total with nothing behind it is worth saying. */
-            itemCount === 0
-              ? 'No line items'
-              : `${itemCount} line item${itemCount === 1 ? '' : 's'}`,
             duePassed
               ? 'Due date has passed — not yet marked overdue'
               : inv.paid_at
@@ -270,6 +272,7 @@ export function InvoicesMobileBody({
               }
               error={phase === 'error' || phase === 'offline'}
               onRetry={() => q.refetch()}
+              action={onAdd ? { label: 'New', onClick: onAdd } : undefined}
               wells={
                 <>
                   <StatWell value={ready ? String(counts.total) : '—'} caption="total" />
@@ -282,6 +285,11 @@ export function InvoicesMobileBody({
           }
           actions={actions}
           onAdd={onAdd}
+          /* The hero already carries the title and the New-invoice action;
+             8a has no second title row, no tabs and no section label. */
+          hideTitle
+          hideTabs
+          hideSectionLabel
           title="Invoices"
           phase={listState}
           rows={filtered}
