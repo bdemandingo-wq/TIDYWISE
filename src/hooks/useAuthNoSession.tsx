@@ -13,6 +13,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { lovable } from '@/integrations/lovable/index';
 import { Capacitor } from '@capacitor/core';
@@ -38,11 +39,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProviderNoSession({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialCleanupDone, setInitialCleanupDone] = useState(false);
   const initRef = useRef(false);
+  // Track which user the cache belongs to so we only clear on identity change.
+  const cachedUserIdRef = useRef<string | null>(null);
 
   /**
    * Initialize auth - check for existing session (sessions now persist)
@@ -92,6 +96,18 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
+          cachedUserIdRef.current = null;
+          queryClient.clear();
+        }
+
+        // Clear the cache when a different user signs in — prevents the
+        // previous user's data from rendering under the new user's session.
+        if (event === 'SIGNED_IN' && currentSession?.user) {
+          const newUserId = currentSession.user.id;
+          if (cachedUserIdRef.current && cachedUserIdRef.current !== newUserId) {
+            queryClient.clear();
+          }
+          cachedUserIdRef.current = newUserId;
         }
 
         // OAuth signup: when a user signs in via Apple/Google for the first
