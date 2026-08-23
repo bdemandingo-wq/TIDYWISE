@@ -5,15 +5,19 @@ import { Button } from '@/components/ui/button';
 import { useOrgEmailHealth } from '@/hooks/useOrgEmailHealth';
 import { dominantCause } from '@/lib/emailFailureClassification';
 
-// Per-mode session dismissal so dismissing "set up email" doesn't suppress a
-// later failures warning (and vice versa).
+// Per-mode dismissal so dismissing "set up email" doesn't suppress a later
+// failures warning (and vice versa). Persisted in localStorage (NOT
+// sessionStorage) — a session-scoped dismissal reappeared on every new tab,
+// reload in a fresh session, and app relaunch, which read as "it won't go away".
+// The failures dismissal is stamped with the newest failure timestamp we knew
+// about, so the banner stays hidden until a genuinely NEW failure occurs.
 const DISMISS_PREFIX = 'tw_email_banner_dismissed_';
 
 export function EmailIdentityBanner() {
   const { canView, notConfigured, hardFailures } = useOrgEmailHealth();
-  const [dismissedModes, setDismissedModes] = useState<Record<string, boolean>>(() => ({
-    not_configured: sessionStorage.getItem(DISMISS_PREFIX + 'not_configured') === '1',
-    failures: sessionStorage.getItem(DISMISS_PREFIX + 'failures') === '1',
+  const [dismissed, setDismissed] = useState<Record<string, string | null>>(() => ({
+    not_configured: localStorage.getItem(DISMISS_PREFIX + 'not_configured'),
+    failures: localStorage.getItem(DISMISS_PREFIX + 'failures'),
   }));
 
   // notConfigured wins: a new org with no identity has zero failure rows,
@@ -24,11 +28,22 @@ export function EmailIdentityBanner() {
       ? 'failures'
       : null;
 
-  if (!canView || !mode || dismissedModes[mode]) return null;
+  // hardFailures is ordered newest-first by the hook.
+  const latestFailureAt = hardFailures[0]?.created_at ?? '';
+
+  const isDismissed =
+    mode === 'not_configured'
+      ? dismissed.not_configured === '1'
+      : mode === 'failures'
+        ? !!dismissed.failures && dismissed.failures >= latestFailureAt
+        : false;
+
+  if (!canView || !mode || isDismissed) return null;
 
   const dismiss = () => {
-    sessionStorage.setItem(DISMISS_PREFIX + mode, '1');
-    setDismissedModes((prev) => ({ ...prev, [mode]: true }));
+    const value = mode === 'not_configured' ? '1' : latestFailureAt || new Date().toISOString();
+    localStorage.setItem(DISMISS_PREFIX + mode, value);
+    setDismissed((prev) => ({ ...prev, [mode]: value }));
   };
 
   const n = hardFailures.length;
