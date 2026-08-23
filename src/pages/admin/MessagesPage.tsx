@@ -502,7 +502,7 @@ export default function MessagesPage() {
   };
 
   const fetchMessages = async (conversationId: string) => {
-    const { data, error } = await supabase.from('sms_messages').select('*').eq('conversation_id', conversationId).order('sent_at', { ascending: true });
+    const { data, error } = await supabase.from('sms_messages').select('*').eq('conversation_id', conversationId).order('sent_at', { ascending: true }).order('id', { ascending: true });
     if (!error) {
       setMessages((data || []).map(msg => ({ ...msg, direction: msg.direction as 'inbound' | 'outbound' })));
       await supabase.from('sms_conversations').update({ unread_count: 0 }).eq('id', conversationId);
@@ -587,7 +587,7 @@ export default function MessagesPage() {
       if ((await handleSmsError(response))) return;
       await supabase.from('sms_messages').insert({
         conversation_id: selectedConversation.id, organization_id: organizationId,
-        direction: 'outbound', content: newMessage.trim(), status: 'sent',
+        direction: 'outbound', content: newMessage.trim(), status: 'queued',
         openphone_message_id: response.data?.messageId
       });
       await supabase.from('sms_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', selectedConversation.id);
@@ -1552,8 +1552,15 @@ export default function MessagesPage() {
                           </span>
                         )}
                         {format(new Date(msg.sent_at), 'h:mm a')}
-                        {isOutbound && msg.status === 'sent' && <span className="ml-1">Sent</span>}
-                        {isOutbound && msg.status === 'delivered' && <span className="ml-1">Delivered</span>}
+                        {isOutbound && (() => {
+                          const ds = (msg as unknown as Record<string, unknown>).delivery_status as string | null | undefined;
+                          const effective = ds || msg.status;
+                          if (effective === 'delivered') return <span className="ml-1">Delivered</span>;
+                          if (effective === 'sent') return <span className="ml-1">Sent</span>;
+                          if (effective === 'queued') return <span className="ml-1">Sending</span>;
+                          if (effective === 'failed') return <span className="ml-1 text-destructive">Failed</span>;
+                          return null;
+                        })()}
                       </p>
                     )}
                   </div>
