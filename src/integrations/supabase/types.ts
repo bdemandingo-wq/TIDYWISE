@@ -4383,7 +4383,7 @@ export type Database = {
           created_at: string
           credits: number | null
           customer_status: string
-          email: string
+          email: string | null
           first_name: string
           id: string
           is_recurring: boolean
@@ -4414,7 +4414,7 @@ export type Database = {
           created_at?: string
           credits?: number | null
           customer_status?: string
-          email: string
+          email?: string | null
           first_name: string
           id?: string
           is_recurring?: boolean
@@ -4445,7 +4445,7 @@ export type Database = {
           created_at?: string
           credits?: number | null
           customer_status?: string
-          email?: string
+          email?: string | null
           first_name?: string
           id?: string
           is_recurring?: boolean
@@ -5922,7 +5922,7 @@ export type Database = {
           backfilled_at: string | null
           city: string | null
           created_at: string
-          email: string
+          email: string | null
           estimated_value: number | null
           id: string
           message: string | null
@@ -5945,7 +5945,7 @@ export type Database = {
           backfilled_at?: string | null
           city?: string | null
           created_at?: string
-          email: string
+          email?: string | null
           estimated_value?: number | null
           id?: string
           message?: string | null
@@ -5968,7 +5968,7 @@ export type Database = {
           backfilled_at?: string | null
           city?: string | null
           created_at?: string
-          email?: string
+          email?: string | null
           estimated_value?: number | null
           id?: string
           message?: string | null
