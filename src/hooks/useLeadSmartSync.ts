@@ -38,7 +38,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       }
 
       // Collect all emails and phones from converted leads
-      const emails = convertedLeads.map(l => l.email?.toLowerCase()).filter(Boolean) as string[];
+      const emails = convertedLeads.map(l => l.email?.toLowerCase()).filter((e): e is string => !!e);
       const phones = convertedLeads
         .map(l => l.phone?.replace(/\D/g, ''))
         .filter((p): p is string => !!p && p.length >= 7);
