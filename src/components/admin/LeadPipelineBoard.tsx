@@ -18,7 +18,7 @@ import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
 interface Lead {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   address: string | null;
   city: string | null;
@@ -278,7 +278,7 @@ function LeadCard({
         <div className="space-y-0.5">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Mail className="w-3 h-3 flex-shrink-0" />
-            <span className="truncate">{maskEmail(lead.email)}</span>
+            <span className="truncate">{lead.email ? maskEmail(lead.email) : 'No email'}</span>
           </div>
           {lead.phone && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

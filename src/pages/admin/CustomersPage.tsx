@@ -493,7 +493,7 @@ export default function CustomersPage() {
     let list = customers.filter((customer) => {
       const matchesSearch =
         `${customer.first_name} ${customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (customer.email ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (customer.phone?.includes(searchTerm) ?? false);
 
       const effectiveStatus = getEffectiveStatus(customer);
@@ -1223,10 +1223,17 @@ export default function CustomersPage() {
                             </TableCell>
                             <TableCell>
                               <div className="space-y-1">
-                                <a href={`mailto:${customer.email}`} className="flex items-center gap-2 text-sm hover:text-primary transition-colors">
-                                  <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                  <span className="truncate">{maskEmail(customer.email)}</span>
-                                </a>
+                                {customer.email ? (
+                                  <a href={`mailto:${customer.email}`} className="flex items-center gap-2 text-sm hover:text-primary transition-colors">
+                                    <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                    <span className="truncate">{maskEmail(customer.email)}</span>
+                                  </a>
+                                ) : (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                                    <span className="truncate">No email</span>
+                                  </div>
+                                )}
                                 {customer.phone && (
                                   <div className="flex items-center gap-2 text-sm">
                                     <a href={`tel:${customer.phone}`} className="flex items-center gap-2 hover:text-primary transition-colors">

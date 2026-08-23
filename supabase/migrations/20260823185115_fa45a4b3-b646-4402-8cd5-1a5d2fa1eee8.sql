@@ -1,0 +1,2 @@
+ALTER TABLE public.leads ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE public.customers ALTER COLUMN email DROP NOT NULL;

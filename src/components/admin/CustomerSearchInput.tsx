@@ -7,7 +7,7 @@ interface Customer {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
 }
 
@@ -39,7 +39,7 @@ export function CustomerSearchInput({
   // Filter customers based on search term
   const filteredCustomers = customers.filter(customer => {
     const fullName = `${customer.first_name} ${customer.last_name}`.toLowerCase();
-    const email = customer.email.toLowerCase();
+    const email = (customer.email ?? '').toLowerCase();
     const search = searchTerm.toLowerCase();
     return fullName.includes(search) || email.includes(search);
   });

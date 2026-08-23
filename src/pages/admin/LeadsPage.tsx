@@ -60,7 +60,9 @@ import { matrixToCsv } from '@/lib/orgDataExport';
 interface Lead {
   id: string;
   name: string;
-  email: string;
+  /* Nullable since 2026-08-23: phone-only leads are legitimate and used to be
+     saved as noemail@gmail.com to satisfy a NOT NULL that no longer exists. */
+  email: string | null;
   phone: string | null;
   address: string | null;
   city: string | null;
@@ -169,7 +171,7 @@ export default function LeadsPage() {
     if (isLoading || leads.length === 0) return;
     const key = leads
       .filter(l => l.status === 'converted')
-      .map(l => `${l.id}:${l.email}:${l.phone ?? ''}`)
+      .map(l => `${l.id}:${l.email ?? ''}:${l.phone ?? ''}`)
       .sort()
       .join('|');
     if (key === lastSyncedKeyRef.current) return;
@@ -178,7 +180,7 @@ export default function LeadsPage() {
   }, [leads, isLoading, runSync]);
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
+    mutationFn: async (data: { name: string; email: string | null; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string }) => {
       if (!organization?.id) {
         throw new Error('No organization found');
       }
@@ -275,13 +277,20 @@ export default function LeadsPage() {
     let estimatedValue: number | null = null;
 
     // Look up the newly created customer (or existing match) by email in this org
-    const { data: matchedCustomer } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('organization_id', organization.id)
-      .ilike('email', lead.email)
-      .limit(1)
-      .maybeSingle();
+    // A phone-only lead has no email to match on, so fall back to the phone.
+    // Matching on a null email would silently return the wrong customer.
+    let matchedCustomer: { id: string } | null = null;
+    if (lead.email || lead.phone) {
+      const lookup = supabase
+        .from('customers')
+        .select('id')
+        .eq('organization_id', organization.id)
+        .limit(1);
+      const { data } = lead.email
+        ? await lookup.ilike('email', lead.email).maybeSingle()
+        : await lookup.eq('phone', lead.phone!).maybeSingle();
+      matchedCustomer = data ?? null;
+    }
 
     if (matchedCustomer) {
       // Get the average or latest booking total for this customer
@@ -334,7 +343,7 @@ export default function LeadsPage() {
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase());
+        (lead.email ?? '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
       const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter;
       let matchesMonth = true;
@@ -410,7 +419,7 @@ export default function LeadsPage() {
     const headers = ['Name', 'Email', 'Phone', 'Address', 'City', 'State', 'Zip', 'Service Interest', 'Source', 'Status', 'Notes', 'Message', 'Created'];
     const rows = filteredLeads.map(lead => [
       lead.name,
-      lead.email,
+      lead.email || '',
       lead.phone || '',
       lead.address || '',
       lead.city || '',
@@ -757,7 +766,7 @@ export default function LeadsPage() {
                     <TableCell>
                       <div className="space-y-1">
                         <div className="flex items-center gap-1 text-sm">
-                          <Mail className="w-3 h-3" /> {maskEmail(lead.email)}
+                          <Mail className="w-3 h-3" /> {lead.email ? maskEmail(lead.email) : 'No email'}
                         </div>
                         {lead.phone && (
                           <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -1000,7 +1009,7 @@ function LeadDialog({
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
   tagSuggestions: LeadTag[];
-  onSave: (data: { name: string; email: string; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
+  onSave: (data: { name: string; email: string | null; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -1040,10 +1049,13 @@ function LeadDialog({
   const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
 
   const handleSubmit = () => {
-    if (!formData.name || !formData.email) return;
-    const { estimated_value, ...rest } = formData;
+    if (!formData.name) return;
+    const { estimated_value, email, ...rest } = formData;
     onSave({
       ...rest,
+      // Empty string would defeat the email-based dedupe and campaign filters,
+      // both of which test for null. Store the absence, not a blank.
+      email: email.trim() || null,
       estimated_value: estimated_value ? parseFloat(estimated_value) : null,
       tags,
     });
@@ -1065,7 +1077,7 @@ function LeadDialog({
             />
           </div>
           <div>
-            <Label>Email *</Label>
+            <Label>Email</Label>
             <Input
               type="email"
               value={formData.email}
