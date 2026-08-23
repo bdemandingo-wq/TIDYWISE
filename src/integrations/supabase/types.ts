@@ -12128,6 +12128,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      staff_can_view_booking: {
+        Args: { _booking_id: string; _org_id: string }
+        Returns: boolean
+      }
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
