@@ -381,7 +381,12 @@ serve(async (req) => {
 
       return new Response(JSON.stringify(
         trialActive
-          ? { subscribed: true, trial_active: true, trial_end: trialEndsAt }
+          ? {
+              subscribed: true,
+              trial_active: true,
+              trial_end: trialEndsAt,
+              product_id: "org_trial",
+            }
           : {
               subscribed: false,
               trial_active: false,
