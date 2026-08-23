@@ -281,6 +281,13 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
     orgDateKey(new Date(booking.scheduled_at), orgTimezone) === orgDateKey(new Date(), orgTimezone);
   const NOT_TODAY_TOOLTIP = 'Available on the day of the job';
 
+  // A confirmed or pending job whose scheduled date is in the past.
+  // These are missed jobs — show "Past due" and hide action buttons.
+  const isPastDue =
+    (booking.status === 'confirmed' || booking.status === 'pending') &&
+    new Date(booking.scheduled_at) < new Date() &&
+    !isScheduledToday;
+
   /**
    * Forward-only job flow: On The Way → I've Arrived → Start → Complete.
    *
@@ -315,7 +322,9 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
             <CardTitle className="text-lg">#{booking.booking_number}</CardTitle>
             <p className="text-sm text-muted-foreground">{booking.service?.name || (booking.total_amount === 0 ? 'Re-clean' : 'Service')}</p>
           </div>
-          {getStatusBadge(booking.status)}
+          {isPastDue
+            ? <Badge variant="destructive">Past due</Badge>
+            : getStatusBadge(booking.status)}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -464,7 +473,13 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 pt-2">
+        {isPastDue && (
+          <p className="text-xs text-muted-foreground pt-2">
+            This job is past its scheduled date. Ask your admin to close it out.
+          </p>
+        )}
+
+        {!isPastDue && <div className="flex flex-wrap gap-2 pt-2">
 
           {/* On The Way — always rendered for a confirmed job.
               It used to require booking.customer?.phone, welding two different
@@ -619,7 +634,7 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
             </Button>
           )}
 
-        </div>
+        </div>}
       </CardContent>
     </Card>
   );
