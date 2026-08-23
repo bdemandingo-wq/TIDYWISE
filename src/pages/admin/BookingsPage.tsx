@@ -1192,12 +1192,38 @@ export default function BookingsPage() {
     }
   };
 
+  // Collect every cleaner on a booking: the primary (booking.staff) plus
+  // teammates from booking_team_assignments. Look up phones from staffList
+  // since team assignments don't carry them.
+  const getBookingCleaners = (booking: BookingWithDetails): { name: string; phone: string }[] => {
+    const seen = new Set<string>();
+    const result: { name: string; phone: string }[] = [];
+
+    // Primary cleaner
+    if (booking.staff?.phone) {
+      seen.add(booking.staff.id);
+      result.push({ name: booking.staff.name, phone: booking.staff.phone });
+    }
+
+    // Team assignments
+    for (const ta of booking.booking_team_assignments ?? []) {
+      if (seen.has(ta.staff_id)) continue;
+      seen.add(ta.staff_id);
+      const s = staffList.find(st => st.id === ta.staff_id);
+      if (s?.phone) {
+        result.push({ name: s.name, phone: s.phone });
+      }
+    }
+
+    return result;
+  };
+
   const handleBulkNotifyCleaners = async () => {
     if (selectedBookings.size === 0) return;
-    
+
     const selectedBookingsList = filteredBookings.filter(b => selectedBookings.has(b.id));
-    const bookingsWithCleaners = selectedBookingsList.filter(b => b.staff?.phone);
-    
+    const bookingsWithCleaners = selectedBookingsList.filter(b => getBookingCleaners(b).length > 0);
+
     if (bookingsWithCleaners.length === 0) {
       toast({ title: "No Cleaners to Notify", description: "None of the selected bookings have assigned cleaners with phone numbers.", variant: "destructive" });
       return;
@@ -1209,37 +1235,40 @@ export default function BookingsPage() {
 
     try {
       for (const booking of bookingsWithCleaners) {
-        try {
-          const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any);
+        const cleaners = getBookingCleaners(booking);
+        for (const cleaner of cleaners) {
+          try {
+            const scheduledDate = new Date(booking.scheduled_at);
+            const fullAddress = formatFullAddress(booking as any);
 
-          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
-            body: {
-              cleanerName: booking.staff?.name || 'Cleaner',
-              cleanerPhone: booking.staff?.phone || '',
-              customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
-              customerPhone: booking.customer?.phone || 'N/A',
-              serviceName: booking.service?.name || 'Cleaning Service',
-              appointmentDate: format(scheduledDate, 'EEEE, MMMM d, yyyy'),
-              appointmentTime: format(scheduledDate, 'h:mm a'),
-              address: fullAddress || 'Address not provided',
-              bookingNumber: booking.booking_number,
-              organizationId: organization?.id,
-            }
-          });
+            const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
+              body: {
+                cleanerName: cleaner.name,
+                cleanerPhone: cleaner.phone,
+                customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
+                customerPhone: booking.customer?.phone || 'N/A',
+                serviceName: booking.service?.name || 'Cleaning Service',
+                appointmentDate: format(scheduledDate, 'EEEE, MMMM d, yyyy'),
+                appointmentTime: format(scheduledDate, 'h:mm a'),
+                address: fullAddress || 'Address not provided',
+                bookingNumber: booking.booking_number,
+                organizationId: organization?.id,
+              }
+            });
 
-          if (error) throw error;
-          if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to notify cleaner for booking #${booking.booking_number}:`, error);
-          failCount++;
+            if (error) throw error;
+            if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to notify cleaner ${cleaner.name} for booking #${booking.booking_number}:`, error);
+            failCount++;
+          }
         }
       }
 
       if (successCount > 0) {
-        toast({ 
-          title: "Notifications Sent", 
+        toast({
+          title: "Notifications Sent",
           description: `Successfully notified ${successCount} cleaner(s) via SMS${failCount > 0 ? `. ${failCount} failed.` : '.'}`
         });
       } else {
@@ -1386,13 +1415,12 @@ export default function BookingsPage() {
   const handleBulkNotifyWeekCleaners = async () => {
     const now = new Date();
     const weekEnd = addDays(now, 7);
-    
-    // Get all upcoming bookings for the next 7 days with assigned cleaners
+
     const upcomingWeekBookings = sortedBookings.filter(b => {
       const scheduledDate = new Date(b.scheduled_at);
-      return scheduledDate >= now && 
-             scheduledDate <= weekEnd && 
-             b.staff?.phone && 
+      return scheduledDate >= now &&
+             scheduledDate <= weekEnd &&
+             getBookingCleaners(b).length > 0 &&
              !['cancelled', 'completed'].includes(b.status);
     });
 
@@ -1407,38 +1435,41 @@ export default function BookingsPage() {
 
     try {
       for (const booking of upcomingWeekBookings) {
-        try {
-          const scheduledDate = new Date(booking.scheduled_at);
-          const fullAddress = formatFullAddress(booking as any);
+        const cleaners = getBookingCleaners(booking);
+        for (const cleaner of cleaners) {
+          try {
+            const scheduledDate = new Date(booking.scheduled_at);
+            const fullAddress = formatFullAddress(booking as any);
 
-          const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
-            body: {
-              cleanerName: booking.staff?.name || 'Cleaner',
-              cleanerPhone: booking.staff?.phone || '',
-              customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
-              customerPhone: booking.customer?.phone || 'N/A',
-              serviceName: booking.service?.name || 'Cleaning Service',
-              appointmentDate: format(scheduledDate, 'EEEE, MMMM d, yyyy'),
-              appointmentTime: format(scheduledDate, 'h:mm a'),
-              address: fullAddress || 'Address not provided',
-              bookingNumber: booking.booking_number,
-              organizationId: organization?.id,
-            }
-          });
+            const { data, error } = await supabase.functions.invoke('send-cleaner-notification', {
+              body: {
+                cleanerName: cleaner.name,
+                cleanerPhone: cleaner.phone,
+                customerName: booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Customer',
+                customerPhone: booking.customer?.phone || 'N/A',
+                serviceName: booking.service?.name || 'Cleaning Service',
+                appointmentDate: format(scheduledDate, 'EEEE, MMMM d, yyyy'),
+                appointmentTime: format(scheduledDate, 'h:mm a'),
+                address: fullAddress || 'Address not provided',
+                bookingNumber: booking.booking_number,
+                organizationId: organization?.id,
+              }
+            });
 
-          if (error) throw error;
-          if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
-          successCount++;
-        } catch (error) {
-          console.error(`Failed to notify cleaner for booking #${booking.booking_number}:`, error);
-          failCount++;
+            if (error) throw error;
+            if (!data?.success) throw new Error(data?.error || 'SMS delivery failed');
+            successCount++;
+          } catch (error) {
+            console.error(`Failed to notify cleaner ${cleaner.name} for booking #${booking.booking_number}:`, error);
+            failCount++;
+          }
         }
       }
 
       if (successCount > 0) {
-        toast({ 
-          title: "Week's Notifications Sent", 
-          description: `Successfully notified cleaners for ${successCount} upcoming booking(s)${failCount > 0 ? `. ${failCount} failed.` : '.'}`
+        toast({
+          title: "Week's Notifications Sent",
+          description: `Successfully notified ${successCount} cleaner(s) for upcoming bookings${failCount > 0 ? `. ${failCount} failed.` : '.'}`
         });
       } else {
         toast({ title: "Error", description: "Failed to send notifications", variant: "destructive" });
@@ -1547,7 +1578,7 @@ export default function BookingsPage() {
       b.service?.name || (b.total_amount === 0 ? 'Re-clean' : 'Service'),
       formatInTimezone(b.scheduled_at, orgTz, { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/(\d+)\/(\d+)\/(\d+)/, '$3-$1-$2'),
       formatInTimezone(b.scheduled_at, orgTz, { hour: 'numeric', minute: '2-digit', hour12: true }),
-      b.staff?.name || 'Unassigned',
+      getBookingCleaners(b).map(c => c.name).join(', ') || 'Unassigned',
       statusLabels[b.status] || b.status,
       getPaymentStatusInfo(b).label,
       `$${b.total_amount}`
