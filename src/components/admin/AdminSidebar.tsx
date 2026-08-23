@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OrgSwitcherList } from '@/components/OrgSwitcherList';
+import { useMyStaffOrgs } from '@/hooks/useMyStaffOrgs';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -264,6 +265,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { organization, isOwner, allOrganizations, switchOrganization } = useOrganization();
+  const { staffOrgs } = useMyStaffOrgs();
   const isMobileDevice = useIsMobile();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -629,12 +631,22 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                 markup exactly; the delete button stays here because it is
                 owner-only and admin-only. */}
             <OrgSwitcherList
-              items={allOrganizations.map((orgItem) => ({
-                id: orgItem.organization.id,
-                name: orgItem.organization.name,
-                subtitle:
-                  orgItem.role === 'owner' ? 'Owner' : orgItem.role === 'admin' ? 'Admin' : 'Member',
-              }))}
+              items={allOrganizations.map((orgItem) => {
+                // Show "Staff" instead of "Member" when the user has an active
+                // staff row in this org — that's the portal they'll land in.
+                const isStaffInOrg = staffOrgs.some(s => s.organizationId === orgItem.organization.id);
+                const roleLabel =
+                  orgItem.role === 'owner' ? 'Owner'
+                    : orgItem.role === 'admin' ? 'Admin'
+                    : orgItem.role === 'manager' ? 'Manager'
+                    : isStaffInOrg ? 'Staff'
+                    : 'Member';
+                return {
+                  id: orgItem.organization.id,
+                  name: orgItem.organization.name,
+                  subtitle: roleLabel,
+                };
+              })}
               activeId={organization?.id ?? null}
               onSelect={switchOrganization}
               itemAction={(item) => {

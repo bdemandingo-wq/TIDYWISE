@@ -64,19 +64,26 @@ export function AdminRoute({ children }: AdminRouteProps) {
 
 
   // If the active org isn't admin/owner but the user IS admin/owner in another
-  // org, transparently switch to that org instead of bouncing to /staff. This
-  // protects users who accidentally have a member-role membership somewhere.
+  // org, transparently switch — UNLESS the user deliberately chose this org
+  // via the switcher. A deliberate choice means they want the staff portal.
   const adminOrgElsewhere = allOrganizations.find(
     (o) => (o.role === 'owner' || o.role === 'admin' || o.role === 'manager') && o.organization.id !== organization?.id
   );
 
+  const wasOrgChosen = (() => {
+    try { return localStorage.getItem('tidywise_org_chosen') === 'true'; }
+    catch { return false; }
+  })();
+
   useEffect(() => {
     if (orgLoading || authLoading) return;
+    // Don't auto-switch if the user deliberately chose this org.
+    if (wasOrgChosen) return;
     if (membership && !isAdmin && adminOrgElsewhere && !switchedRef.current) {
       switchedRef.current = true;
       switchOrganization(adminOrgElsewhere.organization.id);
     }
-  }, [orgLoading, authLoading, membership, isAdmin, adminOrgElsewhere, switchOrganization]);
+  }, [orgLoading, authLoading, membership, isAdmin, adminOrgElsewhere, switchOrganization, wasOrgChosen]);
 
   useEffect(() => {
     if (!organization) return;

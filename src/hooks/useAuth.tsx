@@ -45,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // user (e.g. on a shared device) never inherits stale hidden tabs.
     const { clearSidebarHiddenItemsCache } = await import('@/hooks/useSidebarHiddenItems');
     clearSidebarHiddenItemsCache();
+    // Clear the deliberate org choice so the next login defaults to the
+    // highest-priority org instead of inheriting a stale pick.
+    try { localStorage.removeItem('tidywise_org_chosen'); } catch { /* ignore */ }
     await noSessionAuth.signOut();
     setSubscription(null);
     setShowSubscriptionDialog(false);

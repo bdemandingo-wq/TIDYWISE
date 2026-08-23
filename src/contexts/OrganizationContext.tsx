@@ -38,6 +38,8 @@ interface OrganizationContextType {
 }
 
 const ACTIVE_ORG_KEY = 'tidywise_active_org';
+/** Set by switchOrganization to distinguish a deliberate choice from a default. */
+const ORG_CHOSEN_KEY = 'tidywise_org_chosen';
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
@@ -106,11 +108,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setAllOrganizations(allOrgs);
 
       // Determine which org to activate.
-      // SECURITY/UX: Always prefer an owner/admin membership when one exists so
-      // users with elevated access in any organization land in the admin
-      // dashboard instead of being bounced to the staff portal. If a saved org
-      // is a member-only role but the user has admin access elsewhere, the
-      // admin org wins. Explicit switches via switchOrganization still persist.
       const rolePriority = (r: OrgRole) =>
         r === 'owner' ? 0 : r === 'admin' ? 1 : r === 'manager' ? 2 : 3;
       const sortedByRole = [...allOrgs].sort(
@@ -118,9 +115,21 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       );
       const savedOrgId = localStorage.getItem(ACTIVE_ORG_KEY);
       const savedOrg = allOrgs.find(o => o.organization.id === savedOrgId);
+      const wasChosen = localStorage.getItem(ORG_CHOSEN_KEY) === 'true';
       const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin' || o.role === 'manager');
+
       let activeOrg: OrgWithRole | undefined;
-      if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
+      if (wasChosen && savedOrg) {
+        // Deliberate choice and the org still exists — respect it.
+        activeOrg = savedOrg;
+      } else if (wasChosen && !savedOrg) {
+        // Chosen org is gone (removed as staff, org deleted). Drop the
+        // flag and fall back to the default.
+        localStorage.removeItem(ORG_CHOSEN_KEY);
+        activeOrg = bestAdminOrg ?? sortedByRole[0];
+      } else if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
+        // Saved but not explicitly chosen — keep it unless it's a member
+        // role and a better admin org exists.
         activeOrg = savedOrg;
       } else {
         activeOrg = bestAdminOrg ?? sortedByRole[0];
@@ -178,6 +187,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     const target = allOrganizations.find(o => o.organization.id === orgId);
     if (!target) return;
     localStorage.setItem(ACTIVE_ORG_KEY, orgId);
+    localStorage.setItem(ORG_CHOSEN_KEY, 'true');
     setOrganization(target.organization);
     setMembership({ organization_id: orgId, role: target.role });
     // Purge per-org sidebar visibility caches — the incoming org has its own
