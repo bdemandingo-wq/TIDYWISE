@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -14,7 +13,6 @@ interface AdminRouteProps {
 // pay / log out / view billing. Everything else bounces to /pricing.
 const PAYWALL_ALLOWED_PATHS = [
   '/dashboard/subscription',
-  '/dashboard/settings',
   '/logout',
 ];
 
@@ -107,7 +105,6 @@ export function AdminRoute({ children }: AdminRouteProps) {
     !!user &&
     !!organization &&
     isAdmin &&
-    !Capacitor.isNativePlatform() &&
     !subLoading &&
     !hasFullAccess &&
     !inPostCheckoutGrace &&
