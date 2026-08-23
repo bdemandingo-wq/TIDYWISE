@@ -60,26 +60,19 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   // doesn't flicker every time the session renews.
   const resolvedUserIdRef = useRef<string | null>(null);
 
-  const fetchOrganization = useCallback(async () => {
-    if (!user) {
-      resolvedUserIdRef.current = null;
-      setOrganization(null);
-      setMembership(null);
-      setAllOrganizations([]);
-      setLoading(false);
-      return;
-    }
-
-    if (resolvedUserIdRef.current !== user.id) {
+  // Core fetch logic, parameterized by userId so it can be called both
+  // from the useEffect (with closure user) and imperatively from the
+  // signup handler (with the session user, bypassing stale closure).
+  const fetchOrgForUser = useCallback(async (userId: string) => {
+    if (resolvedUserIdRef.current !== userId) {
       setLoading(true);
     }
 
     try {
-      // Fetch ALL memberships for this user
       const { data: memberships, error: membershipError } = await supabase
         .from('org_memberships')
         .select('organization_id, role')
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       if (membershipError || !memberships || memberships.length === 0) {
         setOrganization(null);
@@ -89,7 +82,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch all related organizations
       const orgIds = memberships.map(m => m.organization_id);
       const { data: orgs, error: orgError } = await supabase
         .from('organizations')
@@ -104,7 +96,6 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Build the full list
       const allOrgs: OrgWithRole[] = [];
       for (const m of memberships) {
         const org = orgs.find(o => o.id === m.organization_id);
@@ -149,10 +140,33 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setMembership(null);
       setAllOrganizations([]);
     } finally {
-      resolvedUserIdRef.current = user.id;
+      resolvedUserIdRef.current = userId;
       setLoading(false);
     }
-  }, [user]);
+  }, []);
+
+  // Effect-driven fetch: runs when the React `user` state changes (login, logout).
+  const fetchOrganization = useCallback(async () => {
+    if (!user) {
+      resolvedUserIdRef.current = null;
+      setOrganization(null);
+      setMembership(null);
+      setAllOrganizations([]);
+      setLoading(false);
+      return;
+    }
+    return fetchOrgForUser(user.id);
+  }, [user, fetchOrgForUser]);
+
+  // Imperative refetch: reads the current user from supabase.auth.getSession()
+  // instead of from the React closure. This works even when called during
+  // signup before React has re-rendered with the new auth state.
+  const refetch = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const sessionUser = session?.user;
+    if (!sessionUser) return;
+    return fetchOrgForUser(sessionUser.id);
+  }, [fetchOrgForUser]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -197,7 +211,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         isAdmin,
         allOrganizations,
         switchOrganization,
-        refetch: fetchOrganization,
+        refetch,
       }}
     >
       {children}
