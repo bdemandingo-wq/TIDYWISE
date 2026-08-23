@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Video, Plus, Trash2, GripVertical } from 'lucide-react';
+import { Loader2, Video, Plus, Trash2, GripVertical, Play } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrgId } from '@/hooks/useOrgId';
@@ -32,6 +32,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { SEOHead } from '@/components/SEOHead';
 
 const PLATFORM_ADMIN_EMAIL = 'support@tidywisecleaning.com';
+
+/** Extract a thumbnail URL from a Loom/YouTube/Vimeo embed URL. */
+function getThumbnailUrl(embedUrl: string): string | null {
+  // YouTube: https://www.youtube.com/embed/VIDEO_ID
+  const ytMatch = embedUrl.match(/youtube\.com\/embed\/([^?&/]+)/);
+  if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+
+  // Loom: https://www.loom.com/embed/VIDEO_ID
+  const loomMatch = embedUrl.match(/loom\.com\/embed\/([^?&/]+)/);
+  if (loomMatch) return `https://cdn.loom.com/sessions/thumbnails/${loomMatch[1]}-with-play.gif`;
+
+  // Vimeo: https://player.vimeo.com/video/VIDEO_ID
+  // Vimeo thumbnails require an API call, so no static URL available.
+  return null;
+}
 
 interface HelpVideo {
   id: string;
@@ -59,6 +74,8 @@ export default function HelpPage() {
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newUrl, setNewUrl] = useState('');
+  // Click-to-play: only the tapped video loads its iframe
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     if (organizationId) {
@@ -202,8 +219,8 @@ export default function HelpPage() {
         isPlatformAdmin ? (
           <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="btn-hover">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button size="sm" className="btn-hover whitespace-nowrap">
+                <Plus className="w-4 h-4 mr-1" />
                 Add Video
               </Button>
             </DialogTrigger>
@@ -296,14 +313,42 @@ export default function HelpPage() {
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
                   <div className="aspect-video bg-muted relative">
-                    <iframe
-                      src={video.loom_url}
-                      title={video.title || 'Help video'}
-                      frameBorder="0"
-                      allowFullScreen
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      className="absolute inset-0 w-full h-full"
-                    />
+                    {playingVideoId === video.id ? (
+                      <iframe
+                        src={video.loom_url + (video.loom_url.includes('?') ? '&' : '?') + 'autoplay=1'}
+                        title={video.title || 'Help video'}
+                        frameBorder="0"
+                        allowFullScreen
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        className="absolute inset-0 w-full h-full"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setPlayingVideoId(video.id)}
+                        className="absolute inset-0 w-full h-full flex items-center justify-center group/play cursor-pointer"
+                      >
+                        {(() => {
+                          const thumb = getThumbnailUrl(video.loom_url);
+                          return thumb ? (
+                            <img
+                              src={thumb}
+                              alt={video.title}
+                              className="absolute inset-0 w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-2 bg-muted">
+                              <Video className="w-8 h-8 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground font-medium">{video.title}</span>
+                            </div>
+                          );
+                        })()}
+                        <div className="relative z-10 w-14 h-14 rounded-full bg-black/60 flex items-center justify-center group-hover/play:bg-black/80 transition-colors">
+                          <Play className="w-6 h-6 text-white fill-white ml-0.5" />
+                        </div>
+                      </button>
+                    )}
                   </div>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
