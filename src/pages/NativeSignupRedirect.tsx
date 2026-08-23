@@ -16,9 +16,10 @@
  * during signup. Payment comes at trial end, on the web.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,7 @@ export default function NativeSignupPage() {
     loading: authLoading,
     initialCleanupDone,
   } = useAuthNoSession();
+  const { refetch: refetchOrganization } = useOrganization();
 
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<'apple' | 'google' | null>(null);
@@ -77,16 +79,17 @@ export default function NativeSignupPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ── Provision trial org ───────────────────────────────────────────
-  const provisionTrialOrg = async () => {
+  const provisionTrialOrg = async (): Promise<string | null> => {
     try {
-      const { error } = await supabaseNoSession.functions.invoke('provision-trial-org');
+      const { data, error } = await supabaseNoSession.functions.invoke('provision-trial-org');
       if (error) {
         console.error('Trial org provisioning failed:', error);
-        // Non-blocking — user can still reach the dashboard; the org
-        // will be created on next login via the same function.
+        return null;
       }
+      return (data as { organization_id?: string })?.organization_id ?? null;
     } catch (err) {
       console.error('Trial org provisioning failed:', err);
+      return null;
     }
   };
 
@@ -193,9 +196,15 @@ export default function NativeSignupPage() {
           },
         }).catch(() => {});
 
-        // Provision the trial org
-        await provisionTrialOrg();
-
+        // Provision the trial org, then imperatively refetch.
+        // refetch() reads the user from supabase.auth.getSession()
+        // instead of from the React closure, so it works even though
+        // React hasn't re-rendered with the auth state yet.
+        const orgId = await provisionTrialOrg();
+        if (orgId) {
+          try { localStorage.setItem('tidywise_active_org', orgId); } catch { /* ignore */ }
+        }
+        await refetchOrganization();
         toast.success('Account created! Welcome aboard.');
         setLoading(false);
         setShowSplash(true);
@@ -239,9 +248,12 @@ export default function NativeSignupPage() {
   };
 
   // ── Splash complete → dashboard ───────────────────────────────────
-  const handleSplashComplete = () => {
+  // Memoized: SplashScreen's useEffect depends on [onComplete]. Without
+  // useCallback, every context re-render (auth, org, subscription) creates
+  // a new function reference → resets the 1500ms timer → splash hangs.
+  const handleSplashComplete = useCallback(() => {
     navigate('/dashboard', { replace: true });
-  };
+  }, [navigate]);
 
   if (showSplash) {
     return <SplashScreen onComplete={handleSplashComplete} minDuration={1500} />;
