@@ -84,14 +84,38 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     if (!initialCleanupDone) return;
 
     const { data: { subscription } } = supabaseNoSession.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        
+
         // If user signs out, ensure state is cleared
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
+        }
+
+        // OAuth signup: when a user signs in via Apple/Google for the first
+        // time, they have no profile or org. The email/password path handles
+        // this in the signup handler, but OAuth lands here directly.
+        // Provision a trial org if this user has no org_memberships yet.
+        if (event === 'SIGNED_IN' && currentSession?.user) {
+          try {
+            const { data: memberships } = await supabaseNoSession
+              .from('org_memberships')
+              .select('organization_id')
+              .eq('user_id', currentSession.user.id)
+              .limit(1);
+
+            if (!memberships || memberships.length === 0) {
+              const { data } = await supabaseNoSession.functions.invoke('provision-trial-org');
+              const orgId = (data as { organization_id?: string })?.organization_id;
+              if (orgId) {
+                try { localStorage.setItem('tidywise_active_org', orgId); } catch { /* ignore */ }
+              }
+            }
+          } catch {
+            // Non-blocking — org can be provisioned on next login
+          }
         }
       }
     );

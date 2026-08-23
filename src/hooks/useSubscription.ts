@@ -59,17 +59,19 @@ export function useSubscription(): SubscriptionAccess {
   const isSubscribed = subscription?.subscribed === true;
   const isTrialActive = subscription?.trial_active === true;
 
-  // TidyWise is paid-only on the web. Access is granted only when:
+  // Access is granted when:
   //   • the user is on an allowlisted demo / Apple-review account, OR
   //   • check-subscription returned subscribed=true (active Stripe sub,
-  //     lifetime purchase, or an unexpired pre-cutoff org trial).
+  //     lifetime purchase, active trial, or comped access).
+  // Native no longer bypasses — trial users hit a wall at day 14.
   const hasFullAccess = isFreeAccount || isSubscribed;
 
   // Tier-aware Pro-feature gate. Even during the 14-day trial, the
   // user only gets access to the FEATURES of the plan they selected.
   // Basic-plan users (paid or trialing) must NOT see Pro-only modules
   // like AI, Campaigns, Reports, Inventory, etc.
-  // Demo accounts bypass tier gating entirely.
+  // Demo accounts bypass tier gating entirely. Native trial users get
+  // all features during the trial (plan_type='trial' is treated as pro).
   const bypassTier = isFreeAccount || planState.grandfathered;
   const proOrAbove = bypassTier || (hasFullAccess && (
     planState.planType === 'pro' ||

@@ -112,15 +112,17 @@ export function AdminRoute({ children }: AdminRouteProps) {
       (allowed) => location.pathname === allowed || location.pathname.startsWith(allowed + '/')
     );
 
-  // Existing customers (had a Stripe sub before, card expired, or payment failed)
-  // should go to /dashboard/subscription so they can update their card in one
-  // click. Brand-new users with no billing history go to /pricing to choose a plan.
+  // On native, always send to /dashboard/subscription (the trial-expired
+  // wall). On web, existing customers go to /dashboard/subscription to
+  // update their card; new users go to /choose-plan to pick a plan.
   const isExistingCustomer =
     !!subscription?.payment_failed ||
     !!subscription?.subscription_end ||
     (!!subscription?.product_id && subscription.product_id !== 'org_trial');
 
-  const paywallDestination = isExistingCustomer ? '/dashboard/subscription' : '/choose-plan';
+  const paywallDestination = Capacitor.isNativePlatform()
+    ? '/dashboard/subscription'
+    : isExistingCustomer ? '/dashboard/subscription' : '/choose-plan';
 
   // Imperative one-shot redirect, keyed on pathname.
   useEffect(() => {
