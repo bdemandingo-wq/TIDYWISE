@@ -12136,6 +12136,7 @@ export type Database = {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
       }
+      staff_owns_assignment: { Args: { _staff_id: string }; Returns: boolean }
       stripe_duplicate_accounts: {
         Args: never
         Returns: {
