@@ -327,8 +327,10 @@ export function BookingFormProvider({
     enabled: !!selectedCustomerId,
   });
   
+  // Empty string, not null: every consumer here treats falsy as "no email"
+  // and the card-on-file lookup below is already guarded on truthiness.
   const customerEmail = customerTab === 'existing' && selectedCustomer 
-    ? selectedCustomer.email 
+    ? (selectedCustomer.email ?? '')
     : newCustomer.email;
 
   const customerName = customerTab === 'existing' && selectedCustomer

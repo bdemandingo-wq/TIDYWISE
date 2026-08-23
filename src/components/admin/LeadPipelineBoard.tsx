@@ -18,7 +18,7 @@ import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
 interface Lead {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   address: string | null;
   city: string | null;

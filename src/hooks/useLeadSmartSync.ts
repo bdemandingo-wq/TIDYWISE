@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 interface Lead {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   status: string;
   notes: string | null;
@@ -38,7 +38,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       }
 
       // Collect all emails and phones from converted leads
-      const emails = convertedLeads.map(l => l.email.toLowerCase()).filter(Boolean);
+      const emails = convertedLeads.map(l => l.email?.toLowerCase()).filter(Boolean) as string[];
       const phones = convertedLeads
         .map(l => l.phone?.replace(/\D/g, ''))
         .filter((p): p is string => !!p && p.length >= 7);
@@ -96,7 +96,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       const leadCustomerMap = new Map<string, string[]>(); // lead.id -> customer_ids[]
       for (const lead of convertedLeads) {
         const ids = new Set<string>();
-        const byEmail = customerMap.get(lead.email.toLowerCase());
+        const byEmail = lead.email ? customerMap.get(lead.email.toLowerCase()) : undefined;
         byEmail?.forEach(id => ids.add(id));
         if (lead.phone) {
           const byPhone = customerMap.get(lead.phone.replace(/\D/g, ''));
