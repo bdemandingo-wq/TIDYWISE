@@ -231,21 +231,27 @@ export function AdditionalChargesDialog({
   // Delete charge mutation
   const deleteCharge = useMutation({
     mutationFn: async (charge: AdditionalCharge) => {
-      const { error: deleteError } = await supabase
-        .from('additional_charges')
-        .delete()
-        .eq('id', charge.id);
+      await mustAffectRows(
+        supabase
+          .from('additional_charges')
+          .delete()
+          .eq('id', charge.id),
+        'Charge could not be removed — you may not have access to it in this business.',
+        { table: 'additional_charges' },
+      );
 
-      if (deleteError) throw deleteError;
-
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ 
-          total_amount: currentTotal - charge.charge_amount 
-        })
-        .eq('id', bookingId);
-
-      if (updateError) throw updateError;
+      // Same hazard as adding: the charge row is gone, so losing this write
+      // silently would leave the booking total too high forever.
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update({ 
+            total_amount: currentTotal - charge.charge_amount 
+          })
+          .eq('id', bookingId),
+        'Charge was removed but the booking total could not be updated. Refresh and check the booking total.',
+        { table: 'bookings' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['additional-charges', bookingId] });
