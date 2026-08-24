@@ -187,13 +187,16 @@ export function BulkEditBookingsDialog({
 
         if (Object.keys(updates).length === 0) continue;
 
-        const { error } = await supabase
+        // A bulk edit reports "N updated" from this loop, so a row that was
+        // silently filtered out must count as a failure, not a success.
+        const { data: updatedRows, error } = await supabase
           .from('bookings')
           .update(updates)
-          .eq('id', booking.id);
+          .eq('id', booking.id)
+          .select('id');
 
-        if (error) {
-          console.error('Bulk edit error for booking', booking.id, error);
+        if (error || !updatedRows || updatedRows.length === 0) {
+          console.error('Bulk edit error for booking', booking.id, error ?? 'no rows affected');
           failCount++;
         } else {
           // Update team assignments if staff changed
