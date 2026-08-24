@@ -166,9 +166,9 @@ export default function ExpensesPage() {
       setEditExpense(null);
       resetForm();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('Error updating expense:', error);
-      toast.error('Failed to update expense');
+      toast.error(error.message || 'Failed to update expense');
     },
   });
 
@@ -176,17 +176,20 @@ export default function ExpensesPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!organization?.id) throw new Error('No organization found');
-      const { error } = await supabase.from('expenses').delete().eq('id', id).eq('organization_id', organization.id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('expenses').delete().eq('id', id).eq('organization_id', organization.id),
+        'Expense not deleted — it may belong to a different business.',
+        { table: 'expenses' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       toast.success('Expense deleted');
       setDeleteConfirm(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('Error deleting expense:', error);
-      toast.error('Failed to delete expense');
+      toast.error(error.message || 'Failed to delete expense');
     },
   });
 
