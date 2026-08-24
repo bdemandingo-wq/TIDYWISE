@@ -333,13 +333,26 @@ export default function LeadsPage() {
       }
     }
 
-    await supabase
+    const { data: convertedRows, error: convertError } = await supabase
       .from('leads')
       .update({ 
         status: 'converted',
         ...(estimatedValue != null ? { estimated_value: estimatedValue } : {}),
       })
-      .eq('id', lead.id);
+      .eq('id', lead.id)
+      .select('id');
+
+    // The customer row was already created above, so a silently-dropped status
+    // write here leaves the lead looking unconverted forever. Surface it.
+    if (convertError || !convertedRows || convertedRows.length === 0) {
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      toast.error(
+        convertError?.message ??
+          'Customer created, but the lead could not be marked as converted.',
+      );
+      return;
+    }
 
     queryClient.invalidateQueries({ queryKey: ['leads'] });
     queryClient.invalidateQueries({ queryKey: ['customers'] });
