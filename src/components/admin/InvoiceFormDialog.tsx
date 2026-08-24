@@ -42,6 +42,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { orgDateKey, orgAddDays, formatInOrgTz } from '@/lib/orgDateRange';
 import { formatInvoiceNumber } from '@/lib/invoiceUtils';
 import { fmt } from '@/lib/activeCurrency';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 
 interface LineItem {
   id?: string;
@@ -329,14 +330,20 @@ export function InvoiceFormDialog({
       let invoiceNumber: number;
 
       if (isEditing) {
-        const { error } = await supabase
-          .from('invoices')
-          .update(invoiceData)
-          .eq('id', invoice.id);
-        if (error) throw error;
+        await mustAffectRows(
+          supabase.from('invoices').update(invoiceData).eq('id', invoice.id),
+          'Invoice not saved — it may belong to a different business.',
+          { table: 'invoices' },
+        );
         invoiceId = invoice.id;
         invoiceNumber = invoice.invoice_number;
-        await supabase.from('invoice_items').delete().eq('invoice_id', invoiceId);
+        // Line items are replaced wholesale; zero deleted rows is legitimate
+        // for an invoice that had none, so this one stays unguarded.
+        const { error: itemsDeleteError } = await supabase
+          .from('invoice_items')
+          .delete()
+          .eq('invoice_id', invoiceId);
+        if (itemsDeleteError) throw itemsDeleteError;
       } else {
         const { data, error } = await supabase
           .from('invoices')
