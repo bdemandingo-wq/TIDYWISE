@@ -36,6 +36,7 @@ import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
 import { preloadStripeModules } from '@/lib/stripe';
 import { useAuth } from '@/hooks/useAuth';
 import { fmt } from '@/lib/activeCurrency';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import { CustomerNotesBlock } from '@/components/CustomerNotesBlock';
 
 // computeExpectedPay now lives in @/lib/cleanerPay (shared across all pay write sites).
@@ -136,19 +137,22 @@ export function PaymentStep() {
 
     setPaySaveStatus('saving');
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
-          cleaner_wage_type: cleanerWageType,
-          cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
-          cleaner_pay_expected: expectedPay,
-          pay_last_saved_at: new Date().toISOString(),
-          pay_last_saved_by: user?.id || null,
-        })
-        .eq('id', editingBookingId);
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update({
+            cleaner_wage: cleanerWage ? parseFloat(cleanerWage) : null,
+            cleaner_wage_type: cleanerWageType,
+            cleaner_override_hours: cleanerOverrideHours ? parseFloat(cleanerOverrideHours) : null,
+            cleaner_pay_expected: expectedPay,
+            pay_last_saved_at: new Date().toISOString(),
+            pay_last_saved_by: user?.id || null,
+          })
+          .eq('id', editingBookingId),
+        'Cleaner pay not saved — this booking was not writable.',
+        { table: 'bookings' },
+      );
 
-      if (error) throw error;
       await syncCleanerPayShare(editingBookingId, organizationId, expectedPay);
       setPaySaveStatus('saved');
       // Reset to idle after 3 seconds

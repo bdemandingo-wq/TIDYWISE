@@ -152,12 +152,17 @@ export function QuotesTabContent() {
 
   const markAsAccepted = async (quote: Quote) => {
     try {
-      // Update quote status to accepted
-      const { error: quoteError } = await supabase
-        .from('quotes')
-        .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-        .eq('id', quote.id);
-      if (quoteError) throw quoteError;
+      // Update quote status to accepted. Guarded: the booking below is created
+      // unconditionally afterwards, so a silently-filtered status update would
+      // leave an accepted quote that still looks open and can be accepted twice.
+      await mustAffectRows(
+        supabase
+          .from('quotes')
+          .update({ status: 'accepted', accepted_at: new Date().toISOString() })
+          .eq('id', quote.id),
+        'Quote not accepted — nothing was written, so no booking was created.',
+        { table: 'quotes' },
+      );
 
       // Create a real booking from the quote data
       const bookingData: any = {
