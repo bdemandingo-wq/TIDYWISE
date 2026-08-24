@@ -52,6 +52,7 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { SEOHead } from '@/components/SEOHead';
 import { fmt } from '@/lib/activeCurrency';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 
 interface Expense {
   id: string;

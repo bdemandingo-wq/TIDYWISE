@@ -345,10 +345,14 @@ export default function InvoicesPage() {
       if (error) throw error;
 
       if (invoice.status === 'draft') {
-        await supabase
-          .from('invoices')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
-          .eq('id', invoice.id);
+        await mustAffectRows(
+          supabase
+            .from('invoices')
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .eq('id', invoice.id),
+          'Invoice was emailed but its status could not be updated to Sent.',
+          { table: 'invoices' },
+        );
       }
 
       toast.success(`Invoice emailed to ${contact.email}`);
