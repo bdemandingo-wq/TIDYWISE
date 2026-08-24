@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2, User, Mail, Phone, ShieldAlert, UserCheck, CreditCard, Link2, Check, Clock, Send, MapPin, Plus, Trash2, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';

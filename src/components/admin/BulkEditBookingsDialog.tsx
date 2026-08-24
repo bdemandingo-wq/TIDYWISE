@@ -31,6 +31,7 @@ import {
 import { Loader2, Edit, Filter, User, Users, Clock, DollarSign, Wrench, X, Banknote, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone, getDateInTimezone, orgTimeToUTCISO } from '@/lib/timezoneUtils';

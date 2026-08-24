@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import type { WageBooking } from '@/lib/wageCalculation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
