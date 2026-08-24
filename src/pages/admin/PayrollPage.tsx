@@ -47,6 +47,7 @@ import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings'
 import { PayrollCostSettings } from '@/components/admin/PayrollCostSettings';
 import { SEOHead } from '@/components/SEOHead';
 import { fmt } from '@/lib/activeCurrency';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 
 interface StaffWithPayroll {
   id: string;
@@ -417,13 +418,16 @@ export default function PayrollPage() {
   const undoPaymentMutation = useMutation({
     mutationFn: async ({ staffId, staffName }: { staffId: string; staffName: string }) => {
       if (!organizationId || !user) throw new Error('Missing context');
-      const { error } = await supabase
-        .from('payroll_payments')
-        .delete()
-        .eq('organization_id', organizationId)
-        .eq('staff_id', staffId)
-        .eq('week_start', weekStart);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase
+          .from('payroll_payments')
+          .delete()
+          .eq('organization_id', organizationId)
+          .eq('staff_id', staffId)
+          .eq('week_start', weekStart),
+        'Payment not undone — no payroll payment row was removed.',
+        { table: 'payroll_payments' },
+      );
       return { staffName };
     },
     onSuccess: (data) => {
