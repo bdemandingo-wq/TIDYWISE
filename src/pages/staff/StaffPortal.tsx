@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import type { WageBooking } from '@/lib/wageCalculation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -861,12 +862,18 @@ export default function StaffPortal() {
         }
       }
       
-      const { error } = await supabase
-        .from('bookings')
-        .update(updateData)
-        .eq('id', bookingId);
+      // This is a cleaner marking a job complete — it carries cleaner_pay_expected
+      // and drives payroll. Staff RLS on bookings is narrower than admin RLS, so a
+      // filtered-out write here is a realistic outcome and must not read as done.
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update(updateData)
+          .eq('id', bookingId),
+        'Job status could not be saved. Pull to refresh and try again — do not assume the job was marked complete.',
+        { table: 'bookings' },
+      );
 
-      if (error) throw error;
 
       // Auto-send review request when job is completed
       if (status === 'completed') {

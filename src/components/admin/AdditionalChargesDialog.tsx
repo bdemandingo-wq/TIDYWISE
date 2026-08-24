@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { mustAffectRows, affectedRows } from '@/lib/mustAffectRows';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { toast } from 'sonner';
 import { showChargeFailureToastSonner, extractFailureReason } from '@/lib/chargeErrorToast';
@@ -192,15 +193,20 @@ export function AdditionalChargesDialog({
 
       if (insertError) throw insertError;
 
-      // Update booking total
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ 
-          total_amount: currentTotal + amount 
-        })
-        .eq('id', bookingId);
+      // Update booking total.
+      // Guarded: the charge row is already inserted at this point, so a silently
+      // dropped total update leaves the booking mispriced with nothing to show it.
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update({ 
+            total_amount: currentTotal + amount 
+          })
+          .eq('id', bookingId),
+        'Charge was recorded but the booking total could not be updated. Refresh and check the booking total.',
+        { table: 'bookings' },
+      );
 
-      if (updateError) throw updateError;
 
       return { paymentMethod, amount };
     },
@@ -226,21 +232,27 @@ export function AdditionalChargesDialog({
   // Delete charge mutation
   const deleteCharge = useMutation({
     mutationFn: async (charge: AdditionalCharge) => {
-      const { error: deleteError } = await supabase
-        .from('additional_charges')
-        .delete()
-        .eq('id', charge.id);
+      await mustAffectRows(
+        supabase
+          .from('additional_charges')
+          .delete()
+          .eq('id', charge.id),
+        'Charge could not be removed — you may not have access to it in this business.',
+        { table: 'additional_charges' },
+      );
 
-      if (deleteError) throw deleteError;
-
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ 
-          total_amount: currentTotal - charge.charge_amount 
-        })
-        .eq('id', bookingId);
-
-      if (updateError) throw updateError;
+      // Same hazard as adding: the charge row is gone, so losing this write
+      // silently would leave the booking total too high forever.
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update({ 
+            total_amount: currentTotal - charge.charge_amount 
+          })
+          .eq('id', bookingId),
+        'Charge was removed but the booking total could not be updated. Refresh and check the booking total.',
+        { table: 'bookings' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['additional-charges', bookingId] });

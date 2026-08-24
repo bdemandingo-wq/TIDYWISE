@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/lib/supabase";
+import { mustAffectRows, affectedRows } from '@/lib/mustAffectRows';
 import { getTimeInTimezone } from "@/lib/timezoneUtils";
 import { useOrgTimezone } from "@/hooks/useOrgTimezone";
 import { orgDateKey, formatInOrgTz } from "@/lib/orgDateRange";
@@ -817,12 +818,19 @@ export function AdjustPaymentDialog({
         // Save each cleaner's individual pay to booking_team_assignments.pay_share
         for (const member of teamMembers) {
           const amount = teamPayments[member.id];
-          await supabase
-            .from('booking_team_assignments')
-            .update({ pay_share: amount ? parseFloat(amount) : null })
-            .eq('booking_id', booking.id)
-            .eq('staff_id', member.id)
-            .eq('organization_id', organizationId);
+          // Every member in teamMembers came from an existing assignment row, so
+          // zero rows here means the write was filtered out — and this is what a
+          // cleaner gets paid. Fail loudly rather than toast "Saved".
+          await mustAffectRows(
+            supabase
+              .from('booking_team_assignments')
+              .update({ pay_share: amount ? parseFloat(amount) : null })
+              .eq('booking_id', booking.id)
+              .eq('staff_id', member.id)
+              .eq('organization_id', organizationId),
+            `Pay for ${member.name ?? 'a team member'} could not be saved. No payment changes were applied — please retry.`,
+            { table: 'booking_team_assignments' },
+          );
         }
 
         // Also save primary cleaner's pay to booking for payroll parity
@@ -850,11 +858,16 @@ export function AdjustPaymentDialog({
         // CRITICAL: Also update booking_team_assignments.pay_share if a single assignment exists
         // because payroll may read pay_share and it would override the booking-level value
         if (organizationId) {
-          await supabase
-            .from('booking_team_assignments')
-            .update({ pay_share: parsedAmount })
-            .eq('booking_id', booking.id)
-            .eq('organization_id', organizationId);
+          // affectedRows, not mustAffectRows: a single-cleaner booking legitimately
+          // may have no assignment row at all, so 0 is a valid outcome here. The
+          // count is still checked so a filtered-out write can't hide behind it.
+          await affectedRows(
+            supabase
+              .from('booking_team_assignments')
+              .update({ pay_share: parsedAmount })
+              .eq('booking_id', booking.id)
+              .eq('organization_id', organizationId),
+          );
         }
       }
 

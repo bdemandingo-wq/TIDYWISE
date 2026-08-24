@@ -10,6 +10,7 @@ import {
 import { Printer, ExternalLink, Send, Loader2, ChevronLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
 import {
@@ -91,10 +92,16 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
       if (error) throw error;
 
       if (invoice.status === 'draft') {
-        await supabase
-          .from('invoices')
-          .update({ status: 'sent', sent_at: new Date().toISOString() })
-          .eq('id', invoice.id);
+        // The email has already gone out. If this write is silently dropped the
+        // invoice stays 'draft', looks unsent, and reports wrong in Finance.
+        await mustAffectRows(
+          supabase
+            .from('invoices')
+            .update({ status: 'sent', sent_at: new Date().toISOString() })
+            .eq('id', invoice.id),
+          `Invoice was emailed to ${contact.email} but could not be marked as sent. Refresh and check its status before re-sending.`,
+          { table: 'invoices' },
+        );
       }
 
       toast.success(`Invoice emailed to ${contact.email}`);
