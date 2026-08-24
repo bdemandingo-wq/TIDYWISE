@@ -295,11 +295,17 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   const handleSetDefault = async (id: string) => {
     if (!customer) return;
     try {
-      // Unset all
+      // Two-step swap: unset all, then set one. If the second write is silently
+      // dropped the customer is left with NO primary address at all, so it is
+      // guarded. The unset is not — clearing zero rows is harmless and a
+      // customer with no addresses yet is a legitimate case.
       await supabase.from('locations').update({ is_primary: false }).eq('customer_id', customer.id);
       // Set new default
-      const { error } = await supabase.from('locations').update({ is_primary: true }).eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('locations').update({ is_primary: true }).eq('id', id),
+        'Default address was not updated — this customer may now have no primary address. Please retry.',
+        { table: 'locations' },
+      );
       toast.success('Default address updated');
       refetchAddresses();
     } catch (err: any) {
