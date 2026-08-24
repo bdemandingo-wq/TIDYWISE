@@ -202,8 +202,20 @@ export default function LeadsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Lead> & { id: string }) => {
-      const { error } = await supabase.from('leads').update(data as any).eq('id', id);
+      // .select('id') is load-bearing: without it PostgREST reports success even
+      // when RLS filtered the row out, so a write that saved nothing shows a
+      // "Lead updated" toast. Zero rows back == the write did not happen.
+      const { data: rows, error } = await supabase
+        .from('leads')
+        .update(data as any)
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!rows || rows.length === 0) {
+        throw new Error(
+          "Lead not saved — you may not have access to it in the business you're currently in. Try switching business and retry.",
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
@@ -216,8 +228,19 @@ export default function LeadsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('leads').delete().eq('id', id);
+      // Same silent-write hazard as the update above: no returned rows means RLS
+      // filtered the delete out, not that it succeeded.
+      const { data: rows, error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!rows || rows.length === 0) {
+        throw new Error(
+          "Lead not deleted — you may not have access to it in the business you're currently in.",
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
