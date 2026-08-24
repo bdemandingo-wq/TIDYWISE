@@ -192,15 +192,20 @@ export function AdditionalChargesDialog({
 
       if (insertError) throw insertError;
 
-      // Update booking total
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ 
-          total_amount: currentTotal + amount 
-        })
-        .eq('id', bookingId);
+      // Update booking total.
+      // Guarded: the charge row is already inserted at this point, so a silently
+      // dropped total update leaves the booking mispriced with nothing to show it.
+      await mustAffectRows(
+        supabase
+          .from('bookings')
+          .update({ 
+            total_amount: currentTotal + amount 
+          })
+          .eq('id', bookingId),
+        'Charge was recorded but the booking total could not be updated. Refresh and check the booking total.',
+        { table: 'bookings' },
+      );
 
-      if (updateError) throw updateError;
 
       return { paymentMethod, amount };
     },
