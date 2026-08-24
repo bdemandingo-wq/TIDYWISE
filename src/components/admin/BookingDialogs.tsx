@@ -818,12 +818,19 @@ export function AdjustPaymentDialog({
         // Save each cleaner's individual pay to booking_team_assignments.pay_share
         for (const member of teamMembers) {
           const amount = teamPayments[member.id];
-          await supabase
-            .from('booking_team_assignments')
-            .update({ pay_share: amount ? parseFloat(amount) : null })
-            .eq('booking_id', booking.id)
-            .eq('staff_id', member.id)
-            .eq('organization_id', organizationId);
+          // Every member in teamMembers came from an existing assignment row, so
+          // zero rows here means the write was filtered out — and this is what a
+          // cleaner gets paid. Fail loudly rather than toast "Saved".
+          await mustAffectRows(
+            supabase
+              .from('booking_team_assignments')
+              .update({ pay_share: amount ? parseFloat(amount) : null })
+              .eq('booking_id', booking.id)
+              .eq('staff_id', member.id)
+              .eq('organization_id', organizationId),
+            `Pay for ${member.name ?? 'a team member'} could not be saved. No payment changes were applied — please retry.`,
+            { table: 'booking_team_assignments' },
+          );
         }
 
         // Also save primary cleaner's pay to booking for payroll parity
