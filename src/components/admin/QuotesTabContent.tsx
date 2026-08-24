@@ -39,6 +39,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { fmt } from '@/lib/activeCurrency';
 import { orgAddDays, orgDateKey } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 
 interface Quote {
   id: string;
@@ -119,13 +120,11 @@ export function QuotesTabContent() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<Quote> & { id: string }) => {
-      const { error } = await supabase
-        .from('quotes')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('quotes').update(data).eq('id', id),
+        'Quote not saved — it may belong to a different business.',
+        { table: 'quotes' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
@@ -138,8 +137,11 @@ export function QuotesTabContent() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('quotes').delete().eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('quotes').delete().eq('id', id),
+        'Quote not deleted — it may belong to a different business.',
+        { table: 'quotes' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] });
