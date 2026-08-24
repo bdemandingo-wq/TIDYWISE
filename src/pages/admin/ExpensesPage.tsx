@@ -143,19 +143,22 @@ export default function ExpensesPage() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
       if (!organization?.id) throw new Error('No organization found');
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          category: data.category,
-          description: data.description,
-          amount: parseFloat(data.amount),
-          vendor: data.vendor || null,
-          /* eslint-disable-next-line local/no-device-local-dates -- picker token -> DATE column */
-          expense_date: format(data.expense_date, 'yyyy-MM-dd'),
-        })
-        .eq('id', id)
-        .eq('organization_id', organization.id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase
+          .from('expenses')
+          .update({
+            category: data.category,
+            description: data.description,
+            amount: parseFloat(data.amount),
+            vendor: data.vendor || null,
+            /* eslint-disable-next-line local/no-device-local-dates -- picker token -> DATE column */
+            expense_date: format(data.expense_date, 'yyyy-MM-dd'),
+          })
+          .eq('id', id)
+          .eq('organization_id', organization.id),
+        'Expense not saved — it may belong to a different business.',
+        { table: 'expenses' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
