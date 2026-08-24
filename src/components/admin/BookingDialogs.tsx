@@ -858,11 +858,16 @@ export function AdjustPaymentDialog({
         // CRITICAL: Also update booking_team_assignments.pay_share if a single assignment exists
         // because payroll may read pay_share and it would override the booking-level value
         if (organizationId) {
-          await supabase
-            .from('booking_team_assignments')
-            .update({ pay_share: parsedAmount })
-            .eq('booking_id', booking.id)
-            .eq('organization_id', organizationId);
+          // affectedRows, not mustAffectRows: a single-cleaner booking legitimately
+          // may have no assignment row at all, so 0 is a valid outcome here. The
+          // count is still checked so a filtered-out write can't hide behind it.
+          await affectedRows(
+            supabase
+              .from('booking_team_assignments')
+              .update({ pay_share: parsedAmount })
+              .eq('booking_id', booking.id)
+              .eq('organization_id', organizationId),
+          );
         }
       }
 
