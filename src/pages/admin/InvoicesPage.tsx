@@ -41,6 +41,7 @@ import { InvoiceFormDialog } from '@/components/admin/InvoiceFormDialog';
 import { SEOHead } from '@/components/SEOHead';
 import { buildInvoiceEmailPayload, formatInvoiceNumber, getInvoiceContact } from '@/lib/invoiceUtils';
 import { fmt } from '@/lib/activeCurrency';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 
 interface Invoice {
   id: string;
@@ -251,8 +252,11 @@ export default function InvoicesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('invoices').delete().eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('invoices').delete().eq('id', id),
+        'Invoice not deleted — it may belong to a different business.',
+        { table: 'invoices' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -263,11 +267,11 @@ export default function InvoicesPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('invoices')
-        .update({ status: 'cancelled' })
-        .eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('invoices').update({ status: 'cancelled' }).eq('id', id),
+        'Invoice not cancelled — it may belong to a different business.',
+        { table: 'invoices' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -284,11 +288,11 @@ export default function InvoicesPage() {
   // wrong row rather than not meaning to click at all.
   const undoMarkPaidMutation = useMutation({
     mutationFn: async ({ id, previousStatus }: { id: string; previousStatus: Invoice['status'] }) => {
-      const { error } = await supabase
-        .from('invoices')
-        .update({ status: previousStatus, paid_at: null })
-        .eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('invoices').update({ status: previousStatus, paid_at: null }).eq('id', id),
+        'Payment not undone — the invoice was not writable.',
+        { table: 'invoices' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -301,11 +305,14 @@ export default function InvoicesPage() {
     // The previous status is captured at click time so undo restores what was
     // actually there — an overdue invoice must not come back as merely sent.
     mutationFn: async ({ id }: { id: string; previousStatus: Invoice['status'] }) => {
-      const { error } = await supabase
-        .from('invoices')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase
+          .from('invoices')
+          .update({ status: 'paid', paid_at: new Date().toISOString() })
+          .eq('id', id),
+        'Invoice not marked as paid — nothing was written.',
+        { table: 'invoices' },
+      );
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
