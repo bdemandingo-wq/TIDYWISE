@@ -262,16 +262,18 @@ export default function PublicBookingPage() {
       });
   }, [organizationId]);
 
-  // Track link_opened when ref param exists
+  // Track link_opened when ref param exists.
+  // Deliberately fire-and-forget: link tracking is marketing telemetry with no
+  // user-visible consequence, and it must never interrupt a booking in progress.
   useEffect(() => {
     if (trackingRef && organizationId) {
-      supabase
-        .from('booking_link_tracking' as any)
-        .update({ link_opened_at: new Date().toISOString(), status: 'opened' })
-        .eq('tracking_ref', trackingRef)
-        .then(({ error }) => {
-          if (error) console.log('Link tracking update skipped:', error.message);
-        });
+      fireAndForget(
+        supabase
+          .from('booking_link_tracking' as any)
+          .update({ link_opened_at: new Date().toISOString(), status: 'opened' })
+          .eq('tracking_ref', trackingRef),
+        'booking_link_tracking: link opened',
+      );
     }
   }, [trackingRef, organizationId]);
 
