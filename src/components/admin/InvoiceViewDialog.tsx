@@ -10,6 +10,7 @@ import {
 import { Printer, ExternalLink, Send, Loader2, ChevronLeft } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
 import {
