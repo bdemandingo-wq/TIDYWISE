@@ -724,6 +724,7 @@ export default function PayrollPage() {
     ['Staff', allStaffError],
     ['Bookings', bookingsError],
     ['Team assignments', teamAssignmentsError],
+    ['Payroll exceptions', payrollExceptionsError],
     ['Forecast bookings', forecastBookingsError],
     ['Forecast assignments', forecastTeamAssignmentsError],
     ['Year-to-date bookings', ytdBookingsError],
