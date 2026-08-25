@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
-import { EmailIdentityBanner } from './EmailIdentityBanner';
+
 import { PlanStateBanner } from './PlanStateBanner';
 import { OfflineIndicator } from './OfflineIndicator';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
@@ -140,7 +140,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
             "px-3 py-3 md:p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-4"
           )}
         >
-          <EmailIdentityBanner />
           <PlanStateBanner />
           {children}
         </main>
