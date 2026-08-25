@@ -321,7 +321,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: payment = 0 } = useQuery({
     queryKey: ['sb-payment', orgId],
     enabled: enabled && isOwner,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
       const { data } = await supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: orgId }).maybeSingle();
