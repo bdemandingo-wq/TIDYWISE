@@ -28,6 +28,8 @@ interface OrganizationContextType {
   organization: Organization | null;
   membership: OrganizationMembership | null;
   loading: boolean;
+  /** True for ~500ms after switchOrganization while queries refetch */
+  switching: boolean;
   isOwner: boolean;
   isAdmin: boolean;
   /** All organizations the current user belongs to */
@@ -183,24 +185,25 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     }
   }, [fetchOrganization, authLoading]);
 
+  const [switching, setSwitching] = useState(false);
+  const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const switchOrganization = useCallback((orgId: string) => {
     const target = allOrganizations.find(o => o.organization.id === orgId);
     if (!target) return;
+    // Show the transition overlay immediately
+    setSwitching(true);
     localStorage.setItem(ACTIVE_ORG_KEY, orgId);
     localStorage.setItem(ORG_CHOSEN_KEY, 'true');
     setOrganization(target.organization);
     setMembership({ organization_id: orgId, role: target.role });
-    // Purge per-org sidebar visibility caches — the incoming org has its own
-    // saved hidden-tabs list, and we must not leak the previous org's cache
-    // into that first render.
     clearSidebarHiddenItemsCache();
-    // Reset cached React Query data so org-scoped queries refetch
-    // against the new org. Previously this called window.location.reload(),
-    // which threw away scroll position, in-progress forms, and looked
-    // like the dashboard was "glitching" mid-onboarding (the brief
-    // dashboard paint → hard refresh sequence was a major contributor
-    // to the user-reported glitch).
     queryClient.clear();
+    // Dismiss the overlay after queries have had time to start refetching.
+    // 600ms covers the round trip for most connections; the skeleton
+    // handles anything longer.
+    if (switchTimerRef.current) clearTimeout(switchTimerRef.current);
+    switchTimerRef.current = setTimeout(() => setSwitching(false), 600);
   }, [allOrganizations, queryClient]);
 
   const isOwner = membership?.role === 'owner';
@@ -217,6 +220,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         organization,
         membership,
         loading: authLoading || loading,
+        switching,
         isOwner,
         isAdmin,
         allOrganizations,

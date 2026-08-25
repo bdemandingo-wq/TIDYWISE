@@ -47,7 +47,7 @@ function getRecentInviteJoinAttempt(): { attempt_id?: string } | null {
  */
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading: authLoading, subscription } = useAuth();
-  const { organization, membership, loading: orgLoading, isAdmin, allOrganizations, switchOrganization } = useOrganization();
+  const { organization, membership, loading: orgLoading, switching, isAdmin, allOrganizations, switchOrganization } = useOrganization();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,5 +213,17 @@ export function AdminRoute({ children }: AdminRouteProps) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {switching && (
+        <div className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm flex items-center justify-center transition-opacity">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Switching business...</p>
+          </div>
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
