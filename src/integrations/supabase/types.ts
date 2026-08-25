@@ -7894,6 +7894,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          needs_onboarding: boolean
           onboarding_answers: Json | null
           owner_id: string
           plan_downgrade_date: string | null
@@ -7912,6 +7913,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          needs_onboarding?: boolean
           onboarding_answers?: Json | null
           owner_id: string
           plan_downgrade_date?: string | null
@@ -7930,6 +7932,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          needs_onboarding?: boolean
           onboarding_answers?: Json | null
           owner_id?: string
           plan_downgrade_date?: string | null
