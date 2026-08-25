@@ -198,9 +198,13 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     setOrganization(target.organization);
     setMembership({ organization_id: orgId, role: target.role });
     clearSidebarHiddenItemsCache();
-    queryClient.clear();
-    // Also wipe the persisted localStorage cache so data from the
-    // previous org doesn't rehydrate on the next app restart.
+    // resetQueries instead of clear: clears all data (no cross-org flash)
+    // but keeps observers attached so hooks refetch immediately. clear()
+    // calls remove() which detaches observers — on mobile, the delayed
+    // re-render left queries stuck in loading forever.
+    queryClient.resetQueries();
+    // Wipe the persisted localStorage cache so data from the previous org
+    // doesn't rehydrate on the next app restart.
     try { localStorage.removeItem('tw-offline-cache'); } catch { /* ignore */ }
     // Dismiss the overlay after queries have had time to start refetching.
     // 600ms covers the round trip for most connections; the skeleton
