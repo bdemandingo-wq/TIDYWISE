@@ -34,6 +34,12 @@ export interface SendOrgEmailOptions {
   attachments?: Array<{ filename: string; content: string; content_type?: string }>;
   // If provided, overrides the org from_name/from_email (rare).
   fromOverride?: string;
+  /** Logical template/kind of email, e.g. "invoice", "booking-confirmation". Stored in email_send_log. */
+  templateName?: string;
+  /** Stable idempotency/correlation key, e.g. `invoice-<id>`. Defaults to the provider message id. */
+  messageId?: string;
+  /** Extra context stored on the log row (invoice id, booking id, ...). */
+  metadata?: Record<string, unknown>;
 }
 
 export interface SendOrgEmailResult {
@@ -114,6 +120,51 @@ async function logFailure(
     });
   } catch (e) {
     console.error("[send-org-email] Could not log failure:", e);
+  }
+}
+
+/**
+ * Record every send attempt — success as well as failure — in public.email_send_log.
+ *
+ * Before this existed only failures were persisted (org_email_send_failures), so
+ * "did invoice 76 actually send?" was unanswerable: the absence of a row meant
+ * nothing. Now every path writes exactly one row, and `message_id` lets a caller
+ * look a specific email up later.
+ */
+async function logSend(
+  opts: SendOrgEmailOptions,
+  args: {
+    status: "sent" | "failed";
+    method: string;
+    recipient: string;
+    providerId?: string;
+    error?: string;
+    fellBack?: boolean;
+  },
+) {
+  try {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(url, key);
+    await supabase.from("email_send_log").insert({
+      organization_id: opts.organizationId,
+      message_id: opts.messageId ?? args.providerId ?? `send-${crypto.randomUUID()}`,
+      template_name: opts.templateName ?? "org_email",
+      recipient_email: args.recipient || "unknown",
+      status: args.status,
+      error_message: args.error ? args.error.slice(0, 4000) : null,
+      metadata: {
+        ...(opts.metadata ?? {}),
+        subject: opts.subject,
+        method: args.method,
+        fell_back: args.fellBack ?? false,
+        provider_id: args.providerId ?? null,
+        recipients: toArr(opts.to),
+        cc: toArr(opts.cc),
+      },
+    });
+  } catch (e) {
+    console.error("[send-org-email] Could not write email_send_log:", e);
   }
 }
 
@@ -223,6 +274,12 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
       opts.subject,
       settingsResult.error ?? "Email settings not configured",
     );
+    await logSend(opts, {
+      status: "failed",
+      method: "none",
+      recipient: toArr(opts.to)[0] ?? "",
+      error: settingsResult.error ?? "Email settings not configured",
+    });
     return { success: false, method: "none", error: settingsResult.error };
   }
   const settings = settingsResult.settings;
@@ -240,6 +297,7 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
     const raw = Array.isArray(opts.to) ? opts.to.join(", ") : String(opts.to ?? "");
     const error = `No valid recipient address. Stored value: ${JSON.stringify(raw)}`;
     await logFailure(opts.organizationId, "none", null, raw.slice(0, 255), opts.subject, error);
+    await logSend(opts, { status: "failed", method: "none", recipient: raw.slice(0, 255), error });
     return { success: false, method: "none", error };
   }
 
@@ -259,6 +317,12 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
       const gmailRes = await sendViaGmailSmtp(settings, opts, from, replyTo);
       if (gmailRes.ok) {
         await incrementDailyCount(opts.organizationId, "gmail_smtp");
+        await logSend(opts, {
+          status: "sent",
+          method: "gmail_smtp",
+          recipient: primaryRecipient,
+          providerId: gmailRes.id,
+        });
         return { success: true, id: gmailRes.id, method: "gmail_smtp" };
       }
       gmailError = gmailRes.error;
@@ -271,10 +335,25 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
     if (fallbackRes.ok) {
       await incrementDailyCount(opts.organizationId, "resend");
       await logFailure(opts.organizationId, "gmail_smtp", "resend", primaryRecipient, opts.subject, gmailError ?? "gmail unavailable");
+      await logSend(opts, {
+        status: "sent",
+        method: "resend",
+        recipient: primaryRecipient,
+        providerId: fallbackRes.id,
+        fellBack: true,
+        error: gmailError ?? undefined,
+      });
       return { success: true, id: fallbackRes.id, method: "resend", fellBack: true };
     }
     const combined = `Gmail failed (${gmailError}); Resend fallback also failed: ${fallbackRes.error}`;
     await logFailure(opts.organizationId, "gmail_smtp", "resend", primaryRecipient, opts.subject, combined);
+    await logSend(opts, {
+      status: "failed",
+      method: "gmail_smtp",
+      recipient: primaryRecipient,
+      error: combined,
+      fellBack: true,
+    });
     return { success: false, method: "none", error: combined, fellBack: true };
   }
 
@@ -283,9 +362,21 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
   const resendRes = await sendViaResend(settings, opts, from, replyTo);
   if (resendRes.ok) {
     await incrementDailyCount(opts.organizationId, "resend");
+    await logSend(opts, {
+      status: "sent",
+      method: "resend",
+      recipient: primaryRecipient,
+      providerId: resendRes.id,
+    });
     return { success: true, id: resendRes.id, method: "resend" };
   }
   // Resend-only path failure was previously unlogged. Persist it per-org.
   await logFailure(opts.organizationId, "resend", null, primaryRecipient, opts.subject, resendRes.error);
+  await logSend(opts, {
+    status: "failed",
+    method: "resend",
+    recipient: primaryRecipient,
+    error: resendRes.error,
+  });
   return { success: false, method: "none", error: resendRes.error };
 }
