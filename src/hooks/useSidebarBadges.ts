@@ -199,7 +199,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: invoices = { overdue: 0 } } = useQuery({
     queryKey: ['sb-invoices', orgId],
     enabled: enabled && hasFinancialAccess,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return { overdue: 0 };
       // Reads the STORED status, matching InvoicesPage's Overdue card exactly.
