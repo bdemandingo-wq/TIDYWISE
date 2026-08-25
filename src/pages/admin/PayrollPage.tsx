@@ -1427,7 +1427,7 @@ export default function PayrollPage() {
                       <span className="text-muted-foreground">
                         scheduled {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
                         {' → completed '}
-                        {formatInTimezone(b.payroll_date, orgTimezone, { month: 'short', day: 'numeric' })}
+                        {formatInTimezone(b.payroll_date ?? b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
                       </span>
                       <Badge variant="outline" className="text-[10px]">
                         {b.completed_at_source === 'checkout' ? 'measured' : 'inferred'}
