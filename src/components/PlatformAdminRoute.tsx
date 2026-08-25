@@ -80,6 +80,7 @@ export function PlatformAdminRoute({ children }: PlatformAdminRouteProps) {
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally reacts only to auth loading state and user identity, not the full user object
   }, [authLoading, user?.id, user?.email]);
 
   const accessResolvedForCurrentUser = !user || checkedUserId === user.id;

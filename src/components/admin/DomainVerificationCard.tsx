@@ -40,6 +40,7 @@ export function DomainVerificationCard() {
 
   useEffect(() => {
     if (organization?.id) fetchDomains();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchDomains is recreated each render; runs once per org
   }, [organization?.id]);
 
   const fetchDomains = async () => {

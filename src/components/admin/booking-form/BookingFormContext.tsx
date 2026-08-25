@@ -722,6 +722,7 @@ export function BookingFormProvider({
     } else if (defaultDate) {
       setSelectedDate(defaultDate);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- prefillFromBooking is recreated each render; runs once when booking prop arrives
   }, [booking, defaultDate]);
 
   return (

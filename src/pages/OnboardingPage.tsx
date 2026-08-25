@@ -209,6 +209,7 @@ export default function OnboardingPage() {
     if (!orgLoading && organization && !isNewBusiness && !building) {
       navigate('/dashboard', { replace: true });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
   }, [orgLoading, organization, navigate, building]);
 
   // If not logged in, send to login.

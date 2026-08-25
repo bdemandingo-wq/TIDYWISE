@@ -67,6 +67,7 @@ export function UpgradePlanDialog({
     setDiscountCode("");
     setAppliedCode(null);
     void fetchPreview(undefined);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPreview/targetPlan are recreated each render; runs when dialog opens or plan id changes
   }, [open, targetPlan?.id]);
 
   async function fetchPreview(code: string | undefined) {

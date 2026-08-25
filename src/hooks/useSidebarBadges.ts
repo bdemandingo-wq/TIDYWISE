@@ -473,6 +473,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     const counts: Record<string, number> = {};
     for (const k of Object.keys(breakdowns)) counts[k] = sum(breakdowns[k]);
     return { counts, breakdowns };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `on` is a stable helper that doesn't affect the memo result
   }, [staff, bookings, clientPortal, invoices, messages, tasks, leads, inventory, automation, campaigns, payment, feedback, showBadges, sb, payoutRequired, dismissed]);
 }
 

@@ -176,6 +176,7 @@ export function useClientPortalSessionTracker() {
       clearInterval(idleCheckInterval);
       endSession();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sessionToken is read inside the effect via ref; adding it would restart the tracker on every token change
   }, [user, customer, createSession, handleActivity, updateSession, endSession, checkIdle]);
 
   // Handle page unload - use fetch with keepalive

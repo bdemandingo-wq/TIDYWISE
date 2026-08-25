@@ -106,6 +106,7 @@ export default function PaymentIntegrationPage() {
     if (code && organization?.id) {
       handleOAuthCallback(code, state);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleOAuthCallback is recreated each render; runs once when OAuth code arrives
   }, [searchParams, organization?.id]);
 
   // Load connection status
@@ -114,6 +115,7 @@ export default function PaymentIntegrationPage() {
       fetchConnectionStatus();
       fetchRecentPayments();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConnectionStatus/fetchRecentPayments/searchParams are recreated each render; runs once per org
   }, [organization?.id]);
 
   const fetchConnectionStatus = async () => {

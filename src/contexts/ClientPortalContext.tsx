@@ -298,6 +298,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     };
 
     void load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- saveSession is defined after this effect; runs once on mount to rehydrate from storage
   }, []);
 
   const saveSession = (

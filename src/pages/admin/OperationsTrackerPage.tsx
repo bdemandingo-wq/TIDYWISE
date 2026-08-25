@@ -569,6 +569,7 @@ function OperationsDialog({
         notes: '',
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- orgTimezone is stable per session; form resets on entry/date/open change
   }, [entry, defaultDate, open]);
 
   const handleSubmit = () => {

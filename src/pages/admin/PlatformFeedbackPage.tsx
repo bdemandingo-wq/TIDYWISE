@@ -89,6 +89,7 @@ export default function PlatformFeedbackPage() {
     },
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rows is derived via ?? which creates a new ref each render; content changes when data changes
   const rows = data ?? [];
   const unread = useMemo(() => rows.filter((r) => !r.is_read).length, [rows]);
   const visible = showRead ? rows : rows.filter((r) => !r.is_read);

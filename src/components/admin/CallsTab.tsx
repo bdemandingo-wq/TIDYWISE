@@ -165,6 +165,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
 
   useEffect(() => {
     fetchCalls();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchCalls is recreated each render; runs once per org
   }, [organizationId]);
 
   const fetchCallDetails = useCallback(async (call: OpenPhoneCall) => {

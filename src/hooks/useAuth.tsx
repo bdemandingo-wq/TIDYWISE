@@ -159,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, 0);
 
     return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- checkSubscription/signOut are recreated each render; re-checking on every token refresh is correct, not on callback identity
   }, [noSessionAuth.session?.access_token]);
 
   return (

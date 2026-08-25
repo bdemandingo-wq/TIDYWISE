@@ -73,6 +73,7 @@ export function CopilotPanel() {
     return () => {
       showHandle?.remove();
       hideHandle?.remove();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- panelRef.current is captured at cleanup time intentionally; the ref's DOM node is stable while the effect is active
       if (panelRef.current) panelRef.current.style.paddingBottom = '';
     };
   }, [isOpen]);

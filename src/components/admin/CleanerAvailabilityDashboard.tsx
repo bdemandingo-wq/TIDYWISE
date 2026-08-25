@@ -85,6 +85,7 @@ export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: 
         }, 0),
       };
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- staff is used inside the closure but the memo only needs to recompute when bookings/hours/tz change
   }, [bookings, workingHours, orgTimezone]);
 
   const cleanerStats = useMemo(() => {

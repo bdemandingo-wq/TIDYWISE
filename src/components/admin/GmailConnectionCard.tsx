@@ -45,6 +45,7 @@ export function GmailConnectionCard() {
       fetchConnection();
       fetchFailures();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchConnection/fetchFailures are recreated each render; runs once per org
   }, [organization?.id]);
 
   useEffect(() => {

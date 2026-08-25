@@ -71,6 +71,7 @@ export function NotificationBell({ staffId, onViewJob }: Props) {
         supabase.removeChannel(channel);
       };
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchNotifications is recreated each render; runs once per staff member
   }, [staffId]);
 
   const markAsRead = async (notificationId: string) => {

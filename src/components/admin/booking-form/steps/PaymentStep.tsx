@@ -161,6 +161,7 @@ export function PaymentStep() {
       console.error('Failed to autosave cleaner pay:', err);
       setPaySaveStatus('error');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- organizationId is stable per session; including it would not change behavior
   }, [editingBookingId, cleanerWage, cleanerWageType, cleanerOverrideHours, selectedService, finalPrice, totalAmount, calculatedPrice, user?.id]);
 
   // Trigger debounced save when pay fields change

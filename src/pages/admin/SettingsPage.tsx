@@ -316,6 +316,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!organization?.id) return;
     fetchSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSettings is recreated each render; runs once per org
   }, [organization?.id]);
 
   const fetchSettings = async () => {

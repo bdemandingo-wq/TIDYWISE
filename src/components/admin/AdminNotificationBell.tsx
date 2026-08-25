@@ -365,6 +365,7 @@ export function AdminNotificationBell() {
         supabase.removeChannel(channel);
       };
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchNotifications is recreated each render; runs once per org
   }, [organizationId]);
 
   const markAsRead = async (notificationId: string) => {

@@ -86,6 +86,7 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
     };
     init();
     return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- map initialises once on mount; lat/lng/dest are handled by the next effect
   }, []);
 
   useEffect(() => {

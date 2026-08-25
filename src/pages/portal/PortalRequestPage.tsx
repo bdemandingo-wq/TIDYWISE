@@ -173,6 +173,7 @@ export default function PortalRequestPage() {
     fetchServices();
     fetchLocations();
     fetchTimezone();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshLocations is recreated each render; runs once when user is set
   }, [user]);
 
   const handleAddAddress = async () => {

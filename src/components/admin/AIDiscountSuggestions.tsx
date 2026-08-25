@@ -136,6 +136,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
   // Every window and validity date below belongs to the business's calendar,
   // not to whichever device is looking at the suggestions.
   const orgTimezone = useOrgTimezone();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- now is intentionally recreated each render; the useMemo at line 352 uses it for date math
   const now = new Date();
   const holidays = useMemo(() => getUpcomingHolidays(orgTimezone, 60), [orgTimezone]);
   const season = useMemo(() => getSeason(orgTimezone), [orgTimezone]);

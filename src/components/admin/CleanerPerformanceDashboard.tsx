@@ -49,6 +49,7 @@ interface CleanerStats {
 }
 
 export function CleanerPerformanceDashboard({ bookings, staff }: CleanerPerformanceDashboardProps) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- now is intentionally recreated each render for comparing upcoming bookings; wrapping in useMemo would stale the comparison
   const now = new Date();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     /* eslint-disable local/no-device-local-dates -- initial range for a display-only

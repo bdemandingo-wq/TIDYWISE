@@ -38,7 +38,9 @@ export default function BenchmarksPage() {
   const [cohort, setCohort] = useState<CohortType>('local');
   const [bucket, setBucket] = useState<ServiceBucket>('standard');
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- myMetrics/peerCohort are derived via ?? which creates a new ref each render; the useMemos below depend on data content, not ref identity
   const myMetrics = data?.my_metrics ?? [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   const peerCohort = (data?.peers?.[cohort] ?? []) as any[];
 
   const myForBucket = useMemo(

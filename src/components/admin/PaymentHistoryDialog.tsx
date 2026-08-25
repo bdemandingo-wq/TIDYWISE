@@ -45,6 +45,7 @@ export function PaymentHistoryDialog({
     if (open && customerId && organization?.id) {
       fetchPaymentHistory();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPaymentHistory is recreated each render; runs when dialog opens
   }, [open, customerId, organization?.id]);
 
   const fetchPaymentHistory = async () => {

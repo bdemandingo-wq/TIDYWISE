@@ -131,6 +131,7 @@ export function AdditionalChargesDialog({
     };
 
     fetchCards();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- canShowPaymentFlows is derived from org settings and stable in practice; runs when dialog opens
   }, [open, customerEmail, organizationId]);
 
   // Charge and add mutation

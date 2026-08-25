@@ -81,6 +81,7 @@ export default function HelpPage() {
     if (organizationId) {
       fetchVideos();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchVideos is recreated each render; runs once per org
   }, [organizationId]);
 
   const fetchVideos = async () => {

@@ -179,6 +179,7 @@ function InspectionPhoto({ path }: { path: string }) {
     });
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchUrl is recreated each render; runs once per path
   useEffect(() => { fetchUrl(); }, [path]);
 
   if (error) return (
@@ -387,6 +388,7 @@ export default function PortalDashboardPage() {
     };
 
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- invokePortal is recreated each render; runs once when user is set
   }, [user]);
 
   const handleSignOut = () => {

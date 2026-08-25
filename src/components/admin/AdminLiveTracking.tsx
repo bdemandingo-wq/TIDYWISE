@@ -64,6 +64,7 @@ function MiniMap({ lat, lng, destLat, destLng }: { lat: number; lng: number; des
     return () => {
       if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- map initialises once on mount; lat/lng/dest are handled by the next effect
   }, []);
 
   useEffect(() => {
@@ -153,6 +154,7 @@ export function AdminLiveTracking({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- isCompleted is checked inside the effect; re-subscribing on status change is unnecessary
   }, [bookingId]);
 
   // Resolve destination coordinates
@@ -219,6 +221,7 @@ export function AdminLiveTracking({
     // Refresh ETA every 60s
     const interval = setInterval(fetchEta, 60000);
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- tracking object ref changes on every GPS update; we only care about lat/lng values
   }, [tracking?.latitude, tracking?.longitude, destCoords]);
 
   // Don't render for completed bookings

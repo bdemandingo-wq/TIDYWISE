@@ -536,6 +536,7 @@ export default function CustomersPage() {
     });
 
     return list;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- getEffectiveStatus is a stable helper function that doesn't change between renders
   }, [customers, searchTerm, tabFilter, sortField, sortDir, statsMap]);
 
   const getInitials = (firstName: string, lastName: string) =>

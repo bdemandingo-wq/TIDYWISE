@@ -361,6 +361,7 @@ export default function PublicBookingPage() {
         });
     }, 800);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ref values (abandonedTrackedRef, buildFormSnapshot, sessionTokenRef) are stable across renders
   }, [step, customerInfo, organizationId, selectedService, selectedSqFtIndex, selectedExtras,
       selectedBedrooms, selectedBathrooms, hasPets, selectedHomeCondition, selectedFrequency,
       selectedDate, selectedTime, schedulingMode, roomReductions]);
@@ -383,6 +384,7 @@ export default function PublicBookingPage() {
           console.log('Consent not recorded:', error.message);
         }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ref values (abandonedTrackedRef.tracked, consentSentRef, sessionTokenRef) are stable across renders
   }, [customerInfo.smsConsent, organizationId, step]);
 
   // Rehydrate from a recovery SMS link: /book/{slug}?resume={token}.
@@ -436,6 +438,7 @@ export default function PublicBookingPage() {
         'abandoned_bookings: step reached',
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ref values (abandonedTrackedRef.tracked, sessionTokenRef) are stable across renders
   }, [step]);
 
   // Mark as converted when booking completes. Both writes are abandonment
@@ -461,6 +464,7 @@ export default function PublicBookingPage() {
         'booking_link_tracking: booking completed',
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- ref values (abandonedTrackedRef.tracked, sessionTokenRef, trackingRef) are stable across renders
   }, [confirmationNumber]);
 
   const service = services.find(s => s.id === selectedService);

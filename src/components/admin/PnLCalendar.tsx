@@ -272,6 +272,7 @@ export function PnLCalendar() {
       map.set(monthKey, (map.get(monthKey) || 0) + dayValue);
     });
     return map;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- getDayValue is a stable pure function derived from metricMode which is already listed
   }, [dailyPnL, metricMode]);
 
   // Generate calendar days (Monday start)
@@ -325,6 +326,7 @@ export function PnLCalendar() {
       if (dateKey.startsWith(monthKey)) total += getDayValue(val);
     });
     return total;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- getDayValue and monthKeyOf are stable pure functions; their inputs (metricMode, currentMonth) are already listed
   }, [dailyPnL, currentMonth, metricMode]);
 
   const getValueColor = (value: number, hasData: boolean) => {

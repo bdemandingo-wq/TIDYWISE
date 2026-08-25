@@ -290,6 +290,7 @@ export function ServicePricingEditor() {
     }
     
     fetchServices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedServiceId is set inside the effect on first load; adding it would clear the user's selection
   }, [organization?.id]);
 
   // Load pricing when service changes

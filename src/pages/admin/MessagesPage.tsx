@@ -389,6 +389,7 @@ export default function MessagesPage() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchContacts/fetchConversations are recreated each render; subscription runs once per org
   }, [organizationId]);
 
   useEffect(() => {
@@ -989,6 +990,7 @@ export default function MessagesPage() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSelectConversation/handleSendMessage/toggleSelectAll are recreated each render; keyboard handler only needs to rebind on UI-state changes
   }, [isMobile, showShortcuts, searchQuery, selectedConversation, bulkEditMode, selectedForBulk, highlightedIndex, navigableConversations]);
 
   // ═══════════════════════════════════════════════════

@@ -481,6 +481,7 @@ function FeedbackDialog({
         resolution: entry?.resolution || '',
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- orgTimezone is stable per session; form resets on entry/open change
   }, [entry, open]);
 
   const handleSubmit = () => {

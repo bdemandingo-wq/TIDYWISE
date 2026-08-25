@@ -79,6 +79,7 @@ export function useSidebarHiddenItems() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryKey array is recreated each render; the useCallback at line 157 uses it but queryClient.invalidateQueries compares by value not ref
   const queryKey = ['sidebar-hidden', user?.id ?? null, organizationId ?? null] as const;
 
   const query = useQuery({

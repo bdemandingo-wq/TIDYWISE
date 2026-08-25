@@ -42,6 +42,7 @@ export function useOfflineSync() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- syncPendingChanges/updatePendingCount are recreated each render; runs once on mount to set up online/offline listeners
   }, []);
 
   const updatePendingCount = () => {
@@ -206,6 +207,7 @@ export function useOfflineSync() {
       toast.info('Saved offline', { description: 'Will sync when back online.' });
       return tempData;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- addToSyncQueue is a local function; including it would cause infinite re-creation
   }, [isOnline, cacheData, getCachedData]);
 
   return {

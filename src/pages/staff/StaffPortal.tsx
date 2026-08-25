@@ -265,6 +265,7 @@ export default function StaffPortal() {
       toast.info('Please complete your payout setup to start receiving payments.');
       setSearchParams({}, { replace: true });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient/setSearchParams are stable; runs only when searchParams change
   }, [searchParams]);
 
 

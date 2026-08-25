@@ -311,6 +311,7 @@ export function usePushNotifications(staffId?: string) {
     } finally {
       setIsRegistering(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- registerNative is recreated each render; runs once per staff member
   }, [staffId]);
 
   return {

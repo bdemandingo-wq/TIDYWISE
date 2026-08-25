@@ -145,6 +145,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable from QueryClientProvider; re-subscribing on initialCleanupDone is the only trigger needed
   }, [initialCleanupDone]);
 
   // Tag Sentry events with the authenticated user so production errors

@@ -40,6 +40,7 @@ export function useBiometricAuth() {
     if (BIOMETRIC_PROBE_ENABLED && Capacitor.isNativePlatform()) {
       checkBiometricAvailability();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- checkBiometricAvailability is recreated each render; runs once on mount
   }, []);
 
   const checkBiometricAvailability = async () => {

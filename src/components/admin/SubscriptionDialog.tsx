@@ -100,6 +100,7 @@ export function SubscriptionDialog({
       checkSubscription();
       fetchSpots();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- checkSubscription is recreated each render; runs when dialog opens
   }, [open]);
 
   const handleStandard = async () => {

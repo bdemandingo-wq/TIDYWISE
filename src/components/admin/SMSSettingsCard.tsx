@@ -48,6 +48,7 @@ export function SMSSettingsCard() {
     if (organization?.id) {
       fetchSettings();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchSettings is recreated each render; runs once per org
   }, [organization?.id]);
 
   const fetchSettings = async () => {

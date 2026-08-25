@@ -406,6 +406,7 @@ export function EditBookingDialog({
     if (status === 'completed' && !showActualPayment) {
       setShowActualPayment(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- showActualPayment is read inside the guard; adding it would suppress the one-time reveal
   }, [status]);
 
   if (!booking) return null;
@@ -791,6 +792,7 @@ export function AdjustPaymentDialog({
     };
 
     fetchTeam();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- booking object fields (cleaner_actual_payment, cleaner_pay_expected) are read inside; re-running on every booking object change would reset user edits
   }, [open, booking?.id, organizationId]);
 
   if (!booking) return null;

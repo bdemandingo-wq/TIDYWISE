@@ -35,6 +35,7 @@ export function MessageTemplatesPicker({ organizationId, onSelect, showSubject =
 
   useEffect(() => {
     if (organizationId) fetchTemplates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchTemplates is recreated each render; runs once per org
   }, [organizationId]);
 
   const fetchTemplates = async () => {

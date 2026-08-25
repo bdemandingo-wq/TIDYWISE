@@ -225,6 +225,7 @@ export function InvoiceFormDialog({
         setShowTax(defaultTaxPercent > 0);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- orgTimezone is stable per session; form resets on open/invoice/tax change, not timezone change
   }, [open, invoice, defaultTaxPercent]);
 
   // Calculate totals (coerce for numeric safety)

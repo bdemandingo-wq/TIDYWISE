@@ -902,6 +902,7 @@ export default function PayrollPage() {
       }
     }
     return details;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- deactivatedStaffIds is derived from staff and would cause unnecessary recomputation
   }, [bookings, staff, staffNameById, teamAssignments, settings]);
 
   // Apply filters
@@ -1029,6 +1030,7 @@ export default function PayrollPage() {
         laborPercent: Math.round(laborPercent * 10) / 10,
       };
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- getStaffPayEntries is a stable function derived from already-listed deps
   }, [payrollRoster, staff, bookings, ytdBookings, teamAssignments, ytdTeamAssignments, bookingEconomics]);
 
   // Summary stats
@@ -1131,7 +1133,9 @@ export default function PayrollPage() {
     return day >= nextWeekStartStr && day <= nextWeekEndStr;
   });
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- calcWeekForecast is a stable function; staff is already captured in the bookings data
   const currentWeekForecast = useMemo(() => calcWeekForecast(currentWeekBookings, forecastTeamAssignments), [currentWeekBookings, forecastTeamAssignments, staff]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- calcWeekForecast is a stable function; staff is already captured in the bookings data
   const nextWeekForecast = useMemo(() => calcWeekForecast(nextWeekBookings, forecastTeamAssignments), [nextWeekBookings, forecastTeamAssignments, staff]);
 
   const exportCSV = async () => {

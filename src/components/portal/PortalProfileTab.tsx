@@ -130,6 +130,7 @@ export function PortalProfileTab() {
     };
 
     fetchLocations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- invokePortal is recreated each render; runs once when user is set
   }, [user]);
 
   const handleRequestEmailChange = async () => {

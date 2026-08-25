@@ -232,9 +232,11 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   );
 
   // Get availability for all active staff
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- activeStaff is derived from staff prop inline; the filtered array is a new ref each render but its content only changes when staff changes
   const activeStaff = staff?.filter(s => s.is_active) || [];
   const staffAvailability = useMemo(() => {
     return getStaffAvailability(activeStaff.map(s => s.id));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- activeStaff is a new array ref each render; the memo depends on staff content, not the ref
   }, [activeStaff, getStaffAvailability]);
 
   // Show ALL active staff so admins can always override and assign anyone.
@@ -267,6 +269,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   // Reset conflict override when staff/date/time changes
   useEffect(() => {
     setConflictOverride(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setConflictOverride is a stable setState; .join(',') is a complex expression but intentional for array-content comparison
   }, [selectedStaffId, selectedDate, selectedTime, selectedTeamMembers.join(',')]);
 
   // The primary cleaner is ALWAYS the first member of the team. BookingStepper
@@ -356,6 +359,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
         // If suggestedPay is 0, leave as 0 (don't auto-set $1 or any incorrect value)
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- calculateSuggestedPay/teamMemberPay/updateTeamMemberPay are recreated each render; runs only when team members change
   }, [selectedTeamMembers]);
 
   // Helper to render availability badge

@@ -321,6 +321,7 @@ export default function ReportsPage() {
       recurringCleansCount,
       recurringCleansRevenue,
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- bookings is the unfiltered source; filteredBookings already captures its content
   }, [filteredBookings, staff, customers, recurringBookings, orgTimezone]);
 
   const [activeTab, setActiveTab] = useState('overview');

@@ -253,5 +253,6 @@ export function useAppStateHandler() {
     return () => {
       cleanup?.();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable from QueryClientProvider; runs once on mount
   }, []);
 }

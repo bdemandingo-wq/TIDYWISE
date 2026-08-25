@@ -37,6 +37,7 @@ export function PaymentHistoryLogDialog({ open, onOpenChange, booking }: Payment
     if (open && booking) {
       fetchPaymentHistory();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchPaymentHistory is recreated each render; runs when dialog opens
   }, [open, booking]);
 
   const fetchPaymentHistory = async () => {

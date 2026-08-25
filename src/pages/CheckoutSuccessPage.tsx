@@ -183,6 +183,7 @@ export default function CheckoutSuccessPage() {
       navigate('/dashboard', { replace: true });
     }, 1200);
     return () => window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally reacts to user identity and subscription state, not the full user object
   }, [user?.id, subscription?.subscribed, subscription?.trial_active, navigate]);
 
   const headingId = 'checkout-success-heading';

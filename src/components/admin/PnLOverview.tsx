@@ -831,6 +831,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
     const oneWeek = mtd / 4;
     
     return { ytd, qtd, mtd, '1y': oneYear, '4w': fourWeeks, '1w': oneWeek };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- orgMonthIdx and orgNow.d are derived from org timezone which is stable per session; recomputing only when pnlData changes is correct
   }, [pnlData, pnlTotals]);
 
   const currentNetProfit = netProfitByPeriod[netProfitPeriod];

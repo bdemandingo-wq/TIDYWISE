@@ -965,6 +965,7 @@ function RecurringBookingDialog({
         setTeamMembers([]);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- customFrequencies is loaded once and stable; form resets on booking/open change
   }, [booking, open]);
 
   const addTeamMember = (staffId: string) => {
