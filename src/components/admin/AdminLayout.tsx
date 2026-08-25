@@ -140,7 +140,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
             "px-3 py-3 md:p-4 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:pb-4"
           )}
         >
-          <EmailIdentityBanner />
           <PlanStateBanner />
           {children}
         </main>
