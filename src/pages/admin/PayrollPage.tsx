@@ -578,22 +578,24 @@ export default function PayrollPage() {
     },
   });
 
+  const exceptionRows = payrollExceptions as PayrollExceptionRow[];
   const orphanedJobs = useMemo(
-    () => (payrollExceptions as any[]).filter(
-      (b) => !b.payroll_locked_week && new Date(b.payroll_date) < dateRange.from,
+    () => exceptionRows.filter(
+      (b) => !b.payroll_locked_week && new Date(b.payroll_date ?? b.scheduled_at) < dateRange.from,
     ),
-    [payrollExceptions, dateRange.from],
+    [exceptionRows, dateRange.from],
   );
   const reviewJobs = useMemo(
-    () => (payrollExceptions as any[]).filter((b) => b.payroll_needs_review),
-    [payrollExceptions],
+    () => exceptionRows.filter((b) => b.payroll_needs_review),
+    [exceptionRows],
   );
-  const exceptionPay = (b: any) =>
+  const exceptionPay = (b: PayrollExceptionRow) =>
     Number(b.cleaner_actual_payment ?? b.cleaner_pay_expected ?? 0);
   const orphanedTotal = useMemo(
     () => orphanedJobs.reduce((s, b) => s + exceptionPay(b), 0),
     [orphanedJobs],
   );
+
 
 
   // Refetch payroll data when bookings change (deletions, updates, etc.)
