@@ -2125,6 +2125,8 @@ export type Database = {
           cleaner_pay_expected: number | null
           cleaner_wage: number | null
           cleaner_wage_type: string | null
+          completed_at: string | null
+          completed_at_source: string | null
           created_at: string
           custom_frequency_days: number | null
           customer_id: string | null
@@ -2156,6 +2158,9 @@ export type Database = {
           pay_locked: boolean | null
           payment_intent_id: string | null
           payment_status: Database["public"]["Enums"]["payment_status"]
+          payroll_date: string | null
+          payroll_locked_week: string | null
+          payroll_needs_review: boolean
           previous_scheduled_at: string | null
           recurring_booking_id: string | null
           recurring_days_of_week: number[] | null
@@ -2201,6 +2206,8 @@ export type Database = {
           cleaner_pay_expected?: number | null
           cleaner_wage?: number | null
           cleaner_wage_type?: string | null
+          completed_at?: string | null
+          completed_at_source?: string | null
           created_at?: string
           custom_frequency_days?: number | null
           customer_id?: string | null
@@ -2232,6 +2239,9 @@ export type Database = {
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          payroll_date?: string | null
+          payroll_locked_week?: string | null
+          payroll_needs_review?: boolean
           previous_scheduled_at?: string | null
           recurring_booking_id?: string | null
           recurring_days_of_week?: number[] | null
@@ -2277,6 +2287,8 @@ export type Database = {
           cleaner_pay_expected?: number | null
           cleaner_wage?: number | null
           cleaner_wage_type?: string | null
+          completed_at?: string | null
+          completed_at_source?: string | null
           created_at?: string
           custom_frequency_days?: number | null
           customer_id?: string | null
@@ -2308,6 +2320,9 @@ export type Database = {
           pay_locked?: boolean | null
           payment_intent_id?: string | null
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          payroll_date?: string | null
+          payroll_locked_week?: string | null
+          payroll_needs_review?: boolean
           previous_scheduled_at?: string | null
           recurring_booking_id?: string | null
           recurring_days_of_week?: number[] | null
