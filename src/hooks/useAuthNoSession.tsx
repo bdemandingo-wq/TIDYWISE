@@ -97,7 +97,9 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
           setUser(null);
           setSession(null);
           cachedUserIdRef.current = null;
-          queryClient.clear();
+          // resetQueries, not clear — clear() detaches observers and freezes
+          // the React tree, blocking the logout redirect on web.
+          queryClient.resetQueries();
         }
 
         // Clear the cache when a different user signs in — prevents the
@@ -105,7 +107,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN' && currentSession?.user) {
           const newUserId = currentSession.user.id;
           if (cachedUserIdRef.current && cachedUserIdRef.current !== newUserId) {
-            queryClient.clear();
+            queryClient.resetQueries();
           }
           cachedUserIdRef.current = newUserId;
         }
@@ -279,39 +281,39 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     setUser(null);
     setSession(null);
 
-    // Clear any residual storage (web)
+    // Clear storage synchronously BEFORE redirecting — the redirect kills
+    // the JS context, so anything after it is fire-and-forget at best.
     try {
       const authKeys = Object.keys(localStorage).filter(key =>
         key.startsWith('sb-') || key.includes('supabase')
       );
       authKeys.forEach(key => localStorage.removeItem(key));
-      // Wipe the persisted React Query cache so the next user doesn't
-      // rehydrate the previous user's bookings, customers and payroll.
       localStorage.removeItem('tw-offline-cache');
     } catch {
       // Ignore storage errors
     }
 
-    // Clear Capacitor Preferences storage (native)
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const { Preferences } = await import('@capacitor/preferences');
-        const { keys } = await Preferences.keys();
-        for (const key of keys) {
-          if (key.startsWith('sb-') || key.includes('supabase')) {
-            await Preferences.remove({ key });
-          }
-        }
-      } catch {
-        // Preferences may not be available
-      }
-    }
-
-    // Hard-redirect on web to wipe React Query cache + any in-memory state.
-    // On native we can't do a real redirect, so the SIGNED_OUT auth event
-    // plus state reset above is sufficient.
+    // Hard-redirect on web IMMEDIATELY. This must come before any async
+    // cleanup — if the React tree is frozen (detached observers from a
+    // prior queryClient.clear), async work never completes and the user
+    // is stuck. The redirect kills the entire JS context, which is the
+    // only reliable way out of a frozen page.
     if (typeof window !== 'undefined' && !Capacitor.isNativePlatform()) {
       window.location.href = '/login';
+      return; // Redirect kills the JS context; nothing below runs on web.
+    }
+
+    // Clear Capacitor Preferences storage (native only — web already redirected)
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      const { keys } = await Preferences.keys();
+      for (const key of keys) {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          await Preferences.remove({ key });
+        }
+      }
+    } catch {
+      // Preferences may not be available
     }
   }, []);
 
