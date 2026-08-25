@@ -151,11 +151,13 @@ export function AdminRoute({ children }: AdminRouteProps) {
 
   // Not logged in - redirect to login
   if (!user) {
+    console.log('[ADMIN-ROUTE] no user → /login');
     return <Navigate to="/login" replace />;
   }
 
   // Logged in but no organization - redirect to onboarding
   if (!organization) {
+    console.log('[ADMIN-ROUTE] no org → /onboarding, orgLoading:', orgLoading);
     const inviteAttempt = getRecentInviteJoinAttempt();
     if (inviteAttempt) {
       return (

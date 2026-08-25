@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { SEOHead } from '@/components/SEOHead';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuthNoSession, supabaseNoSession } from '@/hooks/useAuthNoSession';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +35,12 @@ export default function LoginPage() {
   // In-app signup is now supported (trial-first, no payment).
   const SHOW_NATIVE_SIGNUP_LINK = true;
   const { user, loading: authLoading, initialCleanupDone, provisioning, signIn, signInWithApple, signInWithGoogle } = useAuthNoSession();
+  const { organization, refetch: refetchOrganization } = useOrganization();
   const [oauthLoading, setOauthLoading] = useState<'apple' | 'google' | null>(null);
+  // Hard stop: break the login → dashboard → onboarding → login cycle after
+  // 2 bounces. The counter persists across remounts via sessionStorage.
+  const bounceKey = 'tw_login_bounce_count';
+  const [orgRefetched, setOrgRefetched] = useState(false);
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
   // keeping the canonical pointed at /login so search engines consolidate ranking.
@@ -48,23 +54,61 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showSplash, setShowSplash] = useState(false);
+  const [showSplash, _setShowSplash] = useState(false);
+  const setShowSplash = (val: boolean) => {
+    console.log('[SPLASH-TOGGLE] setShowSplash(' + val + ')', new Error().stack?.split('\n').slice(1, 4).join(' | '));
+    _setShowSplash(val);
+  };
+
+  // Track mount/unmount
+  useEffect(() => {
+    console.log('[LOGIN-MOUNT] LoginPage mounted');
+    return () => console.log('[LOGIN-UNMOUNT] LoginPage unmounting');
+  }, []);
   const [formData, setFormData] = useState({
     email: searchParams.get('email') ?? '',
     password: '',
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  // Redirect if authenticated AND provisioning is resolved.
-  // Don't show the splash until provisioning is done/failed — otherwise
-  // the splash navigates to /dashboard before the org exists, which
-  // bounces to /onboarding → /login → infinite loop.
+  // After provisioning completes, refetch the org so OrganizationProvider
+  // picks up the freshly created org. Without this, the provider resolved
+  // to null before provisioning ran and never re-fetched.
+  useEffect(() => {
+    if (provisioning !== 'done' || orgRefetched) return;
+    setOrgRefetched(true);
+    console.log('[LOGIN-PROVISION] provisioning done, calling refetchOrganization');
+    refetchOrganization().then(() => {
+      console.log('[LOGIN-PROVISION] refetchOrganization complete');
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once when provisioning reaches done
+  }, [provisioning, orgRefetched]);
+
+  // Redirect if authenticated, provisioning resolved, AND org is present.
+  // Gate on the org value, not just provisioning state — provisioning "done"
+  // does not mean OrganizationProvider has the org yet.
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
     if (!user) return;
-    if (provisioning === 'pending') return; // still provisioning — wait
+    if (provisioning === 'pending') return;
+    // For existing users (provisioning === 'idle' or 'done' with org already loaded),
+    // org will be present. For new OAuth users, wait for the refetch to load it.
+    if (provisioning === 'done' && !organization) return; // refetch in flight
+    if (provisioning === 'failed') {
+      // Check bounce count — break the cycle if we've been here too many times
+      const bounces = parseInt(sessionStorage.getItem(bounceKey) || '0', 10);
+      if (bounces >= 2) {
+        console.error('[LOGIN-BOUNCE] exceeded bounce limit, stopping');
+        sessionStorage.removeItem(bounceKey);
+        toast.error('Could not set up your account. Please contact support.');
+        return; // stay on login, don't loop
+      }
+      sessionStorage.setItem(bounceKey, String(bounces + 1));
+    }
+    // Clear bounce counter on successful path
+    try { sessionStorage.removeItem(bounceKey); } catch { /* ignore */ }
     setShowSplash(true);
-  }, [user, authLoading, initialCleanupDone, provisioning]);
+  }, [user, authLoading, initialCleanupDone, provisioning, organization]);
 
   const validateForm = (): boolean => {
     try {
@@ -121,7 +165,9 @@ export default function LoginPage() {
   // in sessionStorage. After successful login we open Stripe Checkout
   // for the requested plan so the broken-flow loop actually closes.
   const handleSplashComplete = async () => {
+    console.log('[SPLASH-COMPLETE] handleSplashComplete called');
     if (claimSlug) {
+      console.log('[SPLASH-COMPLETE] navigating to /score/c/', claimSlug);
       navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
       return;
     }
@@ -199,16 +245,18 @@ export default function LoginPage() {
     }
 
     if (provisioning === 'failed') {
+      console.log('[SPLASH-COMPLETE] provisioning failed, navigating to /login');
       toast.error('Could not set up your account. Please try signing in again.');
       navigate('/login', { replace: true });
       return;
     }
 
+    console.log('[SPLASH-COMPLETE] navigating to /dashboard');
     navigate('/dashboard');
   };
 
   // Temporary trace — what state are we rendering?
-  console.log('[LOGIN-RENDER] authLoading:', authLoading, 'initialCleanupDone:', initialCleanupDone, 'user:', !!user, 'provisioning:', provisioning, 'showSplash:', showSplash);
+  console.log('[LOGIN-RENDER] authLoading:', authLoading, 'initialCleanupDone:', initialCleanupDone, 'user:', !!user, 'provisioning:', provisioning, 'org:', organization?.id ?? 'null', 'showSplash:', showSplash);
 
   // Show splash screen after successful login
   if (showSplash) {
