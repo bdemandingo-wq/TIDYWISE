@@ -1381,6 +1381,99 @@ export default function PayrollPage() {
       </div>
 
       {/* Alert Banners */}
+
+      {/*
+        Jobs no pay run will ever pick up on its own. Loud on purpose: the whole
+        reason this page changed is that a job completed outside its scheduled
+        week used to vanish from payroll in silence.
+      */}
+      {orphanedJobs.length > 0 && (
+        <Card className="mb-4 border-destructive/50 bg-destructive/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h3 className="font-semibold text-destructive">
+                  {orphanedJobs.length} completed job(s) never made it into a pay run
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Worth {fmt(orphanedTotal)}. They completed before this period and no
+                  payout has ever been recorded for their week. Move the date range back
+                  to the week shown and pay them there.
+                </p>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {orphanedJobs.slice(0, 8).map((b: any) => (
+                    <li key={b.id} className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-medium">#{b.booking_number}</span>
+                      <span className="text-muted-foreground">
+                        scheduled {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
+                        {' → completed '}
+                        {formatInTimezone(b.payroll_date, orgTimezone, { month: 'short', day: 'numeric' })}
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {b.completed_at_source === 'checkout' ? 'measured' : 'inferred'}
+                      </Badge>
+                      <span className="font-medium">{fmt(exceptionPay(b))}</span>
+                    </li>
+                  ))}
+                </ul>
+                {orphanedJobs.length > 8 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    +{orphanedJobs.length - 8} more.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/*
+        The historical rows the backfill refused to move. Nothing was
+        re-attributed: a week with a recorded payout is sealed, and a job whose
+        completion date could not be established keeps its scheduled date. Both
+        land here for a human instead.
+      */}
+      {reviewJobs.length > 0 && (
+        <Card className="mb-4 border-warning/30 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <h3 className="font-semibold text-warning">
+                  {reviewJobs.length} job(s) need a completion date confirmed
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  These were paid on their scheduled date and left that way on purpose —
+                  either their week already has a recorded payout (locked, so no money
+                  moved), or no trustworthy completion time exists. Correct one only if
+                  you know the real date.
+                </p>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {reviewJobs.slice(0, 8).map((b: any) => (
+                    <li key={b.id} className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-medium">#{b.booking_number}</span>
+                      <span className="text-muted-foreground">
+                        {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <Badge variant="outline" className="text-[10px]">
+                        {b.payroll_locked_week ? `locked to week of ${b.payroll_locked_week}` : 'date not confident'}
+                      </Badge>
+                      <span className="font-medium">{fmt(exceptionPay(b))}</span>
+                    </li>
+                  ))}
+                </ul>
+                {reviewJobs.length > 8 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    +{reviewJobs.length - 8} more.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {negativeMarginCount > 0 && (
         <Card className="mb-4 border-destructive/50 bg-destructive/5">
           <CardContent className="p-4">
