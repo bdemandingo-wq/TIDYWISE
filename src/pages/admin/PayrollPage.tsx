@@ -70,7 +70,24 @@ interface StaffWithPayroll {
   isInactive: boolean;
 }
 
+/** A completed job payroll can't place on its own — orphaned or needing review. */
+interface PayrollExceptionRow {
+  id: string;
+  booking_number: number;
+  scheduled_at: string;
+  completed_at: string | null;
+  /** How completed_at was established: 'checkout' is measured, everything else inferred. */
+  completed_at_source: string | null;
+  payroll_date: string | null;
+  payroll_locked_week: string | null;
+  payroll_needs_review: boolean;
+  cleaner_pay_expected: number | null;
+  cleaner_actual_payment: number | null;
+  staff_id: string | null;
+}
+
 interface BookingPayrollDetail {
+
   id: string;
   /** The booking this row belongs to. A multi-cleaner booking has one row per
    *  cleaner, so anything counting BOOKINGS must dedupe on this, not on rows. */
