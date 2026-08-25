@@ -176,8 +176,6 @@ function formatDuration(seconds: number): string {
 // Platform-level analytics — intentionally unscoped by org_id. Super admin only.
 export default function PlatformAnalyticsPage() {
   const { user } = useAuth();
-  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; type: 'user' | 'organization'; name: string } | null>(null);
@@ -343,21 +341,32 @@ export default function PlatformAnalyticsPage() {
   });
 
 
-  const fetchAnalytics = async () => {
-    setLoading(true);
-    setError(null);
-    try {
+  const {
+    data: analytics = null,
+    isLoading: loading,
+    error: analyticsError,
+    refetch: fetchAnalytics,
+  } = useQuery({
+    queryKey: ['platform-analytics'],
+    queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('platform-analytics');
       if (error) throw error;
-      setAnalytics(data);
-    } catch (err: any) {
-      console.error('Error fetching platform analytics:', err);
-      setError(err.message || 'Failed to load analytics');
-      toast.error('Failed to load analytics');
-    } finally {
-      setLoading(false);
+      return data as PlatformAnalytics;
+    },
+    enabled: isPlatformOwner(user),
+    staleTime: 1000 * 60 * 10, // 10 minutes — the Stripe loop takes 10-30s, so don't re-run on every navigation
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (analyticsError) {
+      const msg = analyticsError instanceof Error ? analyticsError.message : 'Failed to load analytics';
+      setError(msg);
+      toast.error(msg);
+    } else {
+      setError(null);
     }
-  };
+  }, [analyticsError]);
 
   const handleDelete = async () => {
     if (!itemToDelete) return;
@@ -396,9 +405,7 @@ export default function PlatformAnalyticsPage() {
   const confirmTextMatches =
     !!itemToDelete && deleteConfirmText.trim() === itemToDelete.name.trim();
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  // fetchAnalytics is now managed by useQuery — no manual useEffect needed.
 
   // Check if user is platform admin
   // Same predicate PlatformOwnerRoute guards the broadcast detail page with,
@@ -441,7 +448,7 @@ export default function PlatformAnalyticsPage() {
         <Card className="border-destructive/20">
           <CardContent className="py-12 text-center">
             <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={fetchAnalytics}>Try Again</Button>
+            <Button onClick={() => fetchAnalytics()}>Try Again</Button>
           </CardContent>
         </Card>
       </div>
