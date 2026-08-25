@@ -346,8 +346,8 @@ const handler = async (req: Request): Promise<Response> => {
       subject: `${invoiceNumber} from ${companyName} — Pay Online`,
       html: emailHtml,
       templateName: "invoice",
-      messageId: `invoice-${data.invoiceId ?? invoiceNumber}`,
-      metadata: { invoice_number: invoiceNumber, invoice_id: data.invoiceId ?? null, total: data.total },
+      messageId: `invoice-${data.invoiceNumber}-${Date.now()}`,
+      metadata: { invoice_number: invoiceNumber, total: data.total },
     });
 
     if (!sendResult.success) {
