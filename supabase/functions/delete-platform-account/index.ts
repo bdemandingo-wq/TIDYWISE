@@ -73,7 +73,35 @@ serve(async (req) => {
     console.log(`[DELETE-ACCOUNT] Deleting ${type}: ${targetUserId}`);
 
     if (type === 'user') {
-      // Delete user from auth.users (this cascades to profiles due to FK)
+      // Delete owned organizations explicitly before deleting the auth user.
+      // Relying on the auth.users -> organizations cascade makes GoTrue collapse
+      // any deeper FK failure into the unhelpful "Database error deleting user".
+      // This path both preserves the intended full-account cascade and surfaces
+      // the actual table error if organization cleanup is blocked.
+      const { data: ownedOrganizations, error: ownedOrganizationsError } = await supabaseClient
+        .from('organizations')
+        .select('id')
+        .eq('owner_id', targetUserId);
+
+      if (ownedOrganizationsError) {
+        throw new Error(`Failed to inspect owned organizations: ${ownedOrganizationsError.message}`);
+      }
+
+      for (const organization of ownedOrganizations ?? []) {
+        const { error: organizationDeleteError } = await supabaseClient
+          .from('organizations')
+          .delete()
+          .eq('id', organization.id);
+
+        if (organizationDeleteError) {
+          throw new Error(
+            `Failed to delete owned organization ${organization.id}: ${organizationDeleteError.message}`,
+          );
+        }
+      }
+
+      // Delete user from auth.users (remaining user-owned rows cascade or clear
+      // their attribution through their FK deletion rules).
       const { error: deleteError } = await supabaseClient.auth.admin.deleteUser(targetUserId);
       
       if (deleteError) {
