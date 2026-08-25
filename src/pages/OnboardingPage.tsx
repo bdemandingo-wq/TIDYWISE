@@ -206,7 +206,7 @@ export default function OnboardingPage() {
     // `building` guard: right after creation, refetch() sets `organization`
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
-    if (!orgLoading && organization && !isNewBusiness && !building) {
+    if (!orgLoading && organization && !isNewBusiness && !building && !organization.needs_onboarding) {
       navigate('/dashboard', { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
@@ -220,47 +220,6 @@ export default function OnboardingPage() {
   }, [orgLoading, user, navigate]);
 
   const baseSlug = useMemo(() => slugify(businessName), [businessName]);
-
-  // On native (iOS), business creation must happen on the web for App Store
-  // compliance. Block the onboarding flow with a clear "Finish setup on web"
-  // screen rather than redirecting to /login (which causes a loop).
-  if (isNative && !orgLoading && user && !organization) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <SEOHead
-          title="Finish setup on web | TidyWise"
-          description="iOS app users need to finish creating their TidyWise business on the web. Open jointidywise.com to complete onboarding, then return to the app."
-          canonical="/onboarding"
-          noIndex
-        />
-        <h1 className="sr-only">Finish your TidyWise business setup on the web</h1>
-        <Card className="w-full max-w-md border-border/50 shadow-lg">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Finish setup on the web</CardTitle>
-            <CardDescription>
-              For the best experience, create your business on jointidywise.com.
-              You can sign back in here once setup is complete.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-              Open <span className="font-medium text-foreground">jointidywise.com</span> in
-              your browser, sign in with this same account, and finish your business setup.
-              Then come back to the app to start working.
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleLogout}
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const toggleService = (serviceName: string) => {
     const newSelected = new Set(selectedServices);
@@ -360,49 +319,72 @@ export default function OnboardingPage() {
       // does not change between slug attempts.
       const onboardingAnswersPayload = buildAnswersPayload(normalizeAnswers(answers));
 
-      // Try a few times in case the slug is taken.
       let orgData: any = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const slug = attempt === 0 ? initialSlug : `${initialSlug}-${randomSuffix()}`;
 
+      if (organization?.needs_onboarding) {
+        // Native path: org already exists (created by provision-trial-org).
+        // Update it with the onboarding data. The UPDATE grant must include
+        // needs_onboarding and onboarding_answers — see Lovable migration.
+        const slug = initialSlug;
         const { data, error } = await supabase
           .from('organizations')
-          .insert({
+          .update({
             name,
-            owner_id: user.id,
             slug,
             onboarding_answers: onboardingAnswersPayload,
+            needs_onboarding: false,
           })
+          .eq('id', organization.id)
           .select()
           .single();
 
-        if (!error) {
-          orgData = data;
-          break;
+        if (error) throw error;
+        orgData = data;
+      } else {
+        // Web path: create a new org from scratch.
+        // Try a few times in case the slug is taken.
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const slug = attempt === 0 ? initialSlug : `${initialSlug}-${randomSuffix()}`;
+
+          const { data, error } = await supabase
+            .from('organizations')
+            .insert({
+              name,
+              owner_id: user.id,
+              slug,
+              onboarding_answers: onboardingAnswersPayload,
+            })
+            .select()
+            .single();
+
+          if (!error) {
+            orgData = data;
+            break;
+          }
+
+          if (error.code === '23505' && (error.message || '').includes('organizations_slug_key')) {
+            continue;
+          }
+
+          throw error;
         }
 
-        // Slug conflict: retry with a different slug.
-        if (error.code === '23505' && (error.message || '').includes('organizations_slug_key')) {
-          continue;
+        if (!orgData) {
+          throw new Error('Business name is already taken. Please choose a different business name.');
         }
 
-        throw error;
+        // Create the membership for the owner (only for new orgs — provisioned
+        // orgs already have the membership from provision-trial-org).
+        const { error: memberError } = await supabase
+          .from('org_memberships')
+          .insert({
+            organization_id: orgData.id,
+            user_id: user.id,
+            role: 'owner',
+          });
+
+        if (memberError) throw memberError;
       }
-
-      if (!orgData) {
-        throw new Error('Business name is already taken. Please choose a different business name.');
-      }
-
-      // Create the membership for the owner
-      const { error: memberError } = await supabase
-        .from('org_memberships')
-        .insert({
-          organization_id: orgData.id,
-          user_id: user.id,
-          role: 'owner',
-        });
-
-      if (memberError) throw memberError;
 
       // Record the referral, if this signup arrived via someone's link.
       //

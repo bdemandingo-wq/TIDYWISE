@@ -11,9 +11,10 @@ interface AdminRouteProps {
 }
 
 // Routes a non-active org owner is still allowed to reach so they can
-// pay / log out / view billing. Everything else bounces to /pricing.
+// pay / log out / view billing / complete onboarding.
 const PAYWALL_ALLOWED_PATHS = [
   '/dashboard/subscription',
+  '/onboarding',
   '/logout',
 ];
 
@@ -179,6 +180,13 @@ export function AdminRoute({ children }: AdminRouteProps) {
         </div>
       );
     }
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  // Org exists but onboarding not completed — send to the wizard.
+  // IMPORTANT: /onboarding must stay OUTSIDE AdminRoute in the route tree.
+  // If it were inside, this redirect would loop infinitely.
+  if (organization.needs_onboarding) {
     return <Navigate to="/onboarding" replace />;
   }
 

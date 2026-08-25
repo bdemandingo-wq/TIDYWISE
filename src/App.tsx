@@ -325,14 +325,17 @@ const App = () => (
                       <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                       <Route path="/terms" element={<TermsPage />} />
                       <Route path="/delete-account" element={<DeleteAccountPage />} />
-                      {/* App Store 3.1.1: No pricing/marketing/onboarding on native */}
+                      {/* App Store 3.1.1: No pricing/marketing on native */}
                       <Route path="/pricing" element={<Navigate to="/login" replace />} />
                       {/* Native already IS the app — pointing someone at the
                           App Store from inside it makes no sense, and marketing
                           routes are redirected here anyway (App Store 3.1.1). */}
                       <Route path="/get-the-app" element={<Navigate to="/login" replace />} />
                       <Route path="/choose-plan" element={<Navigate to="/login" replace />} />
-                      <Route path="/onboarding" element={<Navigate to="/login" replace />} />
+                      {/* Onboarding is OUTSIDE AdminRoute. Moving it inside would
+                          create an infinite redirect — AdminRoute's needs_onboarding
+                          gate sends users here, so it must not be behind it. */}
+                      <Route path="/onboarding" element={<OnboardingPage />} />
                       <Route path="/demo" element={<Navigate to="/login" replace />} />
                       <Route path="/review/:token" element={<ReviewPage />} />
                       {/* Redirect all marketing pages to login on native */}
@@ -446,6 +449,9 @@ const App = () => (
                      <Route path="/choose-plan" element={<ErrorBoundary featureName="Choose Plan"><ChoosePlanPage /></ErrorBoundary>} />
                      <Route path="/checkout/success" element={<ErrorBoundary featureName="Checkout Success"><CheckoutSuccessPage /></ErrorBoundary>} />
                      <Route path="/demo" element={<DemoPage />} />
+                    {/* Onboarding is OUTSIDE AdminRoute. Moving it inside would
+                        create an infinite redirect — AdminRoute's needs_onboarding
+                        gate sends users here, so it must not be behind it. */}
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/review/:token" element={<ReviewPage />} />
                      <Route path="/blog" element={<BlogIndex />} />

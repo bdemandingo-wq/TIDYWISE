@@ -10,6 +10,9 @@ interface Organization {
   slug: string | null;
   logo_url: string | null;
   owner_id: string;
+  /** Set by provision-trial-org, cleared by onboarding submit.
+   *  Not in generated types yet — defaults to false for pre-migration orgs. */
+  needs_onboarding?: boolean;
 }
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'member';
