@@ -120,12 +120,11 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     [setSelectedDate],
   );
 
-  // Geocode the job address when it changes - with cache, retry, and fallback queries
+  // Geocode the job address once per keystroke burst. No retries, no backoff:
+  // the retry loop was making the form feel like it was fighting the user. We
+  // cache successes for 12h and failures for 2m, and show a sticky spinner in
+  // the staff card so the admin knows distances are being calculated.
   useEffect(() => {
-    // Google Places already gave us exact coordinates when the address was
-    // picked from autocomplete, so skip the geocoder entirely. This is the
-    // common path now; everything below is the legacy fallback for
-    // hand-typed addresses and bookings created before autocomplete.
     if (latitude != null && longitude != null) {
       setJobCoordinates({ lat: latitude, lng: longitude });
       setIsGeocodingJob(false);
@@ -156,27 +155,10 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
     }
 
     let cancelled = false;
-
-    const geocodeWithRetry = async (query: string, retries = 2): Promise<Coordinates | null> => {
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        if (cancelled) return null;
-
-        const coords = await geocodeAddress(query, orgCountry);
-        if (cancelled) return null;
-        if (coords) return coords;
-
-        if (attempt < retries) {
-          await new Promise((resolve) => setTimeout(resolve, 1500 * (attempt + 1)));
-        }
-      }
-
-      return null;
-    };
+    setIsGeocodingJob(true);
 
     const runGeocode = async () => {
-      setIsGeocodingJob(true);
-
-      const primaryCoords = await geocodeWithRetry(fullAddress, 2);
+      const primaryCoords = await geocodeAddress(fullAddress, orgCountry);
       if (cancelled) return;
 
       if (primaryCoords) {
@@ -186,6 +168,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
         return;
       }
 
+      // One pass over simpler fallback queries, no retries/backoff.
       const fallbackCandidates = [
         [address, state, zipCode].filter(Boolean).join(', '),
         [address, zipCode].filter(Boolean).join(', '),
@@ -195,7 +178,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
         .filter((candidate) => candidate.length >= 5 && candidate.toLowerCase() !== cacheKey);
 
       for (const candidate of fallbackCandidates) {
-        const fallbackCoords = await geocodeWithRetry(candidate, 0);
+        const fallbackCoords = await geocodeAddress(candidate, orgCountry);
         if (cancelled) return;
 
         if (fallbackCoords) {
