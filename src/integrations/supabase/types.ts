@@ -2464,7 +2464,7 @@ export type Database = {
           body_text: string
           completed_at: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           failed_count: number
           id: string
           last_test_sent_at: string | null
@@ -2483,7 +2483,7 @@ export type Database = {
           body_text: string
           completed_at?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           failed_count?: number
           id?: string
           last_test_sent_at?: string | null
@@ -2502,7 +2502,7 @@ export type Database = {
           body_text?: string
           completed_at?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           failed_count?: number
           id?: string
           last_test_sent_at?: string | null
