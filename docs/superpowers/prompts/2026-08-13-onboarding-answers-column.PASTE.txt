@@ -52,10 +52,25 @@ That is the entire change.
      GRANT UPDATE (name, slug, logo_url, updated_at) ON public.organizations TO authenticated;
 
    This is deliberate hardening: owners may edit display fields, but billing-state
-   columns are off-limits to authenticated users. Do NOT add onboarding_answers to
-   that grant list. The value is written once, inside the org-creation INSERT, and
-   is never updated by a client afterwards. Adding it to the UPDATE grant would
-   hand every logged-in owner a writable column for no reason.
+   columns are off-limits to authenticated users.
+
+   SUPERSEDED 2026-08-25 — the write-once-at-INSERT assumption below no longer
+   holds. Onboarding moved to a post-creation flow: provision-trial-org now
+   creates the org with needs_onboarding = true, and the owner fills in the
+   answers afterwards from the app, which is an UPDATE, not an INSERT. So this
+   grant now reads:
+
+     GRANT UPDATE (name, slug, logo_url, updated_at) ON public.organizations TO authenticated;
+     GRANT UPDATE (needs_onboarding, onboarding_answers) ON public.organizations TO authenticated;
+
+   Everything else about the hardening stands: the grant is still column-level,
+   billing-state columns are still unreachable, and the RLS UPDATE policy still
+   restricts the row to owner_id = auth.uid(). Do not widen it further.
+
+   (Original text, kept for context: "Do NOT add onboarding_answers to that grant
+   list. The value is written once, inside the org-creation INSERT, and is never
+   updated by a client afterwards.")
+
 
 
 === VERIFY, THEN REPORT ===
