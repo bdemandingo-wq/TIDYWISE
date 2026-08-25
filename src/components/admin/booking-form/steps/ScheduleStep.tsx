@@ -235,7 +235,7 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
   const activeStaff = staff?.filter(s => s.is_active) || [];
   const staffAvailability = useMemo(() => {
     return getStaffAvailability(activeStaff.map(s => s.id));
-  }, [activeStaff, selectedDate, selectedTime, getStaffAvailability]);
+  }, [activeStaff, getStaffAvailability]);
 
   // Show ALL active staff so admins can always override and assign anyone.
   // Staff who are outside their working hours OR have conflicts are still shown

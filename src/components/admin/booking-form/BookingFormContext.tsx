@@ -341,7 +341,7 @@ export function BookingFormProvider({
   const servicePricing = useMemo(() => {
     if (!selectedServiceId) return null;
     return getServicePricing(selectedServiceId);
-  }, [selectedServiceId, getServicePricing, pricingLoading]);
+  }, [selectedServiceId, getServicePricing]);
 
   // Calculate extras total from service-specific pricing
   const extrasTotal = useMemo(() => {

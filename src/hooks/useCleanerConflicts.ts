@@ -194,7 +194,7 @@ export function useCleanerConflicts(
     // Check if the booking START time falls within working hours
     // We don't block on booking end time going over - admin can override that
     return selectedMinutes >= startMinutes && selectedMinutes < endMinutes;
-  }, [selectedDate, selectedTime, duration, workingHours, orgTimezone]);
+  }, [selectedDate, selectedTime, workingHours]);
 
   // Check conflicts for a specific staff member
   const checkConflictsForStaff = useCallback((staffId: string): ConflictInfo[] => {
