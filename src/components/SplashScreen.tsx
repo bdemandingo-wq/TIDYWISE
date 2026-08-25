@@ -5,7 +5,7 @@
  * Prevents flash of login/signup forms
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import tidywiseLogo from '/images/tidywise-logo.webp';
 
 interface SplashScreenProps {
@@ -15,17 +15,22 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onComplete, minDuration = 800 }: SplashScreenProps) {
   const [fadeOut, setFadeOut] = useState(false);
+  // Store onComplete in a ref so the timer effect doesn't depend on the
+  // callback identity. Without this, every parent re-render that creates a
+  // new onComplete reference resets the timer and the splash never dismisses.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setFadeOut(true);
-      if (onComplete) {
-        setTimeout(onComplete, 300); // Wait for fade animation
+      if (onCompleteRef.current) {
+        setTimeout(onCompleteRef.current, 300);
       }
     }, minDuration);
 
     return () => clearTimeout(timer);
-  }, [minDuration, onComplete]);
+  }, [minDuration]);
 
   return (
     <div 

@@ -70,6 +70,14 @@
 				<string>com.googleusercontent.apps.508777160782-h9u2n2trq255humf1sigl88t0a38peb4</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>App OAuth Callback</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.TidyWiseApp.app</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

@@ -1,5 +1,5 @@
 /**
- * LOGIN PAGE - Email/Password only
+ * LOGIN PAGE - Email/Password + Apple/Google OAuth on native
  */
 
 import { useState, useEffect } from 'react';
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Loader2, ArrowLeft, Mail, Lock, HardHat, Users } from 'lucide-react';
 import { z } from 'zod';
 import { Capacitor } from '@capacitor/core';
+import { APPLE_OAUTH_ENABLED, GOOGLE_OAUTH_ENABLED } from '@/lib/oauthFlags';
 
 // Validation schema
 const loginSchema = z.object({
@@ -32,7 +33,8 @@ export default function LoginPage() {
   const isNative = Capacitor.isNativePlatform();
   // In-app signup is now supported (trial-first, no payment).
   const SHOW_NATIVE_SIGNUP_LINK = true;
-  const { user, loading: authLoading, initialCleanupDone, signIn } = useAuthNoSession();
+  const { user, loading: authLoading, initialCleanupDone, provisioning, signIn, signInWithApple, signInWithGoogle } = useAuthNoSession();
+  const [oauthLoading, setOauthLoading] = useState<'apple' | 'google' | null>(null);
 
   // /auth and /login both render this component. Emit unique SEO meta per URL while
   // keeping the canonical pointed at /login so search engines consolidate ranking.
@@ -53,13 +55,16 @@ export default function LoginPage() {
   });
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-  // Redirect if authenticated
+  // Redirect if authenticated AND provisioning is resolved.
+  // Don't show the splash until provisioning is done/failed — otherwise
+  // the splash navigates to /dashboard before the org exists, which
+  // bounces to /onboarding → /login → infinite loop.
   useEffect(() => {
     if (authLoading || !initialCleanupDone) return;
-    if (user) {
-      setShowSplash(true);
-    }
-  }, [user, authLoading, initialCleanupDone]);
+    if (!user) return;
+    if (provisioning === 'pending') return; // still provisioning — wait
+    setShowSplash(true);
+  }, [user, authLoading, initialCleanupDone, provisioning]);
 
   const validateForm = (): boolean => {
     try {
@@ -193,14 +198,23 @@ export default function LoginPage() {
       }
     }
 
+    if (provisioning === 'failed') {
+      toast.error('Could not set up your account. Please try signing in again.');
+      navigate('/login', { replace: true });
+      return;
+    }
+
     navigate('/dashboard');
   };
+
+  // Temporary trace — what state are we rendering?
+  console.log('[LOGIN-RENDER] authLoading:', authLoading, 'initialCleanupDone:', initialCleanupDone, 'user:', !!user, 'provisioning:', provisioning, 'showSplash:', showSplash);
 
   // Show splash screen after successful login
   if (showSplash) {
     return (
-      <SplashScreen 
-        onComplete={handleSplashComplete} 
+      <SplashScreen
+        onComplete={handleSplashComplete}
         minDuration={1500}
       />
     );
@@ -208,6 +222,7 @@ export default function LoginPage() {
 
   // Show loading spinner only during initial auth check
   if (authLoading || !initialCleanupDone) {
+    console.log('[LOGIN-RENDER] showing spinner: authLoading=', authLoading, 'initialCleanupDone=', initialCleanupDone);
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -245,6 +260,72 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* OAuth buttons — native only, Apple first (Guideline 4.8) */}
+            {isNative && (APPLE_OAUTH_ENABLED || GOOGLE_OAUTH_ENABLED) && (
+              <>
+                <div className="space-y-3 mb-5">
+                  {APPLE_OAUTH_ENABLED && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 text-base font-medium"
+                      disabled={!!oauthLoading || loading}
+                      onClick={async () => {
+                        setOauthLoading('apple');
+                        const { error } = await signInWithApple();
+                        if (error) {
+                          toast.error('Apple sign-in failed. Please try again.');
+                          setOauthLoading(null);
+                        }
+                      }}
+                    >
+                      {oauthLoading === 'apple' ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                        </svg>
+                      )}
+                      Continue with Apple
+                    </Button>
+                  )}
+                  {GOOGLE_OAUTH_ENABLED && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 text-base font-medium"
+                      disabled={!!oauthLoading || loading}
+                      onClick={async () => {
+                        setOauthLoading('google');
+                        const { error } = await signInWithGoogle();
+                        if (error) {
+                          toast.error('Google sign-in failed. Please try again.');
+                          setOauthLoading(null);
+                        }
+                      }}
+                    >
+                      {oauthLoading === 'google' ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                        </svg>
+                      )}
+                      Continue with Google
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs tracking-widest text-muted-foreground">OR</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+              </>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email field */}
               <div className="space-y-2">

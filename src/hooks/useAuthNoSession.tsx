@@ -23,11 +23,15 @@ import { Sentry } from '@/lib/sentry';
 // Re-export for backward compatibility
 export const supabaseNoSession = supabase;
 
+type ProvisioningState = 'idle' | 'pending' | 'done' | 'failed';
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   initialCleanupDone: boolean;
+  /** Whether OAuth org provisioning has completed for the current user */
+  provisioning: ProvisioningState;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, metadata?: { full_name?: string; phone?: string }) => Promise<{ data: { user: User | null } | null; error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
@@ -67,6 +71,8 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
         // family. That is how one account accumulated 111 refresh tokens and
         // 29 sessions, being logged out each time a family was revoked.
         // One refresher. Do not add another.
+        console.count('[GET-SESSION]');
+        console.log('[GET-SESSION] initializeAuth', new Error().stack?.split('\n').slice(0, 3).join(' | '));
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession) {
           setSession(currentSession);
@@ -83,27 +89,33 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     initializeAuth();
   }, []);
 
-  // Listen for auth state changes AFTER initial cleanup
+  // Listen for auth state changes AFTER initial cleanup.
+  //
+  // CRITICAL: the callback must NEVER call supabase.from(), .functions.invoke(),
+  // or .auth.getSession(). Those acquire the auth lock, and this callback runs
+  // INSIDE that lock (called from _notifyAllSubscribers during setSession/
+  // signInWithPassword). Calling any lock-acquiring method deadlocks the app.
+  // See: 2026-08-25 OAuth black-screen investigation.
+  //
+  // All async work (org provisioning, membership checks) goes in a separate
+  // useEffect keyed on the user id, which runs AFTER the lock releases.
   useEffect(() => {
     if (!initialCleanupDone) return;
 
     const { data: { subscription } } = supabaseNoSession.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
+        console.log('[AUTH-STATE]', event, 'user:', currentSession?.user?.id ?? 'null');
+        // Synchronous state updates only — no awaits, no supabase calls.
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
 
-        // If user signs out, ensure state is cleared
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setSession(null);
           cachedUserIdRef.current = null;
-          // resetQueries, not clear — clear() detaches observers and freezes
-          // the React tree, blocking the logout redirect on web.
           queryClient.resetQueries();
         }
 
-        // Clear the cache when a different user signs in — prevents the
-        // previous user's data from rendering under the new user's session.
         if (event === 'SIGNED_IN' && currentSession?.user) {
           const newUserId = currentSession.user.id;
           if (cachedUserIdRef.current && cachedUserIdRef.current !== newUserId) {
@@ -111,34 +123,14 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
           }
           cachedUserIdRef.current = newUserId;
         }
-
-        // OAuth signup: when a user signs in via Apple/Google for the first
-        // time, they have no profile or org. The email/password path handles
-        // this in the signup handler, but OAuth lands here directly.
-        // Provision a trial org if this user has no org_memberships yet.
-        if (event === 'SIGNED_IN' && currentSession?.user) {
-          try {
-            const { data: memberships } = await supabaseNoSession
-              .from('org_memberships')
-              .select('organization_id')
-              .eq('user_id', currentSession.user.id)
-              .limit(1);
-
-            if (!memberships || memberships.length === 0) {
-              const { data } = await supabaseNoSession.functions.invoke('provision-trial-org');
-              const orgId = (data as { organization_id?: string })?.organization_id;
-              if (orgId) {
-                try { localStorage.setItem('tidywise_active_org', orgId); } catch { /* ignore */ }
-              }
-            }
-          } catch {
-            // Non-blocking — org can be provisioned on next login
-          }
-        }
       }
     );
 
-    // Check current session (for OAuth callbacks)
+    // Check current session (for OAuth callbacks).
+    // This getSession call is OUTSIDE the lock (it's in a useEffect, not in the
+    // onAuthStateChange callback), so it's safe.
+    console.count('[GET-SESSION]');
+    console.log('[GET-SESSION] onAuthStateChange effect');
     supabaseNoSession.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
@@ -147,6 +139,75 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- queryClient is stable from QueryClientProvider; re-subscribing on initialCleanupDone is the only trigger needed
   }, [initialCleanupDone]);
+
+  // ── OAuth provisioning effect ────────────────────────────────────────
+  // Runs when a new user identity appears (user.id changes). Checks for
+  // org_memberships and provisions a trial org if none exist.
+  //
+  // Separated from onAuthStateChange to avoid the auth lock deadlock:
+  // supabase.from() calls getSession() which acquires the lock, but
+  // onAuthStateChange runs INSIDE the lock. This effect runs after React
+  // re-renders with the new user, which is after the lock releases.
+  //
+  // Exposes `provisioning` state so callers (LoginPage) can wait for it
+  // before navigating, rather than racing the provision against a timer.
+  const provisionedUserRef = useRef<string | null>(null);
+  const [provisioning, setProvisioning] = useState<ProvisioningState>('idle');
+
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId) {
+      setProvisioning('idle');
+      return;
+    }
+    if (provisionedUserRef.current === userId) return;
+    provisionedUserRef.current = userId;
+
+    let cancelled = false;
+    setProvisioning('pending');
+
+    (async () => {
+      try {
+        console.log('[OAUTH-PROVISION] checking org_memberships for', userId);
+        const { data: memberships, error: memErr } = await supabaseNoSession
+          .from('org_memberships')
+          .select('organization_id')
+          .eq('user_id', userId)
+          .limit(1);
+
+        console.log('[OAUTH-PROVISION] org_memberships:', memberships?.length ?? 'error', memErr?.message ?? 'ok');
+
+        if (cancelled) return;
+
+        if (!memberships || memberships.length === 0) {
+          console.log('[OAUTH-PROVISION] no memberships — calling provision-trial-org');
+          const { data, error: provErr } = await supabaseNoSession.functions.invoke('provision-trial-org');
+          console.log('[OAUTH-PROVISION] provision-trial-org result:', provErr ? 'ERROR: ' + provErr.message : JSON.stringify(data));
+
+          if (cancelled) return;
+
+          const orgId = (data as { organization_id?: string })?.organization_id;
+          if (orgId) {
+            try { localStorage.setItem('tidywise_active_org', orgId); } catch { /* ignore */ }
+          }
+
+          if (provErr) {
+            console.error('[OAUTH-PROVISION] provisioning failed');
+            setProvisioning('failed');
+            return;
+          }
+        }
+        console.log('[OAUTH-PROVISION] complete');
+        if (!cancelled) setProvisioning('done');
+      } catch (err) {
+        console.error('[OAUTH-PROVISION] exception:', err);
+        if (!cancelled) setProvisioning('failed');
+      }
+    })();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per user identity; supabaseNoSession is stable
+  }, [user?.id]);
 
   // Tag Sentry events with the authenticated user so production errors
   // can be traced to a specific account. Clears on sign-out. Reacts to
@@ -324,6 +385,7 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
       session,
       loading,
       initialCleanupDone,
+      provisioning,
       signIn,
       signUp,
       signInWithGoogle,
