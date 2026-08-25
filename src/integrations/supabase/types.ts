@@ -4933,6 +4933,7 @@ export type Database = {
           id: string
           message_id: string | null
           metadata: Json | null
+          organization_id: string | null
           recipient_email: string
           status: string
           template_name: string
@@ -4943,6 +4944,7 @@ export type Database = {
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          organization_id?: string | null
           recipient_email: string
           status: string
           template_name: string
@@ -4953,11 +4955,20 @@ export type Database = {
           id?: string
           message_id?: string | null
           metadata?: Json | null
+          organization_id?: string | null
           recipient_email?: string
           status?: string
           template_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_send_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_send_state: {
         Row: {
@@ -10704,6 +10715,53 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      system_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          error_message: string | null
+          id: string
+          organization_id: string | null
+          resource_id: string | null
+          resource_type: string | null
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          organization_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          success?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          error_message?: string | null
+          id?: string
+          organization_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_logs: {
         Row: {
