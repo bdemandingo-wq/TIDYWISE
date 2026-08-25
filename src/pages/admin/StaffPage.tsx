@@ -116,7 +116,7 @@ export default function StaffPage() {
   const queryClient = useQueryClient();
   const { isTestMode, maskName, maskEmail, maskPhone } = useTestMode();
   const { organizationId } = useOrgId();
-  const { data: pendingTimeOff = 0 } = useQuery({
+  const { data: pendingTimeOff = 0, error: pendingTimeOffError } = useQuery({
     queryKey: ['time-off-pending-count', organizationId],
     queryFn: async () => {
       if (!organizationId) return 0;
@@ -129,7 +129,7 @@ export default function StaffPage() {
     },
     enabled: !!organizationId,
   });
-  const { data: pendingDocs = 0 } = useQuery({
+  const { data: pendingDocs = 0, error: pendingDocsError } = useQuery({
     queryKey: ['staff-docs-pending-count', organizationId],
     queryFn: async () => {
       if (!organizationId) return 0;
@@ -142,6 +142,12 @@ export default function StaffPage() {
     },
     enabled: !!organizationId,
   });
+
+  useEffect(() => {
+    if (pendingTimeOffError) toast.error('Failed to load time-off requests');
+    if (pendingDocsError) toast.error('Failed to load pending documents');
+  }, [pendingTimeOffError, pendingDocsError]);
+
   const staffReasons = usePageBadgeReasons('/dashboard/staff');
   const handleStaffReason = (key: string) => {
     if (key === 'time_off') handleTabChange('time-off');

@@ -222,7 +222,7 @@ export default function RecurringBookingsPage() {
   const { data: staff = [] } = useStaff();
 
   // Fetch org-specific custom frequencies
-  const { data: customFrequencies = [] } = useQuery({
+  const { data: customFrequencies = [], error: customFrequenciesError } = useQuery({
     queryKey: ['custom-frequencies', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -238,7 +238,7 @@ export default function RecurringBookingsPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: recurringBookings = [], isLoading } = useQuery({
+  const { data: recurringBookings = [], isLoading, error: recurringBookingsError } = useQuery({
     queryKey: ['recurring-bookings', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -259,7 +259,7 @@ export default function RecurringBookingsPage() {
   });
 
   // Fetch ALL bookings for this org to find each recurring client's latest booking
-  const { data: allOrgBookings = [] } = useQuery({
+  const { data: allOrgBookings = [], error: allOrgBookingsError } = useQuery({
     queryKey: ['all-bookings-for-recurring', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -275,6 +275,12 @@ export default function RecurringBookingsPage() {
     enabled: !!organization?.id,
     staleTime: 1000 * 60 * 2,
   });
+
+  useEffect(() => {
+    if (customFrequenciesError) toast.error('Failed to load custom frequencies');
+    if (recurringBookingsError) toast.error('Failed to load recurring bookings');
+    if (allOrgBookingsError) toast.error('Failed to load bookings');
+  }, [customFrequenciesError, recurringBookingsError, allOrgBookingsError]);
 
   // Build lookup maps: latest booking date + existing date sets per customer+service
   // Also build customer-only maps for multi-service recurring bookings

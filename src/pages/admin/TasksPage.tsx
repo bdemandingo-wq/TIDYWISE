@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,7 +67,7 @@ export default function TasksPage() {
   const [newType, setNewType] = useState<TaskType>('daily');
 
   // Fetch tasks
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: tasks = [], isLoading, error: tasksError } = useQuery({
     queryKey: ['tasks-and-notes', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -95,6 +95,10 @@ export default function TasksPage() {
     },
     enabled: !!organizationId,
   });
+
+  useEffect(() => {
+    if (tasksError) toast.error('Failed to load tasks');
+  }, [tasksError]);
 
   // Create task
   const createMutation = useMutation({

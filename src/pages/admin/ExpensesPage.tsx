@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { matrixToCsv } from '@/lib/orgDataExport';
@@ -94,7 +94,7 @@ export default function ExpensesPage() {
   });
 
   // Fetch expenses
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expenses = [], isLoading, error: expensesError } = useQuery({
     queryKey: ['expenses', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -108,6 +108,10 @@ export default function ExpensesPage() {
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    if (expensesError) toast.error('Failed to load expenses');
+  }, [expensesError]);
 
   // Create expense
   const createMutation = useMutation({
