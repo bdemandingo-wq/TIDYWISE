@@ -311,9 +311,19 @@ serve(async (req) => {
         const MAX_SUBSCRIPTIONS_SCANNED = 5000;
         let truncated = false;
 
+        // `expand: ['data.customer']` inlines the full customer object on every
+        // subscription in the SAME list request. This replaces one sequential
+        // stripe.customers.retrieve() per subscription (38 round trips at
+        // 100-500ms each) with zero extra calls. Stripe allows expanding
+        // `data.<field>` on list endpoints; customer objects returned this way
+        // are identical to a retrieve, except a deleted customer comes back as
+        // { id, deleted: true }, which the consumer below already handles.
+        const customerById = new Map<string, Stripe.Customer>();
+
         await stripe.subscriptions
-          .list({ limit: 100, status: "all" })
+          .list({ limit: 100, status: "all", expand: ["data.customer"] })
           .autoPagingEach((sub: Stripe.Subscription) => {
+
             if (totalSubscriptionsSeen >= MAX_SUBSCRIPTIONS_SCANNED) {
               truncated = true;
               return false; // returning false stops autoPagingEach
