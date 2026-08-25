@@ -497,16 +497,24 @@ export function ScheduleStep({ currentBookingId }: { currentBookingId?: string }
               <Users className="h-4 w-4 text-muted-foreground" />
               <Label className="text-sm font-medium">Assign Staff (Optional)</Label>
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="teamMode"
-                checked={isTeamMode}
-                onCheckedChange={handleTeamModeChange}
-              />
-              <Label htmlFor="teamMode" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
-                <UserPlus className="h-3 w-3" />
-                Team Mode
-              </Label>
+            <div className="flex items-center gap-3">
+              {isGeocodingJob && (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Locating job address…
+                </span>
+              )}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="teamMode"
+                  checked={isTeamMode}
+                  onCheckedChange={handleTeamModeChange}
+                />
+                <Label htmlFor="teamMode" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
+                  <UserPlus className="h-3 w-3" />
+                  Team Mode
+                </Label>
+              </div>
             </div>
           </div>
 
