@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { SubscriptionGate } from '@/components/admin/SubscriptionGate';
@@ -167,7 +167,7 @@ export default function InvoicesPage() {
   const orgTimezone = useOrgTimezone();
   const { organization } = useOrganization();
 
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading, error: invoicesError } = useQuery({
     queryKey: ['invoices', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -187,7 +187,7 @@ export default function InvoicesPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: customers = [] } = useQuery({
+  const { data: customers = [], error: customersError } = useQuery({
     queryKey: ['customers', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -202,7 +202,7 @@ export default function InvoicesPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: leads = [] } = useQuery({
+  const { data: leads = [], error: leadsQueryError } = useQuery({
     queryKey: ['leads', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -217,7 +217,7 @@ export default function InvoicesPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: services = [] } = useQuery({
+  const { data: services = [], error: servicesError } = useQuery({
     queryKey: ['services', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -233,7 +233,7 @@ export default function InvoicesPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: pricingSettings } = useQuery({
+  const { data: pricingSettings, error: pricingSettingsError } = useQuery({
     queryKey: ['pricing-settings', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -249,6 +249,11 @@ export default function InvoicesPage() {
   });
 
   const defaultTaxPercent = pricingSettings?.sales_tax_percent ?? 0;
+
+  useEffect(() => {
+    const err = invoicesError || customersError || leadsQueryError || servicesError || pricingSettingsError;
+    if (err) toast.error('Failed to load data');
+  }, [invoicesError, customersError, leadsQueryError, servicesError, pricingSettingsError]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {

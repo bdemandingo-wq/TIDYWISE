@@ -130,7 +130,7 @@ export default function LeadsPage() {
   const lastSyncedKeyRef = useRef<string>('');
 
   // Fetch abandoned booking link tracking data — only actual booking links
-  const { data: abandonedLinks = [], isLoading: abandonedLoading } = useQuery({
+  const { data: abandonedLinks = [], isLoading: abandonedLoading, error: abandonedLinksError } = useQuery({
     queryKey: ['abandoned-booking-links', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -149,7 +149,7 @@ export default function LeadsPage() {
   });
 
 
-  const { data: leads = [], isLoading } = useQuery({
+  const { data: leads = [], isLoading, error: leadsError } = useQuery({
     queryKey: ['leads', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -163,6 +163,11 @@ export default function LeadsPage() {
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    const err = abandonedLinksError || leadsError;
+    if (err) toast.error('Failed to load data');
+  }, [abandonedLinksError, leadsError]);
 
   // Auto-run smart sync when leads first load, and re-run whenever the set
   // of converted leads changes (so the flagged badges stay in sync without

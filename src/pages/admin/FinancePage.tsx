@@ -127,7 +127,7 @@ export default function FinancePage() {
   const stripeConnected = !stripeError && !!stripeData;
 
   // Fetch completed bookings with payment data - scoped to organization
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [], error: bookingsError } = useQuery({
     queryKey: ['bookings-finance', organizationId, dateRange],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -155,7 +155,7 @@ export default function FinancePage() {
 
   // Fetch team assignment pay for accurate labor costs
   const bookingIds = useMemo(() => bookings.map((b: any) => b.id), [bookings]);
-  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+  const { data: teamPaysByBooking = new Map<string, number>(), error: teamPaysError } = useQuery({
     queryKey: ['finance-team-pay', organizationId, bookingIds.join(',')],
     queryFn: async () => {
       if (!organizationId || bookingIds.length === 0) return new Map<string, number>();
@@ -194,7 +194,7 @@ export default function FinancePage() {
   });
 
   // Fetch paid tips collected through portal in date range
-  const { data: paidTips = [] } = useQuery({
+  const { data: paidTips = [], error: paidTipsError } = useQuery({
     queryKey: ['finance-paid-tips', organizationId, dateRange],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -212,7 +212,7 @@ export default function FinancePage() {
   });
 
   // Fetch expenses for the date range - scoped to organization
-  const { data: expenses = [] } = useQuery({
+  const { data: expenses = [], error: expensesError } = useQuery({
     queryKey: ['expenses-finance', organizationId, dateRange],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -231,6 +231,11 @@ export default function FinancePage() {
     },
     enabled: !!organizationId,
   });
+
+  useEffect(() => {
+    const err = bookingsError || teamPaysError || paidTipsError || expensesError;
+    if (err) toast.error('Failed to load data');
+  }, [bookingsError, teamPaysError, paidTipsError, expensesError]);
 
   // Transform bookings to transactions with calculated fees
   const transactions: Transaction[] = useMemo(() => {

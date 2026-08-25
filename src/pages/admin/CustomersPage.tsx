@@ -142,7 +142,7 @@ export default function CustomersPage() {
   const customersQueryKey = useMemo(() => ['customers', organization?.id], [organization?.id]);
 
   // Fetch booking stats per customer
-  const { data: bookingStats = [] } = useQuery({
+  const { data: bookingStats = [], error: bookingStatsError } = useQuery({
     queryKey: ['customer-booking-stats', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -185,7 +185,7 @@ export default function CustomersPage() {
   }, [bookingStats]);
 
   // Available campaigns for "Add to Campaign" per-row action
-  const { data: availableCampaigns = [] } = useQuery({
+  const { data: availableCampaigns = [], error: availableCampaignsError } = useQuery({
     queryKey: ['available-campaigns', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -251,7 +251,7 @@ export default function CustomersPage() {
   }, [organization?.id, queryClient]);
 
   // Active campaign enrollments per customer (pending sends = actively enrolled)
-  const { data: enrollmentsByCustomer = new Map<string, { id: string; name: string }[]>() } = useQuery({
+  const { data: enrollmentsByCustomer = new Map<string, { id: string; name: string }[]>(), error: enrollmentsError } = useQuery({
     queryKey: ['customer-campaign-enrollments', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return new Map<string, { id: string; name: string }[]>();
@@ -276,6 +276,11 @@ export default function CustomersPage() {
     enabled: !!organization?.id,
     staleTime: 1000 * 60 * 2,
   });
+
+  useEffect(() => {
+    const err = bookingStatsError || availableCampaignsError || enrollmentsError;
+    if (err) toast.error('Failed to load data');
+  }, [bookingStatsError, availableCampaignsError, enrollmentsError]);
 
   const handleBulkAddToCampaign = useCallback(async (campaign: { id: string; name: string; type: string; body: string }) => {
     if (!organization?.id || selectedIds.size === 0) return;
