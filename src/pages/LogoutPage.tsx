@@ -17,34 +17,43 @@ export default function LogoutPage() {
   const { signOut } = useAuthNoSession();
 
   useEffect(() => {
-    const handleLogout = async () => {
-      try {
-        await signOut();
-        
-        // Clear any residual storage keys
-        const authKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith('sb-') || key.includes('supabase')
-        );
-        authKeys.forEach(key => localStorage.removeItem(key));
-        
-        const sessionKeys = Object.keys(sessionStorage).filter(key => 
-          key.startsWith('sb-') || key.includes('supabase')
-        );
-        sessionKeys.forEach(key => sessionStorage.removeItem(key));
+    /*
+      Navigate FIRST, then clean up.
 
+      This used to `await signOut()` — a network round-trip to the auth server —
+      before it ever called navigate(), so a slow or offline connection left the
+      user staring at the "Signing out..." spinner for seconds, and a failed
+      request meant the redirect only happened via the finally block. Logging
+      out is a UI intent: the user should be on /login immediately.
+
+      The storage purge is what actually ends the session on this device, and it
+      is synchronous, so it runs before the redirect. The server-side revoke is
+      fire-and-forget afterwards.
+    */
+    const purgeLocalSession = () => {
+      try {
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith('sb-') || key.includes('supabase'))
+          .forEach((key) => localStorage.removeItem(key));
+        Object.keys(sessionStorage)
+          .filter((key) => key.startsWith('sb-') || key.includes('supabase'))
+          .forEach((key) => sessionStorage.removeItem(key));
         // Purge per-user/per-org sidebar visibility cache so the next
         // user on this device does not inherit stale hidden tabs.
         clearSidebarHiddenItemsCache();
-        
       } catch (err) {
-        console.error('Logout error:', err);
-      } finally {
-        // Always redirect to login
-        navigate('/login', { replace: true });
+        console.error('Logout storage purge failed:', err);
       }
     };
 
-    handleLogout();
+    purgeLocalSession();
+    navigate('/login', { replace: true });
+
+    // Background: revoke the session server-side, then purge again in case the
+    // client wrote a fresh token while the request was in flight.
+    void Promise.resolve(signOut())
+      .catch((err) => console.error('Logout error:', err))
+      .finally(purgeLocalSession);
   }, [signOut, navigate]);
 
   return (
