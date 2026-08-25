@@ -63,6 +63,7 @@ import { selectedDateTimeToUTCISO } from '@/lib/timezoneUtils';
 import { orgDateKey, calendarDayKey } from '@/lib/orgDateRange';
 import { SEOHead } from '@/components/SEOHead';
 import { TrackingPixels, trackConversion } from '@/components/TrackingPixels';
+import { fireAndForget } from '@/lib/mustAffectRows';
 
 interface AvailabilitySlot {
   time: string; // "HH:mm" in org timezone
@@ -419,37 +420,46 @@ export default function PublicBookingPage() {
     return () => { cancelled = true; };
   }, [resumeToken, orgSlug]);
 
-  // Update step_reached if already tracked.
+  // Update step_reached if already tracked. Deliberately fire-and-forget:
+  // funnel-step telemetry only.
   // NOTE: this is currently a silent no-op for public visitors — the table's
   // UPDATE policy is org-admins-only, so an anonymous booker matches zero rows
   // and the error is swallowed. It starts working once the anon session-scoped
   // UPDATE policy lands with the recovery migrations.
   useEffect(() => {
     if (abandonedTrackedRef.tracked && step > 3) {
-      getAbandonedBookingClient(sessionTokenRef)
-        .from('abandoned_bookings')
-        .update({ step_reached: step })
-        .eq('session_token', sessionTokenRef)
-        .then(() => {});
+      fireAndForget(
+        getAbandonedBookingClient(sessionTokenRef)
+          .from('abandoned_bookings')
+          .update({ step_reached: step })
+          .eq('session_token', sessionTokenRef),
+        'abandoned_bookings: step reached',
+      );
     }
   }, [step]);
 
-  // Mark as converted when booking completes
+  // Mark as converted when booking completes. Both writes are abandonment
+  // telemetry — the booking itself is already created and confirmed by this
+  // point, so a failure here must not surface to the customer.
   useEffect(() => {
     if (confirmationNumber && abandonedTrackedRef.tracked) {
-      getAbandonedBookingClient(sessionTokenRef)
-        .from('abandoned_bookings')
-        .update({ converted: true, converted_at: new Date().toISOString() })
-        .eq('session_token', sessionTokenRef)
-        .then(() => {});
+      fireAndForget(
+        getAbandonedBookingClient(sessionTokenRef)
+          .from('abandoned_bookings')
+          .update({ converted: true, converted_at: new Date().toISOString() })
+          .eq('session_token', sessionTokenRef),
+        'abandoned_bookings: converted',
+      );
     }
     // Also mark link tracking as completed
     if (confirmationNumber && trackingRef) {
-      supabase
-        .from('booking_link_tracking' as any)
-        .update({ booking_completed_at: new Date().toISOString(), status: 'completed' })
-        .eq('tracking_ref', trackingRef)
-        .then(() => {});
+      fireAndForget(
+        supabase
+          .from('booking_link_tracking' as any)
+          .update({ booking_completed_at: new Date().toISOString(), status: 'completed' })
+          .eq('tracking_ref', trackingRef),
+        'booking_link_tracking: booking completed',
+      );
     }
   }, [confirmationNumber]);
 
