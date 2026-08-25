@@ -1085,14 +1085,27 @@ function LeadDialog({
   const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
 
   const handleSubmit = () => {
-    if (!formData.name) return;
+    // Was a bare `if (!formData.name) return;` — a blank name made the Update
+    // button a no-op with no toast, no error, nothing. Imported leads
+    // frequently have an empty name, so this was reachable in normal use.
+    if (!formData.name.trim()) {
+      setNameError(true);
+      toast.error('Name is required — the lead was not saved.');
+      return;
+    }
+    setNameError(false);
     const { estimated_value, email, ...rest } = formData;
+    if (estimated_value.trim() && Number.isNaN(parseFloat(estimated_value))) {
+      toast.error('Estimated value must be a number — the lead was not saved.');
+      return;
+    }
     onSave({
       ...rest,
+      name: formData.name.trim(),
       // Empty string would defeat the email-based dedupe and campaign filters,
       // both of which test for null. Store the absence, not a blank.
       email: email.trim() || null,
-      estimated_value: estimated_value ? parseFloat(estimated_value) : null,
+      estimated_value: estimated_value.trim() ? parseFloat(estimated_value) : null,
       tags,
     });
   };
@@ -1223,8 +1236,10 @@ function LeadDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>{lead ? 'Update' : 'Create'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : lead ? 'Update' : 'Create'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
