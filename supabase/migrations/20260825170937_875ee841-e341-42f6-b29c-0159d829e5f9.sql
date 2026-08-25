@@ -1,0 +1,1 @@
+GRANT UPDATE (needs_onboarding, onboarding_answers) ON public.organizations TO authenticated;
