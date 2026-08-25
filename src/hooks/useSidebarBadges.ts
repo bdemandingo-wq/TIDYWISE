@@ -81,13 +81,28 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     showBadges && sb[k] !== false && sidebarAllowedByLegacyKey[k] !== false;
 
   const enabled = !!orgId;
-  const refetchInterval = 60_000;
+  /*
+    Badge polling used to be a flat 60s across all 12 queries — 12 requests a
+    minute on every admin page, forever, whether or not anything changed.
+
+    Nine of the badge-driving tables already push through the realtime channel
+    below, so polling them was pure duplication: the invalidation arrives the
+    moment a row changes. Those now don't poll at all; they refetch on realtime,
+    on mount, and on window focus.
+
+    The five with no realtime coverage (invoices, inventory, automation,
+    campaigns, payment) still poll, but at 5 minutes and never while the tab is
+    in the background. Net: 12 requests/min -> 1 request/min while active, 0
+    while backgrounded.
+  */
+  const REALTIME_BACKED = { refetchInterval: false as const, staleTime: 60_000, refetchOnWindowFocus: true };
+  const POLLED = { refetchInterval: 300_000, refetchIntervalInBackground: false, staleTime: 120_000, refetchOnWindowFocus: true };
 
   // ── Staff
   const { data: staff = { timeOff: 0, docs: 0, payout: 0 } } = useQuery({
     queryKey: ['sb-staff', orgId, payoutRequired],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { timeOff: 0, docs: 0, payout: 0 };
       const [timeOff, docs, payouts] = await Promise.all([
@@ -108,7 +123,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: bookings = { pending: 0, unassigned: 0, payment: 0, chargeFailed: 0 } } = useQuery({
     queryKey: ['sb-bookings', orgId, orgTimezone],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { pending: 0, unassigned: 0, payment: 0, chargeFailed: 0 };
       const now = new Date().toISOString();
@@ -172,7 +187,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: clientPortal = 0 } = useQuery({
     queryKey: ['sb-client-portal', orgId],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return 0;
       const { count } = await supabase.from('client_booking_requests').select('*', { count: 'exact', head: true }).eq('organization_id', orgId).eq('status', 'pending');
@@ -184,7 +199,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: invoices = { overdue: 0 } } = useQuery({
     queryKey: ['sb-invoices', orgId],
     enabled: enabled && hasFinancialAccess,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return { overdue: 0 };
       // Reads the STORED status, matching InvoicesPage's Overdue card exactly.
@@ -213,7 +228,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: messages = { unreadConvs: 0, unreadTotal: 0 } } = useQuery({
     queryKey: ['sb-messages', orgId],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { unreadConvs: 0, unreadTotal: 0 };
       const { data } = await supabase.from('sms_conversations').select('unread_count').eq('organization_id', orgId);
@@ -228,7 +243,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: tasks = { open: 0, overdue: 0 } } = useQuery({
     queryKey: ['sb-tasks', orgId],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { open: 0, overdue: 0 };
       // Was the UTC date, so the "due today" badge changed over mid-afternoon
@@ -250,7 +265,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: leads = { newCount: 0, followUp: 0 } } = useQuery({
     queryKey: ['sb-leads', orgId],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { newCount: 0, followUp: 0 };
       const [n, f] = await Promise.all([
@@ -265,7 +280,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: inventory = 0 } = useQuery({
     queryKey: ['sb-inventory', orgId],
     enabled,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
       const { data } = await supabase.from('inventory_items').select('quantity, min_quantity').eq('organization_id', orgId);
@@ -277,7 +292,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: automation = 0 } = useQuery({
     queryKey: ['sb-automation', orgId],
     enabled,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
       const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
@@ -290,7 +305,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: campaigns = 0 } = useQuery({
     queryKey: ['sb-campaigns', orgId],
     enabled,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
       const since = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
@@ -306,7 +321,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: payment = 0 } = useQuery({
     queryKey: ['sb-payment', orgId],
     enabled: enabled && isOwner,
-    refetchInterval,
+    ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
       const { data } = await supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: orgId }).maybeSingle();
@@ -322,7 +337,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const { data: feedback = { unresolved: 0, followup: 0 } } = useQuery({
     queryKey: ['sb-feedback', orgId],
     enabled,
-    refetchInterval,
+    ...REALTIME_BACKED,
     queryFn: async () => {
       if (!orgId) return { unresolved: 0, followup: 0 };
       const { data } = await supabase
