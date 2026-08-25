@@ -50,8 +50,8 @@ const signupSchema = z.object({
 
 // ── OAuth provider status ───────────────────────────────────────────
 // Flip these to true once the providers are configured in Supabase.
-const APPLE_OAUTH_ENABLED = false;
-const GOOGLE_OAUTH_ENABLED = false;
+const APPLE_OAUTH_ENABLED = true;
+const GOOGLE_OAUTH_ENABLED = true;
 
 export default function NativeSignupPage() {
   const navigate = useNavigate();
