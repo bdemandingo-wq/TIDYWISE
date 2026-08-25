@@ -22,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Download, MessageSquare, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, MessageSquare, CheckCircle, AlertCircle, Clock, Mail } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
@@ -68,6 +68,30 @@ export default function ClientFeedbackPage() {
       return data as FeedbackEntry[];
     },
     enabled: !!organization?.id,
+  });
+
+  // Look up customer emails by name so the Reply button can build a mailto.
+  // client_feedback has no customer_id FK — only customer_name text — so
+  // this is a best-effort match. Concat first+last to match the name format
+  // used by submit_review_by_token.
+  const { data: customerEmails = {} } = useQuery({
+    queryKey: ['feedback-customer-emails', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return {};
+      const { data } = await supabase
+        .from('customers')
+        .select('first_name, last_name, email')
+        .eq('organization_id', organization.id);
+      if (!data) return {};
+      const map: Record<string, string> = {};
+      for (const c of data) {
+        const name = `${c.first_name} ${c.last_name}`.trim();
+        if (name && c.email) map[name] = c.email;
+      }
+      return map;
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 10,
   });
 
   const createMutation = useMutation({
@@ -350,6 +374,25 @@ export default function ClientFeedbackPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        {(() => {
+                          const email = customerEmails[entry.customer_name];
+                          if (!email) return null;
+                          const subject = encodeURIComponent('Re: your TidyWise feedback');
+                          const quoted = entry.issue_description
+                            ? `\n\n---\nYour feedback:\n${entry.issue_description}`
+                            : '';
+                          const body = encodeURIComponent(quoted);
+                          return (
+                            <a
+                              href={`mailto:${email}?subject=${subject}&body=${body}`}
+                              title={`Reply to ${email}`}
+                            >
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Mail className="w-4 h-4" />
+                              </Button>
+                            </a>
+                          );
+                        })()}
                         <Button
                           variant="ghost"
                           size="icon"
