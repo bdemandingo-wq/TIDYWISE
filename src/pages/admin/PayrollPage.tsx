@@ -1421,7 +1421,7 @@ export default function PayrollPage() {
                   to the week shown and pay them there.
                 </p>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {orphanedJobs.slice(0, 8).map((b: any) => (
+                  {orphanedJobs.slice(0, 8).map((b) => (
                     <li key={b.id} className="flex flex-wrap items-center gap-x-2">
                       <span className="font-medium">#{b.booking_number}</span>
                       <span className="text-muted-foreground">
@@ -1469,7 +1469,7 @@ export default function PayrollPage() {
                   you know the real date.
                 </p>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {reviewJobs.slice(0, 8).map((b: any) => (
+                  {reviewJobs.slice(0, 8).map((b) => (
                     <li key={b.id} className="flex flex-wrap items-center gap-x-2">
                       <span className="font-medium">#{b.booking_number}</span>
                       <span className="text-muted-foreground">
