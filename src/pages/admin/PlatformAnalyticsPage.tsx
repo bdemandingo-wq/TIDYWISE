@@ -234,23 +234,41 @@ export default function PlatformAnalyticsPage() {
     if (ids.length === 0) return;
     setBulkDeleting(true);
     let success = 0;
-    let failed = 0;
+    const failures: { label: string; reason: string }[] = [];
+
+    // Build a lookup so we can name the failures
+    const labelFor = (id: string): string => {
+      if (type === 'user') {
+        const signup = analytics?.signups.recent.find(s => s.id === id);
+        return signup?.email || id;
+      }
+      const org = analytics?.organizations.recent.find(o => o.id === id);
+      return org?.name || id;
+    };
+
     for (const id of ids) {
       try {
         const { data, error } = await supabase.functions.invoke('delete-platform-account', {
           body: { userId: id, type },
         });
-        if (error || (data as any)?.error) {
-          failed++;
+        const errMsg = (data as any)?.error || error?.message;
+        if (errMsg) {
+          failures.push({ label: labelFor(id), reason: errMsg });
         } else {
           success++;
         }
-      } catch {
-        failed++;
+      } catch (err) {
+        failures.push({
+          label: labelFor(id),
+          reason: err instanceof Error ? err.message : 'Unknown error',
+        });
       }
     }
     if (success) toast.success(`Deleted ${success} ${type === 'user' ? 'user(s)' : 'organization(s)'}`);
-    if (failed) toast.error(`${failed} failed to delete`);
+    if (failures.length) {
+      const detail = failures.map(f => `${f.label}: ${f.reason}`).join('\n');
+      toast.error(`${failures.length} failed to delete:\n${detail}`, { duration: 10000 });
+    }
     if (type === 'user') setSelectedSignups(new Set());
     else setSelectedOrgs(new Set());
     setBulkConfirm(null);
