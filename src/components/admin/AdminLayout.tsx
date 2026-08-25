@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { AdminSidebar } from './AdminSidebar';
 import { AdminHeader } from './AdminHeader';
-import { EmailIdentityBanner } from './EmailIdentityBanner';
+
 import { PlanStateBanner } from './PlanStateBanner';
 import { OfflineIndicator } from './OfflineIndicator';
 import { MobileBottomNav } from '@/components/mobile/MobileBottomNav';
