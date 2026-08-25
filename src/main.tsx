@@ -62,7 +62,7 @@ window.addEventListener("load", () => {
 
 // Set up deep link listener for native OAuth callbacks (Guideline 4.0)
 // Must run before React renders so we don't miss the callback
-setupDeepLinkListener();
+const deepLinkCleanup = setupDeepLinkListener();
 
 // Installability. Deliberately last of the bootstrap side effects: registration
 // is not required for the app to work, so nothing above it should wait on it.

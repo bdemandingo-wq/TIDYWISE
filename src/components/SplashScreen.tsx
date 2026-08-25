@@ -15,9 +15,6 @@ interface SplashScreenProps {
 
 export function SplashScreen({ onComplete, minDuration = 800 }: SplashScreenProps) {
   const [fadeOut, setFadeOut] = useState(false);
-  // Store onComplete in a ref so the timer effect doesn't depend on the
-  // callback identity. Without this, every parent re-render that creates a
-  // new onComplete reference resets the timer and the splash never dismisses.
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 

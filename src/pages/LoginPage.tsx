@@ -54,17 +54,7 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showSplash, _setShowSplash] = useState(false);
-  const setShowSplash = (val: boolean) => {
-    console.log('[SPLASH-TOGGLE] setShowSplash(' + val + ')', new Error().stack?.split('\n').slice(1, 4).join(' | '));
-    _setShowSplash(val);
-  };
-
-  // Track mount/unmount
-  useEffect(() => {
-    console.log('[LOGIN-MOUNT] LoginPage mounted');
-    return () => console.log('[LOGIN-UNMOUNT] LoginPage unmounting');
-  }, []);
+  const [showSplash, setShowSplash] = useState(false);
   const [formData, setFormData] = useState({
     email: searchParams.get('email') ?? '',
     password: '',
@@ -77,10 +67,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (provisioning !== 'done' || orgRefetched) return;
     setOrgRefetched(true);
-    console.log('[LOGIN-PROVISION] provisioning done, calling refetchOrganization');
-    refetchOrganization().then(() => {
-      console.log('[LOGIN-PROVISION] refetchOrganization complete');
-    });
+    refetchOrganization();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once when provisioning reaches done
   }, [provisioning, orgRefetched]);
 
@@ -98,7 +85,6 @@ export default function LoginPage() {
       // Check bounce count — break the cycle if we've been here too many times
       const bounces = parseInt(sessionStorage.getItem(bounceKey) || '0', 10);
       if (bounces >= 2) {
-        console.error('[LOGIN-BOUNCE] exceeded bounce limit, stopping');
         sessionStorage.removeItem(bounceKey);
         toast.error('Could not set up your account. Please contact support.');
         return; // stay on login, don't loop
@@ -165,9 +151,7 @@ export default function LoginPage() {
   // in sessionStorage. After successful login we open Stripe Checkout
   // for the requested plan so the broken-flow loop actually closes.
   const handleSplashComplete = async () => {
-    console.log('[SPLASH-COMPLETE] handleSplashComplete called');
     if (claimSlug) {
-      console.log('[SPLASH-COMPLETE] navigating to /score/c/', claimSlug);
       navigate(`/score/c/${encodeURIComponent(claimSlug)}?claim=1`, { replace: true });
       return;
     }
@@ -245,18 +229,13 @@ export default function LoginPage() {
     }
 
     if (provisioning === 'failed') {
-      console.log('[SPLASH-COMPLETE] provisioning failed, navigating to /login');
       toast.error('Could not set up your account. Please try signing in again.');
       navigate('/login', { replace: true });
       return;
     }
 
-    console.log('[SPLASH-COMPLETE] navigating to /dashboard');
     navigate('/dashboard');
   };
-
-  // Temporary trace — what state are we rendering?
-  console.log('[LOGIN-RENDER] authLoading:', authLoading, 'initialCleanupDone:', initialCleanupDone, 'user:', !!user, 'provisioning:', provisioning, 'org:', organization?.id ?? 'null', 'showSplash:', showSplash);
 
   // Show splash screen after successful login
   if (showSplash) {
@@ -270,7 +249,6 @@ export default function LoginPage() {
 
   // Show loading spinner only during initial auth check
   if (authLoading || !initialCleanupDone) {
-    console.log('[LOGIN-RENDER] showing spinner: authLoading=', authLoading, 'initialCleanupDone=', initialCleanupDone);
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

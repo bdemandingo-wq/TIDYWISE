@@ -71,8 +71,6 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
         // family. That is how one account accumulated 111 refresh tokens and
         // 29 sessions, being logged out each time a family was revoked.
         // One refresher. Do not add another.
-        console.count('[GET-SESSION]');
-        console.log('[GET-SESSION] initializeAuth', new Error().stack?.split('\n').slice(0, 3).join(' | '));
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession) {
           setSession(currentSession);
@@ -104,7 +102,6 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabaseNoSession.auth.onAuthStateChange(
       (event, currentSession) => {
-        console.log('[AUTH-STATE]', event, 'user:', currentSession?.user?.id ?? 'null');
         // Synchronous state updates only — no awaits, no supabase calls.
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -129,8 +126,6 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
     // Check current session (for OAuth callbacks).
     // This getSession call is OUTSIDE the lock (it's in a useEffect, not in the
     // onAuthStateChange callback), so it's safe.
-    console.count('[GET-SESSION]');
-    console.log('[GET-SESSION] onAuthStateChange effect');
     supabaseNoSession.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
@@ -168,21 +163,16 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        console.log('[OAUTH-PROVISION] checking org_memberships for', userId);
         const { data: memberships, error: memErr } = await supabaseNoSession
           .from('org_memberships')
           .select('organization_id')
           .eq('user_id', userId)
           .limit(1);
 
-        console.log('[OAUTH-PROVISION] org_memberships:', memberships?.length ?? 'error', memErr?.message ?? 'ok');
-
         if (cancelled) return;
 
         if (!memberships || memberships.length === 0) {
-          console.log('[OAUTH-PROVISION] no memberships — calling provision-trial-org');
           const { data, error: provErr } = await supabaseNoSession.functions.invoke('provision-trial-org');
-          console.log('[OAUTH-PROVISION] provision-trial-org result:', provErr ? 'ERROR: ' + provErr.message : JSON.stringify(data));
 
           if (cancelled) return;
 
@@ -192,15 +182,14 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
           }
 
           if (provErr) {
-            console.error('[OAUTH-PROVISION] provisioning failed');
+            console.error('Trial org provisioning failed:', provErr);
             setProvisioning('failed');
             return;
           }
         }
-        console.log('[OAUTH-PROVISION] complete');
         if (!cancelled) setProvisioning('done');
       } catch (err) {
-        console.error('[OAUTH-PROVISION] exception:', err);
+        console.error('Trial org provisioning failed:', err);
         if (!cancelled) setProvisioning('failed');
       }
     })();

@@ -29,7 +29,6 @@ export async function signInWithOAuthNative(
     }
 
     if (data?.url) {
-      // Dynamically import @capacitor/browser to avoid build errors in web-only environments
       const { Browser } = await import('@capacitor/browser');
       await Browser.open({
         url: data.url,
@@ -51,7 +50,9 @@ export function setupDeepLinkListener(): (() => void) | undefined {
     const { Browser } = await import('@capacitor/browser');
 
     return App.addListener('appUrlOpen', async ({ url }) => {
-      if (!url.includes('auth/callback')) return;
+      if (!url.includes('auth/callback')) {
+        return;
+      }
 
       try {
         await Browser.close();
@@ -59,18 +60,48 @@ export function setupDeepLinkListener(): (() => void) | undefined {
         // Browser may already be closed
       }
 
+      // Detect what the URL carries — hash tokens (implicit) or query code (PKCE)
       const hashIndex = url.indexOf('#');
-      if (hashIndex === -1) return;
+      const queryIndex = url.indexOf('?');
+      const hasHash = hashIndex !== -1;
+      const hasQuery = queryIndex !== -1;
 
-      const hashParams = new URLSearchParams(url.substring(hashIndex + 1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
+      if (hasQuery) {
+        const qStr = hasHash ? url.substring(queryIndex + 1, hashIndex) : url.substring(queryIndex + 1);
+        const queryParams = new URLSearchParams(qStr);
 
-      if (accessToken && refreshToken) {
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
+        // PKCE flow: the URL has ?code=... instead of #access_token=...
+        if (queryParams.has('code')) {
+          try {
+            await supabase.auth.exchangeCodeForSession(queryParams.get('code')!);
+          } catch (err) {
+            console.error('OAuth code exchange failed:', err);
+          }
+          return;
+        }
+
+        if (queryParams.has('error')) {
+          console.error('OAuth callback error:', queryParams.get('error'), queryParams.get('error_description'));
+          return;
+        }
+      }
+
+      // Implicit flow: hash has access_token + refresh_token
+      if (hasHash) {
+        const hashParams = new URLSearchParams(url.substring(hashIndex + 1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          try {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          } catch (err) {
+            console.error('OAuth session set failed:', err);
+          }
+        }
       }
     });
   })();
