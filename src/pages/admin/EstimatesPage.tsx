@@ -14,6 +14,7 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { SwipeableRow } from '@/components/mobile/SwipeableRow';
 import { cn } from '@/lib/utils';
+import { mustAffectRows } from '@/lib/mustAffectRows';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,14 +58,18 @@ export default function EstimatesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from('estimates').delete().eq('id', id);
-      if (error) throw error;
+      await mustAffectRows(
+        supabase.from('estimates').delete().eq('id', id),
+        'Estimate not deleted — it may belong to a different business.',
+        { table: 'estimates' },
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['estimates'] });
       toast.success('Estimate deleted');
       setDeleteId(null);
     },
+    onError: (error: Error) => toast.error(error.message || 'Failed to delete estimate'),
   });
 
   const filtered = estimates.filter((e: any) => {
