@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Loader2, Users, Building2, CreditCard, TrendingUp, 
+import {
+  Loader2, Users, Building2, CreditCard, TrendingUp,
   UserPlus, RefreshCw, Trash2, Activity, Calendar,
   ArrowUpRight, ArrowDownRight, Clock, Timer, Mail,
-  CalendarCheck, Phone, Briefcase, Bell, Search, Gift, DollarSign
+  CalendarCheck, Phone, Briefcase, Bell, Search, Gift, DollarSign,
+  AlertTriangle, Info
 } from 'lucide-react';
 import { PlatformRevenueView } from '@/pages/admin/PlatformRevenuePage';
 import { BroadcastView } from '@/pages/admin/BroadcastPage';
@@ -17,7 +18,11 @@ import { isPlatformOwner } from '@/lib/platformOwner';
 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { format, formatDistanceToNow, subDays } from 'date-fns';
+import { format, formatDistanceToNow, subDays, differenceInDays, parseISO } from 'date-fns';
+import { orgDateKey } from '@/lib/orgDateRange';
+import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+
+const APPLE_CLIENT_SECRET_EXPIRES = '2027-02-21';
 import { Button } from '@/components/ui/button';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -186,6 +191,14 @@ export default function PlatformAnalyticsPage() {
   const [cancelling, setCancelling] = useState(false);
   const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
   const [sendingResub, setSendingResub] = useState(false);
+  const orgTimezone = useOrgTimezone();
+
+  // Apple Sign In client secret expiry
+  const appleSecretDaysLeft = (() => {
+    const today = orgDateKey(new Date(), orgTimezone);
+    return differenceInDays(parseISO(APPLE_CLIENT_SECRET_EXPIRES), parseISO(today));
+  })();
+
   // Deep-link support: e.g. /dashboard/platform-analytics?tab=evidence (used by
   // the /dashboard/disputes redirect). Falls back to 'subscribers'.
   const [searchParams] = useSearchParams();
@@ -461,6 +474,30 @@ export default function PlatformAnalyticsPage() {
             Refresh
           </Button>
         </div>
+
+        {/* Apple Sign In secret expiry */}
+        {appleSecretDaysLeft <= 0 ? (
+          <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+            <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-sm text-destructive">
+              <span className="font-semibold">Apple Sign In client secret expired.</span>{' '}
+              Regenerate the JWT in Lovable → Cloud → Users → Apple settings → Generate secret, using the .p8 key (Key ID 4H5MGTMV9Y), Services ID com.jointidywise.web.auth, Team ID JV99ZGTGR3. Users cannot sign in with Apple until this is renewed.
+            </p>
+          </div>
+        ) : appleSecretDaysLeft <= 45 ? (
+          <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 p-4">
+            <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+            <p className="text-sm text-warning">
+              <span className="font-semibold">Apple Sign In client secret expires in {appleSecretDaysLeft} day{appleSecretDaysLeft === 1 ? '' : 's'}.</span>{' '}
+              Regenerate the JWT in Lovable → Cloud → Users → Apple settings → Generate secret, using the .p8 key (Key ID 4H5MGTMV9Y), Services ID com.jointidywise.web.auth, Team ID JV99ZGTGR3. Users cannot sign in with Apple after expiry.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Info className="w-3.5 h-3.5" />
+            <span>Apple Sign In secret expires Feb 21, 2027 ({appleSecretDaysLeft} days)</span>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
