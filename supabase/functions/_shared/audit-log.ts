@@ -1,5 +1,9 @@
-// Shared helper for audit logging critical actions
-// Logs are stored in the console and can be reviewed via edge function logs
+// Shared helper for audit logging critical actions.
+// Entries are written to public.system_audit_log (durable) and mirrored to the
+// console. Edge function logs age out in under two days, so the console alone
+// was useless for anything that needed proving later.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface AuditLogEntry {
   action: string;
@@ -18,9 +22,12 @@ export interface AuditLogEntry {
  * 
  * Format: [AUDIT] timestamp | action | org:xxx | user:xxx | resource:xxx | success/error
  * 
+ * Fire-and-forget safe: callers that don't await still get the row persisted,
+ * because the insert is handed to EdgeRuntime.waitUntil when available.
+ *
  * @param entry - The audit log entry to record
  */
-export function logAudit(entry: AuditLogEntry): void {
+export function logAudit(entry: AuditLogEntry): Promise<void> {
   const timestamp = new Date().toISOString();
   const success = entry.success !== false; // Default to true if not specified
   const status = success ? 'SUCCESS' : `ERROR: ${entry.error || 'Unknown error'}`;
@@ -50,6 +57,38 @@ export function logAudit(entry: AuditLogEntry): void {
   // Log details if provided (for debugging)
   if (entry.details && Object.keys(entry.details).length > 0) {
     console.log(`[AUDIT DETAILS] ${JSON.stringify(entry.details)}`);
+  }
+
+  const persist = persistAudit(entry, success);
+  // Keep the row alive even when the caller doesn't await (most call sites don't).
+  try {
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).EdgeRuntime?.waitUntil?.(persist);
+  } catch { /* not available in this runtime */ }
+  return persist;
+}
+
+async function persistAudit(entry: AuditLogEntry, success: boolean): Promise<void> {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const supabase = createClient(url, key, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    await supabase.from("system_audit_log").insert({
+      organization_id: entry.organizationId || null,
+      action: entry.action,
+      user_id: entry.userId || null,
+      resource_type: entry.resourceType || null,
+      resource_id: entry.resourceId ? String(entry.resourceId) : null,
+      success,
+      error_message: entry.error ? String(entry.error).slice(0, 4000) : null,
+      details: entry.details ?? null,
+    });
+  } catch (e) {
+    // Never let auditing break the action being audited.
+    console.error("[AUDIT] Failed to persist audit entry:", e);
   }
 }
 
