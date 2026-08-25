@@ -110,10 +110,16 @@ export function AddressAutocomplete({
     if (!typed || q.length < MIN_QUERY_LENGTH) {
       setSuggestions([]);
       setShowSuggest(false);
+      setLoadingSuggest(false);
       return;
     }
+
+    // Show the spinner immediately on keystroke so it feels sticky and
+    // connected to what the user is typing, not like a late-flickering overlay.
+    setLoadingSuggest(true);
+    setSuggestions([]);
+
     debounceRef.current = window.setTimeout(async () => {
-      setLoadingSuggest(true);
       try {
         const { data, error } = await supabase.functions.invoke('address-autocomplete', {
           body: {
