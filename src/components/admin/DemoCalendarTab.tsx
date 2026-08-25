@@ -197,10 +197,14 @@ export function DemoCalendarTab() {
 
   const blockDateMutation = useMutation({
     mutationFn: async (dates: { blocked_date: string; reason: string; notes: string }[]) => {
-      for (const d of dates) {
-        const { error } = await supabase.from('demo_blocked_dates' as any).insert(d as any);
-        if (error && !error.message?.includes('duplicate')) throw error;
-      }
+      const results = await Promise.allSettled(
+        dates.map(async (d) => {
+          const { error } = await supabase.from('demo_blocked_dates' as any).insert(d as any);
+          if (error && !error.message?.includes('duplicate')) throw error;
+        })
+      );
+      const failed = results.find(r => r.status === 'rejected');
+      if (failed) throw (failed as PromiseRejectedResult).reason;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demo-blocked-dates'] });
@@ -315,13 +319,17 @@ export function DemoCalendarTab() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      for (const id of ids) {
-        const { error } = await supabase
-          .from('demo_bookings' as any)
-          .delete()
-          .eq('id', id);
-        if (error) throw error;
-      }
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          const { error } = await supabase
+            .from('demo_bookings' as any)
+            .delete()
+            .eq('id', id);
+          if (error) throw error;
+        })
+      );
+      const failed = results.find(r => r.status === 'rejected');
+      if (failed) throw (failed as PromiseRejectedResult).reason;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demo-bookings'] });

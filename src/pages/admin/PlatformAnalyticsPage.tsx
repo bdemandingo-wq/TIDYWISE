@@ -246,22 +246,22 @@ export default function PlatformAnalyticsPage() {
       return org?.name || id;
     };
 
-    for (const id of ids) {
-      try {
+    const results = await Promise.allSettled(
+      ids.map(async (id) => {
         const { data, error } = await supabase.functions.invoke('delete-platform-account', {
           body: { userId: id, type },
         });
         const errMsg = (data as any)?.error || error?.message;
-        if (errMsg) {
-          failures.push({ label: labelFor(id), reason: errMsg });
-        } else {
-          success++;
-        }
-      } catch (err) {
-        failures.push({
-          label: labelFor(id),
-          reason: err instanceof Error ? err.message : 'Unknown error',
-        });
+        if (errMsg) throw Object.assign(new Error(errMsg), { label: labelFor(id) });
+        return id;
+      })
+    );
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        success++;
+      } else {
+        const err = r.reason as Error & { label?: string };
+        failures.push({ label: err.label || 'Unknown', reason: err.message });
       }
     }
     if (success) toast.success(`Deleted ${success} ${type === 'user' ? 'user(s)' : 'organization(s)'}`);

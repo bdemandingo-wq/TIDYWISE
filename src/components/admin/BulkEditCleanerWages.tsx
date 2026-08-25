@@ -187,48 +187,44 @@ export function BulkEditCleanerWages() {
     const errors: string[] = [];
 
     try {
-      for (const id of editedIds) {
-        const edit = localEdits[id];
-        const wageValue = edit.value ? parseFloat(edit.value) : null;
-        const jobTotalValue = edit.jobTotal ? parseFloat(edit.jobTotal) : undefined;
-        const booking = bookings.find((b) => b.id === id);
+      const results = await Promise.allSettled(
+        editedIds.map(async (id) => {
+          const edit = localEdits[id];
+          const wageValue = edit.value ? parseFloat(edit.value) : null;
+          const jobTotalValue = edit.jobTotal ? parseFloat(edit.jobTotal) : undefined;
+          const booking = bookings.find((b) => b.id === id);
 
-        const updateData: Record<string, unknown> = {
-          cleaner_wage_type: edit.type || null,
-          cleaner_wage: wageValue,
-        };
+          const updateData: Record<string, unknown> = {
+            cleaner_wage_type: edit.type || null,
+            cleaner_wage: wageValue,
+          };
 
-        if (jobTotalValue !== undefined) {
-          updateData.total_amount = jobTotalValue;
-        }
+          if (jobTotalValue !== undefined) {
+            updateData.total_amount = jobTotalValue;
+          }
 
-        // Keep cleaner_pay_expected (the payroll snapshot) in sync with the
-        // wage just set here — same fix as the single-booking Edit dialog:
-        // a configured wage must win over any stale actual-payment override,
-        // and that override is cleared so it can't resurface later.
-        const totalAmt = jobTotalValue !== undefined ? jobTotalValue : (booking?.total_amount ?? 0);
-        const wageDerivedPay = computeExpectedPay(edit.type || 'hourly', edit.value, '', booking?.duration ?? 0, totalAmt);
-        updateData.cleaner_pay_expected = wageDerivedPay;
-        // Only clear the actual-payment override when a wage actually won —
-        // clearing the wage field entirely shouldn't also wipe a legitimate
-        // actual-payment override left in place for that booking.
-        if (wageDerivedPay != null) {
-          updateData.cleaner_actual_payment = null;
-        }
+          const totalAmt = jobTotalValue !== undefined ? jobTotalValue : (booking?.total_amount ?? 0);
+          const wageDerivedPay = computeExpectedPay(edit.type || 'hourly', edit.value, '', booking?.duration ?? 0, totalAmt);
+          updateData.cleaner_pay_expected = wageDerivedPay;
+          if (wageDerivedPay != null) {
+            updateData.cleaner_actual_payment = null;
+          }
 
-        const { error } = await supabase
-          .from('bookings')
-          .update(updateData)
-          .eq('id', id)
-          .eq('organization_id', organizationId);
+          const { error } = await supabase
+            .from('bookings')
+            .update(updateData)
+            .eq('id', id)
+            .eq('organization_id', organizationId);
 
-        if (error) {
-          console.error(`Failed to update booking ${id}:`, error);
-          failedCount++;
-          errors.push(error.message);
-        } else {
-          successCount++;
+          if (error) throw error;
           await syncCleanerPayShare(id, organizationId, wageDerivedPay);
+        })
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled') successCount++;
+        else {
+          failedCount++;
+          errors.push((r.reason as Error).message);
         }
       }
 
