@@ -12209,6 +12209,10 @@ export type Database = {
         Args: { _booking_id: string; _org_id: string }
         Returns: boolean
       }
+      staff_can_view_booking_v2: {
+        Args: { _booking_id: string; _org_id: string; _staff_id: string }
+        Returns: boolean
+      }
       staff_can_view_customer: {
         Args: { _customer_id: string; _org_id: string }
         Returns: boolean
