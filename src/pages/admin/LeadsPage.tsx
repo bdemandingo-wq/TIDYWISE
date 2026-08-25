@@ -1017,6 +1017,7 @@ export default function LeadsPage() {
           if (!open) setEditingLead(null);
         }}
         lead={editingLead}
+        saving={updateMutation.isPending || createMutation.isPending}
         tagSuggestions={tagSuggestions}
         onSave={(data) => {
           if (editingLead) {
@@ -1040,12 +1041,14 @@ function LeadDialog({
   lead,
   tagSuggestions,
   onSave,
+  saving,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
   tagSuggestions: LeadTag[];
   onSave: (data: { name: string; email: string | null; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
+  saving: boolean;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -1083,16 +1086,30 @@ function LeadDialog({
     status: lead?.status || 'new',
   });
   const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
+  const [nameError, setNameError] = useState(false);
 
   const handleSubmit = () => {
-    if (!formData.name) return;
+    // Was a bare `if (!formData.name) return;` — a blank name made the Update
+    // button a no-op with no toast, no error, nothing. Imported leads
+    // frequently have an empty name, so this was reachable in normal use.
+    if (!formData.name.trim()) {
+      setNameError(true);
+      toast.error('Name is required — the lead was not saved.');
+      return;
+    }
+    setNameError(false);
     const { estimated_value, email, ...rest } = formData;
+    if (estimated_value.trim() && Number.isNaN(parseFloat(estimated_value))) {
+      toast.error('Estimated value must be a number — the lead was not saved.');
+      return;
+    }
     onSave({
       ...rest,
+      name: formData.name.trim(),
       // Empty string would defeat the email-based dedupe and campaign filters,
       // both of which test for null. Store the absence, not a blank.
       email: email.trim() || null,
-      estimated_value: estimated_value ? parseFloat(estimated_value) : null,
+      estimated_value: estimated_value.trim() ? parseFloat(estimated_value) : null,
       tags,
     });
   };
@@ -1109,8 +1126,16 @@ function LeadDialog({
             <Label>Name *</Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              aria-invalid={nameError}
+              className={nameError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+              onChange={(e) => {
+                if (nameError) setNameError(false);
+                setFormData({ ...formData, name: e.target.value });
+              }}
             />
+            {nameError && (
+              <p className="mt-1 text-xs text-destructive">Enter a name before saving.</p>
+            )}
           </div>
           <div>
             <Label>Email</Label>
@@ -1223,8 +1248,10 @@ function LeadDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit}>{lead ? 'Update' : 'Create'}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Saving…' : lead ? 'Update' : 'Create'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
