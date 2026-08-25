@@ -285,6 +285,9 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
         key.startsWith('sb-') || key.includes('supabase')
       );
       authKeys.forEach(key => localStorage.removeItem(key));
+      // Wipe the persisted React Query cache so the next user doesn't
+      // rehydrate the previous user's bookings, customers and payroll.
+      localStorage.removeItem('tw-offline-cache');
     } catch {
       // Ignore storage errors
     }

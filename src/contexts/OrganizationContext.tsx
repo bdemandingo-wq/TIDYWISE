@@ -199,6 +199,9 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     setMembership({ organization_id: orgId, role: target.role });
     clearSidebarHiddenItemsCache();
     queryClient.clear();
+    // Also wipe the persisted localStorage cache so data from the
+    // previous org doesn't rehydrate on the next app restart.
+    try { localStorage.removeItem('tw-offline-cache'); } catch { /* ignore */ }
     // Dismiss the overlay after queries have had time to start refetching.
     // 600ms covers the round trip for most connections; the skeleton
     // handles anything longer.

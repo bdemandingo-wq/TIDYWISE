@@ -262,7 +262,12 @@ const App = () => (
             // longer qualify for, or hide one they've earned — same reasoning
             // as service-pricing above: never serve tier status from an
             // offline cache.
-            !JSON.stringify(q.queryKey).includes('org-tiers'),
+            !JSON.stringify(q.queryKey).includes('org-tiers') &&
+            // Membership lists change when a user is added/removed from an
+            // org. A stale cached list can show the user in an org they've
+            // been removed from, rendering data they can no longer write to.
+            !JSON.stringify(q.queryKey).includes('org-memberships') &&
+            !JSON.stringify(q.queryKey).includes('my-staff-orgs'),
         },
       }}
     >
