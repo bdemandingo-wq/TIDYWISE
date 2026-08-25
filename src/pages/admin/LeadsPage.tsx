@@ -1126,8 +1126,16 @@ function LeadDialog({
             <Label>Name *</Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              aria-invalid={nameError}
+              className={nameError ? 'border-destructive focus-visible:ring-destructive' : undefined}
+              onChange={(e) => {
+                if (nameError) setNameError(false);
+                setFormData({ ...formData, name: e.target.value });
+              }}
             />
+            {nameError && (
+              <p className="mt-1 text-xs text-destructive">Enter a name before saving.</p>
+            )}
           </div>
           <div>
             <Label>Email</Label>
