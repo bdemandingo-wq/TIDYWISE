@@ -504,13 +504,19 @@ export default function PayrollPage() {
       // the org pushes the bound hours PAST the period and pulls the next
       // period's bookings into this payroll run.
       const toEndOfDay = orgEndOfDay(dateRange.to, orgTimezone);
+      // payroll_date, NOT scheduled_at. A job scheduled last week and marked
+      // complete this week used to fall outside BOTH pay runs — the cleaner was
+      // never paid and nothing said so. payroll_date is a generated column,
+      // COALESCE(completed_at, scheduled_at), so an unfinished job still pays
+      // on its scheduled date and no caller can forget the fallback.
       const { data, error } = await supabase
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
         .eq('organization_id', organizationId)
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString())
-        .order('scheduled_at', { ascending: false });
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString())
+        .order('payroll_date', { ascending: false })
+        .order('id');           // unique tiebreaker — see rule 3
       if (error) throw error;
       return data;
     },
@@ -530,8 +536,8 @@ export default function PayrollPage() {
         .select('id')
         .eq('organization_id', organizationId)
         .neq('status', 'cancelled')
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString());
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString());
       if (!bookingIds?.length) return [];
       const ids = bookingIds.map((b: any) => b.id);
       const { data, error } = await supabase
@@ -543,6 +549,52 @@ export default function PayrollPage() {
       return data || [];
     },
   });
+
+  /**
+   * Jobs that fell through the cracks, in two flavours.
+   *
+   *   orphaned — completed, never inside a paid week, and their payroll_date is
+   *              now BEHIND the period on screen. Nobody is going to open that
+   *              period again, so without this list the cleaner just never gets
+   *              paid and no screen ever says so.
+   *   review   — the backfill could not date them confidently, or they sit in a
+   *              week that was already paid out. Deliberately NOT re-attributed;
+   *              an admin decides.
+   */
+  const { rows: payrollExceptions, error: payrollExceptionsError } = useOrgQuery({
+    key: ['payroll-exceptions', dateRange],
+    query: async (organizationId) => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('id, booking_number, scheduled_at, completed_at, completed_at_source, payroll_date, payroll_locked_week, payroll_needs_review, cleaner_pay_expected, cleaner_actual_payment, staff_id')
+        .eq('organization_id', organizationId)
+        .eq('status', 'completed')
+        .or(`payroll_needs_review.eq.true,and(payroll_locked_week.is.null,payroll_date.lt.${dateRange.from.toISOString()})`)
+        .order('payroll_date', { ascending: false })
+        .order('id')
+        .limit(200);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const orphanedJobs = useMemo(
+    () => (payrollExceptions as any[]).filter(
+      (b) => !b.payroll_locked_week && new Date(b.payroll_date) < dateRange.from,
+    ),
+    [payrollExceptions, dateRange.from],
+  );
+  const reviewJobs = useMemo(
+    () => (payrollExceptions as any[]).filter((b) => b.payroll_needs_review),
+    [payrollExceptions],
+  );
+  const exceptionPay = (b: any) =>
+    Number(b.cleaner_actual_payment ?? b.cleaner_pay_expected ?? 0);
+  const orphanedTotal = useMemo(
+    () => orphanedJobs.reduce((s, b) => s + exceptionPay(b), 0),
+    [orphanedJobs],
+  );
+
 
   // Refetch payroll data when bookings change (deletions, updates, etc.)
   useEffect(() => {
