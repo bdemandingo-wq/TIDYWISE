@@ -1017,6 +1017,7 @@ export default function LeadsPage() {
           if (!open) setEditingLead(null);
         }}
         lead={editingLead}
+        saving={updateMutation.isPending || createMutation.isPending}
         tagSuggestions={tagSuggestions}
         onSave={(data) => {
           if (editingLead) {
@@ -1040,12 +1041,14 @@ function LeadDialog({
   lead,
   tagSuggestions,
   onSave,
+  saving,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: Lead | null;
   tagSuggestions: LeadTag[];
   onSave: (data: { name: string; email: string | null; phone?: string; address?: string; city?: string; state?: string; zip_code?: string; service_interest?: string; estimated_value?: number | null; message?: string; notes?: string; source: string; status: string; tags?: LeadTag[] }) => void;
+  saving: boolean;
 }) {
   // Reset form data when lead changes
   useEffect(() => {
@@ -1083,6 +1086,7 @@ function LeadDialog({
     status: lead?.status || 'new',
   });
   const [tags, setTags] = useState<LeadTag[]>(normalizeTags(lead?.tags));
+  const [nameError, setNameError] = useState(false);
 
   const handleSubmit = () => {
     // Was a bare `if (!formData.name) return;` — a blank name made the Update
