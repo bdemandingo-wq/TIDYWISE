@@ -385,11 +385,13 @@ export default function CustomersPage() {
     if (!customerToDelete) return;
     try {
       const id = customerToDelete.id;
-      // Clean up related records that may block deletion
-      await supabase.from('quotes').delete().eq('customer_id', id);
-      await (supabase.from('property_notes' as any) as any).delete().eq('customer_id', id);
-      await supabase.from('referrals').delete().eq('referrer_customer_id', id);
-      await supabase.from('customer_loyalty').delete().eq('customer_id', id);
+      // Clean up related records in parallel before deleting the customer
+      await Promise.all([
+        supabase.from('quotes').delete().eq('customer_id', id),
+        (supabase.from('property_notes' as any) as any).delete().eq('customer_id', id),
+        supabase.from('referrals').delete().eq('referrer_customer_id', id),
+        supabase.from('customer_loyalty').delete().eq('customer_id', id),
+      ]);
       await deleteCustomer.mutateAsync(id);
       setDeleteDialogOpen(false);
       setCustomerToDelete(null);
@@ -412,10 +414,10 @@ export default function CustomersPage() {
         if (error) throw error;
         toast.success(`Removed ${ids.length} customers from campaigns`);
       } else if (bulkAction === 'delete') {
-        for (const id of ids) {
-          await supabase.from('quotes').delete().eq('customer_id', id);
-          await deleteCustomer.mutateAsync(id);
-        }
+        // Delete quotes for all selected customers in one call, then
+        // delete the customers themselves in parallel.
+        await supabase.from('quotes').delete().in('customer_id', ids);
+        await Promise.all(ids.map(id => deleteCustomer.mutateAsync(id)));
         toast.success(`Deleted ${ids.length} customers`);
       }
       queryClient.invalidateQueries({ queryKey: ['customers'] });

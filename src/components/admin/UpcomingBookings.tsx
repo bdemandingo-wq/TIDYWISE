@@ -119,11 +119,9 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
         return;
       }
 
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const staffMember of staffToNotify) {
-        try {
+      // Send all SMS notifications in parallel rather than sequentially
+      const results = await Promise.allSettled(
+        staffToNotify.map(async (staffMember) => {
           const response = await supabase.functions.invoke('send-cleaner-notification', {
             body: {
               cleanerName: staffMember.name,
@@ -138,18 +136,11 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
               organizationId: organization?.id,
             },
           });
-
-          // Handle SMS-specific errors
-          if ((await handleSmsError(response))) {
-            failCount++;
-            continue;
-          }
-          successCount++;
-        } catch (err) {
-          console.error(`Failed to notify ${staffMember.name}:`, err);
-          failCount++;
-        }
-      }
+          if ((await handleSmsError(response))) throw new Error('SMS error');
+        })
+      );
+      const successCount = results.filter(r => r.status === 'fulfilled').length;
+      const failCount = results.filter(r => r.status === 'rejected').length;
 
       if (successCount > 0) {
         const message = staffToNotify.length > 1 
