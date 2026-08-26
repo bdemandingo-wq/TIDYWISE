@@ -153,28 +153,36 @@ export function useAppStateHandler() {
       // authenticated. onAuthStateChange re-runs install() on SIGNED_IN, and
       // tears the listener down again on SIGNED_OUT so a signed-out user
       // browsing the marketing site is never intercepted.
-      const install = async () => {
-        if (cleanupPop) return; // already installed
+      // install() with no args: called at mount, OUTSIDE the auth lock.
+      // Safe to call getSession() here — it acquires the lock but nothing
+      // is holding it at mount time.
+      const installFromMount = async () => {
+        if (cleanupPop) return;
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
+        installWithSession(session);
+      };
+
+      // installWithSession(): called from onAuthStateChange, which runs
+      // INSIDE the auth lock. Must NOT call getSession() or any other
+      // lock-acquiring method — that would deadlock the app. The session
+      // is passed directly from the callback parameter instead.
+      const installWithSession = (session: { user: { id: string } } | null) => {
+        if (cleanupPop) return;
         if (!session) return;
         if (!isInAppRoute(window.location.pathname)) return;
 
-        // Push a state so there is always something in the stack to pop.
-        // Deliberately inside the guard: doing this unconditionally added a
-        // phantom history entry to every marketing page, so the first Back
-        // press appeared to do nothing.
         window.history.pushState({ appGuard: true }, '', window.location.href);
         window.addEventListener('popstate', handlePopState);
         cleanupPop = () => window.removeEventListener('popstate', handlePopState);
       };
 
-      void install();
+      void installFromMount();
 
-      const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+      const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
         if (cancelled) return;
         if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-          void install();
+          installWithSession(session);
         } else if (event === 'SIGNED_OUT') {
           cleanupPop?.();
           cleanupPop = undefined;
