@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +56,7 @@ export default function ClientFeedbackPage() {
   const { isTestMode, maskName } = useTestMode();
   const { organization } = useOrganization();
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: entries = [], isLoading, error: entriesError } = useQuery({
     queryKey: ['client-feedback', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -74,7 +75,7 @@ export default function ClientFeedbackPage() {
   // client_feedback has no customer_id FK — only customer_name text — so
   // this is a best-effort match. Concat first+last to match the name format
   // used by submit_review_by_token.
-  const { data: customerEmails = {} } = useQuery({
+  const { data: customerEmails = {}, error: customerEmailsError } = useQuery({
     queryKey: ['feedback-customer-emails', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return {};
@@ -93,6 +94,10 @@ export default function ClientFeedbackPage() {
     enabled: !!organization?.id,
     staleTime: 1000 * 60 * 10,
   });
+
+  useEffect(() => {
+    if (customerEmailsError) toast.error('Failed to load customer emails');
+  }, [customerEmailsError]);
 
   const createMutation = useMutation({
     mutationFn: async (data: { customer_name: string; feedback_date: string; is_resolved: boolean; followup_needed: boolean; issue_description: string | null; resolution: string | null }) => {
@@ -334,6 +339,12 @@ export default function ClientFeedbackPage() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8">Loading...</TableCell>
+                </TableRow>
+              ) : entriesError ? (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <QueryError subject="client feedback" onRetry={() => window.location.reload()} />
+                  </TableCell>
                 </TableRow>
               ) : filteredEntries.length === 0 ? (
                 <TableRow>

@@ -39,6 +39,11 @@ interface OrganizationContextType {
   allOrganizations: OrgWithRole[];
   /** Switch the active organization */
   switchOrganization: (orgId: string) => void;
+  /** Set the active organization directly from a confirmed DB write.
+   *  Used by onboarding submit to avoid the context-race — the org
+   *  returned from the UPDATE is set synchronously so AdminRoute sees
+   *  the correct value on the first render after navigation. */
+  setOrganizationDirect: (org: Organization, role: OrgRole) => void;
   refetch: () => Promise<void>;
 }
 
@@ -216,6 +221,14 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     switchTimerRef.current = setTimeout(() => setSwitching(false), 600);
   }, [allOrganizations, queryClient]);
 
+  const setOrganizationDirect = useCallback((org: Organization, role: OrgRole) => {
+    setOrganization(org);
+    setMembership({ organization_id: org.id, role });
+    localStorage.setItem(ACTIVE_ORG_KEY, org.id);
+    resolvedUserIdRef.current = org.owner_id;
+    setLoading(false);
+  }, []);
+
   const isOwner = membership?.role === 'owner';
   // Admin dashboard access: owners, admins, AND managers (invited virtual
   // assistants). Cleaners (role='member') are blocked and sent to /staff.
@@ -235,6 +248,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         isAdmin,
         allOrganizations,
         switchOrganization,
+        setOrganizationDirect,
         refetch,
       }}
     >

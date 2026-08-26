@@ -150,7 +150,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const isNative = Capacitor.isNativePlatform();
   const { user, signOut } = useAuth();
-  const { organization, loading: orgLoading, refetch } = useOrganization();
+  const { organization, loading: orgLoading, refetch, setOrganizationDirect } = useOrganization();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   // Qualifying answers (steps 2-5). Persisted to sessionStorage on
@@ -517,41 +517,30 @@ export default function OnboardingPage() {
         );
       } catch { /* no-op */ }
 
-      // Refetch so OrganizationProvider picks up the updated org
-      // (needs_onboarding = false). Do NOT navigate imperatively —
-      // the redirect effect at line ~209 watches `organization` and
-      // navigates once it sees needs_onboarding = false. Imperative
-      // navigate() races the state update and AdminRoute reads stale
-      // context, causing a loop.
-      console.log('[ONBOARDING-SUBMIT] calling refetch()');
+      // Set the org directly in context from the confirmed DB write.
+      // This avoids the context-race: refetch() updates state async and
+      // AdminRoute reads stale context on the first render after navigate.
+      // setOrganizationDirect sets it synchronously so AdminRoute sees
+      // needs_onboarding: false on the first render.
+      console.log('[ONBOARDING-SUBMIT] setting org directly in context:', orgData.id, 'needs_onboarding:', orgData.needs_onboarding);
       try {
-        await refetch();
-        console.log('[ONBOARDING-SUBMIT] refetch complete');
-      } catch (refetchErr) {
-        console.error('[ONBOARDING-SUBMIT] refetch failed:', refetchErr);
-        toast.error('Business created but failed to load it. Please refresh the app.');
+        setOrganizationDirect(orgData, 'owner');
+      } catch (ctxErr) {
+        console.error('[ONBOARDING-SUBMIT] setOrganizationDirect failed:', ctxErr);
+        toast.error('Business created but failed to activate it. Please restart the app.');
+        return;
       }
 
-      if (!isNative) {
+      if (isNative) {
+        console.log('[ONBOARDING-SUBMIT] navigating to /dashboard/help');
+        navigate('/dashboard/help', { replace: true });
+      } else {
         // Web: "Building your dashboard" overlay, then paywall.
         setBuilding(true);
         [0, 1, 2, 3].forEach((stage) => {
           window.setTimeout(() => setBuildStage(stage + 1), 700 + stage * 800);
         });
         window.setTimeout(() => navigate('/choose-plan'), 4200);
-      }
-      // Native: no imperative navigate. The redirect effect fires once
-      // organization updates with needs_onboarding = false. Safety
-      // timeout: if the redirect hasn't fired after 5s, something is
-      // wrong — surface an error rather than leaving an inert screen.
-      if (isNative) {
-        setTimeout(() => {
-          // Only fire if we're still on this page (not already navigated)
-          if (window.location.hash.includes('/onboarding')) {
-            console.error('[ONBOARDING-SUBMIT] redirect timeout — org context did not update');
-            toast.error('Business created but the app did not navigate. Please restart the app.');
-          }
-        }, 5000);
       }
     } catch (error: any) {
       console.error('Error creating organization:', error);

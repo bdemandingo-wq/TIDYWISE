@@ -287,7 +287,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const { refreshing, pullDistance, handlers: pullHandlers } = usePullToRefresh(handleRefresh);
 
   // Fetch team assignments for the selected booking (org-scoped)
-  const { data: teamMembers = [] } = useQuery({
+  const { data: teamMembers = [], error: teamMembersError } = useQuery({
     queryKey: ['booking-team-assignments', selectedBooking?.id, organization?.id],
     queryFn: async () => {
       if (!selectedBooking?.id || !organization?.id) return [];
@@ -303,7 +303,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   });
 
   // Fetch all team assignments for calendar display
-  const { data: allTeamAssignments = [] } = useQuery({
+  const { data: allTeamAssignments = [], error: allTeamAssignmentsError } = useQuery({
     queryKey: ['all-team-assignments', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -342,7 +342,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     };
   }, []);
   // Fetch staff for color consistency
-  const { data: staffList = [] } = useQuery({
+  const { data: staffList = [], error: staffListError } = useQuery({
     queryKey: ['staff-for-calendar', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -357,6 +357,12 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    if (teamMembersError) toast.error('Failed to load team assignments');
+    if (allTeamAssignmentsError) toast.error('Failed to load team assignments');
+    if (staffListError) toast.error('Failed to load staff list');
+  }, [teamMembersError, allTeamAssignmentsError, staffListError]);
 
   // On mobile, require long-press (500ms delay) to initiate drag; on desktop use distance
   const sensors = useSensors(

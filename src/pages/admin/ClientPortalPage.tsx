@@ -6,9 +6,11 @@ import { ClientBookingRequestsManager } from '@/components/admin/ClientBookingRe
 import { EmailChangeRequestsPanel } from '@/components/admin/EmailChangeRequestsPanel';
 import { LoyaltyProgramSettings } from '@/components/admin/LoyaltyProgramSettings';
 import { Users, Calendar, Gift } from 'lucide-react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { SEOHead } from '@/components/SEOHead';
 
@@ -16,7 +18,7 @@ export default function ClientPortalPage() {
   const { organization } = useOrganization();
 
   // Get pending request count for badge
-  const { data: pendingCount = 0 } = useQuery({
+  const { data: pendingCount = 0, error: pendingCountError } = useQuery({
     queryKey: ['pending-booking-requests-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
@@ -40,6 +42,10 @@ export default function ClientPortalPage() {
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    if (pendingCountError) toast.error('Failed to load portal users');
+  }, [pendingCountError]);
 
   return (
     <AdminLayout

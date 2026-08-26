@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { QueryError } from '@/components/QueryError';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -217,9 +218,9 @@ export default function RecurringBookingsPage() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
   
-  const { data: customers = [] } = useCustomers();
-  const { data: services = [] } = useServices();
-  const { data: staff = [] } = useStaff();
+  const { data: customers = [], error: customersError } = useCustomers();
+  const { data: services = [], error: servicesError } = useServices();
+  const { data: staff = [], error: staffError } = useStaff();
 
   // Fetch org-specific custom frequencies
   const { data: customFrequencies = [], error: customFrequenciesError } = useQuery({
@@ -280,7 +281,10 @@ export default function RecurringBookingsPage() {
     if (customFrequenciesError) toast.error('Failed to load custom frequencies');
     if (recurringBookingsError) toast.error('Failed to load recurring bookings');
     if (allOrgBookingsError) toast.error('Failed to load bookings');
-  }, [customFrequenciesError, recurringBookingsError, allOrgBookingsError]);
+    if (customersError) toast.error('Failed to load customers');
+    if (servicesError) toast.error('Failed to load services');
+    if (staffError) toast.error('Failed to load staff');
+  }, [customFrequenciesError, recurringBookingsError, allOrgBookingsError, customersError, servicesError, staffError]);
 
   // Build lookup maps: latest booking date + existing date sets per customer+service
   // Also build customer-only maps for multi-service recurring bookings
@@ -686,6 +690,12 @@ export default function RecurringBookingsPage() {
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     Loading...
+                  </TableCell>
+                </TableRow>
+              ) : recurringBookingsError ? (
+                <TableRow>
+                  <TableCell colSpan={9}>
+                    <QueryError subject="recurring bookings" onRetry={() => window.location.reload()} />
                   </TableCell>
                 </TableRow>
               ) : recurringBookings.length === 0 ? (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
+import { QueryError } from '@/components/QueryError';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -384,6 +385,8 @@ export default function BookingPhotosPage() {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
+          ) : photosError ? (
+            <QueryError subject="booking photos" onRetry={() => window.location.reload()} />
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
               <Camera className="w-12 h-12 mb-3" />

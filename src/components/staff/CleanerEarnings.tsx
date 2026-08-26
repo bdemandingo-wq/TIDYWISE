@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
 import { matrixToCsv } from '@/lib/orgDataExport';
@@ -52,7 +53,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     to: endOfMonth(new Date()),
   });
 
-  const { data: staffInfo } = useQuery({
+  const { data: staffInfo, error: staffInfoError } = useQuery({
     queryKey: ['cleaner-wage-info', staffId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -80,7 +81,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
    * is readable by anyone ("Anyone can view settings"), so a cleaner can see
    * their own employer's zone.
    */
-  const { data: orgTimezone = 'America/New_York' } = useQuery({
+  const { data: orgTimezone = 'America/New_York', error: timezoneError } = useQuery({
     queryKey: ['cleaner-org-timezone', staffInfo?.organization_id],
     enabled: !!staffInfo?.organization_id,
     staleTime: 1000 * 60 * 10,
@@ -114,7 +115,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   const upcomingWeekEnd = orgEndOfWeek(new Date(), orgTimezone, 1);
 
   // Fetch upcoming week bookings for this cleaner (all non-cancelled statuses)
-  const { data: upcomingBookings = [] } = useQuery({
+  const { data: upcomingBookings = [], error: upcomingError } = useQuery({
     queryKey: ['cleaner-upcoming-week', staffId],
     queryFn: async () => {
       // upcomingWeekEnd is already org-resolved; its end of day is too.
@@ -141,7 +142,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   });
 
   // Team assignments for upcoming week
-  const { data: upcomingTeamAssignments = [] } = useQuery({
+  const { data: upcomingTeamAssignments = [], error: upcomingTeamError } = useQuery({
     queryKey: ['cleaner-upcoming-team', staffId],
     queryFn: async () => {
       // upcomingWeekEnd is already org-resolved; its end of day is too.
@@ -208,7 +209,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   }, [upcomingWeekEntries, staffInfo]);
 
   // Completed bookings (historical)
-  const { data: primaryBookings = [], isLoading: loadingPrimary } = useQuery({
+  const { data: primaryBookings = [], isLoading: loadingPrimary, error: primaryError } = useQuery({
     queryKey: ['cleaner-earnings-primary', staffId, dateRange],
     queryFn: async () => {
       let query = supabase
@@ -231,7 +232,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
     enabled: !!staffId,
   });
 
-  const { data: teamAssignments = [], isLoading: loadingTeam } = useQuery({
+  const { data: teamAssignments = [], isLoading: loadingTeam, error: teamError } = useQuery({
     queryKey: ['cleaner-earnings-team', staffId, dateRange],
     queryFn: async () => {
       const { data: assignments, error: aErr } = await supabase
@@ -358,6 +359,7 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
   };
 
   const isLoading = loadingPrimary || loadingTeam;
+  const earningsError = staffInfoError || timezoneError || upcomingError || upcomingTeamError || primaryError || teamError;
 
   return (
     <div className="space-y-6">
@@ -503,6 +505,8 @@ export function CleanerEarnings({ staffId, staffName }: Props) {
         <CardContent>
           {isLoading ? (
             <p className="text-muted-foreground">Loading...</p>
+          ) : earningsError ? (
+            <QueryError subject="your earnings" onRetry={() => window.location.reload()} />
           ) : allEntries.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
               No completed jobs in this date range.

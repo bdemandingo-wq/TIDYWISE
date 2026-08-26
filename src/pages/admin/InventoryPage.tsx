@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { PlanFeatureGate } from '@/components/admin/PlanFeatureGate';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ export default function InventoryPage() {
   const queryClient = useQueryClient();
   const { organization } = useOrganization();
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: items = [], isLoading, error: itemsError } = useQuery({
     queryKey: ['inventory', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -103,7 +104,7 @@ export default function InventoryPage() {
     enabled: !!organization?.id,
   });
 
-  const { data: customCategories = [] } = useQuery({
+  const { data: customCategories = [], error: categoriesError } = useQuery({
     queryKey: ['inventory-categories', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -117,6 +118,10 @@ export default function InventoryPage() {
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    if (categoriesError) toast.error('Failed to load inventory categories');
+  }, [categoriesError]);
 
   const allCategories = [
     ...DEFAULT_CATEGORIES,
@@ -418,6 +423,12 @@ export default function InventoryPage() {
                   {isLoading ? (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">Loading...</TableCell>
+                    </TableRow>
+                  ) : itemsError ? (
+                    <TableRow>
+                      <TableCell colSpan={9}>
+                        <QueryError subject="inventory" onRetry={() => window.location.reload()} />
+                      </TableCell>
                     </TableRow>
                   ) : paginatedItems.length === 0 ? (
                     <TableRow>

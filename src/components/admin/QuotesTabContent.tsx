@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -81,7 +82,7 @@ export function QuotesTabContent() {
   const { data: customers = [] } = useCustomers();
   const { data: services = [] } = useServices();
 
-  const { data: quotes = [], isLoading } = useQuery({
+  const { data: quotes = [], isLoading, error: quotesError } = useQuery({
     queryKey: ['quotes', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -422,6 +423,8 @@ export function QuotesTabContent() {
           <div className="flex items-center justify-center h-48">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
+        ) : quotesError ? (
+          <QueryError subject="quotes" onRetry={() => window.location.reload()} />
         ) : quotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center p-8">
             <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mb-4">

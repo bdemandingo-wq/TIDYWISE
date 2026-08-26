@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { QueryError } from '@/components/QueryError';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,7 +43,7 @@ export default function EstimatesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data: estimates = [], isLoading } = useQuery({
+  const { data: estimates = [], isLoading, error: estimatesError } = useQuery({
     queryKey: ['estimates', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -168,6 +169,8 @@ export default function EstimatesPage() {
         {/* List */}
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading...</div>
+        ) : estimatesError ? (
+          <QueryError subject="estimates" onRetry={() => window.location.reload()} />
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />

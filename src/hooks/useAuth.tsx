@@ -136,7 +136,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Both are gone. Anything that isn't provably an invalid session
         // leaves the session alone and skips this cycle's check.
         if (error && isInvalidSessionError(error)) {
-          console.warn('[useAuth] session is invalid, signing out:', error.message);
+          const session = noSessionAuth.session;
+          const expiresAt = session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'unknown';
+          const now = new Date().toISOString();
+          console.error('[useAuth] SIGNING OUT — getUser returned invalid session', {
+            errorStatus: (error as any)?.status ?? (error as any)?.context?.status ?? 'unknown',
+            errorMessage: error.message,
+            isInvalidSession: true,
+            sessionExpiresAt: expiresAt,
+            currentTime: now,
+            tokenPrefix: session?.access_token?.substring(0, 20) ?? 'none',
+          });
           await signOut();
           return;
         }

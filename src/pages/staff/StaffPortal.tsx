@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -186,7 +187,7 @@ export default function StaffPortal() {
   // activeOrgId is part of the key because it is an argument to the RPC: the
   // two orgs return different staff rows and must not share a cache entry.
   // CleanerProfile's bare ['staff-profile'] invalidation still matches by prefix.
-  const { data: staffInfo = null, isLoading: loadingProfile } = useQuery({
+  const { data: staffInfo = null, isLoading: loadingProfile, error: profileError } = useQuery({
     queryKey: ['staff-profile', user?.id, activeOrgId],
     queryFn: async (): Promise<StaffInfo | null> => {
       const { data, error } = await (supabase as any)
@@ -339,7 +340,7 @@ export default function StaffPortal() {
   }, [staffInfo?.id, staffInfo?.organization_id, queryClient]);
 
   // Fetch assigned bookings (including team assignments)
-  const { data: assignedBookings = [], isLoading: loadingAssigned } = useQuery({
+  const { data: assignedBookings = [], isLoading: loadingAssigned, error: assignedError } = useQuery({
     queryKey: ['staff-bookings', 'assigned', staffInfo?.id],
     queryFn: async () => {
       if (!staffInfo?.id) return [];
@@ -454,7 +455,7 @@ export default function StaffPortal() {
   const assignedCustomerIds = [
     ...new Set(assignedBookings.map((b) => (b as any).customer_id).filter(Boolean)),
   ] as string[];
-  const { data: cardData } = useQuery({
+  const { data: cardData, error: cardDataError } = useQuery({
     queryKey: ['staff-myjob-carddata', staffInfo?.id, assignedIds.join(',')],
     enabled: !!staffInfo?.id && !!staffInfo?.organization_id && assignedIds.length > 0,
     queryFn: async () => {
@@ -497,7 +498,7 @@ export default function StaffPortal() {
   const cardPhotoReqs = cardData?.photoReqs ?? { required: true, min: 2 };
 
   // Fetch unassigned bookings - scoped to staff's organization
-  const { data: unassignedBookings = [], isLoading: loadingUnassigned } = useQuery({
+  const { data: unassignedBookings = [], isLoading: loadingUnassigned, error: unassignedError } = useQuery({
     queryKey: ['staff-bookings', 'unassigned', staffInfo?.organization_id],
     queryFn: async () => {
       if (!staffInfo?.organization_id) return [];
@@ -541,7 +542,7 @@ export default function StaffPortal() {
    * `enabled` only while the History tab is open and capped at 50 rows, so it
    * cannot answer this on the my-jobs tab.
    */
-  const { data: completedToday = 0 } = useQuery({
+  const { data: completedToday = 0, error: completedTodayError } = useQuery({
     queryKey: ['staff-completed-today', staffInfo?.id],
     enabled: !!staffInfo?.id,
     queryFn: async () => {
@@ -562,7 +563,7 @@ export default function StaffPortal() {
   });
 
   // Fetch job history (completed, cancelled, no_show) - only when history tab is active
-  const { data: jobHistory = [], isLoading: loadingHistory } = useQuery({
+  const { data: jobHistory = [], isLoading: loadingHistory, error: historyError } = useQuery({
     queryKey: ['staff-bookings', 'history', staffInfo?.id],
     queryFn: async () => {
       if (!staffInfo?.id) return [];
@@ -1282,6 +1283,8 @@ export default function StaffPortal() {
                   <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
                 ))}
               </div>
+            ) : (assignedError || profileError) ? (
+              <QueryError subject="your jobs" onRetry={() => window.location.reload()} />
             ) : assignedBookings.length === 0 ? (
               <div className="text-center py-16">
                 <CalendarCheck className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
@@ -1337,6 +1340,8 @@ export default function StaffPortal() {
                   <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
                 ))}
               </div>
+            ) : unassignedError ? (
+              <QueryError subject="available jobs" onRetry={() => window.location.reload()} />
             ) : unassignedBookings.length === 0 ? (
               <div className="text-center py-16">
                 <Briefcase className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />
@@ -1374,6 +1379,8 @@ export default function StaffPortal() {
               </div>
               {loadingHistory ? (
                 <TabFallback />
+              ) : historyError ? (
+                <QueryError subject="your job history" onRetry={() => window.location.reload()} />
               ) : jobHistory.length === 0 ? (
                 <div className="text-center py-16">
                   <History className="w-10 h-10 mx-auto mb-4" style={{ color: 'hsl(var(--pv-ink-4))' }} />

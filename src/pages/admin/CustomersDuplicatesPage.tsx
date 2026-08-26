@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -182,7 +183,7 @@ export default function CustomersDuplicatesPage() {
   } | null>(null);
 
   // Load active (non-merged) customers for this org.
-  const { data: customers = [], isLoading: loadingCustomers } = useQuery({
+  const { data: customers = [], isLoading: loadingCustomers, error: customersError } = useQuery({
     queryKey: ['customers-for-dedupe', orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -201,7 +202,7 @@ export default function CustomersDuplicatesPage() {
   });
 
   // Load ignored pairs so we don't re-surface them.
-  const { data: ignoredPairs = [] } = useQuery({
+  const { data: ignoredPairs = [], error: ignoredPairsError } = useQuery({
     queryKey: ['customer-duplicate-ignored', orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -225,7 +226,7 @@ export default function CustomersDuplicatesPage() {
   // NOTE: query data must be JSON-serializable — the app persists the
   // react-query cache, and a Map rehydrates as a plain object (crash:
   // "stats.get is not a function"). Return a record, derive the Map below.
-  const { data: statsRecord = {} } = useQuery({
+  const { data: statsRecord = {}, error: statsError } = useQuery({
     queryKey: ['customer-stats-for-dedupe-v2', orgId],
     queryFn: async () => {
       if (!orgId) return {};
@@ -264,6 +265,11 @@ export default function CustomersDuplicatesPage() {
     }
     return s;
   }, [ignoredPairs]);
+
+  useEffect(() => {
+    if (ignoredPairsError) toast.error('Failed to load ignored pairs');
+    if (statsError) toast.error('Failed to load customer stats');
+  }, [ignoredPairsError, statsError]);
 
   const pairs = useMemo(
     () => detectDuplicates(customers, ignoredKeys),
@@ -592,6 +598,8 @@ export default function CustomersDuplicatesPage() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
+      ) : customersError ? (
+        <QueryError subject="duplicate customers" onRetry={() => window.location.reload()} />
       ) : pairs.length === 0 ? (
         <Card>
           <CardContent className="pt-10 pb-10 text-center space-y-2">

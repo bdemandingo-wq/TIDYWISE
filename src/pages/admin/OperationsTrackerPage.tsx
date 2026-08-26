@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,7 +68,7 @@ export default function OperationsTrackerPage() {
   const { isTestMode, maskAmount } = useTestMode();
   const { organization } = useOrganization();
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: entries = [], isLoading, error: entriesError } = useQuery({
     queryKey: ['operations-tracker', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -436,6 +437,12 @@ export default function OperationsTrackerPage() {
               {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
+                </TableRow>
+              ) : entriesError ? (
+                <TableRow>
+                  <TableCell colSpan={8}>
+                    <QueryError subject="operations data" onRetry={() => window.location.reload()} />
+                  </TableCell>
                 </TableRow>
               ) : filteredEntries.length === 0 ? (
                 <TableRow>

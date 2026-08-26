@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { QueryError } from '@/components/QueryError';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,7 +176,7 @@ export default function ChecklistsPage() {
   };
 
   // Fetch templates with items — scoped by organization
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading, error: templatesError } = useQuery({
     queryKey: ['checklist-templates', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -197,7 +198,7 @@ export default function ChecklistsPage() {
   });
 
   // Fetch services — scoped by organization
-  const { data: services = [] } = useQuery({
+  const { data: services = [], error: servicesError } = useQuery({
     queryKey: ['services', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -212,6 +213,10 @@ export default function ChecklistsPage() {
     },
     enabled: !!organization?.id,
   });
+
+  useEffect(() => {
+    if (servicesError) toast.error('Failed to load services');
+  }, [servicesError]);
 
   // Create template
   const createTemplate = useMutation({
@@ -424,6 +429,17 @@ export default function ChecklistsPage() {
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
+      </div>
+</AdminLayout>
+    );
+  }
+
+  if (templatesError) {
+    return (
+      <AdminLayout title="Cleaning Checklists">
+<div className="portal-v2 portal-v2-scroll">
+      <SEOHead title="Checklists | TidyWise" description="Create and manage cleaning checklists for your team" noIndex />
+        <QueryError subject="checklists" onRetry={() => window.location.reload()} />
       </div>
 </AdminLayout>
     );
