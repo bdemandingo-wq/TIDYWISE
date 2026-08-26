@@ -337,10 +337,16 @@ serve(async (req) => {
 
             if (TIDYWISE_CRM_PRODUCT_IDS.has(productId)) {
               crmSubscriptions.push(sub);
+              // Capture the expanded customer object; the loop below reads it
+              // from this map instead of issuing a retrieve per subscription.
+              if (sub.customer && typeof sub.customer !== "string" && !("deleted" in sub.customer && sub.customer.deleted)) {
+                customerById.set(sub.customer.id, sub.customer as Stripe.Customer);
+              }
             } else {
               unmatchedProductCounts[productId] = (unmatchedProductCounts[productId] ?? 0) + 1;
             }
           });
+
 
         if (truncated) {
           console.error(
