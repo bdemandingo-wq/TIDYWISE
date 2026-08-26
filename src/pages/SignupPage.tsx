@@ -209,17 +209,9 @@ export default function SignupPage() {
           console.error('TOS acceptance logging failed (non-critical):', tosErr);
         }
         
-        // Welcome SMS removed for cost control — the welcome email covers it.
-        // notify-platform-admin-signup still runs (admin alert), but it's been
-        // converted to email-only too; see that function for details.
-        supabaseNoSession.functions.invoke('notify-platform-admin-signup', {
-          body: {
-            email: formData.email,
-            fullName: formData.fullName,
-            phone: formData.phone || undefined,
-            signupMethod: 'email',
-          },
-        }).catch(err => console.log('Admin notification failed (non-critical):', err));
+        // Admin notification deferred to onboarding completion, where the
+        // real business name is available. Don't alert at signup — the user
+        // hasn't entered their business details yet.
         
         toast.success('Account created! Welcome aboard.');
 

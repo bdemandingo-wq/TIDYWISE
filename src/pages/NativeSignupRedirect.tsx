@@ -176,14 +176,9 @@ export default function NativeSignupPage() {
           // Non-critical
         }
 
-        // Admin notification (fire-and-forget)
-        supabaseNoSession.functions.invoke('notify-platform-admin-signup', {
-          body: {
-            email: formData.email,
-            fullName: formData.fullName,
-            signupMethod: 'email',
-          },
-        }).catch(() => {});
+        // Admin notification deferred to onboarding completion, where the
+        // real business name is available. Don't alert at provisioning —
+        // the data is placeholder until the user finishes the wizard.
 
         // Welcome email (fire-and-forget)
         supabaseNoSession.functions.invoke('send-welcome-email', {

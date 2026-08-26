@@ -381,19 +381,22 @@ export default function OnboardingPage() {
           });
 
         if (memberError) throw memberError;
-
-        // Notify platform admin only for genuinely new orgs.
-        // Provisioned orgs (Branch A) already fired this alert from
-        // provision-trial-org — don't double-alert.
-        supabase.functions.invoke('notify-platform-admin-signup', {
-          body: {
-            email: user.email || '',
-            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-            phone: phoneNumber.trim() || undefined,
-            signupMethod: 'onboarding',
-          },
-        }).catch(err => console.log('Admin notification failed (non-critical):', err));
       }
+
+      // Notify platform admin with the REAL business data from onboarding,
+      // not the placeholder values from provisioning. This is the single
+      // alert for a new customer — provision-trial-org no longer sends one
+      // (see Lovable prompt). Uses the business name they entered, their
+      // email, and their phone if collected.
+      supabase.functions.invoke('notify-platform-admin-signup', {
+        body: {
+          email: user.email || '',
+          fullName: user.user_metadata?.full_name || user.user_metadata?.name || name,
+          phone: phoneNumber.trim() || undefined,
+          signupMethod: isNative ? 'native-onboarding' : 'web-onboarding',
+          businessName: name,
+        },
+      }).catch(err => console.log('Admin notification failed (non-critical):', err));
 
       // Record the referral, if this signup arrived via someone's link.
       //
