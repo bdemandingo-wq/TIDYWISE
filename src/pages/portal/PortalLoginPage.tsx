@@ -73,6 +73,7 @@ export default function PortalLoginPage() {
         title="Client Portal Sign In | TidyWise"
         description="Sign in to your TidyWise client portal to view upcoming cleanings, request new appointments, leave tips, and manage your service preferences."
         canonical="https://www.jointidywise.com/portal/login"
+        noIndex
       />
 
       <div className="flex-1 flex items-center justify-center p-4 w-full">

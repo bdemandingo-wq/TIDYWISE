@@ -31,6 +31,14 @@ export type RouteMeta = {
    */
   noscriptBody?: string;
   /**
+   * Visible HTML injected inside <div id="root"> in prerendered pages.
+   * React's createRoot replaces #root children on mount, so this is only
+   * seen by crawlers reading the static HTML and by users during the
+   * sub-second window before JS loads. Provides real body content for
+   * crawlers that would otherwise see an empty page.
+   */
+  prerenderBody?: string;
+  /**
    * Optional JSON-LD structured data injected into <head> as
    * <script type="application/ld+json">. Pass a single schema object or an
    * array (will be wrapped in @graph). Useful for LocalBusiness, Article, etc.
@@ -47,6 +55,26 @@ export const STATIC_ROUTE_META: Record<string, RouteMeta> = {
     description:
       "All-in-one cleaning business software: online booking, scheduling, invoicing, payroll, GPS tracking, and CRM. Plans from $49/mo, or a one-time Lifetime spot at $300.",
     h1: "Run your cleaning business on one platform",
+    noscriptBody: `
+      <nav aria-label="Features">
+        <ul>
+          <li><a href="/features/scheduling-software">Scheduling Software</a></li>
+          <li><a href="/features/booking">Online Booking</a></li>
+          <li><a href="/features/invoicing-software">Invoicing</a></li>
+          <li><a href="/features/payroll-software">Payroll</a></li>
+          <li><a href="/features/route-optimization">Route Optimization</a></li>
+          <li><a href="/features/crm">CRM</a></li>
+          <li><a href="/features/automated-dispatching">Automated Dispatching</a></li>
+          <li><a href="/features/sms-notifications">SMS Notifications</a></li>
+          <li><a href="/features/payment-processing">Payment Processing</a></li>
+          <li><a href="/features/quote-software">Quote Software</a></li>
+          <li><a href="/pricing">Pricing — plans from $49/mo</a></li>
+          <li><a href="/demo">Book a demo</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/cleaning-business-software">Cleaning software by state</a></li>
+          <li><a href="/score/search">TidyWise Score directory</a></li>
+        </ul>
+      </nav>`,
   },
   "/terms": {
     title: "Terms of Service | TidyWise",
@@ -482,6 +510,8 @@ export type BlogPostForMeta = {
   author?: string | null;
   published_at?: string | null;
   updated_at?: string | null;
+  /** Full article HTML — injected into prerendered body so crawlers see content. */
+  content?: string | null;
 };
 
 export function blogPostRouteMeta(post: BlogPostForMeta): RouteMeta {

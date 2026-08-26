@@ -263,8 +263,8 @@ export default function LoginPage() {
       // respect the top safe-area inset.
       style={{ touchAction: 'manipulation', paddingTop: 'env(safe-area-inset-top)' }}
     >
-      {/* Both /auth and /login render this same page; canonical consolidates to /auth as the preferred URL. */}
-      <SEOHead title={seoTitle} description={seoDescription} canonical="/auth" />
+      {/* Both /auth and /login render this same page; canonical consolidates to /login as the preferred URL. */}
+      <SEOHead title={seoTitle} description={seoDescription} canonical="/login" noIndex />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         {/* Back to home link - only on web */}
@@ -443,6 +443,7 @@ export default function LoginPage() {
                 <Link
                   to={claimSlug ? `/signup?claim=${encodeURIComponent(claimSlug)}` : '/signup'}
                   className="text-primary hover:underline font-medium"
+                  {...(claimSlug ? { rel: "nofollow" } : {})}
                 >
                   Create account
                 </Link>

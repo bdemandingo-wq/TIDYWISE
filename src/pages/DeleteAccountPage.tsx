@@ -65,6 +65,7 @@ export default function DeleteAccountPage() {
         title="Delete Your TidyWise Account | Data Deletion Request"
         description="Request deletion of your TidyWise account and all associated data. Email Support@tidywisecleaning.com — processed within 7 business days."
         canonical="/delete-account"
+        noIndex
       />
 
       <div className="portal-v2 portal-v2-scroll min-h-screen bg-background">

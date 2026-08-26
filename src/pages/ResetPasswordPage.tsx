@@ -197,6 +197,7 @@ export default function ResetPasswordPage() {
         title="Enter Reset Code & New Password | TidyWise"
         description="Confirm your TidyWise reset code and choose a new password. Codes expire after a short window for account security on your cleaning business dashboard."
         canonical="/reset-password"
+        noIndex
       />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">

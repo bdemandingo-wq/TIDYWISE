@@ -48,6 +48,8 @@ const EXCLUDED_PATHS = new Set<string>([
   "/onboarding",
   "/card-saved",
   "/delete-account",
+  "/forgot-password",
+  "/reset-password",
   // The hard paywall between onboarding and the dashboard. Reachable only with
   // a session, redirects to /login on native, and has nothing to offer a
   // crawler — it was being advertised purely because it is a top-level route.

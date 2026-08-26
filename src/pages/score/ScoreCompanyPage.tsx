@@ -215,44 +215,12 @@ export default function ScoreCompanyPage() {
     ? `See ${company.name}'s reputation score (${score}/100)${locationLabel ? ` in ${locationLabel}` : ""} — analyzed from ${company.google_review_count ?? 0} Google reviews across reliability, communication, quality, and value.`
     : `See ${company.name}'s reputation analysis${locationLabel ? ` in ${locationLabel}` : ""} — TidyWise scores reliability, communication, quality, and value from Google reviews.`;
 
-  const pageUrl = `https://www.jointidywise.com/score/c/${company.slug}`;
-  const fallbackImage = "https://www.jointidywise.com/images/tidywise-og.png";
-
-  const businessSchema: Record<string, unknown> = {
-    "@type": "LocalBusiness",
-    "@id": pageUrl,
-    name: company.name,
-    url: company.website || pageUrl,
-    image: fallbackImage,
-  };
-  if (company.formatted_address || company.city || company.state) {
-    businessSchema.address = {
-      "@type": "PostalAddress",
-      ...(company.formatted_address ? { streetAddress: company.formatted_address } : {}),
-      ...(company.city ? { addressLocality: company.city } : {}),
-      ...(company.state ? { addressRegion: company.state } : {}),
-      ...(company.zip ? { postalCode: company.zip } : {}),
-      addressCountry: "US",
-    };
-  }
-  if (company.phone) businessSchema.telephone = company.phone;
-  if (company.latitude && company.longitude) {
-    businessSchema.geo = {
-      "@type": "GeoCoordinates",
-      latitude: company.latitude,
-      longitude: company.longitude,
-    };
-  }
-  if (company.google_rating && company.google_review_count && company.google_review_count > 0) {
-    businessSchema.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: Number(company.google_rating),
-      reviewCount: company.google_review_count,
-      bestRating: 5,
-      worstRating: 1,
-    };
-  }
-  const schemaJson: Record<string, unknown>[] = [businessSchema];
+  // JSON-LD (LocalBusiness + aggregateRating) is injected by the prerender
+  // system at build time via scoreCompanyRouteMeta(). Emitting it again here
+  // via Helmet would produce TWO <script type="application/ld+json"> blocks
+  // in the DOM — the prerendered one plus Helmet's — triggering Google's
+  // "Review has multiple aggregate ratings" error. Let the prerendered
+  // version be the single source.
 
   return (
     <div className="min-h-screen bg-background">
@@ -260,7 +228,6 @@ export default function ScoreCompanyPage() {
         title={seoTitle}
         description={seoDescription}
         canonical={`/score/c/${company.slug}`}
-        schemaJson={schemaJson}
       />
       <div className="max-w-4xl mx-auto px-4 py-10">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8">
@@ -407,6 +374,7 @@ export default function ScoreCompanyPage() {
                       <Link
                         to={`/login?claim=${encodeURIComponent(slug!)}`}
                         className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                        rel="nofollow"
                       >
                         Already have an account? Log in to claim
                       </Link>

@@ -1,18 +1,6 @@
 // Reusable schema.org JSON-LD builders for TidyWise pages.
-//
-// Aggregate rating values are owner-provided (TidyWise has 138 verified
-// customer reviews averaging 4.9). Update AGGREGATE_RATING below when the
-// review corpus changes; every schema that ships ratings reads from it.
 
 const SITE = "https://www.jointidywise.com";
-
-export const AGGREGATE_RATING = {
-  "@type": "AggregateRating" as const,
-  ratingValue: "4.9",
-  reviewCount: "138",
-  bestRating: "5",
-  worstRating: "1",
-};
 
 export const HOME_FAQS: FaqItem[] = [
   {
@@ -78,8 +66,7 @@ export function organizationSchema() {
  * physical storefront), so we describe the service area as the United
  * States rather than fabricating an address.
  */
-export function localBusinessSchema(opts?: { withRating?: boolean }) {
-  const withRating = opts?.withRating ?? true;
+export function localBusinessSchema() {
   return {
     "@type": "LocalBusiness",
     "@id": `${SITE}#localbusiness`,
@@ -95,7 +82,6 @@ export function localBusinessSchema(opts?: { withRating?: boolean }) {
       name: "United States",
     },
     serviceType: "Cleaning business management software",
-    ...(withRating ? { aggregateRating: AGGREGATE_RATING } : {}),
   };
 }
 
@@ -110,10 +96,8 @@ export function softwareApplicationSchema(opts?: {
   name?: string;
   description?: string;
   featureList?: string[];
-  withRating?: boolean;
   withOfferList?: boolean;
 }) {
-  const withRating = opts?.withRating ?? true;
   const withOfferList = opts?.withOfferList ?? false;
   return {
     "@type": "SoftwareApplication",
@@ -140,7 +124,6 @@ export function softwareApplicationSchema(opts?: {
           priceCurrency: "USD",
           offerCount: "4",
         },
-    ...(withRating ? { aggregateRating: AGGREGATE_RATING } : {}),
   };
 }
 
@@ -196,7 +179,7 @@ export function featurePageSchemas(args: {
     }),
     breadcrumbSchema([
       { name: "Home", path: "/" },
-      { name: "Features", path: "/#features" },
+      { name: "Features", path: "/" },
       { name: args.crumbLabel ?? args.featureName, path: args.path },
     ]),
   ];
