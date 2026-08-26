@@ -207,6 +207,7 @@ export default function OnboardingPage() {
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
     if (!orgLoading && organization && !isNewBusiness && !building && !organization.needs_onboarding) {
+      console.log('[ONBOARDING-REDIRECT] org loaded with needs_onboarding=false, navigating to /dashboard');
       navigate('/dashboard', { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
@@ -282,7 +283,7 @@ export default function OnboardingPage() {
           .from('profiles')
           .update({ phone: phoneNumber.trim() })
           .eq('id', user.id);
-        
+
         // Send welcome SMS for Google OAuth users
         supabase.functions.invoke('send-signup-welcome-sms', {
           body: {
@@ -290,25 +291,6 @@ export default function OnboardingPage() {
             fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
           },
         }).catch(err => console.log('Welcome SMS failed (non-critical):', err));
-        
-        // Notify platform admin of new signup
-        supabase.functions.invoke('notify-platform-admin-signup', {
-          body: {
-            email: user.email || '',
-            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-            phone: phoneNumber.trim(),
-            signupMethod: 'google',
-          },
-        }).catch(err => console.log('Admin notification failed (non-critical):', err));
-      } else {
-        // Still notify admin even if no phone collected
-        supabase.functions.invoke('notify-platform-admin-signup', {
-          body: {
-            email: user.email || '',
-            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-            signupMethod: 'google',
-          },
-        }).catch(err => console.log('Admin notification failed (non-critical):', err));
       }
 
       // Captured once, in the org-creation insert itself. Not a follow-up
@@ -321,10 +303,22 @@ export default function OnboardingPage() {
 
       let orgData: any = null;
 
-      if (organization?.needs_onboarding) {
-        // Native path: org already exists (created by provision-trial-org).
-        // Update it with the onboarding data. The UPDATE grant must include
-        // needs_onboarding and onboarding_answers — see Lovable migration.
+      // Query the DB authoritatively at submit time rather than trusting
+      // context — OrganizationProvider may not have loaded yet if the page
+      // mounted while the async fetch was still in flight.
+      const { data: existingOrg } = await supabase
+        .from('organizations')
+        .select('id, needs_onboarding')
+        .eq('owner_id', user.id)
+        .eq('needs_onboarding', true)
+        .maybeSingle();
+
+      console.log('[ONBOARDING-SUBMIT] context org:', organization?.id, 'needs_onboarding:', organization?.needs_onboarding);
+      console.log('[ONBOARDING-SUBMIT] DB query org:', existingOrg?.id, 'needs_onboarding:', existingOrg?.needs_onboarding);
+
+      if (existingOrg) {
+        // Provisioned org exists — UPDATE it with onboarding data.
+        console.log('[ONBOARDING-SUBMIT] Branch A: UPDATE existing org', existingOrg.id);
         const slug = initialSlug;
         const { data, error } = await supabase
           .from('organizations')
@@ -334,15 +328,16 @@ export default function OnboardingPage() {
             onboarding_answers: onboardingAnswersPayload,
             needs_onboarding: false,
           })
-          .eq('id', organization.id)
+          .eq('id', existingOrg.id)
           .select()
           .single();
 
+        console.log('[ONBOARDING-SUBMIT] UPDATE result:', error ? 'ERROR: ' + error.message : 'OK, needs_onboarding=' + data?.needs_onboarding);
         if (error) throw error;
         orgData = data;
       } else {
-        // Web path: create a new org from scratch.
-        // Try a few times in case the slug is taken.
+        // No provisioned org — create a new one from scratch.
+        console.log('[ONBOARDING-SUBMIT] Branch B: INSERT new org');
         for (let attempt = 0; attempt < 3; attempt++) {
           const slug = attempt === 0 ? initialSlug : `${initialSlug}-${randomSuffix()}`;
 
@@ -353,6 +348,7 @@ export default function OnboardingPage() {
               owner_id: user.id,
               slug,
               onboarding_answers: onboardingAnswersPayload,
+              needs_onboarding: false,
             })
             .select()
             .single();
@@ -384,6 +380,18 @@ export default function OnboardingPage() {
           });
 
         if (memberError) throw memberError;
+
+        // Notify platform admin only for genuinely new orgs.
+        // Provisioned orgs (Branch A) already fired this alert from
+        // provision-trial-org — don't double-alert.
+        supabase.functions.invoke('notify-platform-admin-signup', {
+          body: {
+            email: user.email || '',
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+            phone: phoneNumber.trim() || undefined,
+            signupMethod: 'onboarding',
+          },
+        }).catch(err => console.log('Admin notification failed (non-critical):', err));
       }
 
       // Record the referral, if this signup arrived via someone's link.
@@ -497,7 +505,6 @@ export default function OnboardingPage() {
       }
 
       toast.success('Business created successfully with your services!');
-      await refetch();
       // Persist qualifying answers for /choose-plan personalization.
       try {
         sessionStorage.setItem(
@@ -505,18 +512,42 @@ export default function OnboardingPage() {
           JSON.stringify({ ...answers, businessName: name }),
         );
       } catch { /* no-op */ }
-      // Hard paywall: web users pick a plan before entering the dashboard.
-      // Native skips the paywall entirely (App Store 3.1.1).
-      if (isNative) {
-        navigate('/dashboard');
-      } else {
-        // "Building your dashboard" — staged reveal referencing their
-        // answers, then land on the paywall while momentum is high.
+
+      // Refetch so OrganizationProvider picks up the updated org
+      // (needs_onboarding = false). Do NOT navigate imperatively —
+      // the redirect effect at line ~209 watches `organization` and
+      // navigates once it sees needs_onboarding = false. Imperative
+      // navigate() races the state update and AdminRoute reads stale
+      // context, causing a loop.
+      console.log('[ONBOARDING-SUBMIT] calling refetch()');
+      try {
+        await refetch();
+        console.log('[ONBOARDING-SUBMIT] refetch complete');
+      } catch (refetchErr) {
+        console.error('[ONBOARDING-SUBMIT] refetch failed:', refetchErr);
+        toast.error('Business created but failed to load it. Please refresh the app.');
+      }
+
+      if (!isNative) {
+        // Web: "Building your dashboard" overlay, then paywall.
         setBuilding(true);
         [0, 1, 2, 3].forEach((stage) => {
           window.setTimeout(() => setBuildStage(stage + 1), 700 + stage * 800);
         });
         window.setTimeout(() => navigate('/choose-plan'), 4200);
+      }
+      // Native: no imperative navigate. The redirect effect fires once
+      // organization updates with needs_onboarding = false. Safety
+      // timeout: if the redirect hasn't fired after 5s, something is
+      // wrong — surface an error rather than leaving an inert screen.
+      if (isNative) {
+        setTimeout(() => {
+          // Only fire if we're still on this page (not already navigated)
+          if (window.location.hash.includes('/onboarding')) {
+            console.error('[ONBOARDING-SUBMIT] redirect timeout — org context did not update');
+            toast.error('Business created but the app did not navigate. Please restart the app.');
+          }
+        }, 5000);
       }
     } catch (error: any) {
       console.error('Error creating organization:', error);
@@ -574,7 +605,10 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="portal-v2 portal-v2-scroll min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16">
+    <div
+      className="portal-v2 portal-v2-scroll min-h-screen flex flex-col items-center justify-center bg-background p-4 pt-16"
+      style={{ paddingTop: 'max(4rem, env(safe-area-inset-top, 0px))' }}
+    >
       {/* "Building your dashboard" overlay — staged reveal after creation,
           referencing the user's own answers, then lands on /choose-plan. */}
       {building && (
@@ -937,7 +971,7 @@ export default function OnboardingPage() {
                 </Button>
                 <Button 
                   className="flex-1" 
-                  disabled={loading || !canProceedStep2}
+                  disabled={loading || orgLoading || !canProceedStep2}
                   onClick={handleSubmit}
                 >
                   {loading ? (
