@@ -324,7 +324,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
     ...POLLED,
     queryFn: async () => {
       if (!orgId) return 0;
-      const { data } = await supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: orgId }).maybeSingle();
+      const { data: rows } = await supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: orgId });
+      const data = rows?.[0] ?? null;
       if (!data) return 1;
       if (!data.is_connected) return 1;
       if (data.stripe_payouts_enabled === false) return 1;

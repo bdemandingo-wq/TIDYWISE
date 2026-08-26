@@ -138,11 +138,10 @@ export function InvoiceFormDialog({
   const { data: stripeSettings } = useQuery({
     queryKey: ['org-stripe-check', organizationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId })
-        .maybeSingle();
+      const { data: rows, error } = await supabase
+        .rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId });
       if (error) throw error;
-      return data;
+      return rows?.[0] ?? null;
     },
     enabled: !!organizationId && open,
   });

@@ -60,9 +60,9 @@ export function HealthMonitorTab() {
     queryKey: ['health-stripe', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { connected: false, lastSync: null as string | null };
-      const { data, error } = await supabase
-        .rpc('get_org_stripe_settings_safe', { p_organization_id: organization.id })
-        .maybeSingle();
+      const { data: rows, error } = await supabase
+        .rpc('get_org_stripe_settings_safe', { p_organization_id: organization.id });
+      const data = rows?.[0] ?? null;
       if (error || !data) return { connected: false, lastSync: null };
       return { connected: data.is_connected, lastSync: data.connected_at };
     },

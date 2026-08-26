@@ -94,9 +94,8 @@ export function PaymentStep() {
     let cancelled = false;
     supabase
       .rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId })
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setStripeConfigured(!!data?.is_connected);
+      .then(({ data: rows }) => {
+        if (!cancelled) setStripeConfigured(!!rows?.[0]?.is_connected);
       });
     return () => { cancelled = true; };
   }, [organizationId]);

@@ -24,14 +24,15 @@ export function useOnboardingChecklist() {
         supabase.from('services').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
         supabase.from('staff').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
         supabase.rpc('has_openphone_api_key', { _org_id: organizationId }),
-        supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId }).maybeSingle(),
+        supabase.rpc('get_org_stripe_settings_safe', { p_organization_id: organizationId }),
         supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId),
       ]);
 
       const hasServices = (services.count ?? 0) > 0;
       const hasStaff = (staff.count ?? 0) > 0;
       const hasOpenPhone = sms.data === true;
-      const hasStripe = !!(stripe.data?.stripe_account_id);
+      const stripeRow = (stripe.data as any)?.[0] ?? null;
+      const hasStripe = !!(stripeRow?.stripe_account_id);
       const hasBookings = (bookings.count ?? 0) > 0;
 
       const items: OnboardingItem[] = [
