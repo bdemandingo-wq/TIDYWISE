@@ -388,27 +388,48 @@ serve(async (req) => {
         const subscriberEmails = new Set<string>();
 
 
-        
+        // Backfill: any customer the expansion did not deliver (should be none).
+        // Stripe's customer list endpoint cannot filter by an array of ids, so
+        // the only correct recovery is a retrieve — but these run in parallel,
+        // not sequentially, and the miss count is logged so a silent regression
+        // in expansion behaviour is visible rather than just slow.
+        const missingCustomerIds = Array.from(new Set(
+          crmSubscriptions
+            .map((s) => (typeof s.customer === "string" ? s.customer : s.customer?.id))
+            .filter((id): id is string => !!id && !customerById.has(id)),
+        ));
+        if (missingCustomerIds.length > 0) {
+          console.log("[PLATFORM-ANALYTICS] customers not delivered by expansion:", missingCustomerIds.length);
+          const fetched = await Promise.all(missingCustomerIds.map(async (id) => {
+            try {
+              const c = await stripe.customers.retrieve(id);
+              return c && !(c as any).deleted ? (c as Stripe.Customer) : null;
+            } catch (e) {
+              console.log("[PLATFORM-ANALYTICS] Could not fetch customer:", id, e);
+              return null;
+            }
+          }));
+          for (const c of fetched) if (c) customerById.set(c.id, c);
+        }
+
         for (const sub of crmSubscriptions) {
-          // Get customer details first so any account overrides can apply to metrics and badges
+          // Customer details come from the expanded subscription list above.
           let customerEmail = 'Unknown';
           let customerName = null;
           let customerId = '';
           let customerCreated = 0;
-          
+
           if (sub.customer) {
-            try {
-              customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
-              const customer = await stripe.customers.retrieve(customerId);
-              if (!customer.deleted && 'email' in customer && customer.email) {
-                customerEmail = customer.email;
-                customerName = customer.name || null;
-                customerCreated = customer.created;
-              }
-            } catch (e) {
-              console.log("[PLATFORM-ANALYTICS] Could not fetch customer:", e);
+            customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+            const customer = customerById.get(customerId);
+            if (customer?.email) {
+              customerEmail = customer.email;
+              customerName = customer.name || null;
+              customerCreated = customer.created;
             }
           }
+
+
 
           const emailLower = customerEmail.toLowerCase();
           const isStaffOnly = staffEmails.has(emailLower) && !ownerEmails.has(emailLower);
