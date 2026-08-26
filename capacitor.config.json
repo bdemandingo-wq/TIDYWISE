@@ -16,7 +16,13 @@
       "jointidywise.com",
       "*.jointidywise.com",
       "js.stripe.com",
-      "*.stripe.com"
+      "*.stripe.com",
+      "*.loom.com",
+      "*.youtube.com",
+      "*.ytimg.com",
+      "*.googlevideo.com",
+      "*.vimeo.com",
+      "*.vimeocdn.com"
     ]
   },
   "plugins": {
