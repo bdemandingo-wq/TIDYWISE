@@ -39,12 +39,11 @@ function getThumbnailUrl(embedUrl: string): string | null {
   const ytMatch = embedUrl.match(/youtube\.com\/embed\/([^?&/]+)/);
   if (ytMatch) return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
 
-  // Loom: https://www.loom.com/embed/VIDEO_ID
-  const loomMatch = embedUrl.match(/loom\.com\/embed\/([^?&/]+)/);
-  if (loomMatch) return `https://cdn.loom.com/sessions/thumbnails/${loomMatch[1]}-with-play.gif`;
+  // Loom: cdn.loom.com/sessions/thumbnails/ returns 403 (hotlink-blocked).
+  // Loom's oEmbed API could provide thumbnails but requires a server-side
+  // call. Fall through to the plain card with play icon instead.
 
-  // Vimeo: https://player.vimeo.com/video/VIDEO_ID
-  // Vimeo thumbnails require an API call, so no static URL available.
+  // Vimeo: thumbnails require an API call, so no static URL available.
   return null;
 }
 

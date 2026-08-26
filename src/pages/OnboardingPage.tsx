@@ -207,8 +207,9 @@ export default function OnboardingPage() {
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
     if (!orgLoading && organization && !isNewBusiness && !building && !organization.needs_onboarding) {
-      console.log('[ONBOARDING-REDIRECT] org loaded with needs_onboarding=false, navigating to /dashboard');
-      navigate('/dashboard', { replace: true });
+      // Native: land on Help tab (tutorial videos) after onboarding.
+      // Web: land on dashboard (web goes through /choose-plan first anyway).
+      navigate(isNative ? '/dashboard/help' : '/dashboard', { replace: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
   }, [orgLoading, organization, navigate, building]);
@@ -655,8 +656,8 @@ export default function OnboardingPage() {
         noIndex
       />
       <h1 className="sr-only">Set up your cleaning business in TidyWise</h1>
-      {/* Logout button in top right */}
-      <div className="absolute top-4 right-4">
+      {/* Logout button in top right — below the notch */}
+      <div className="absolute right-4" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}>
         <Button
           variant="outline"
           size="sm"
