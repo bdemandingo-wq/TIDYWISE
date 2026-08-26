@@ -221,8 +221,8 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
         .select('*')
         .eq('organization_id', organizationId)
         .eq('year', currentYear)
-        .single();
-      
+        .maybeSingle();
+
       if (data) {
         // Prefer stored monthly marketing budget; fall back to % of revenue when empty
         const storedBudget = (data as any).monthly_marketing_budget;
@@ -514,7 +514,7 @@ export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
       .select('id')
       .eq('organization_id', organizationId)
       .eq('year', currentYear)
-      .single();
+      .maybeSingle();
 
     let error;
     if (existing) {

@@ -55,7 +55,7 @@ export function useSessionTracker() {
         .gte('session_start', resumeAfter)
         .order('session_start', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (existingSession) {
         // Resume existing session
