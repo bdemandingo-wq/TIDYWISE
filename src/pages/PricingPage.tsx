@@ -571,14 +571,23 @@ export default function PricingPage() {
       if (preopened && !preopened.closed) {
         try { preopened.close(); } catch { /* ignore */ }
       }
-      toast.error(
-        err instanceof Error
-          ? err.message
-          : 'Could not start the lifetime checkout. Try again.',
-      );
+      const message = err instanceof Error ? err.message : '';
+      // A 409 "you already have lifetime access" is not a failure — it is the
+      // correct answer for someone who already bought. Treating it as an error
+      // left them staring at a blank pre-opened tab and a red toast, so send
+      // them to the dashboard with a neutral message instead.
+      if (/already have lifetime access/i.test(message)) {
+        toast.success('You already have lifetime access — nothing more to buy.');
+        setCheckoutBusy(null);
+        isRedirectingRef.current = false;
+        navigate('/dashboard');
+        return;
+      }
+      toast.error(message || 'Could not start the lifetime checkout. Try again.');
       setCheckoutBusy(null);
       isRedirectingRef.current = false;
     }
+
   }
 
 
