@@ -1,6 +1,6 @@
 /**
  * useLifetimeCounter – returns the live state of the founding lifetime
- * offer (how many of the 50 spots are claimed, sold-out flag).
+ * offer (how many of the 100 spots are claimed, sold-out flag).
  *
  * Source of truth: the `organizations` table. We count rows where
  * `plan_type = 'lifetime'` via the SECURITY DEFINER RPC
@@ -25,7 +25,7 @@ export interface LifetimeState {
   loading: boolean;
 }
 
-const TOTAL_SPOTS = 50;
+const TOTAL_SPOTS = 100;
 
 const DEFAULT: LifetimeState = {
   total: TOTAL_SPOTS,

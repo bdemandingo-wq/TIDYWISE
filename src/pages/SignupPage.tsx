@@ -371,7 +371,7 @@ export default function SignupPage() {
 
   return (
     <div className="portal-v2 portal-v2-scroll min-h-screen bg-background flex flex-col">
-      <SEOHead title="Sign Up | TidyWise – Cleaning Business Software" description="Create your TidyWise account. Pick a plan from $49/mo (Basic), $97/mo (Pro), $197/mo (Custom), or grab one of 50 lifetime spots at $300." canonical="/signup" noIndex />
+      <SEOHead title="Sign Up | TidyWise – Cleaning Business Software" description="Create your TidyWise account. Pick a plan from $49/mo (Basic), $97/mo (Pro), $197/mo (Custom), or grab one of 100 lifetime spots at $300." canonical="/signup" noIndex />
       <div className="flex-1 flex items-center justify-center p-4 w-full">
       <div className="w-full max-w-md">
         
