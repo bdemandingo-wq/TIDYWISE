@@ -10,6 +10,7 @@ import {
   Phone, CreditCard, Zap, BarChart3, Database,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 interface HealthCheck {
   name: string;
@@ -25,7 +26,7 @@ export function HealthMonitorTab() {
   const navigate = useNavigate();
 
   // Check OpenPhone
-  const { data: openphoneStatus } = useQuery({
+  const { data: openphoneStatus, error: openphoneError } = useQuery({
     queryKey: ['health-openphone', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { connected: false, lastMessage: null as string | null };
@@ -56,7 +57,7 @@ export function HealthMonitorTab() {
   });
 
   // Check Stripe
-  const { data: stripeStatus } = useQuery({
+  const { data: stripeStatus, error: stripeError } = useQuery({
     queryKey: ['health-stripe', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { connected: false, lastSync: null as string | null };
@@ -70,7 +71,7 @@ export function HealthMonitorTab() {
   });
 
   // Check automations health
-  const { data: automationStatus } = useQuery({
+  const { data: automationStatus, error: automationError } = useQuery({
     queryKey: ['health-automations', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { active: 0, total: 0, failedRecent: 0 };
@@ -96,7 +97,7 @@ export function HealthMonitorTab() {
   });
 
   // Check campaign tracking
-  const { data: campaignStatus } = useQuery({
+  const { data: campaignStatus, error: campaignError } = useQuery({
     queryKey: ['health-campaigns', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return { total: 0, failed: 0 };
@@ -112,6 +113,11 @@ export function HealthMonitorTab() {
     },
     enabled: !!organization?.id,
   });
+
+  const queryError = openphoneError || stripeError || automationError || campaignError;
+  if (queryError) {
+    return <QueryError subject="system health checks" />;
+  }
 
   const checks: HealthCheck[] = [
     {

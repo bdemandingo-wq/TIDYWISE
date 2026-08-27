@@ -23,6 +23,7 @@ import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { Capacitor } from '@capacitor/core';
 import { format, differenceInDays } from 'date-fns';
 import { PropertyNotesEditor } from '@/components/admin/PropertyNotesEditor';
+import { QueryError } from '@/components/QueryError';
 
 interface Customer {
   id: string;
@@ -85,7 +86,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   const [deletingAddressId, setDeletingAddressId] = useState<string | null>(null);
 
   // Fetch saved addresses (locations) for this customer
-  const { data: savedAddresses = [], refetch: refetchAddresses } = useQuery({
+  const { data: savedAddresses = [], refetch: refetchAddresses, error: addressesError } = useQuery({
     queryKey: ['customer-locations', customer?.id],
     queryFn: async () => {
       if (!customer) return [];
@@ -94,14 +95,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         .select('id, name, address, apt_suite, city, state, zip_code, is_primary')
         .eq('customer_id', customer.id)
         .order('is_primary', { ascending: false });
-      if (error) return [];
+      if (error) throw error;
       return (data || []) as LocationRecord[];
     },
     enabled: !!customer && open,
   });
 
   // Fetch booking link tracking for this customer
-  const { data: linkTracking = [] } = useQuery({
+  const { data: linkTracking = [], error: linkTrackingError } = useQuery({
     queryKey: ['customer-link-tracking', customer?.id, organization?.id],
     queryFn: async () => {
       if (!customer || !organization?.id) return [];
@@ -112,14 +113,14 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         .or(`customer_email.eq.${customer.email},customer_phone.eq.${customer.phone}`)
         .order('created_at', { ascending: false })
         .limit(5);
-      if (error) return [];
+      if (error) throw error;
       return data || [];
     },
     enabled: !!customer && !!organization?.id && open,
   });
 
   // Check if customer has a Stripe card on file
-  const { data: cardOnFile, isLoading: loadingCard, refetch: refetchCard } = useQuery({
+  const { data: cardOnFile, isLoading: loadingCard, refetch: refetchCard, error: cardOnFileError } = useQuery({
     queryKey: ['customer-card', customer?.email, organization?.id],
     queryFn: async () => {
       if (!customer?.email || !organization?.id) return null;
@@ -150,7 +151,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
   };
 
   // Fetch actual bookings for this customer — used to auto-compute status and surface addresses
-  const { data: customerBookings = [] } = useQuery({
+  const { data: customerBookings = [], error: bookingsError } = useQuery({
     queryKey: ['customer-bookings-for-edit', customer?.id, organization?.id],
     queryFn: async () => {
       if (!customer?.id || !organization?.id) return [];
@@ -161,7 +162,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
         .eq('organization_id', organization.id)
         .order('scheduled_at', { ascending: false })
         .limit(20);
-      if (error) return [];
+      if (error) throw error;
       return (data || []) as Array<{ id: string; address: string | null; city: string | null; state: string | null; zip_code: string | null; apt_suite: string | null; scheduled_at: string; status: string }>;
     },
     enabled: !!customer?.id && !!organization?.id && open,
@@ -365,6 +366,10 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
             Edit Customer
           </DialogTitle>
         </DialogHeader>
+
+        {(addressesError || linkTrackingError || bookingsError || cardOnFileError) && (
+          <QueryError subject="customer details" />
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Name */}

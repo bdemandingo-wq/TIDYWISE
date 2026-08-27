@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 const ALL_DOCUMENT_TYPES = [
   { value: 'insurance', label: 'Insurance Certificate', icon: Shield, required: false, employmentTypes: ['w2', '1099'] },
@@ -70,7 +71,7 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
     return () => { supabase.removeChannel(channel); };
   }, [staffId, organizationId, queryClient]);
 
-  const { data: documents = [], isLoading } = useQuery({
+  const { data: documents = [], isLoading, error: documentsError } = useQuery({
     queryKey: ['staff-documents', staffId, organizationId],
     refetchInterval: 30_000, // fallback if realtime isn't enabled on the table
     queryFn: async () => {
@@ -194,6 +195,10 @@ export function StaffDocumentUpload({ staffId, organizationId, taxClassification
       </Badge>
     );
   };
+
+  if (documentsError) {
+    return <QueryError subject="documents" />;
+  }
 
   return (
     <div className="space-y-4">

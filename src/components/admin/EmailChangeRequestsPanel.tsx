@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Mail, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import { formatDistanceToNow } from 'date-fns';
 
 interface EmailChangeRequest {
@@ -39,7 +40,7 @@ export function EmailChangeRequestsPanel() {
   const { organizationId } = useOrgId();
   const qc = useQueryClient();
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, error: requestsError } = useQuery({
     queryKey: ['email-change-requests', organizationId],
     enabled: !!organizationId,
     queryFn: async (): Promise<EmailChangeRequest[]> => {
@@ -74,6 +75,8 @@ export function EmailChangeRequestsPanel() {
     },
     onError: (e: Error) => toast.error(e.message || 'Could not mark it handled'),
   });
+
+  if (requestsError) return <QueryError subject="email change requests" onRetry={() => qc.invalidateQueries({ queryKey: ['email-change-requests', organizationId] })} />;
 
   // Nothing outstanding is the normal state — say so quietly rather than
   // rendering an empty box.

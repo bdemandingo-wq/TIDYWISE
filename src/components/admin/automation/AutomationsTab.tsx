@@ -18,6 +18,7 @@ import {
   MessageSquare, Plus, Trash2, Pencil, Wallet,
 } from 'lucide-react';
 import { AutomationEditorDialog } from './AutomationEditorDialog';
+import { QueryError } from '@/components/QueryError';
 
 import { format } from 'date-fns';
 
@@ -394,7 +395,7 @@ export function AutomationsTab() {
   const [editing, setEditing] = useState<{ key: string; name: string } | null>(null);
 
 
-  const { data: automations = [], isLoading, isError, refetch } = useQuery({
+  const { data: automations = [], isLoading, isError, error: automationsError, refetch } = useQuery({
     queryKey: ['organization-automations', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -413,7 +414,7 @@ export function AutomationsTab() {
   });
 
   // Fetch fire counts from queue tables
-  const { data: fireCounts = {} } = useQuery({
+  const { data: fireCounts = {}, error: fireCountsError } = useQuery({
     queryKey: ['automation-fire-counts', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return {};
@@ -526,7 +527,7 @@ export function AutomationsTab() {
   });
 
   // Fetch history log (last 50 fired automations)
-  const { data: historyLog = [] } = useQuery({
+  const { data: historyLog = [], error: historyLogError } = useQuery({
     queryKey: ['automation-history-log', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -623,12 +624,11 @@ export function AutomationsTab() {
   }
 
   if (isError) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-        <p className="text-sm text-muted-foreground">Failed to load automations.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>Try Again</Button>
-      </div>
-    );
+    return <QueryError subject="automations" onRetry={() => refetch()} />;
+  }
+
+  if (fireCountsError || historyLogError) {
+    return <QueryError subject="automation fire counts" />;
   }
 
   if (!organization?.id) {

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Plus, Trash2, CalendarClock, Pencil, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -39,7 +40,7 @@ export function CustomFrequenciesManager() {
   const [editName, setEditName] = useState('');
   const [editDiscount, setEditDiscount] = useState('0');
 
-  const { data: frequencies = [], isLoading } = useQuery({
+  const { data: frequencies = [], isLoading, error: frequenciesError } = useQuery({
     queryKey: ['custom-frequencies', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -162,6 +163,8 @@ export function CustomFrequenciesManager() {
     addMutation.isPending ||
     (freqType === 'interval' && !newDays) ||
     (freqType === 'days' && selectedDays.length === 0);
+
+  if (frequenciesError) return <QueryError subject="custom frequencies" onRetry={() => queryClient.invalidateQueries({ queryKey: ['custom-frequencies', organizationId] })} />;
 
   return (
     <Card>

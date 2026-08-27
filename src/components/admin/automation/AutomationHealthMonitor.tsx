@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, XCircle, AlertTriangle, Activity, TrendingUp, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { QueryError } from '@/components/QueryError';
 
 interface QueueStats {
   total: number;
@@ -197,7 +198,7 @@ export function AutomationHealthMonitor() {
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
   const [detailFilter, setDetailFilter] = useState<'failed' | 'pending' | 'all'>('all');
 
-  const { data: reviewStats } = useQuery({
+  const { data: reviewStats, error: reviewError } = useQuery({
     queryKey: ['automation-health-review', organization?.id],
     queryFn: async (): Promise<QueueStats> => {
       if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0 };
@@ -217,7 +218,7 @@ export function AutomationHealthMonitor() {
     enabled: !!organization?.id,
   });
 
-  const { data: rebookingStats } = useQuery({
+  const { data: rebookingStats, error: rebookingError } = useQuery({
     queryKey: ['automation-health-rebooking', organization?.id],
     queryFn: async (): Promise<QueueStats> => {
       if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0 };
@@ -237,7 +238,7 @@ export function AutomationHealthMonitor() {
     enabled: !!organization?.id,
   });
 
-  const { data: recurringStats } = useQuery({
+  const { data: recurringStats, error: recurringError } = useQuery({
     queryKey: ['automation-health-recurring', organization?.id],
     queryFn: async (): Promise<QueueStats> => {
       if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0 };
@@ -257,7 +258,7 @@ export function AutomationHealthMonitor() {
     enabled: !!organization?.id,
   });
 
-  const { data: reminderStats } = useQuery({
+  const { data: reminderStats, error: reminderError } = useQuery({
     queryKey: ['automation-health-reminders', organization?.id],
     queryFn: async (): Promise<QueueStats & { lastActivityAt: string | null; cronHealthy: boolean }> => {
       if (!organization?.id) return { total: 0, sent: 0, failed: 0, pending: 0, lastActivityAt: null, cronHealthy: true };
@@ -283,7 +284,7 @@ export function AutomationHealthMonitor() {
 
 
   // Abandoned booking link stats
-  const { data: abandonedStats } = useQuery({
+  const { data: abandonedStats, error: abandonedError } = useQuery({
     queryKey: ['automation-health-abandoned', organization?.id],
     queryFn: async (): Promise<{ total: number; opened: number; completed: number; abandoned: number; conversionRate: number }> => {
       if (!organization?.id) return { total: 0, opened: 0, completed: 0, abandoned: 0, conversionRate: 0 };
@@ -309,7 +310,7 @@ export function AutomationHealthMonitor() {
   });
 
   // Campaign-specific abandoned stats
-  const { data: campaignAbandonedStats } = useQuery({
+  const { data: campaignAbandonedStats, error: campaignAbandonedError } = useQuery({
     queryKey: ['automation-health-campaign-abandoned', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -372,12 +373,18 @@ export function AutomationHealthMonitor() {
   const totalAll = totalSent + totalFailed + totalPending;
   const successRate = totalAll > 0 ? Math.round(((totalSent) / (totalSent + totalFailed || 1)) * 100) : 100;
 
-  // Fetch details for expanded queue
+  // Fetch details for expanded queue — must be called before any early return
+  // to satisfy the rules-of-hooks (hooks cannot be called conditionally).
   const { data: detailItems = [] } = useQueueDetails(
     organization?.id,
     expandedQueue || '',
     !!expandedQueue
   );
+
+  const queryError = reviewError || rebookingError || recurringError || reminderError || abandonedError || campaignAbandonedError;
+  if (queryError) {
+    return <QueryError subject="automation health monitor" />;
+  }
 
   return (
     <div className="space-y-4">

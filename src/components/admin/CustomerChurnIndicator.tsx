@@ -5,6 +5,7 @@ import { AlertTriangle, Crown, TrendingUp, Calendar, DollarSign } from 'lucide-r
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface CustomerChurnIndicatorProps {
   customerId: string;
@@ -12,7 +13,7 @@ interface CustomerChurnIndicatorProps {
 }
 
 export function CustomerChurnIndicator({ customerId, compact = false }: CustomerChurnIndicatorProps) {
-  const { data: intelligence, isLoading } = useQuery({
+  const { data: intelligence, isLoading, error: intelligenceError } = useQuery({
     queryKey: ['customer-intelligence-single', customerId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,6 +27,10 @@ export function CustomerChurnIndicator({ customerId, compact = false }: Customer
     enabled: !!customerId,
     staleTime: 5 * 60 * 1000,
   });
+
+  if (intelligenceError) {
+    return <QueryError subject="customer intelligence" />;
+  }
 
   if (isLoading || !intelligence) {
     return null;

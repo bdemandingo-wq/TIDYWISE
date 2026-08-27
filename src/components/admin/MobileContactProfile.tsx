@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { QueryError } from '@/components/QueryError';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -85,7 +86,7 @@ export function MobileContactProfile({
   };
 
   // Fetch booking stats
-  const { data: bookingStats } = useQuery({
+  const { data: bookingStats, error: bookingStatsError } = useQuery({
     queryKey: ['customer-booking-stats', customer?.id, organization?.id],
     queryFn: async () => {
       if (!customer?.id || !organization?.id) return null;
@@ -118,7 +119,7 @@ export function MobileContactProfile({
   });
 
   // Fetch primary address
-  const { data: primaryAddress } = useQuery({
+  const { data: primaryAddress, error: primaryAddressError } = useQuery({
     queryKey: ['customer-primary-address', customer?.id],
     queryFn: async () => {
       if (!customer?.id) return null;
@@ -302,25 +303,31 @@ export function MobileContactProfile({
         {/* Section 2 — Booking Info */}
         <div className="mx-4 mb-3 rounded-xl bg-card shadow-sm overflow-hidden">
           <SectionHeader title="Booking Info" />
-          <StatRow icon={<Calendar className="w-4 h-4 text-muted-foreground" />} label="Total Bookings" value={String(bookingStats?.total ?? '—')} />
-          <RowDivider />
-          <StatRow
-            icon={<Clock className="w-4 h-4 text-muted-foreground" />}
-            label="Last Booking"
-            value={bookingStats?.lastDate ? format(new Date(bookingStats.lastDate), 'MMM d, yyyy') : '—'}
-          />
-          <RowDivider />
-          <StatRow
-            icon={<Calendar className="w-4 h-4 text-muted-foreground" />}
-            label="Next Booking"
-            value={bookingStats?.nextDate ? format(new Date(bookingStats.nextDate), 'MMM d, yyyy') : '—'}
-          />
-          <RowDivider />
-          <StatRow
-            icon={<DollarSign className="w-4 h-4 text-muted-foreground" />}
-            label="Total Spent"
-            value={bookingStats?.totalSpent != null ? `${fmt(bookingStats.totalSpent)}` : '—'}
-          />
+          {bookingStatsError ? (
+            <QueryError subject="booking stats" className="py-4" />
+          ) : (
+            <>
+              <StatRow icon={<Calendar className="w-4 h-4 text-muted-foreground" />} label="Total Bookings" value={String(bookingStats?.total ?? '—')} />
+              <RowDivider />
+              <StatRow
+                icon={<Clock className="w-4 h-4 text-muted-foreground" />}
+                label="Last Booking"
+                value={bookingStats?.lastDate ? format(new Date(bookingStats.lastDate), 'MMM d, yyyy') : '—'}
+              />
+              <RowDivider />
+              <StatRow
+                icon={<Calendar className="w-4 h-4 text-muted-foreground" />}
+                label="Next Booking"
+                value={bookingStats?.nextDate ? format(new Date(bookingStats.nextDate), 'MMM d, yyyy') : '—'}
+              />
+              <RowDivider />
+              <StatRow
+                icon={<DollarSign className="w-4 h-4 text-muted-foreground" />}
+                label="Total Spent"
+                value={bookingStats?.totalSpent != null ? `${fmt(bookingStats.totalSpent)}` : '—'}
+              />
+            </>
+          )}
         </div>
 
         {/* Section 3 — Notes */}

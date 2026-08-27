@@ -36,6 +36,7 @@ import {
 
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 
 interface BookingRequest {
   id: string;
@@ -68,7 +69,7 @@ export function ClientBookingRequestsManager() {
   const [responseAction, setResponseAction] = useState<'approved' | 'rejected'>('approved');
 
   // Fetch booking requests
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, error: requestsError } = useQuery({
     queryKey: ['client-booking-requests', organization?.id, statusFilter],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -234,6 +235,8 @@ export function ClientBookingRequestsManager() {
   };
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  if (requestsError) return <QueryError subject="booking requests" onRetry={() => queryClient.invalidateQueries({ queryKey: ['client-booking-requests', organization?.id] })} />;
 
   return (
     <Card>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2, Plus, Trash2, Pencil, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { QueryError } from "@/components/QueryError";
 
 type Status = "all" | "queued" | "in_progress" | "completed" | "failed";
 type Intent = "top_funnel" | "middle_funnel" | "bottom_funnel" | "";
@@ -56,7 +57,7 @@ export default function BlogKeywordsPage() {
   const [bulkPriority, setBulkPriority] = useState(5);
   const [editing, setEditing] = useState<KeywordRow | null>(null);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: rowsError } = useQuery({
     queryKey: ["blog-keywords", statusFilter],
     queryFn: async () => {
       let q = supabase
@@ -158,6 +159,8 @@ export default function BlogKeywordsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (rowsError) return <QueryError subject="keyword queue" />;
 
   return (
     <div className="min-h-screen bg-background p-6">

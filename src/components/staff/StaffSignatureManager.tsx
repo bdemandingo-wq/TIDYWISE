@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { SignaturePad } from './SignaturePad';
+import { QueryError } from '@/components/QueryError';
 
 
 interface SignableDoc {
@@ -41,7 +42,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
 
   // Fetch signable documents for this org
-  const { data: signableDocs = [], isLoading: loadingDocs } = useQuery({
+  const { data: signableDocs = [], isLoading: loadingDocs, error: docsError } = useQuery({
     queryKey: ['signable-documents', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,7 +60,7 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   });
 
   // Fetch this staff's signatures
-  const { data: signatures = [], isLoading: loadingSigs } = useQuery({
+  const { data: signatures = [], isLoading: loadingSigs, error: sigsError } = useQuery({
     queryKey: ['staff-signatures', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -185,6 +186,11 @@ export function StaffSignatureManager({ staffId, organizationId }: Props) {
   });
 
   const isLoading = loadingDocs || loadingSigs;
+  const queryError = docsError || sigsError;
+
+  if (queryError) {
+    return <QueryError subject="signature documents" />;
+  }
 
   if (isLoading) {
     return (

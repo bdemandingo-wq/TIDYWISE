@@ -23,6 +23,7 @@ import {
   frequencyOptions
 } from '@/data/pricingData';
 import { useRecurringDiscounts } from '@/hooks/useRecurringDiscounts';
+import { QueryError } from '@/components/QueryError';
 import { getFrequencyDiscountPct } from '@/lib/recurringDiscount';
 
 interface ChecklistTemplate {
@@ -84,7 +85,7 @@ export function ServiceStep() {
   const [showCustomInput, setShowCustomInput] = useState(false);
 
   // Fetch custom frequencies for this organization
-  const { data: customFrequencies = [] } = useQuery({
+  const { data: customFrequencies = [], error: customFrequenciesError } = useQuery({
     queryKey: ['custom-frequencies', organization?.id],
     queryFn: async () => {
       // Unreachable: the query is gated by `enabled: !!organization?.id`.
@@ -104,7 +105,7 @@ export function ServiceStep() {
   });
   
   // Fetch active checklist templates
-  const { data: checklistTemplates = [] } = useQuery({
+  const { data: checklistTemplates = [], error: checklistTemplatesError } = useQuery({
     queryKey: ['checklist-templates-active', organization?.id],
     queryFn: async () => {
       // Unreachable: the query is gated by `enabled: !!organization?.id`.
@@ -185,6 +186,10 @@ export function ServiceStep() {
       setPricingMode('sqft');
     }
   }, [showSqft, showBedBath, pricingMode, setPricingMode]);
+
+  if (customFrequenciesError || checklistTemplatesError) {
+    return <QueryError subject="service options" />;
+  }
 
   return (
     <div className="space-y-6">

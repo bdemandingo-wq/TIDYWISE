@@ -11,6 +11,7 @@ import { FileText, CheckCircle2, XCircle, Clock, Eye, Download, Loader2 } from '
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOrgId } from '@/hooks/useOrgId';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 const DOCUMENT_TYPES: Record<string, string> = {
   insurance: 'Insurance Certificate',
@@ -41,7 +42,7 @@ export function PendingDocumentsReview() {
 
   const queryKey = ['admin-pending-documents', organizationId] as const;
 
-  const { data: pendingDocuments = [], isLoading } = useQuery({
+  const { data: pendingDocuments = [], isLoading, error: pendingDocumentsError } = useQuery({
     queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -129,6 +130,8 @@ export function PendingDocumentsReview() {
 
   const handleDownload = (filePath: string, fileName: string) =>
     downloadFile('staff-documents', filePath, fileName);
+
+  if (pendingDocumentsError) return <QueryError subject="pending documents" onRetry={() => queryClient.invalidateQueries({ queryKey })} />;
 
   if (isLoading) {
     return (

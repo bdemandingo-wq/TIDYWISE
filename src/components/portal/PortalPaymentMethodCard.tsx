@@ -6,6 +6,7 @@ import { CreditCard, Check, Loader2 } from 'lucide-react';
 import { StripeCardForm } from '@/components/stripe/StripeCardForm';
 import { toast } from 'sonner';
 import { useClientPortal } from '@/contexts/ClientPortalContext';
+import { QueryError } from '@/components/QueryError';
 
 interface Props {
   email: string;
@@ -50,7 +51,7 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
   const [showForm, setShowForm] = useState(false);
   const [justSaved, setJustSaved] = useState<{ brand: string; last4: string } | null>(null);
 
-  const { data: card, isLoading, isError, refetch } = useQuery<CardOnFile>({
+  const { data: card, isLoading, isError, error: cardError, refetch } = useQuery<CardOnFile>({
     queryKey: ['portal-card-on-file', organizationId],
     enabled: !!sessionToken && !!organizationId,
     staleTime: 60 * 1000,
@@ -100,6 +101,10 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
             <Loader2 className="w-4 h-4 animate-spin" />
             Checking your card…
           </div>
+        )}
+
+        {cardError && !isLoading && (
+          <QueryError subject="card on file" onRetry={() => refetch()} className="py-4" />
         )}
 
         {current && (

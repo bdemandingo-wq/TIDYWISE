@@ -29,6 +29,7 @@ import {
   orgStartOfYear, orgSetTimeOnDay, formatInOrgTz,
 } from '@/lib/orgDateRange';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface DailyPnL {
   revenue: number;
@@ -57,7 +58,7 @@ export function PnLCalendar() {
   const { isTestMode } = useTestMode();
   const { organization } = useOrganization();
   const organizationId = organization?.id;
-  const timezone = useOrgTimezone();
+  const { timezone, error: tzError } = useOrgTimezone();
 
   /*
     Month KEYS: which month is on screen, and the values of the month selector.
@@ -113,7 +114,7 @@ export function PnLCalendar() {
   }, [currentMonth, viewMode, timezone]);
 
   // Self-contained bookings query
-  const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
+  const { data: bookings = [], isLoading: bookingsLoading, error: bookingsError } = useQuery({
     queryKey: ['pnl-calendar-bookings', organizationId, queryRange.from, queryRange.to],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -140,7 +141,7 @@ export function PnLCalendar() {
 
   // Fetch team pay
   const bookingIds = useMemo(() => bookings.map((b: any) => b.id), [bookings]);
-  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+  const { data: teamPaysByBooking = new Map<string, number>(), error: teamPayError } = useQuery({
     queryKey: ['pnl-calendar-team-pay', organizationId, bookingIds.join(',')],
     queryFn: async () => {
       if (!organizationId || bookingIds.length === 0) return new Map<string, number>();
@@ -164,7 +165,7 @@ export function PnLCalendar() {
   });
 
   // Fetch expenses
-  const { data: expenses = [] } = useQuery({
+  const { data: expenses = [], error: expensesError } = useQuery({
     queryKey: ['pnl-calendar-expenses', organizationId, queryRange.from, queryRange.to],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -180,6 +181,7 @@ export function PnLCalendar() {
     enabled: !!organizationId,
   });
 
+  const queryError = bookingsError || teamPayError || expensesError || tzError;
   const isLoading = bookingsLoading;
 
   // Calculate daily P&L from bookings and expenses
@@ -344,6 +346,17 @@ export function PnLCalendar() {
     if (value === 0) return 'border-border';
     return 'bg-emerald-500/10 border-emerald-500/30';
   };
+
+  if (queryError) {
+    return (
+      <Card className="bg-[hsl(var(--card))] border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg font-bold">P&L Calendar</CardTitle>
+        </CardHeader>
+        <CardContent><QueryError subject="P&L data" /></CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="bg-[hsl(var(--card))] border-border">

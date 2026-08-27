@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { QueryError } from '@/components/QueryError';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -26,7 +27,7 @@ interface OnboardingStep {
 
 export function OnboardingProgress({ staffId, organizationId, onNavigate, taxClassification }: OnboardingProgressProps) {
   // Check documents status
-  const { data: documents = [] } = useQuery({
+  const { data: documents = [], error: documentsError } = useQuery({
     queryKey: ['onboarding-docs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -41,7 +42,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   });
 
   // Check signatures status
-  const { data: signatures = [] } = useQuery({
+  const { data: signatures = [], error: signaturesError } = useQuery({
     queryKey: ['onboarding-sigs', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -68,7 +69,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   });
 
   // Check payout status
-  const { data: payoutStatus } = useQuery({
+  const { data: payoutStatus, error: payoutError } = useQuery({
     queryKey: ['onboarding-payout', staffId, organizationId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -84,7 +85,7 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   });
 
   // Check availability
-  const { data: hasAvailability } = useQuery({
+  const { data: hasAvailability, error: availabilityError } = useQuery({
     queryKey: ['onboarding-avail', staffId],
     staleTime: 0,
     refetchOnMount: 'always',
@@ -173,6 +174,11 @@ export function OnboardingProgress({ staffId, organizationId, onNavigate, taxCla
   const completedCount = steps.filter(s => s.completed).length;
   const progressPercent = Math.round((completedCount / steps.length) * 100);
   const allComplete = completedCount === steps.length;
+
+  const onboardingQueryError = documentsError || signaturesError || payoutError || availabilityError;
+  if (onboardingQueryError) {
+    return <QueryError subject="onboarding progress" />;
+  }
 
   if (allComplete) return null; // Hide when fully onboarded
 

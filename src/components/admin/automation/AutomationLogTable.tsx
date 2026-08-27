@@ -5,6 +5,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { CheckCircle2, XCircle, Clock, Inbox } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 
 interface LogEntry {
   id: string;
@@ -18,7 +19,7 @@ interface LogEntry {
 export function AutomationLogTable() {
   const { organization } = useOrganization();
 
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: logs = [], isLoading, error: logsError } = useQuery({
     queryKey: ['automation-log-combined', organization?.id],
     queryFn: async (): Promise<LogEntry[]> => {
       if (!organization?.id) return [];
@@ -101,6 +102,10 @@ export function AutomationLogTable() {
     },
     enabled: !!organization?.id,
   });
+
+  if (logsError) {
+    return <QueryError subject="automation log" />;
+  }
 
   if (isLoading) {
     return (

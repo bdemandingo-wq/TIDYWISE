@@ -29,6 +29,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { QueryError } from '@/components/QueryError';
 
 interface SignableDoc {
   id: string;
@@ -101,7 +102,7 @@ export function AdminSignableDocManager() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const { data: docs = [], isLoading } = useQuery({
+  const { data: docs = [], isLoading, error: docsError } = useQuery({
     queryKey: ['admin-signable-docs', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -237,6 +238,10 @@ export function AdminSignableDocManager() {
       toast.error('Failed to save order');
     }
   };
+
+  if (docsError) {
+    return <QueryError subject="signable documents" />;
+  }
 
   return (
     <div className="space-y-3">

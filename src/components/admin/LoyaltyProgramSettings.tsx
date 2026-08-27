@@ -12,6 +12,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { LoyaltyTierEditor } from './LoyaltyTierEditor';
 import { useAdminOrgTiers } from '@/hooks/useAdminOrgTiers';
 import { resolveTierName } from '@/lib/loyaltyTier';
+import { QueryError } from '@/components/QueryError';
 
 interface CustomerLoyalty {
   id: string;
@@ -48,7 +49,7 @@ export function LoyaltyProgramSettings() {
   // consumer has to say so.
   const { tiers: orgTiers, tierDefs, error: tiersError } = useAdminOrgTiers();
 
-  const { data: loyaltyMembers = [], isLoading } = useQuery({
+  const { data: loyaltyMembers = [], isLoading, error: membersError } = useQuery({
     queryKey: ['loyalty-members', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -67,7 +68,7 @@ export function LoyaltyProgramSettings() {
     enabled: !!organizationId,
   });
 
-  const { data: recentTransactions = [] } = useQuery({
+  const { data: recentTransactions = [], error: transactionsError } = useQuery({
     queryKey: ['loyalty-transactions-recent', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -210,6 +211,10 @@ export function LoyaltyProgramSettings() {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  if (membersError || transactionsError) {
+    return <QueryError subject="loyalty program data" />;
   }
 
   return (

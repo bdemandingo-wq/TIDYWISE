@@ -7,12 +7,13 @@ import { Bell, FileText, PenLine, Banknote, Check, CalendarOff } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { QueryError } from '@/components/QueryError';
 
 export function StaffEventNotifications() {
   const { organizationId } = useOrgId();
   const navigate = useNavigate();
 
-  const { data: eventRows = [], refetch } = useQuery({
+  const { data: eventRows = [], refetch, error: eventRowsError } = useQuery({
     queryKey: ['staff-event-notifications', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -27,7 +28,7 @@ export function StaffEventNotifications() {
     enabled: !!organizationId,
   });
 
-  const { data: timeOffRows = [] } = useQuery({
+  const { data: timeOffRows = [], error: timeOffRowsError } = useQuery({
     queryKey: ['staff-activity-time-off', organizationId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -84,6 +85,8 @@ export function StaffEventNotifications() {
     }
   };
 
+  if (eventRowsError) return <QueryError subject="staff event notifications" />;
+  if (timeOffRowsError) return <QueryError subject="staff time-off activity" />;
   if (notifications.length === 0) return null;
 
   return (

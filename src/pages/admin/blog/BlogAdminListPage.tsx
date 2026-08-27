@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { BlogStatusBadge } from "@/components/admin/blog/StatusBadge";
 import { cn } from "@/lib/utils";
+import { QueryError } from "@/components/QueryError";
 
 type Status = "draft" | "review" | "published" | "archived" | "all";
 
@@ -41,7 +42,7 @@ export default function BlogAdminListPage() {
   }, [statusFilter, setSearchParams]);
 
   // Counts for tab badges (one query, all statuses)
-  const { data: counts } = useQuery({
+  const { data: counts, error: countsError } = useQuery({
     queryKey: ["admin-blog-counts"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -56,7 +57,7 @@ export default function BlogAdminListPage() {
     refetchInterval: 30000,
   });
 
-  const { data: posts = [], isLoading } = useQuery({
+  const { data: posts = [], isLoading, error: postsError } = useQuery({
     queryKey: ["admin-blog-posts", statusFilter],
     queryFn: async () => {
       let q = supabase
@@ -137,6 +138,8 @@ export default function BlogAdminListPage() {
     },
     onError: (e: Error) => { if (e.message !== "Cancelled") toast.error(e.message); },
   });
+
+  if (countsError || postsError) return <QueryError subject="blog posts" />;
 
   return (
     <div className="min-h-screen bg-background p-6">

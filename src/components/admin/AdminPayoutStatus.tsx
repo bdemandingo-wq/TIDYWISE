@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Banknote, CheckCircle2, Clock, AlertCircle, RefreshCw, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 
 interface AdminPayoutStatusProps {
   staffId: string;
@@ -18,7 +19,7 @@ export function AdminPayoutStatus({ staffId, staffName }: AdminPayoutStatusProps
   const queryClient = useQueryClient();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: payoutAccount, isLoading } = useQuery({
+  const { data: payoutAccount, isLoading, error: payoutError } = useQuery({
     queryKey: ['admin-staff-payout', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -82,6 +83,8 @@ export function AdminPayoutStatus({ staffId, staffName }: AdminPayoutStatusProps
       .replace(/\./g, ' → ')
       .replace(/\b\w/g, l => l.toUpperCase());
   };
+
+  if (payoutError) return <QueryError subject="payout status" onRetry={() => queryClient.invalidateQueries({ queryKey: ['admin-staff-payout', staffId, organizationId] })} />;
 
   return (
     <div className="space-y-3">

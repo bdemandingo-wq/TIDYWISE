@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Bell, Building2, CreditCard, AlertTriangle, Sparkles, CalendarCheck } from "lucide-react";
+import { QueryError } from '@/components/QueryError';
 import { formatDistanceToNow } from "date-fns";
 import { TabsContent } from "@/components/ui/tabs";
 
@@ -26,7 +27,7 @@ const typeConfig: Record<string, { icon: typeof Bell; label: string; emoji: stri
 };
 
 export function PlatformNotificationsLog() {
-  const { data: notifications, isLoading } = useQuery({
+  const { data: notifications, isLoading, error: notificationsError } = useQuery({
     queryKey: ["platform-notifications"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -52,7 +53,9 @@ export function PlatformNotificationsLog() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {notificationsError ? (
+            <QueryError subject="platform notifications" />
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>

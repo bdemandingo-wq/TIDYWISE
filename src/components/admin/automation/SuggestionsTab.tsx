@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Lightbulb, Zap, Users, CreditCard, Star, Loader2 } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 
 interface Suggestion {
   id: string;
@@ -25,7 +26,7 @@ export function SuggestionsTab() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: disabledAutomations = [] } = useQuery({
+  const { data: disabledAutomations = [], error: disabledError } = useQuery({
     queryKey: ['disabled-automations-suggestions', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -40,7 +41,7 @@ export function SuggestionsTab() {
     enabled: !!organization?.id,
   });
 
-  const { data: inactiveCount = 0 } = useQuery({
+  const { data: inactiveCount = 0, error: inactiveError } = useQuery({
     queryKey: ['inactive-45-day-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
@@ -72,7 +73,7 @@ export function SuggestionsTab() {
     enabled: !!organization?.id,
   });
 
-  const { data: expiringCards = 0 } = useQuery({
+  const { data: expiringCards = 0, error: expiringCardsError } = useQuery({
     queryKey: ['expiring-cards-count', organization?.id],
     queryFn: async () => {
       // Placeholder — would need Stripe API to check card expirations
@@ -96,6 +97,11 @@ export function SuggestionsTab() {
     },
     onError: () => toast.error('Failed to activate'),
   });
+
+  const queryError = disabledError || inactiveError || expiringCardsError;
+  if (queryError) {
+    return <QueryError subject="automation suggestions" />;
+  }
 
   const suggestions: Suggestion[] = [];
 

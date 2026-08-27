@@ -58,6 +58,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 import { supabase } from '@/lib/supabase';
 import { readEdgeFunctionError } from '@/lib/edgeFunctionError';
+import { QueryError } from '@/components/QueryError';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface ClientPortalUser {
@@ -101,7 +102,7 @@ export function ClientPortalUsersManager() {
   const [showResetPassword, setShowResetPassword] = useState(false);
 
   // Fetch portal users
-  const { data: portalUsers = [], isLoading } = useQuery({
+  const { data: portalUsers = [], isLoading, error: portalUsersError } = useQuery({
     queryKey: ['client-portal-users', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -127,7 +128,7 @@ export function ClientPortalUsersManager() {
   });
 
   // Fetch customers without portal access
-  const { data: customersWithoutAccess = [] } = useQuery({
+  const { data: customersWithoutAccess = [], error: customersWithoutAccessError } = useQuery({
     queryKey: ['customers-without-portal', organization?.id, portalUsers],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -342,6 +343,9 @@ export function ClientPortalUsersManager() {
       user.customer?.email?.toLowerCase().includes(search)
     );
   });
+
+  if (portalUsersError) return <QueryError subject="portal users" onRetry={() => queryClient.invalidateQueries({ queryKey: ['client-portal-users', organization?.id] })} />;
+  if (customersWithoutAccessError) return <QueryError subject="customers without portal access" onRetry={() => queryClient.invalidateQueries({ queryKey: ['customers-without-portal', organization?.id] })} />;
 
   return (
     <Card>

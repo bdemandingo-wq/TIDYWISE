@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { CheckCircle, Camera, ClipboardCheck, Loader2 } from 'lucide-react';
 import { BookingPhotoUpload } from './BookingPhotoUpload';
+import { QueryError } from '@/components/QueryError';
 
 interface BookingChecklistProps {
   bookingId: string;
@@ -33,7 +34,7 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   // Fetch booking service info
-  const { data: bookingService } = useQuery({
+  const { data: bookingService, error: bookingServiceError } = useQuery({
     queryKey: ['booking-service', bookingId],
     queryFn: async () => {
       const { data } = await supabase
@@ -46,7 +47,7 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
   });
 
   // Fetch or create booking checklist
-  const { data: checklist, isLoading } = useQuery({
+  const { data: checklist, isLoading, error: checklistError } = useQuery({
     queryKey: ['booking-checklist', bookingId],
     queryFn: async () => {
       // Get the booking's service and organization to find a matching template
@@ -438,6 +439,10 @@ export function BookingChecklist({ bookingId, staffId, organizationId, onComplet
       toast.error('Failed to complete checklist');
     },
   });
+
+  if (bookingServiceError || checklistError) {
+    return <QueryError subject="checklist" />;
+  }
 
   if (isLoading) {
     return (

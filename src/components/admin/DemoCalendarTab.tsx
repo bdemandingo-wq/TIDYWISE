@@ -24,6 +24,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { calendarDayKey, orgDateKey } from '@/lib/orgDateRange';
 import { toast } from 'sonner';
 import { DEFAULT_AVAILABILITY, parseAvailability, slotsForDay, WEEKDAY_LABELS, type WeeklyAvailability } from '@/lib/demoAvailability';
+import { QueryError } from '@/components/QueryError';
 
 interface DemoBooking {
   id: string;
@@ -172,7 +173,7 @@ export function DemoCalendarTab() {
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'name' | 'status'>('date-desc');
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading, error: bookingsError } = useQuery({
     queryKey: ['demo-bookings'],
     queryFn: async () => {
       const { data, error } = await (supabase
@@ -184,7 +185,7 @@ export function DemoCalendarTab() {
     },
   });
 
-  const { data: blockedDates = [] } = useQuery({
+  const { data: blockedDates = [], error: blockedDatesError } = useQuery({
     queryKey: ['demo-blocked-dates'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -244,7 +245,7 @@ export function DemoCalendarTab() {
   });
 
   // Platform-wide default meeting link (new demos auto-fill it via a DB trigger).
-  const { data: defaultMeetingLink = '' } = useQuery({
+  const { data: defaultMeetingLink = '', error: meetingLinkError } = useQuery({
     queryKey: ['demo-default-meeting-link'],
     queryFn: async () => {
       const { data } = await supabase
@@ -283,7 +284,7 @@ export function DemoCalendarTab() {
   }, [detailBooking]);
 
   // Weekly demo availability (editable). Admin reads platform_settings directly.
-  const { data: availabilityRaw } = useQuery({
+  const { data: availabilityRaw, error: availabilityError } = useQuery({
     queryKey: ['demo-availability'],
     queryFn: async () => {
       const { data } = await supabase
@@ -566,6 +567,16 @@ export function DemoCalendarTab() {
       return format(new Date(dateStr + 'T00:00:00'), 'EEE, MMM d, yyyy');
     } catch { return dateStr; }
   };
+
+  const demoQueryError = bookingsError || blockedDatesError || meetingLinkError || availabilityError;
+
+  if (demoQueryError) {
+    return (
+      <TabsContent value="demos" className="space-y-4">
+        <QueryError subject="demo calendar data" />
+      </TabsContent>
+    );
+  }
 
   return (
     <TabsContent value="demos" className="space-y-4">

@@ -39,6 +39,7 @@ import { Plus, Pencil, Trash2, Loader2, Sparkles, GripVertical } from 'lucide-re
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 import {
   DndContext,
   closestCenter,
@@ -157,7 +158,7 @@ export function CustomServicesManager() {
   );
 
   // Fetch services
-  const { data: services = [], isLoading } = useQuery({
+  const { data: services = [], isLoading, error: servicesError } = useQuery({
     queryKey: ['services', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -320,6 +321,8 @@ export function CustomServicesManager() {
     }
     resetForm();
   };
+
+  if (servicesError) return <QueryError subject="services" onRetry={() => queryClient.invalidateQueries({ queryKey: ['services', organization?.id] })} />;
 
   if (isLoading) {
     return (

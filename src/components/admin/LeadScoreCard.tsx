@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Flame, Clock, TrendingUp, Phone, Mail, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { QueryError } from '@/components/QueryError';
 
 interface LeadScoreCardProps {
   leadId: string;
@@ -12,7 +13,7 @@ interface LeadScoreCardProps {
 }
 
 export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
-  const { data: intelligence, isLoading } = useQuery({
+  const { data: intelligence, isLoading, error: intelligenceError } = useQuery({
     queryKey: ['lead-intelligence-single', leadId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -27,6 +28,7 @@ export function LeadScoreCard({ leadId, compact = false }: LeadScoreCardProps) {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  if (intelligenceError) return <QueryError subject="lead intelligence" />;
   if (isLoading || !intelligence) {
     return null;
   }

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { RichTextEditor } from "@/components/admin/blog/RichTextEditor";
 import { BlogStatusBadge } from "@/components/admin/blog/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
+import { QueryError } from "@/components/QueryError";
 
 function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 80);
@@ -51,7 +52,7 @@ export default function BlogAdminEditPage({ mode }: { mode: "new" | "edit" }) {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [autoSlug, setAutoSlug] = useState(mode === "new");
 
-  const { data: existing, isLoading } = useQuery({
+  const { data: existing, isLoading, error: existingError } = useQuery({
     queryKey: ["admin-blog-post", id],
     queryFn: async () => {
       if (!id) return null;
@@ -144,6 +145,8 @@ export default function BlogAdminEditPage({ mode }: { mode: "new" | "edit" }) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  if (existingError) return <QueryError subject="blog post" />;
 
   if (mode === "edit" && isLoading) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

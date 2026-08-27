@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Plus, Send, Trash2, Zap, ShieldCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import { ZAPIER_EVENT_META, ZAPIER_SAMPLE_PAYLOADS } from '@/lib/zapierEventSamples';
 
 type EventKey = (typeof ZAPIER_EVENT_META)[number]['value'];
@@ -143,7 +144,7 @@ export function GHLSettingsCard() {
     latency_ms?: number;
   } | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: settingsError } = useQuery({
     queryKey: ['ghl-settings', organization?.id],
     enabled: !!organization?.id,
     queryFn: async () => {
@@ -159,7 +160,7 @@ export function GHLSettingsCard() {
   });
 
   // Probe whether a token is configured server-side (without reading the value)
-  const { data: tokenStatus } = useQuery({
+  const { data: tokenStatus, error: tokenStatusError } = useQuery({
     queryKey: ['ghl-token-status', organization?.id, data?.id],
     enabled: !!organization?.id && !!data?.id,
     queryFn: async () => {
@@ -291,6 +292,8 @@ export function GHLSettingsCard() {
       mappings: m.mappings.map((row, i) => (i === idx ? { ...row, ...patch } : row)),
     }));
   }
+
+  if (settingsError) return <QueryError subject="GHL settings" onRetry={() => qc.invalidateQueries({ queryKey: ['ghl-settings', organization?.id] })} />;
 
   if (isLoading) {
     return (

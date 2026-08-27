@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { CheckCircle2, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QueryError } from '@/components/QueryError';
 
 interface StaffComplianceDashboardProps {
   organizationId: string;
@@ -23,7 +24,7 @@ interface StaffCompliance {
 }
 
 export function StaffComplianceDashboard({ organizationId }: StaffComplianceDashboardProps) {
-  const { data: complianceData = [], isLoading } = useQuery({
+  const { data: complianceData = [], isLoading, error: complianceError } = useQuery({
     queryKey: ['staff-compliance', organizationId],
     queryFn: async () => {
       // Get active staff
@@ -101,6 +102,7 @@ export function StaffComplianceDashboard({ organizationId }: StaffComplianceDash
     enabled: !!organizationId,
   });
 
+  if (complianceError) return <QueryError subject="staff compliance data" />;
   if (isLoading) return null;
   if (!complianceData.length) return null;
 

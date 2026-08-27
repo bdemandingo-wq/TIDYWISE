@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 import { CopyrightYear } from '@/components/CopyrightYear';
+import { QueryError } from '@/components/QueryError';
 
 // Static cornerstone posts that have dedicated pages
 const staticPosts = [
@@ -207,7 +208,7 @@ const featureArticles = [
 
 export default function BlogIndex() {
   // Fetch dynamic blog posts from database
-  const { data: dynamicPosts = [], isLoading } = useQuery({
+  const { data: dynamicPosts = [], isLoading, error: dynamicPostsError } = useQuery({
     queryKey: ["blog-posts"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -221,6 +222,8 @@ export default function BlogIndex() {
       return data || [];
     },
   });
+
+  if (dynamicPostsError) return <QueryError subject="blog posts" />;
 
   // Combine static, feature, and dynamic posts
   const allPosts = [

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Loader2, Trash2, Mail, Copy, Check, AlertTriangle } from 'lucide-react';
 import { readEdgeFunctionError, readEdgeFunctionErrorBody } from '@/lib/edgeFunctionError';
+import { QueryError } from '@/components/QueryError';
 
 type Role = 'owner' | 'manager';
 
@@ -73,7 +74,7 @@ export function TeamMembersCard() {
   // Same session dependency as the member list above. organization_invites is
   // RLS-gated on the same owner helper, so an untokened read returns an empty
   // set rather than an error — pending invites would silently vanish.
-  const { data: invites = [] } = useQuery({
+  const { data: invites = [], error: invitesError } = useQuery({
     queryKey: ['org-invites', orgId, sessionUserId],
     enabled: !!orgId && !!accessToken,
     queryFn: async () => {
@@ -173,6 +174,9 @@ export function TeamMembersCard() {
       qc.invalidateQueries({ queryKey: ['org-invites', orgId] });
     },
   });
+
+  if (membersError) return <QueryError subject="team members" onRetry={() => qc.invalidateQueries({ queryKey: ['org-members', orgId] })} />;
+  if (invitesError) return <QueryError subject="pending invites" onRetry={() => qc.invalidateQueries({ queryKey: ['org-invites', orgId] })} />;
 
   return (
     <div className="space-y-6">
@@ -295,12 +299,7 @@ export function TeamMembersCard() {
             {membersLoading && (
               <p className="text-sm text-muted-foreground">Loading team…</p>
             )}
-            {!membersLoading && membersError && (
-              <p className="text-sm text-destructive">
-                Could not load the team. {membersError instanceof Error ? membersError.message : ''}
-              </p>
-            )}
-            {!membersLoading && !membersError && members.length === 0 && (
+            {!membersLoading && members.length === 0 && (
               <p className="text-sm text-muted-foreground">No members yet.</p>
             )}
           </div>

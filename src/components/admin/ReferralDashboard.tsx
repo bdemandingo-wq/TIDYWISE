@@ -9,6 +9,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface Referral {
   id: string;
@@ -37,7 +38,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function ReferralDashboard() {
   const { organization } = useOrganization();
 
-  const { data: referrals = [], isLoading } = useQuery({
+  const { data: referrals = [], isLoading, error: referralsError } = useQuery({
     queryKey: ['referrals-admin', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -67,6 +68,10 @@ export function ReferralDashboard() {
     if (error) toast.error('Failed: ' + error.message);
     else toast.success('Marked as credited');
   };
+
+  if (referralsError) {
+    return <QueryError subject="referrals" />;
+  }
 
   return (
     <div className="space-y-6">

@@ -7,6 +7,7 @@ import { ClipboardCheck, Camera, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useBookingForm } from '../BookingFormContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 
 interface ChecklistTemplate {
   id: string;
@@ -26,7 +27,7 @@ export function ChecklistStep() {
   const { organization } = useOrganization();
 
   // Fetch active checklist templates
-  const { data: templates = [], isLoading } = useQuery({
+  const { data: templates = [], isLoading, error: templatesError } = useQuery({
     queryKey: ['checklist-templates-active', organization?.id],
     queryFn: async () => {
       // Unreachable: gated by `enabled: !!organization?.id`. Present so the
@@ -80,6 +81,10 @@ export function ChecklistStep() {
         </div>
       </div>
     );
+  }
+
+  if (templatesError) {
+    return <QueryError subject="checklist templates" />;
   }
 
   if (availableTemplates.length === 0) {

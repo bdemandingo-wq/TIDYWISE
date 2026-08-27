@@ -11,6 +11,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { validateTierThresholds, type TierRange } from '@/lib/loyaltyTier';
 import { fmt } from '@/lib/activeCurrency';
 import { useOrganizationSettings } from '@/hooks/useOrganizationSettings';
+import { QueryError } from '@/components/QueryError';
 
 interface TierSetting {
   id: string;
@@ -66,7 +67,7 @@ export function LoyaltyTierEditor() {
   // Local edit state for point thresholds (keyed by tier id)
   const [editState, setEditState] = useState<Record<string, TierEditState>>({});
 
-  const { data: tiers = [], isLoading } = useQuery({
+  const { data: tiers = [], isLoading, error: tiersError } = useQuery({
     queryKey: ['loyalty-tier-settings', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -294,6 +295,7 @@ export function LoyaltyTierEditor() {
   };
 
   if (!loyaltyEnabled) return null;
+  if (tiersError) return <QueryError subject="loyalty tiers" onRetry={() => queryClient.invalidateQueries({ queryKey: ['loyalty-tier-settings', organizationId] })} />;
 
   if (isLoading) {
     return (

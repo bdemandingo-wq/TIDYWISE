@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquareText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
+import { QueryError } from '@/components/QueryError';
 import { format } from 'date-fns';
 
 interface CancellationFeedbackRow {
@@ -34,7 +35,7 @@ const REASON_LABELS: Record<string, string> = {
  * one place instead of buried in the database.
  */
 export function CancellationFeedbackPanel() {
-  const { data: rows, isLoading } = useQuery({
+  const { data: rows, isLoading, error: rowsError } = useQuery({
     queryKey: ['platform-cancellation-feedback'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -75,7 +76,9 @@ export function CancellationFeedbackPanel() {
         )}
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {rowsError ? (
+          <QueryError subject="cancellation feedback" />
+        ) : isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />

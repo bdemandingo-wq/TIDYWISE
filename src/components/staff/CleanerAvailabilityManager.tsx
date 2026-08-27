@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Clock, Save } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 
 interface WorkingHour {
   id?: string;
@@ -46,7 +47,7 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
   // Fetch existing working hours
   // NOTE: The `working_hours` table does not have `organization_id`.
   // Org isolation is enforced via RLS (through staff/org_memberships).
-  const { data: existingHours, isLoading } = useQuery({
+  const { data: existingHours, isLoading, error: existingHoursError } = useQuery({
     queryKey: ['working-hours', staffId, organizationId],
     queryFn: async () => {
       // Use type workaround for Supabase deep type inference
@@ -146,6 +147,10 @@ export function CleanerAvailabilityManager({ staffId, onSaved }: Props) {
     );
     setHasChanges(true);
   };
+
+  if (existingHoursError) {
+    return <QueryError subject="availability" />;
+  }
 
   if (isLoading) {
     return <div className="text-muted-foreground">Loading availability...</div>;

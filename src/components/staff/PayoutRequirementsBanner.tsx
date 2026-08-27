@@ -13,7 +13,7 @@ interface PayoutRequirementsBannerProps {
 export function PayoutRequirementsBanner({ staffId, organizationId, onNavigateToPayouts }: PayoutRequirementsBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
-  const { data: payoutAccount } = useQuery({
+  const { data: payoutAccount, error: payoutAccountError } = useQuery({
     queryKey: ['staff-payout-banner', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase

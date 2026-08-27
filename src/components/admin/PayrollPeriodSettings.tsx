@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { getDayName, getEndDay, type PayrollPeriodConfig, DEFAULT_PAYROLL_CONFIG } from '@/lib/payrollPeriod';
 import { Settings, Save, Mail, Send, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 
 const DAYS = [
   { value: 0, label: 'Sun' },
@@ -56,7 +57,7 @@ export function PayrollPeriodSettings() {
   const { organizationId } = useOrgId();
   const queryClient = useQueryClient();
 
-  const { data: savedConfig } = useQuery({
+  const { data: savedConfig, error: savedConfigError } = useQuery({
     queryKey: ['payroll-period-config', organizationId],
     queryFn: async () => {
       if (!organizationId) {
@@ -96,7 +97,7 @@ export function PayrollPeriodSettings() {
   // any payroll-period email to actually be sent. We block the toggle until
   // these are filled in so the user doesn't enable a feature that would silently
   // fail at send time.
-  const { data: emailConfigured = false, isLoading: emailConfigLoading } = useQuery({
+  const { data: emailConfigured = false, isLoading: emailConfigLoading, error: emailConfigError } = useQuery({
     queryKey: ['org-email-configured', organizationId],
     queryFn: async () => {
       if (!organizationId) return false;
@@ -249,6 +250,9 @@ export function PayrollPeriodSettings() {
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
     );
   };
+
+  if (savedConfigError) return <QueryError subject="payroll period settings" onRetry={() => queryClient.invalidateQueries({ queryKey: ['payroll-period-config', organizationId] })} />;
+  if (emailConfigError) return <QueryError subject="email configuration" onRetry={() => queryClient.invalidateQueries({ queryKey: ['org-email-configured', organizationId] })} />;
 
   return (
     <Card>

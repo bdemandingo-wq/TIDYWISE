@@ -11,6 +11,7 @@ import { FileText, CheckCircle2, XCircle, Clock, Eye, Download, Loader2 } from '
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useOrgId } from '@/hooks/useOrgId';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 const DOCUMENT_TYPES: Record<string, string> = {
   insurance: 'Insurance Certificate',
@@ -43,7 +44,7 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
   const [reviewingDocId, setReviewingDocId] = useState<string | null>(null);
   const [adminNote, setAdminNote] = useState('');
 
-  const { data: documents = [], isLoading } = useQuery({
+  const { data: documents = [], isLoading, error: documentsError } = useQuery({
     queryKey: ['admin-staff-documents', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -142,6 +143,10 @@ export function StaffDocumentManager({ staffId, staffName }: Props) {
         <Loader2 className="h-5 w-5 animate-spin" />
       </div>
     );
+  }
+
+  if (documentsError) {
+    return <QueryError subject="staff documents" />;
   }
 
   if (documents.length === 0) {

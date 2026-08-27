@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { PayoutResetSection } from './PayoutResetSection';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useSearchParams } from 'react-router-dom';
+import { QueryError } from '@/components/QueryError';
 
 interface StaffPayoutSetupProps {
   staffId: string;
@@ -131,7 +132,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   const [justSubmitted, setJustSubmitted] = useState(false);
 
   // Instant load from local DB cache (no edge function, no Stripe API)
-  const { data: cachedStatus, isLoading: isCacheLoading } = useQuery({
+  const { data: cachedStatus, isLoading: isCacheLoading, error: cachedStatusError } = useQuery({
     queryKey: ['staff-payout-cached', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -154,7 +155,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   });
 
   // Background refresh from Stripe (runs after initial render, not blocking)
-  const { data: liveStatus, isLoading: isLiveLoading } = useQuery({
+  const { data: liveStatus, isLoading: isLiveLoading, error: liveStatusError } = useQuery({
     queryKey: ['staff-payout-status', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('check-staff-payout-status', {
@@ -209,7 +210,7 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
   };
 
   // Fetch payout history from bookings
-  const { data: payoutHistory = [] } = useQuery({
+  const { data: payoutHistory = [], error: payoutHistoryError } = useQuery({
     queryKey: ['staff-payout-history', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -295,6 +296,10 @@ export function StaffPayoutSetup({ staffId, organizationId }: StaffPayoutSetupPr
         return <Badge variant="outline"><AlertCircle className="w-3 h-3 mr-1" />Not Set Up</Badge>;
     }
   };
+
+  if (cachedStatusError || liveStatusError || payoutHistoryError) {
+    return <QueryError subject="payout setup" />;
+  }
 
   if (isLoading || isCheckingReturn) {
     return (

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Check, X, CalendarOff, Loader2 } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 
 interface Row {
   id: string;
@@ -34,7 +35,7 @@ export function TimeOffRequestsPanel() {
   const qc = useQueryClient();
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: rowsError } = useQuery({
     queryKey: ['admin-time-off', organizationId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -127,6 +128,8 @@ export function TimeOffRequestsPanel() {
       )}
     </div>
   );
+
+  if (rowsError) return <QueryError subject="time-off requests" onRetry={() => qc.invalidateQueries({ queryKey: ['admin-time-off', organizationId] })} />;
 
   return (
     <div className="space-y-4">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star, MessageSquare, Calendar, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 interface Review {
   id: string;
@@ -29,7 +30,7 @@ interface CleanerReviewsProps {
 }
 
 export function CleanerReviews({ staffId }: CleanerReviewsProps) {
-  const { data: reviews = [], isLoading } = useQuery({
+  const { data: reviews = [], isLoading, error: reviewsError } = useQuery({
     queryKey: ['staff-reviews', staffId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,6 +61,10 @@ export function CleanerReviews({ staffId }: CleanerReviewsProps) {
     }
     return acc;
   }, {} as Record<number, number>);
+
+  if (reviewsError) {
+    return <QueryError subject="reviews" />;
+  }
 
   if (isLoading) {
     return (

@@ -12,6 +12,7 @@ import { Plus, Trash2, Bell, Loader2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 
 interface PaymentRemindersSheetProps {
   open: boolean;
@@ -29,7 +30,7 @@ interface Reminder {
 export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: PaymentRemindersSheetProps) {
   const queryClient = useQueryClient();
   
-  const { data: existingReminders = [], isLoading } = useQuery({
+  const { data: existingReminders = [], isLoading, error: remindersError } = useQuery({
     queryKey: ['payment-reminders', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -127,7 +128,9 @@ export function PaymentRemindersSheet({ open, onOpenChange, organizationId }: Pa
           </SheetTitle>
         </SheetHeader>
 
-        {isLoading ? (
+        {remindersError ? (
+          <QueryError subject="payment reminders" />
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, History, AlertTriangle } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 import { format, subDays } from 'date-fns';
 
 const REASON_LABELS: Record<string, string> = {
@@ -19,7 +20,7 @@ const REASON_LABELS: Record<string, string> = {
 export function StripeResetHistoryPanel() {
   const { organization } = useOrganization();
 
-  const { data: resetHistory = [], isLoading } = useQuery({
+  const { data: resetHistory = [], isLoading, error: resetHistoryError } = useQuery({
     queryKey: ['stripe-reset-history', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -48,6 +49,10 @@ export function StripeResetHistoryPanel() {
       .filter(([, count]) => count > 2)
       .map(([id]) => id)
   );
+
+  if (resetHistoryError) {
+    return <QueryError subject="Stripe reset history" />;
+  }
 
   if (isLoading) {
     return (

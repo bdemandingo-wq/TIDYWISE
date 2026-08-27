@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle2, Clock, AlertTriangle, AlertCircle, ExternalLink, Banknote, ShieldCheck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+import { QueryError } from '@/components/QueryError';
 
 interface PayoutRequirementsChecklistProps {
   staffId: string;
@@ -53,7 +54,7 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   // Check for resolved toast
-  const { data: payoutAccount, isLoading } = useQuery({
+  const { data: payoutAccount, isLoading, error: payoutAccountError } = useQuery({
     queryKey: ['staff-payout-requirements', staffId, organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -139,6 +140,10 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
     queryClient.invalidateQueries({ queryKey: ['staff-payout-banner'] });
     toast.info('Refreshing status...');
   };
+
+  if (payoutAccountError) {
+    return <QueryError subject="payout requirements" />;
+  }
 
   if (isLoading) {
     return (

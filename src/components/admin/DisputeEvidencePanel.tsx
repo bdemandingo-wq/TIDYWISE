@@ -18,6 +18,7 @@ import { Loader2, Shield, AlertTriangle, CheckCircle2, ExternalLink, ChevronDown
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import { format } from 'date-fns';
 
 interface Dispute {
@@ -189,7 +190,7 @@ export function DisputeEvidencePanel() {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
-  const { data: disputes, isLoading, refetch } = useQuery<Dispute[]>({
+  const { data: disputes, isLoading, refetch, error: disputesError } = useQuery<Dispute[]>({
     queryKey: ['platform', 'disputes'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -262,7 +263,9 @@ export function DisputeEvidencePanel() {
         </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {disputesError ? (
+          <QueryError subject="disputes" onRetry={() => refetch()} />
+        ) : isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
         ) : !disputes || disputes.length === 0 ? (
           <div className="py-10 text-center text-muted-foreground">No disputes recorded.</div>

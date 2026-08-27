@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
+import { QueryError } from '@/components/QueryError';
 
 /** Below this many completed, clocked jobs a service's average is noise. */
 const MIN_JOBS = 5;
@@ -40,7 +41,7 @@ interface ServiceRow {
 export function ServiceDurationAccuracy() {
   const { organizationId } = useOrgId();
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: rowsError } = useQuery({
     queryKey: ['service-duration-accuracy', organizationId],
     queryFn: async (): Promise<ServiceRow[]> => {
       if (!organizationId) return [];
@@ -107,7 +108,9 @@ export function ServiceDurationAccuracy() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {rowsError ? (
+          <QueryError subject="service duration accuracy" />
+        ) : isLoading ? (
           <Skeleton className="h-40 w-full" />
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">

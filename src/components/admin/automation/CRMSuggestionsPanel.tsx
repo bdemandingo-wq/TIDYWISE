@@ -6,6 +6,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Lightbulb, Zap, Users, Repeat, MessageSquare, TrendingUp } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 
 interface Suggestion {
   id: string;
@@ -21,7 +22,7 @@ export function CRMSuggestionsPanel() {
   const { organization } = useOrganization();
   const navigate = useNavigate();
 
-  const { data: disabledAutomations = [] } = useQuery({
+  const { data: disabledAutomations = [], error: disabledError } = useQuery({
     queryKey: ['disabled-automations', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -36,7 +37,7 @@ export function CRMSuggestionsPanel() {
     enabled: !!organization?.id,
   });
 
-  const { data: inactiveCustomerCount = 0 } = useQuery({
+  const { data: inactiveCustomerCount = 0, error: inactiveError } = useQuery({
     queryKey: ['inactive-customers-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
@@ -94,7 +95,7 @@ export function CRMSuggestionsPanel() {
     enabled: !!organization?.id,
   });
 
-  const { data: nonRecurringCount = 0 } = useQuery({
+  const { data: nonRecurringCount = 0, error: nonRecurringError } = useQuery({
     queryKey: ['non-recurring-count', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return 0;
@@ -112,7 +113,7 @@ export function CRMSuggestionsPanel() {
     enabled: !!organization?.id,
   });
 
-  const { data: smsConfigured = false } = useQuery({
+  const { data: smsConfigured = false, error: smsError } = useQuery({
     queryKey: ['sms-configured', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return false;
@@ -126,6 +127,11 @@ export function CRMSuggestionsPanel() {
     },
     enabled: !!organization?.id,
   });
+
+  const queryError = disabledError || inactiveError || nonRecurringError || smsError;
+  if (queryError) {
+    return <QueryError subject="CRM suggestions" />;
+  }
 
   const suggestions: Suggestion[] = [];
 

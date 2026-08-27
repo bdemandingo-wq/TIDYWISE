@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertTriangle, Mail, MailCheck, CheckCircle2, Loader2, Send, Clock, UserX } from 'lucide-react';
+import { QueryError } from '@/components/QueryError';
 import { toast } from 'sonner';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -32,7 +33,7 @@ export function StripeRequirementsWidget() {
   const [sending, setSending] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
 
-  const { data: notifications = [], isLoading } = useQuery({
+  const { data: notifications = [], isLoading, error: notificationsError } = useQuery({
     queryKey: ['stripe-requirement-notifications', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -113,6 +114,10 @@ export function StripeRequirementsWidget() {
         return <Badge variant="outline" className="text-[10px]">{type}</Badge>;
     }
   };
+
+  if (notificationsError) {
+    return <QueryError subject="Stripe requirements" />;
+  }
 
   if (isLoading) {
     return (

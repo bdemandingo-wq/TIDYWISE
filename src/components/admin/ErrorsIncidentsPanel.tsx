@@ -421,7 +421,7 @@ export function ErrorsIncidentsPanel() {
     loadDismissedCache(),
   );
 
-  const { data: dbDismissed } = useQuery({
+  const { data: dbDismissed, error: dbDismissedError } = useQuery({
     queryKey: ['sentry-dismissed-issues'],
     queryFn: async () => {
       const { data, error } = await supabase

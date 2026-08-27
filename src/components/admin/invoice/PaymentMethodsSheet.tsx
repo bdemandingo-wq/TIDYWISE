@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface PaymentMethodsSheetProps {
   open: boolean;
@@ -36,7 +37,7 @@ interface PaymentSettings {
 export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: PaymentMethodsSheetProps) {
   const queryClient = useQueryClient();
   
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, error: settingsError } = useQuery({
     queryKey: ['invoice-settings', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -147,7 +148,9 @@ export function PaymentMethodsSheet({ open, onOpenChange, organizationId }: Paym
           <SheetTitle>Payment Methods</SheetTitle>
         </SheetHeader>
 
-        {isLoading ? (
+        {settingsError ? (
+          <QueryError subject="payment settings" />
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>

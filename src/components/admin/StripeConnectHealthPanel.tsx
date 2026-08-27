@@ -13,13 +13,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { StripeRequirementsWidget } from './StripeRequirementsWidget';
 import { AdminPayoutResetButton } from './AdminPayoutResetSection';
 import { StripeResetHistoryPanel } from './StripeResetHistoryPanel';
+import { QueryError } from '@/components/QueryError';
 
 export function StripeConnectHealthPanel() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
   const [refreshingStaffId, setRefreshingStaffId] = useState<string | null>(null);
 
-  const { data: payoutAccounts = [], isLoading } = useQuery({
+  const { data: payoutAccounts = [], isLoading, error: payoutError } = useQuery({
     queryKey: ['stripe-connect-health', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -37,7 +38,7 @@ export function StripeConnectHealthPanel() {
   });
 
   // Get all staff to show who hasn't started
-  const { data: allStaff = [] } = useQuery({
+  const { data: allStaff = [], error: staffError } = useQuery({
     queryKey: ['all-staff-for-health', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return [];
@@ -134,6 +135,11 @@ export function StripeConnectHealthPanel() {
     const reqs = a.requirements_currently_due as any[];
     return reqs && reqs.length > 0;
   }).length;
+
+  const queryError = payoutError || staffError;
+  if (queryError) {
+    return <QueryError subject="Stripe Connect health" />;
+  }
 
   if (isLoading) {
     return (

@@ -13,6 +13,7 @@ import { uploadBookingMedia, getUploadErrorMessage, isVideoFile } from '@/lib/bo
 import { toast } from 'sonner';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { QueryError } from '@/components/QueryError';
 
 interface StaffPhotosTabProps {
   staffId: string;
@@ -101,7 +102,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
   // wondering why "Upload All" is disabled when they only have one job.
 
 
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [], error: bookingsError } = useQuery({
     queryKey: ['staff-photo-bookings', staffId, organizationId],
     queryFn: async () => {
       if (!staffId || !organizationId) return [];
@@ -137,7 +138,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
   }, [selectedBookingId, bookings]);
 
 
-  const { data: photos = [], isLoading: loadingPhotos } = useQuery({
+  const { data: photos = [], isLoading: loadingPhotos, error: photosError } = useQuery({
     queryKey: ['staff-uploaded-photos', staffId, organizationId],
     queryFn: async () => {
       if (!staffId || !organizationId) return [];
@@ -292,6 +293,10 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
       itemIndex === index ? { ...upload, status: 'pending', progress: 0, error: undefined } : upload
     )));
   };
+
+  if (bookingsError || photosError) {
+    return <QueryError subject="photos" />;
+  }
 
   return (
     <div className="space-y-6">

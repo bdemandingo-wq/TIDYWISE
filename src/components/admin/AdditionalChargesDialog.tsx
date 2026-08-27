@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Trash2, Loader2, DollarSign, CreditCard, Banknote } from 'lucide-react';
 import { usePlatform } from '@/hooks/usePlatform';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface AdditionalCharge {
   id: string;
@@ -73,7 +74,7 @@ export function AdditionalChargesDialog({
   const [loadingCards, setLoadingCards] = useState(false);
 
   // Fetch existing charges
-  const { data: charges = [], isLoading } = useQuery({
+  const { data: charges = [], isLoading, error: chargesError } = useQuery({
     queryKey: ['additional-charges', bookingId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -293,6 +294,8 @@ export function AdditionalChargesDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {chargesError && <QueryError subject="additional charges" />}
+
           {/* Existing charges summary */}
           {charges.length > 0 && (
             <div className="space-y-2">

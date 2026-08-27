@@ -8,6 +8,7 @@ import { TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useOrgId } from '@/hooks/useOrgId';
+import { QueryError } from '@/components/QueryError';
 
 interface ProfitByServiceChartProps {
   bookings: BookingWithDetails[];
@@ -26,7 +27,7 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
   }, [bookings]);
 
   // Fetch team assignment pay_share for accurate labor cost
-  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+  const { data: teamPaysByBooking = new Map<string, number>(), error: teamPayError } = useQuery({
     queryKey: ['profit-service-team-pay', organizationId, completedBookingIds.join(',')],
     queryFn: async () => {
       if (!organizationId || completedBookingIds.length === 0) return new Map<string, number>();
@@ -164,6 +165,20 @@ export function ProfitByServiceChart({ bookings }: ProfitByServiceChartProps) {
     }
     return null;
   };
+
+  if (teamPayError) {
+    return (
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Profit by Service
+          </CardTitle>
+        </CardHeader>
+        <CardContent><QueryError subject="profit data" /></CardContent>
+      </Card>
+    );
+  }
 
   if (serviceData.length === 0) {
     return (
