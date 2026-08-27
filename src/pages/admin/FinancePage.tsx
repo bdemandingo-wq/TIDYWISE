@@ -42,6 +42,7 @@ import { PnLCalendar } from '@/components/admin/PnLCalendar';
 import { SEOHead } from '@/components/SEOHead';
 import { toast } from 'sonner';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 interface Transaction {
   id: string;
@@ -61,7 +62,7 @@ interface Transaction {
 export default function FinancePage() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz, error: tzError } = useOrgTimezone();
   
   const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
     // Placeholder; corrected below once orgTz resolves.
@@ -416,6 +417,14 @@ export default function FinancePage() {
     const { exportFile } = await import('@/lib/exportFile');
     await exportFile(`${filename}-${orgDateKey(new Date(), orgTz)}.csv`, csv, 'text/csv');
   };
+
+  if (tzError) {
+    return (
+      <AdminLayout title="Finance & Taxes" subtitle="Profit & loss, transactions, and tax exports">
+        <QueryError subject="timezone settings" />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout

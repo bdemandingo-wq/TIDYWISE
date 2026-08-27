@@ -41,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { useOrgId } from '@/hooks/useOrgId';
 import { SEOHead } from '@/components/SEOHead';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 
 // Helper to fetch data - uses any to break TS2589 type depth chain
 // Includes pagination limits for performance
@@ -137,7 +138,7 @@ export default function ReportsPage() {
    */
   const rangeTouchedRef = useRef(false);
   const appliedTzRef = useRef<string | null>(null);
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone, error: tzError } = useOrgTimezone();
   useEffect(() => {
     if (rangeTouchedRef.current) return;
     if (appliedTzRef.current === orgTimezone) return;
@@ -325,6 +326,14 @@ export default function ReportsPage() {
   }, [filteredBookings, staff, customers, recurringBookings, orgTimezone]);
 
   const [activeTab, setActiveTab] = useState('overview');
+
+  if (tzError) {
+    return (
+      <AdminLayout title="Reports" subtitle="">
+        <QueryError subject="timezone settings" />
+      </AdminLayout>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -28,6 +28,7 @@ import {
 import { sumBookingRevenue } from '@/lib/bookingRevenue';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { useTestMode } from '@/contexts/TestModeContext';
+import { QueryError } from '@/components/QueryError';
 
 type TimePeriod = '1W' | '4W' | '1Y' | 'MTD' | 'QTD' | 'YTD' | 'ALL';
 
@@ -37,7 +38,7 @@ interface ReportsOverviewProps {
 }
 
 export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone, error: tzError } = useOrgTimezone();
   const [period, setPeriod] = useState<TimePeriod>('ALL');
   const { isTestMode } = useTestMode();
 
@@ -224,6 +225,10 @@ export function ReportsOverview({ bookings, customers }: ReportsOverviewProps) {
 
     return { grossVolume, netVolume, newCustomersCount, successfulPayments, spendPerCustomer };
   }, [filteredBookings, filteredCustomers]);
+
+  if (tzError) {
+    return <QueryError subject="timezone settings" />;
+  }
 
   return (
     <div className="min-w-0 overflow-hidden bg-card border border-border rounded-xl p-3 shadow-sm md:p-4">

@@ -46,6 +46,7 @@ import { formatInTimezone, getDateInTimezone, getLocalDateInTimezone } from '@/l
 import { PayrollPeriodSettings } from '@/components/admin/PayrollPeriodSettings';
 import { PayrollCostSettings } from '@/components/admin/PayrollCostSettings';
 import { SEOHead } from '@/components/SEOHead';
+import { QueryError } from '@/components/QueryError';
 import { fmt } from '@/lib/activeCurrency';
 import { mustAffectRows } from '@/lib/mustAffectRows';
 
@@ -229,7 +230,7 @@ export default function PayrollPage() {
   const { organizationId } = useOrgId();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone, error: tzError } = useOrgTimezone();
 
   /**
    * When this business's payroll week begins.
@@ -637,7 +638,7 @@ export default function PayrollPage() {
 
   // Payroll period config — anchor "today" in the org timezone so the period
   // boundaries don't drift when admin and org are in different timezones.
-  const { config: periodConfig } = usePayrollPeriodConfig();
+  const { config: periodConfig, error: periodConfigError } = usePayrollPeriodConfig();
   const currentPeriod = useMemo(() => {
     const todayInOrgTz = getLocalDateInTimezone(new Date(), orgTimezone);
     const start = getPeriodStart(todayInOrgTz, periodConfig, orgTimezone);
@@ -1238,6 +1239,14 @@ export default function PayrollPage() {
       </CardContent>
     </Card>
   );
+
+  if (tzError || periodConfigError) {
+    return (
+      <AdminLayout title="Payroll Report" subtitle="Staff wages, profitability, and forecasting">
+        <QueryError subject={tzError ? "timezone settings" : "payroll period config"} />
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
