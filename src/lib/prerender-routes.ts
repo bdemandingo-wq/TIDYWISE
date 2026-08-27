@@ -252,6 +252,7 @@ function buildBlogPostBody(post: BlogPostForMeta): string {
 
 function buildCompareNicheBody(
   comp: { name: string; pricing: string; positioning: string; weaknesses: string[]; features: Record<string, boolean | string> },
+  compSlug: string,
   niche: { name: string; inline: string; intro: string; painPoints: string[]; tidywiseFeatures: { title: string; description: string }[]; tableRows: string[]; faqs: { question: string; answer: string }[] }
 ): string {
   const parts: string[] = [];
@@ -293,7 +294,7 @@ function buildCompareNicheBody(
   }
 
   parts.push(`<nav aria-label="Related"><ul>`);
-  parts.push(`<li><a href="/compare/${comp.slug}">Full TidyWise vs ${escapeHtml(comp.name)} comparison</a></li>`);
+  parts.push(`<li><a href="/compare/${compSlug}">Full TidyWise vs ${escapeHtml(comp.name)} comparison</a></li>`);
   parts.push(`<li><a href="/pricing">TidyWise pricing — $49/mo flat</a></li>`);
   parts.push(`<li><a href="/demo">Book a demo</a></li>`);
   parts.push(`</ul></nav>`);
@@ -340,7 +341,7 @@ function buildPrerenderBody(
   if (nicheMatch) {
     const comp = COMPETITORS[nicheMatch[1]];
     const niche = NICHES[nicheMatch[2]];
-    if (comp && niche) return buildCompareNicheBody(comp, niche);
+    if (comp && niche) return buildCompareNicheBody(comp, nicheMatch[1], niche);
   }
 
   return "";
