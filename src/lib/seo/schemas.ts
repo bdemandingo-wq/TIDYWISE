@@ -11,7 +11,7 @@ export const HOME_FAQS: FaqItem[] = [
   {
     question: "How much does TidyWise cost?",
     answer:
-      "Plans start at $49/month for Basic, $97/month for Pro, $197/month for Custom, and a one-time $300 Lifetime deal (limited to 50 spots). All plans include unlimited users and bookings.",
+      "Plans start at $49/month for Basic, $97/month for Pro, $197/month for Custom, and a one-time $300 Lifetime deal (limited to 100 spots). All plans include unlimited users and bookings.",
   },
   {
     question: "Is there a free trial?",

@@ -603,7 +603,7 @@ export default function PricingPage() {
     <>
       <SEOHead
         title="Pricing | TidyWise — Cleaning Business Software"
-        description="Four plans for cleaning businesses of every size. Basic $49, Pro $97, Custom $197, or a one-time Lifetime deal at $300 (50 spots only)."
+        description="Four plans for cleaning businesses of every size. Basic $49, Pro $97, Custom $197, or a one-time Lifetime deal at $300 (100 spots only)."
         canonical="/pricing"
         ogImage="/images/og/og-pricing.png"
         schemaJson={[
@@ -961,7 +961,7 @@ export default function PricingPage() {
             </div>
 
             <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 mb-4 uppercase tracking-wider text-[10px]">
-              Founding offer · 50 spots only
+              Founding offer · 100 spots only
             </Badge>
 
             <h2 className="pv-display text-4xl md:text-5xl mb-3">
@@ -969,7 +969,7 @@ export default function PricingPage() {
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mb-8">
               One $300 payment locks in lifetime access to every Pro feature — including
-              everything we ship in the future. No recurring bill, ever. Only 50 spots
+              everything we ship in the future. No recurring bill, ever. Only 100 spots
               at launch.
             </p>
 

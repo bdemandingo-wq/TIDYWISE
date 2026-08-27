@@ -96,7 +96,7 @@ const LIFETIME_FEATURES = [
   'Everything in Pro, forever',
   'Every feature we ship in future',
   'No recurring bill, ever',
-  'Founding member — 50 spots total',
+  'Founding member — 100 spots total',
 ];
 
 function priceFor(tier: Tier, interval: Interval): { display: string; sub: string } {

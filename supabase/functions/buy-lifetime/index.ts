@@ -54,7 +54,7 @@ serve(async (req) => {
       .eq("id", 1)
       .maybeSingle();
 
-    const total = state?.total_spots ?? 50;
+    const total = state?.total_spots ?? 100;
     const sold = state?.sold_spots ?? 0;
     if (state?.sold_out_at || sold >= total) {
       return new Response(

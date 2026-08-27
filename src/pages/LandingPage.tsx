@@ -418,7 +418,7 @@ export default function LandingPage() {
           </div>
 
           {/* Lifetime founding offer hook — only renders while spots remain
-              so it never shows a stale "X of 50 left" once sold out. */}
+              so it never shows a stale "X of 100 left" once sold out. */}
           {!lifetime.loading && !lifetime.soldOut && (
             <button
               type="button"
