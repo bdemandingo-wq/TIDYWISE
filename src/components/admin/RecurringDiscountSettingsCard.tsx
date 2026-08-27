@@ -14,6 +14,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useRecurringDiscounts } from '@/hooks/useRecurringDiscounts';
+import { QueryError } from '@/components/QueryError';
 
 interface FormState {
   monthly: string;
@@ -25,7 +26,7 @@ const ONE_TIME_PCT = 0; // Read-only, always 0.
 
 export function RecurringDiscountSettingsCard() {
   const { organization, isAdmin } = useOrganization();
-  const { config, loading, refetch } = useRecurringDiscounts();
+  const { config, loading, error: discountError, refetch } = useRecurringDiscounts();
   const [form, setForm] = useState<FormState>({
     monthly: '',
     biweekly: '',
@@ -95,6 +96,20 @@ export function RecurringDiscountSettingsCard() {
       setSaving(false);
     }
   };
+
+  if (discountError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Percent className="w-5 h-5" />
+            Recurring Booking Discounts
+          </CardTitle>
+        </CardHeader>
+        <CardContent><QueryError subject="recurring discount settings" onRetry={refetch} /></CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (

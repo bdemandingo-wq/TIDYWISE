@@ -28,6 +28,7 @@ import {
 } from '@/data/pricingData';
 import { Save, Pencil, Plus, Trash2, Loader2, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import {
   DndContext,
   closestCenter,
@@ -249,7 +250,7 @@ function SortableBedroomRow({
 
 export function ServicePricingEditor() {
   const { organization } = useOrganization();
-  const { getServicePricing, saveServicePricing, loading: pricingLoading, refetch } = useServicePricing();
+  const { getServicePricing, saveServicePricing, loading: pricingLoading, error: pricingError, refetch } = useServicePricing();
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
   const [currentPricing, setCurrentPricing] = useState<ServicePricingData | null>(null);
@@ -487,6 +488,10 @@ export function ServicePricingEditor() {
   };
 
   const selectedService = services.find(s => s.id === selectedServiceId);
+
+  if (pricingError) {
+    return <QueryError subject="service pricing" onRetry={refetch} />;
+  }
 
   if (pricingLoading) {
     return (

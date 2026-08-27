@@ -37,6 +37,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { SignedImage } from '@/components/ui/signed-image';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import { validateTemplate } from '@/lib/automationTemplates';
 import { SMSSettingsCard } from '@/components/admin/SMSSettingsCard';
 import { OpenPhoneDebugTools } from '@/components/admin/OpenPhoneDebugTools';
@@ -290,6 +291,7 @@ export default function SettingsPage() {
   const { organization, refetch: refetchOrganization } = useOrganization();
   const [settings, setSettings] = useState<BusinessSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
@@ -376,7 +378,7 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error fetching settings:', error);
-      toast.error('Failed to load settings');
+      setLoadError(error instanceof Error ? error : new Error('Failed to load settings'));
     } finally {
       setLoading(false);
     }
@@ -603,6 +605,15 @@ export default function SettingsPage() {
       setUpdatingPassword(false);
     }
   };
+
+  if (loadError) {
+    return (
+      <AdminLayout title="Settings" subtitle="Manage your business preferences">
+        <SEOHead title="Settings | TidyWise" description="Configure your business settings" noIndex />
+        <QueryError subject="business settings" onRetry={() => { setLoadError(null); setLoading(true); fetchSettings(); }} />
+      </AdminLayout>
+    );
+  }
 
   if (loading) {
     return (

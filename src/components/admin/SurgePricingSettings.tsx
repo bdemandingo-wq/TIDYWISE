@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Loader2, Save, TrendingUp, Zap, Clock, Sun } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 
 interface SurgeSettings {
   surge_weekend_enabled: boolean;
@@ -18,32 +20,40 @@ interface SurgeSettings {
   surge_holiday_multiplier: number;
 }
 
+const SURGE_DEFAULTS: SurgeSettings = {
+  surge_weekend_enabled: false,
+  surge_weekend_multiplier: 1.15,
+  surge_lastminute_enabled: false,
+  surge_lastminute_hours: 48,
+  surge_lastminute_multiplier: 1.20,
+  surge_holiday_enabled: false,
+  surge_holiday_multiplier: 1.25,
+};
+
 export function SurgePricingSettings() {
   const { organization } = useOrganization();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<SurgeSettings>({
-    surge_weekend_enabled: false,
-    surge_weekend_multiplier: 1.15,
-    surge_lastminute_enabled: false,
-    surge_lastminute_hours: 48,
-    surge_lastminute_multiplier: 1.20,
-    surge_holiday_enabled: false,
-    surge_holiday_multiplier: 1.25,
+  const [settings, setSettings] = useState<SurgeSettings>(SURGE_DEFAULTS);
+
+  const { data: surgeData, isLoading: loading, error: surgeError, refetch } = useQuery({
+    queryKey: ['surge-pricing', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const { data, error } = await (supabase
+        .from('business_settings' as any) as any)
+        .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
+        .eq('organization_id', organization.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 5,
   });
 
   useEffect(() => {
-    if (!organization?.id) return;
-    (supabase
-      .from('business_settings' as any) as any)
-      .select('surge_weekend_enabled,surge_weekend_multiplier,surge_lastminute_enabled,surge_lastminute_hours,surge_lastminute_multiplier,surge_holiday_enabled,surge_holiday_multiplier')
-      .eq('organization_id', organization.id)
-      .maybeSingle()
-      .then(({ data }: any) => {
-        if (data) setSettings((s: any) => ({ ...s, ...data }));
-        setLoading(false);
-      });
-  }, [organization?.id]);
+    if (surgeData) setSettings(s => ({ ...s, ...surgeData }));
+  }, [surgeData]);
 
   const update = (key: keyof SurgeSettings, value: boolean | number) =>
     setSettings(s => ({ ...s, [key]: value }));
@@ -63,6 +73,20 @@ export function SurgePricingSettings() {
   };
 
   const pct = (m: number) => `+${Math.round((m - 1) * 100)}%`;
+
+  if (surgeError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <TrendingUp className="w-4 h-4" />
+            Dynamic / Surge Pricing
+          </CardTitle>
+        </CardHeader>
+        <CardContent><QueryError subject="surge pricing settings" onRetry={() => void refetch()} /></CardContent>
+      </Card>
+    );
+  }
 
   if (loading) return <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>;
 

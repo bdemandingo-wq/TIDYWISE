@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Bell, Loader2, Save } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 
 interface AlertSettings {
   organization_id: string;
@@ -32,27 +34,34 @@ const DEFAULTS: Omit<AlertSettings, 'organization_id'> = {
 
 export function ZapierAlertSettingsCard() {
   const { organization } = useOrganization();
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [s, setS] = useState<AlertSettings | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (!organization?.id) return;
-      setLoading(true);
-      const { data } = await (supabase as any)
+  const { data: alertData, isLoading: loading, error: alertError, refetch } = useQuery({
+    queryKey: ['zapier-alert-settings', organization?.id],
+    queryFn: async () => {
+      if (!organization?.id) return null;
+      const { data, error } = await (supabase as any)
         .from('org_zapier_alert_settings')
         .select('*')
         .eq('organization_id', organization.id)
         .maybeSingle();
-      setS({
-        organization_id: organization.id,
-        ...DEFAULTS,
-        ...(data ?? {}),
-      } as AlertSettings);
-      setLoading(false);
-    })();
-  }, [organization?.id]);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organization?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  useEffect(() => {
+    if (!organization?.id) return;
+    if (alertError) return; // Don't populate form with defaults on error
+    setS({
+      organization_id: organization.id,
+      ...DEFAULTS,
+      ...(alertData ?? {}),
+    } as AlertSettings);
+  }, [alertData, alertError, organization?.id]);
 
   const save = async () => {
     if (!s || !organization?.id) return;
@@ -80,7 +89,9 @@ export function ZapierAlertSettingsCard() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading || !s ? (
+        {alertError ? (
+          <QueryError subject="alert settings" onRetry={() => void refetch()} />
+        ) : loading || !s ? (
           <div className="py-6 flex justify-center text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>

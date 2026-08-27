@@ -11,6 +11,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
+import { QueryError } from '@/components/QueryError';
 
 export function InvoiceDesignSettings() {
   const { organization } = useOrganization();
@@ -101,6 +102,10 @@ export function InvoiceDesignSettings() {
       setSaving(false);
     }
   };
+
+  if (branding.error) {
+    return <QueryError subject="invoice branding" />;
+  }
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;

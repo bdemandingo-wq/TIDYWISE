@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { useServicePricing } from "@/hooks/useServicePricing";
+import { QueryError } from "@/components/QueryError";
 
 interface Extra {
   id: string;
@@ -185,7 +186,7 @@ function EditableExtrasSection({
 
 export function ExtrasPricingManager() {
   const { organization } = useOrganization();
-  const { servicePricing, getServicePricing, saveServicePricing, loading: pricingLoading } = useServicePricing();
+  const { servicePricing, getServicePricing, saveServicePricing, loading: pricingLoading, error: pricingError, refetch } = useServicePricing();
 
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServiceId, setSelectedServiceId] = useState<string>("");
@@ -261,6 +262,10 @@ export function ExtrasPricingManager() {
     () => services.find((s) => s.id === selectedServiceId)?.name,
     [services, selectedServiceId]
   );
+
+  if (pricingError) {
+    return <QueryError subject="extras pricing" onRetry={refetch} />;
+  }
 
   if (isLoading) {
     return (

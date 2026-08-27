@@ -24,6 +24,7 @@ import {
 } from '@/lib/invoiceUtils';
 import { InvoiceDocument } from './invoice/InvoiceDocument';
 import { useInvoiceBusinessInfo } from '@/hooks/useInvoiceBusinessInfo';
+import { QueryError } from '@/components/QueryError';
 
 interface InvoiceViewDialogProps {
   open: boolean;
@@ -43,6 +44,13 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
   const businessInfo = useInvoiceBusinessInfo();
 
   if (!invoice) return null;
+  if (businessInfo.error) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent><QueryError subject="business info for invoice" /></DialogContent>
+      </Dialog>
+    );
+  }
 
   const contact = getInvoiceContact(invoice);
   const lineItems = getInvoiceLineItems(invoice);
