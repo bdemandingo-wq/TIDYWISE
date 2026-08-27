@@ -25,7 +25,7 @@ export function useServicePricing() {
   const { organization } = useOrganization();
   const queryClient = useQueryClient();
 
-  const { data: servicePricing = new Map<string, ServicePricingData>(), isLoading: loading } = useQuery({
+  const { data: servicePricing = new Map<string, ServicePricingData>(), isLoading: loading, error: servicePricingError } = useQuery({
     queryKey: ['service-pricing', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return new Map<string, ServicePricingData>();
@@ -122,6 +122,9 @@ export function useServicePricing() {
   return {
     servicePricing,
     loading,
+    /** Non-null when the pricing fetch failed. Consumers that compute prices
+     *  (BookingFormContext) must not quote a number they cannot verify. */
+    error: servicePricingError as Error | null,
     getServicePricing,
     saveServicePricing,
     refetch,

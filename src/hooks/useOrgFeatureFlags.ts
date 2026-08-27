@@ -21,7 +21,7 @@ const DEFAULT_FLAGS: OrgFeatureFlags = {
 export function useOrgFeatureFlags() {
   const { organizationId } = useOrgId();
 
-  const { data: flags, isLoading } = useQuery({
+  const { data: flags, isLoading, error: flagsError } = useQuery({
     queryKey: ['org-feature-flags', organizationId],
     queryFn: async () => {
       if (!organizationId) return DEFAULT_FLAGS;

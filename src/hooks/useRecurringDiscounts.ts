@@ -15,11 +15,12 @@ import {
 export function useRecurringDiscounts(): {
   config: RecurringDiscountConfig;
   loading: boolean;
+  error: Error | null;
   refetch: () => void;
 } {
   const { organization } = useOrganization();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['recurring-discounts', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -45,6 +46,7 @@ export function useRecurringDiscounts(): {
       ? configFromBusinessSettings(data as unknown as Parameters<typeof configFromBusinessSettings>[0])
       : HARDCODED_DEFAULTS,
     loading: isLoading,
+    error: (error as Error | null),
     refetch: () => void refetch(),
   };
 }

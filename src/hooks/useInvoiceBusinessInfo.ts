@@ -40,13 +40,14 @@ export interface InvoiceBusinessInfo {
   headerLayout: 'left' | 'center' | 'right';
   footerMessage: string | null;
   isLoading: boolean;
+  error: Error | null;
 }
 
 export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
 
-  const { data: businessSettings, isLoading } = useQuery({
+  const { data: businessSettings, isLoading, error: businessSettingsError } = useQuery({
     queryKey: ['business-settings', organizationId],
     queryFn: async () => {
       if (!organizationId) return null;
@@ -64,7 +65,7 @@ export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
 
   // from_name is readable directly — only the Resend key is withheld from
   // the client (see PayrollPeriodSettings for the same read).
-  const { data: fromName } = useQuery({
+  const { data: fromName, error: fromNameError } = useQuery({
     queryKey: ['org-email-from-name', organizationId],
     queryFn: async () => {
       if (!organizationId) return null;
@@ -121,5 +122,6 @@ export function useInvoiceBusinessInfo(): InvoiceBusinessInfo {
       layout === 'center' || layout === 'right' ? layout : 'left',
     footerMessage: settings?.invoice_footer_message ?? null,
     isLoading,
+    error: (businessSettingsError || fromNameError) as Error | null,
   };
 }

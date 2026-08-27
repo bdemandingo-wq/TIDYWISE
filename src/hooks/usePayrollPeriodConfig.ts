@@ -6,7 +6,7 @@ import { type PayrollPeriodConfig, DEFAULT_PAYROLL_CONFIG } from '@/lib/payrollP
 export function usePayrollPeriodConfig() {
   const { organizationId } = useOrgId();
 
-  const { data: config = DEFAULT_PAYROLL_CONFIG, isLoading } = useQuery({
+  const { data: config = DEFAULT_PAYROLL_CONFIG, isLoading, error: configError } = useQuery({
     queryKey: ['payroll-period-config', organizationId],
     queryFn: async (): Promise<PayrollPeriodConfig> => {
       if (!organizationId) return DEFAULT_PAYROLL_CONFIG;
@@ -26,5 +26,5 @@ export function usePayrollPeriodConfig() {
     enabled: !!organizationId,
   });
 
-  return { config, isLoading };
+  return { config, isLoading, error: configError as Error | null };
 }
