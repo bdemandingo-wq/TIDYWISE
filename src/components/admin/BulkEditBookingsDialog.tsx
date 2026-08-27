@@ -57,7 +57,7 @@ export function BulkEditBookingsDialog({
   services,
 }: BulkEditBookingsDialogProps) {
   const queryClient = useQueryClient();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   // Filters
   const [filterCustomerId, setFilterCustomerId] = useState<string>('all');

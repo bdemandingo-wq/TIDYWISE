@@ -172,7 +172,7 @@ const migrateMarketingChannels = (data: any, channelNames: { [key: string]: stri
 };
 
 export function PnLOverview({ bookings, customers }: PnLOverviewProps) {
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const orgId = useOrgId();
   const { toast } = useToast();
   const [settings, setSettings] = useState<PnLSettings>(defaultSettings);

@@ -18,7 +18,7 @@ import { useOrgTimezone } from '@/hooks/useOrgTimezone';
  */
 const ReferralPanel = () => {
   const { data, isLoading, error } = useReferrals();
-  const timeZone = useOrgTimezone();
+  const { timezone: timeZone } = useOrgTimezone();
   const [copied, setCopied] = useState(false);
 
   // Not eligible: render nothing at all rather than a promise we cannot keep.

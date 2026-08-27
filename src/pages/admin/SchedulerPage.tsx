@@ -42,7 +42,7 @@ const filterLabels: Record<StatusFilter, string> = {
 export default function SchedulerPage() {
   const { data: staff = [] } = useStaff();
   const { data: bookings = [] } = useBookings();
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const [exporting, setExporting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [staffFilter, setStaffFilter] = useState<string | null>(null);

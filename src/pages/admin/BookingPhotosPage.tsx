@@ -92,7 +92,7 @@ function SignedVideo({ src, bucket, className }: { src: string; bucket: string; 
 
 export default function BookingPhotosPage() {
   const { organization } = useOrganization();
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');

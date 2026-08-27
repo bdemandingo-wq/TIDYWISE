@@ -253,7 +253,7 @@ export default function TrackingPage() {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const orgId = organization?.id;
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const [activeJobs, setActiveJobs] = useState<ActiveTracking[]>([]);
   const [historicalJobs, setHistoricalJobs] = useState<HistoricalTracking[]>([]);
   const [loading, setLoading] = useState(true);

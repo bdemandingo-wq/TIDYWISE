@@ -21,6 +21,7 @@ import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock } from 'lucide-react
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { calendarDayKey, orgDateKey, orgStartOfMonth, orgEndOfMonth } from '@/lib/orgDateRange';
 import { formatInTimezone, getDateInTimezone } from '@/lib/timezoneUtils';
+import { QueryError } from '@/components/QueryError';
 
 interface Booking {
   id: string;
@@ -48,10 +49,10 @@ interface Props {
 export function CleanerCalendar({ staffId, organizationId }: Props) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const orgTimezone = useOrgTimezone(organizationId);
+  const { timezone: orgTimezone } = useOrgTimezone(organizationId);
 
   // Fetch all bookings for the month
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading, error: bookingsError } = useQuery({
     /* eslint-disable-next-line local/no-device-local-dates -- cache key: which month is displayed */
     queryKey: ['cleaner-calendar', staffId, format(currentMonth, 'yyyy-MM'), orgTimezone],
     queryFn: async () => {
@@ -134,6 +135,10 @@ export function CleanerCalendar({ staffId, organizationId }: Props) {
     );
     setSelectedDate(null);
   };
+
+  if (bookingsError) {
+    return <QueryError subject="calendar bookings" />;
+  }
 
   return (
     <div className="space-y-6">

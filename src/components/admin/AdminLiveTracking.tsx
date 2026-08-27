@@ -95,7 +95,7 @@ export function AdminLiveTracking({
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [drivingEta, setDrivingEta] = useState<DrivingETA | null>(null);
   const [, setTick] = useState(0);
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   // Tick every 30s so "X min ago" / stale state updates without new GPS.
   useEffect(() => {

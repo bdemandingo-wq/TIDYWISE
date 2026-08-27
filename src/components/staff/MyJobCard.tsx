@@ -81,7 +81,7 @@ interface Props {
 }
 
 export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photoReqs, propertyNote, photoCount: initialPhotoCount, onTheWaySent: initialOnTheWaySent, onUpdateStatus, isUpdating }: Props) {
-  const orgTimezone = useOrgTimezone(organizationId);
+  const { timezone: orgTimezone } = useOrgTimezone(organizationId);
   const extraLabels = extrasToLabels(booking.extras, orgExtras);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [isSendingOnTheWay, setIsSendingOnTheWay] = useState(false);

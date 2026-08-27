@@ -60,7 +60,7 @@ export function BookingDetailsDialog({
   const [sendingLink, setSendingLink] = useState(false);
   const [creatingQuote, setCreatingQuote] = useState(false);
   const { organizationId } = useOrgId();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   if (!booking) return null;
 
@@ -348,7 +348,7 @@ export function EditBookingDialog({
 }) {
   const { organizationId } = useOrgId();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const updateBooking = useUpdateBooking();
 
   const initial = useMemo(() => {

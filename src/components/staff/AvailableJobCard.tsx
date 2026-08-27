@@ -60,7 +60,7 @@ interface Props {
 }
 
 export function AvailableJobCard({ booking, staffInfo, organizationId, orgExtras, onAssign, isAssigning, claimingBookingId }: Props) {
-  const orgTimezone = useOrgTimezone(organizationId);
+  const { timezone: orgTimezone } = useOrgTimezone(organizationId);
   const extraLabels = extrasToLabels(booking.extras, orgExtras);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const isClaimingThisJob = isAssigning && claimingBookingId === booking.id;

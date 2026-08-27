@@ -18,7 +18,7 @@ interface RevenueChartProps {
 }
 
 export function RevenueChart({ bookings }: RevenueChartProps) {
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   const chartData = useMemo(() => {
     const last7Days: { date: string; revenue: number; bookings: number }[] = [];

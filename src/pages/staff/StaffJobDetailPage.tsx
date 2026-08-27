@@ -122,7 +122,7 @@ export default function StaffJobDetailPage() {
     },
   });
 
-  const orgTz = useOrgTimezone(staffRow?.organization_id ?? null);
+  const { timezone: orgTz } = useOrgTimezone(staffRow?.organization_id ?? null);
   /* extras are slugs; labels are per-org. Same resolver MyJobCard uses. */
   const { data: orgExtras = [] } = useOrgExtrasCatalogue(staffRow?.organization_id ?? null);
   /* resolveCleanerPay mirrors the payout engine deliberately, so this screen

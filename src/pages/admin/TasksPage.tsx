@@ -56,7 +56,7 @@ interface Task {
 
 export default function TasksPage() {
   // Task resets and due dates are the business's calendar days.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organizationId } = useOrgId();
   const { user } = useAuth();
   const queryClient = useQueryClient();

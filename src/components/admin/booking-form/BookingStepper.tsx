@@ -186,7 +186,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
   
   // Get all bookings to check for future recurring bookings
   const { data: allBookings = [] } = useBookings();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -299,6 +299,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
     staff,
     conflictOverride,
     selectedChecklistId,
+    pricingError,
   } = useBookingForm();
 
   // Get customer phone for quote SMS
@@ -1657,9 +1658,14 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
 
           {/* Actions */}
           <div className="space-y-2">
+            {pricingError && (
+              <p className="text-sm text-destructive text-center py-2">
+                Could not load pricing — saving is disabled until pricing loads.
+              </p>
+            )}
             <Button
               onClick={() => handleSubmit(false)}
-              disabled={submitting || savingDraft}
+              disabled={submitting || savingDraft || !!pricingError}
               className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1669,7 +1675,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             <Button
               variant="secondary"
               onClick={() => handleSubmit(true)}
-              disabled={savingDraft || submitting}
+              disabled={savingDraft || submitting || !!pricingError}
               className="w-full h-11"
             >
               {savingDraft && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1680,7 +1686,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             <Button
               variant="outline"
               onClick={handleSendQuoteEmail}
-              disabled={sendingQuoteEmail}
+              disabled={sendingQuoteEmail || !!pricingError}
               className="w-full h-11"
             >
               {sendingQuoteEmail && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

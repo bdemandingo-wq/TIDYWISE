@@ -197,6 +197,9 @@ interface BookingFormContextType extends BookingFormState {
   loadCardInfo: (email: string) => Promise<void>;
   resetForm: () => void;
   prefillFromBooking: (booking: BookingWithDetails) => void;
+  /** Non-null when the service pricing query failed. The form must not submit
+   *  a price it cannot verify — it would fall back to hardcoded defaults. */
+  pricingError: Error | null;
 }
 
 const BookingFormContext = createContext<BookingFormContextType | undefined>(undefined);
@@ -228,10 +231,10 @@ export function BookingFormProvider({
   const { data: staff = [] } = useStaff();
   const { organizationId } = useOrgId();
   const { session } = useAuth();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   
   // Service-specific pricing from database
-  const { getServicePricing, loading: pricingLoading } = useServicePricing();
+  const { getServicePricing, loading: pricingLoading, error: pricingError } = useServicePricing();
   const { settings: orgSettings } = useOrganizationSettings();
   // Per-org recurring discount config (one_time / monthly / biweekly / weekly).
   // Falls back to the previous hardcoded values when business_settings is
@@ -312,7 +315,7 @@ export function BookingFormProvider({
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
   // Fetch saved locations for the selected customer
-  const { data: customerLocations = [] } = useQuery({
+  const { data: customerLocations = [], error: customerLocationsError } = useQuery({
     queryKey: ['customer-locations', selectedCustomerId],
     queryFn: async () => {
       if (!selectedCustomerId) return [];
@@ -844,6 +847,7 @@ export function BookingFormProvider({
       loadCardInfo,
       resetForm,
       prefillFromBooking,
+      pricingError,
     }}>
       {children}
     </BookingFormContext.Provider>

@@ -39,7 +39,7 @@ export function PaymentHistoryDialog({
   const [loading, setLoading] = useState(true);
   const [totals, setTotals] = useState({ paid: 0, pending: 0, total: 0 });
   const { organization } = useOrganization();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   useEffect(() => {
     if (open && customerId && organization?.id) {

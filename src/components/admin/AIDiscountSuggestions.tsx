@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Sparkles, Calendar, ArrowRight, Loader2, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 import { supabase } from '@/lib/supabase';
 import { useQuery } from '@tanstack/react-query';
 import { format, addDays, differenceInDays, startOfMonth, endOfMonth } from 'date-fns';
@@ -135,14 +136,14 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
   const { organization } = useOrganization();
   // Every window and validity date below belongs to the business's calendar,
   // not to whichever device is looking at the suggestions.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- now is intentionally recreated each render; the useMemo at line 352 uses it for date math
   const now = new Date();
   const holidays = useMemo(() => getUpcomingHolidays(orgTimezone, 60), [orgTimezone]);
   const season = useMemo(() => getSeason(orgTimezone), [orgTimezone]);
 
   // Fetch business data for suggestions
-  const { data: businessData, isLoading } = useQuery({
+  const { data: businessData, isLoading, error: businessDataError } = useQuery({
     queryKey: ['discount-suggestions-data', organization?.id],
     queryFn: async () => {
       if (!organization?.id) return null;
@@ -377,7 +378,9 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isLoading ? (
+          {businessDataError ? (
+            <QueryError subject="discount suggestion data" />
+          ) : isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-lg border bg-card">

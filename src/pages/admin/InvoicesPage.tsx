@@ -164,7 +164,7 @@ export default function InvoicesPage() {
   const { isTestMode, maskName, maskEmail, maskAmount } = useTestMode();
   // Invoice due dates are calendar dates in the BUSINESS's calendar — a
   // payment deadline the customer sees, not a device-local one.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organization } = useOrganization();
 
   const { data: invoices = [], isLoading, error: invoicesError } = useQuery({

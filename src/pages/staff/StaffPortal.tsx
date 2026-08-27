@@ -159,7 +159,7 @@ export default function StaffPortal() {
   // the day of the business whose job list is on screen, which in the fallback
   // case is not the context's org. Passing activeOrgId explicitly keeps the
   // times right without writing the staff portal's choice back to the context.
-  const orgTimezone = useOrgTimezone(activeOrgId);
+  const { timezone: orgTimezone } = useOrgTimezone(activeOrgId);
   // Slug -> label map for booking add-ons. Per-org: the same slug means
   // different work at different businesses.
   const { data: orgExtras = [] } = useOrgExtrasCatalogue(activeOrgId);

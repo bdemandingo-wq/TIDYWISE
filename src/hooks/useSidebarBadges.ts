@@ -55,7 +55,7 @@ export interface SidebarBadgeData {
 
 export function useSidebarBadgesFull(): SidebarBadgeData {
   // Badge counts are per BUSINESS day.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organization } = useOrganization();
   const { hasFinancialAccess, isOwner } = useOrgRole();
   const orgId = organization?.id;
@@ -99,7 +99,10 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   const POLLED = { refetchInterval: 300_000, refetchIntervalInBackground: false, staleTime: 120_000, refetchOnWindowFocus: true };
 
   // ── Staff
-  const { data: staff = { timeOff: 0, docs: 0, payout: 0 } } = useQuery({
+  // Destructure `error` on every badge query. A failed badge must not show 0
+  // (which reads as "nothing needs attention"); it must show nothing at all.
+  // The useMemo below treats null data as "unknown" and hides the badge.
+  const { data: staff = null, error: staffError } = useQuery<{ timeOff: number; docs: number; payout: number }>({
     queryKey: ['sb-staff', orgId, payoutRequired],
     enabled,
     ...REALTIME_BACKED,
@@ -120,7 +123,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Bookings
-  const { data: bookings = { pending: 0, unassigned: 0, payment: 0, chargeFailed: 0 } } = useQuery({
+  const { data: bookings = null, error: bookingsError } = useQuery<{ pending: number; unassigned: number; payment: number; chargeFailed: number }>({
     queryKey: ['sb-bookings', orgId, orgTimezone],
     enabled,
     ...REALTIME_BACKED,
@@ -184,7 +187,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Client Portal
-  const { data: clientPortal = 0 } = useQuery({
+  const { data: clientPortal = null, error: clientPortalError } = useQuery<number>({
     queryKey: ['sb-client-portal', orgId],
     enabled,
     ...REALTIME_BACKED,
@@ -196,7 +199,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Invoices
-  const { data: invoices = { overdue: 0 } } = useQuery({
+  const { data: invoices = null, error: invoicesError } = useQuery<{ overdue: number }>({
     queryKey: ['sb-invoices', orgId],
     enabled: enabled && hasFinancialAccess,
     ...POLLED,
@@ -225,7 +228,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Messages
-  const { data: messages = { unreadConvs: 0, unreadTotal: 0 } } = useQuery({
+  const { data: messages = null, error: messagesError } = useQuery<{ unreadConvs: number; unreadTotal: number }>({
     queryKey: ['sb-messages', orgId],
     enabled,
     ...REALTIME_BACKED,
@@ -240,7 +243,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Tasks
-  const { data: tasks = { open: 0, overdue: 0 } } = useQuery({
+  const { data: tasks = null, error: tasksError } = useQuery<{ open: number; overdue: number }>({
     queryKey: ['sb-tasks', orgId],
     enabled,
     ...REALTIME_BACKED,
@@ -262,7 +265,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Leads (actionable = new + follow_up)
-  const { data: leads = { newCount: 0, followUp: 0 } } = useQuery({
+  const { data: leads = null, error: leadsError } = useQuery<{ newCount: number; followUp: number }>({
     queryKey: ['sb-leads', orgId],
     enabled,
     ...REALTIME_BACKED,
@@ -277,7 +280,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Inventory
-  const { data: inventory = 0 } = useQuery({
+  const { data: inventory = null, error: inventoryError } = useQuery<number>({
     queryKey: ['sb-inventory', orgId],
     enabled,
     ...POLLED,
@@ -289,7 +292,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Automation
-  const { data: automation = 0 } = useQuery({
+  const { data: automation = null, error: automationError } = useQuery<number>({
     queryKey: ['sb-automation', orgId],
     enabled,
     ...POLLED,
@@ -302,7 +305,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Campaigns
-  const { data: campaigns = 0 } = useQuery({
+  const { data: campaigns = null, error: campaignsError } = useQuery<number>({
     queryKey: ['sb-campaigns', orgId],
     enabled,
     ...POLLED,
@@ -318,7 +321,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   });
 
   // ── Payment Setup (owner only)
-  const { data: payment = 0 } = useQuery({
+  const { data: payment = null, error: paymentError } = useQuery<number>({
     queryKey: ['sb-payment', orgId],
     enabled: enabled && isOwner,
     ...POLLED,
@@ -335,7 +338,7 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
   // ── Feedback (unresolved + follow-up-not-yet-resolved, counted separately
   //     so the sidebar always matches the on-page filter counts.)
-  const { data: feedback = { unresolved: 0, followup: 0 } } = useQuery({
+  const { data: feedback = null, error: feedbackError } = useQuery<{ unresolved: number; followup: number }>({
     queryKey: ['sb-feedback', orgId],
     enabled,
     ...REALTIME_BACKED,
@@ -374,32 +377,25 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
   }, [orgId, queryClient]);
 
   return useMemo<SidebarBadgeData>(() => {
-    const g = (n: number, key: string) => (on(key) ? n : 0);
+    // `g` gates a count by notification preferences. If the query failed (data
+    // is null), the count is 0 — meaning the badge hides entirely for that
+    // section rather than showing a misleading zero. A badge that reads "0"
+    // asserts "nothing needs attention"; hiding it says "we don't know."
+    const g = (n: number | null, key: string) => (n != null && on(key) ? n : 0);
     const push = (arr: BadgeReason[], r: BadgeReason) => { if (r.count > 0) arr.push(r); };
 
-    // Staff
+    // Staff — if query failed, all three sub-counts are null → badge hidden
     const staffReasons: BadgeReason[] = [];
-    push(staffReasons, { key: 'time_off', label: 'time-off request', count: g(staff.timeOff, 'staff.time_off') });
-    push(staffReasons, { key: 'docs', label: 'document review', count: g(staff.docs, 'staff.documents') });
-    if (payoutRequired) push(staffReasons, { key: 'payout', label: 'payout issue', count: g(staff.payout, 'staff.payout') });
+    push(staffReasons, { key: 'time_off', label: 'time-off request', count: g(staff?.timeOff ?? null, 'staff.time_off') });
+    push(staffReasons, { key: 'docs', label: 'document review', count: g(staff?.docs ?? null, 'staff.documents') });
+    if (payoutRequired) push(staffReasons, { key: 'payout', label: 'payout issue', count: g(staff?.payout ?? null, 'staff.payout') });
 
     // Bookings
     const bookingReasons: BadgeReason[] = [];
-    push(bookingReasons, { key: 'pending', label: 'pending booking', count: g(bookings.pending, 'bookings.pending') });
-    push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings.unassigned, 'bookings.unassigned') });
-    // Labelled by what it actually queries: payment_status 'pending' on a job
-    // whose date has passed. It said "failed payment", which is a different
-    // and more alarming thing than an invoice nobody has settled yet.
-    // Both payment sub-counts sit under the one 'bookings.payment' preference.
-    // They are the same concern — money on a booking that needs chasing — and
-    // splitting them would mean a new notificationCatalog key and a new row in
-    // the preferences UI for a distinction the operator does not make.
-    //
-    // The pluraliser in BadgeWithReasons appends a bare 's', so these labels
-    // have to read correctly with one appended. That is why this says
-    // "uncollected job" rather than "uncollected this week".
-    push(bookingReasons, { key: 'payment', label: 'uncollected job', count: g(bookings.payment, 'bookings.payment') });
-    push(bookingReasons, { key: 'chargeFailed', label: 'failed card charge', count: g(bookings.chargeFailed, 'bookings.payment') });
+    push(bookingReasons, { key: 'pending', label: 'pending booking', count: g(bookings?.pending ?? null, 'bookings.pending') });
+    push(bookingReasons, { key: 'unassigned', label: 'unassigned booking', count: g(bookings?.unassigned ?? null, 'bookings.unassigned') });
+    push(bookingReasons, { key: 'payment', label: 'uncollected job', count: g(bookings?.payment ?? null, 'bookings.payment') });
+    push(bookingReasons, { key: 'chargeFailed', label: 'failed card charge', count: g(bookings?.chargeFailed ?? null, 'bookings.payment') });
 
     // Scheduler intentionally has no badge — unassigned jobs surface on the
     // Bookings item, and duplicating the count here produced a "phantom"
@@ -412,22 +408,22 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Invoices
     const invoiceReasons: BadgeReason[] = [];
-    push(invoiceReasons, { key: 'overdue', label: 'overdue invoice', count: g(invoices.overdue, 'payments.failed_charges') });
+    push(invoiceReasons, { key: 'overdue', label: 'overdue invoice', count: g(invoices?.overdue ?? null, 'payments.failed_charges') });
 
     // Messages
     const messageReasons: BadgeReason[] = [];
-    push(messageReasons, { key: 'unread', label: 'unread conversation', count: g(messages.unreadConvs, 'messages.unread') });
+    push(messageReasons, { key: 'unread', label: 'unread conversation', count: g(messages?.unreadConvs ?? null, 'messages.unread') });
 
     // Tasks
     const taskReasons: BadgeReason[] = [];
-    push(taskReasons, { key: 'overdue', label: 'overdue task', count: g(tasks.overdue, 'tasks.overdue') });
-    const openMinusOverdue = Math.max(0, tasks.open - tasks.overdue);
+    push(taskReasons, { key: 'overdue', label: 'overdue task', count: g(tasks?.overdue ?? null, 'tasks.overdue') });
+    const openMinusOverdue = tasks ? Math.max(0, tasks.open - tasks.overdue) : null;
     push(taskReasons, { key: 'open', label: 'open task', count: g(openMinusOverdue, 'tasks.open') });
 
     // Leads
     const leadReasons: BadgeReason[] = [];
-    push(leadReasons, { key: 'new', label: 'new lead', count: g(leads.newCount, 'leads.new') });
-    push(leadReasons, { key: 'follow_up', label: 'lead needs follow-up', count: g(leads.followUp, 'leads.new') });
+    push(leadReasons, { key: 'new', label: 'new lead', count: g(leads?.newCount ?? null, 'leads.new') });
+    push(leadReasons, { key: 'follow_up', label: 'lead needs follow-up', count: g(leads?.followUp ?? null, 'leads.new') });
 
     // Inventory
     const invReasons: BadgeReason[] = [];
@@ -445,8 +441,8 @@ export function useSidebarBadgesFull(): SidebarBadgeData {
 
     // Feedback
     const fbReasons: BadgeReason[] = [];
-    push(fbReasons, { key: 'unresolved', label: 'unresolved feedback', count: g(feedback.unresolved, 'feedback.low_rating') });
-    push(fbReasons, { key: 'followup', label: 'needs follow-up', count: g(feedback.followup, 'feedback.low_rating') });
+    push(fbReasons, { key: 'unresolved', label: 'unresolved feedback', count: g(feedback?.unresolved ?? null, 'feedback.low_rating') });
+    push(fbReasons, { key: 'followup', label: 'needs follow-up', count: g(feedback?.followup ?? null, 'feedback.low_rating') });
 
     const sum = (arr: BadgeReason[]) => arr.reduce((s, r) => s + r.count, 0);
 

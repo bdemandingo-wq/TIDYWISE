@@ -39,7 +39,7 @@ export function useCleanerConflicts(
   duration: number = 120, // default 2 hours
   currentBookingId?: string // Exclude this booking when editing
 ) {
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [allBookingsOnDate, setAllBookingsOnDate] = useState<any[]>([]);
   const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [timeOffStaffIds, setTimeOffStaffIds] = useState<Set<string>>(new Set());

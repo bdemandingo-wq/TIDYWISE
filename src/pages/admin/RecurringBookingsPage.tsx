@@ -212,7 +212,7 @@ function formatDateKey(d: Date, timeZone: string): string {
 export default function RecurringBookingsPage() {
   // Recurrence is the BUSINESS's calendar: which weekday a series lands on,
   // and therefore which per-day price applies.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState<RecurringBooking | null>(null);
   const queryClient = useQueryClient();

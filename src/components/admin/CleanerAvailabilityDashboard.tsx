@@ -40,7 +40,7 @@ const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export function CleanerAvailabilityDashboard({ bookings, staff, workingHours }: CleanerAvailabilityDashboardProps) {
   // Availability is judged against the BUSINESS's today.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   // The cell's own calendar day against the org's today — the ring used to
   // come from isSameDay(day, new Date()), i.e. the viewer's.
   const isOrgTodayCell = (day: Date) => calendarDayKey(day) === orgDateKey(new Date(), orgTimezone);

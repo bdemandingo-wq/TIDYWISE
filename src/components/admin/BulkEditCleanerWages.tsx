@@ -27,6 +27,7 @@ import { format } from 'date-fns';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { formatInTimezone } from '@/lib/timezoneUtils';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { QueryError } from '@/components/QueryError';
 
 interface BookingWithWage {
   id: string;
@@ -53,7 +54,7 @@ interface BookingWithWage {
 export function BulkEditCleanerWages() {
   const { organization } = useOrganization();
   const organizationId = organization?.id;
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [bulkWageType, setBulkWageType] = useState<string>('');
@@ -64,7 +65,7 @@ export function BulkEditCleanerWages() {
 
   const queryClient = useQueryClient();
 
-  const { data: bookings = [], isLoading } = useQuery({
+  const { data: bookings = [], isLoading, error: bookingsError } = useQuery({
     queryKey: ['bookings-wages', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -297,6 +298,10 @@ export function BulkEditCleanerWages() {
   };
 
   const hasUnsavedChanges = Object.keys(localEdits).length > 0;
+
+  if (bookingsError) {
+    return <QueryError subject="bookings" />;
+  }
 
   return (
     <div className="space-y-6">

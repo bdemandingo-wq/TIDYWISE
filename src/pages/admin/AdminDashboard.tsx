@@ -92,7 +92,7 @@ export default function AdminDashboard() {
 
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
 
   const todayStats = useMemo(() => {

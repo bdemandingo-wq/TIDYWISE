@@ -144,7 +144,7 @@ const formatUnreadCount = (count: number) => {
 // ─── Component ──────────────────────────────────────
 export default function MessagesPage() {
   // Message day-grouping follows the business's calendar.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organizationId } = useOrgId();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

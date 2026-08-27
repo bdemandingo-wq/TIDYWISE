@@ -54,7 +54,7 @@ const defaultEmailSettings: EmailSettings = {
 
 export function EmailSettingsCard() {
   // Send counts are per BUSINESS day.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organization, isAdmin } = useOrganization();
   const [settings, setSettings] = useState<EmailSettings>(defaultEmailSettings);
   const [loading, setLoading] = useState(true);

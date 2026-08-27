@@ -64,7 +64,7 @@ export function UpcomingBookings({ bookings }: UpcomingBookingsProps) {
   const [editingBooking, setEditingBooking] = useState<BookingWithDetails | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress, maskAmount } = useTestMode();
   const { organization } = useOrganization();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   const upcomingBookings = useMemo(() => {
     const todayStr = getDateInTimezone(new Date(), orgTimezone);

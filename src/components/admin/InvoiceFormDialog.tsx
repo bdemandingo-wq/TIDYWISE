@@ -18,6 +18,7 @@ import { CustomerSearchInput } from '@/components/admin/CustomerSearchInput';
 import { LeadSearchInput } from '@/components/admin/LeadSearchInput';
 import { Search, X, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QueryError } from '@/components/QueryError';
 import {
   Collapsible,
   CollapsibleContent,
@@ -88,7 +89,7 @@ export function InvoiceFormDialog({
   // Sheet states
   // Invoice due dates are calendar dates in the BUSINESS's calendar — a
   // payment deadline the customer sees, not a device-local one.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [paymentMethodsOpen, setPaymentMethodsOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [dueDateOpen, setDueDateOpen] = useState(false);
@@ -120,7 +121,7 @@ export function InvoiceFormDialog({
   const [ccInput, setCcInput] = useState('');
 
   // Fetch payment settings for display
-  const { data: paymentSettings } = useQuery({
+  const { data: paymentSettings, error: paymentSettingsError } = useQuery({
     queryKey: ['invoice-settings', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -135,7 +136,7 @@ export function InvoiceFormDialog({
   });
 
   // Check if Stripe is configured
-  const { data: stripeSettings } = useQuery({
+  const { data: stripeSettings, error: stripeSettingsError } = useQuery({
     queryKey: ['org-stripe-check', organizationId],
     queryFn: async () => {
       const { data: rows, error } = await supabase
@@ -149,7 +150,7 @@ export function InvoiceFormDialog({
   const isStripeConfigured = !!stripeSettings?.is_connected;
 
   // Fetch payment reminders for display
-  const { data: reminders = [] } = useQuery({
+  const { data: reminders = [], error: remindersError } = useQuery({
     queryKey: ['payment-reminders', organizationId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -528,6 +529,11 @@ export function InvoiceFormDialog({
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto pb-36">
+            {(paymentSettingsError || stripeSettingsError || remindersError || businessInfo.error) && (
+              <div className="px-4 pt-3">
+                <QueryError subject="invoice settings" />
+              </div>
+            )}
             {/* Customer Details Section */}
             <Collapsible open={customerOpen} onOpenChange={setCustomerOpen}>
               <SectionHeader title="Customer Details" isOpen={customerOpen} onToggle={() => setCustomerOpen(!customerOpen)} />

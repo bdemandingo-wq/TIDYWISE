@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { QueryError } from '@/components/QueryError';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,13 +38,13 @@ const statusStyle: Record<Row['status'], string> = {
 
 export function TimeOffRequests({ staffId, organizationId }: Props) {
   // Time-off dates are the business's calendar days.
-  const orgTimezone = useOrgTimezone(organizationId);
+  const { timezone: orgTimezone } = useOrgTimezone(organizationId);
   const qc = useQueryClient();
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [reason, setReason] = useState('');
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: rowsError } = useQuery({
     queryKey: ['time-off', staffId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -107,6 +108,10 @@ export function TimeOffRequests({ staffId, organizationId }: Props) {
   // Was the UTC date — a request made on a US evening compared against
   // tomorrow, so "past" dates could be rejected a day early.
   const today = useMemo(() => orgDateKey(new Date(), orgTimezone), [orgTimezone]);
+
+  if (rowsError) {
+    return <QueryError subject="time-off requests" />;
+  }
 
   return (
     <div className="space-y-4">

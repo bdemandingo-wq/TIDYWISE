@@ -49,7 +49,7 @@ export default function StaffHomePage() {
   const rows = rowsQ.data;
   const anyActive = !!rows?.some((r) => r.is_active);
   const staffRow = useMemo(() => rows?.find((r) => r.is_active) ?? null, [rows]);
-  const orgTz = useOrgTimezone(staffRow?.organization_id ?? null);
+  const { timezone: orgTz } = useOrgTimezone(staffRow?.organization_id ?? null);
 
   const profileQ = useQuery({
     queryKey: ['staff-profile', staffRow?.organization_id],

@@ -276,7 +276,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
   const [dayBookingsPopup, setDayBookingsPopup] = useState<{ date: Date; bookings: BookingWithDetails[] } | null>(null);
   const { isTestMode, maskName, maskEmail, maskAddress } = useTestMode();
   const { organization } = useOrganization();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   const { data: allBookings = [], isLoading, refetch } = useBookings();
 

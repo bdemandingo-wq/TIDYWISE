@@ -189,7 +189,7 @@ export default function PlatformAnalyticsPage() {
   const [cancelling, setCancelling] = useState(false);
   const [resubTarget, setResubTarget] = useState<Subscriber | null>(null);
   const [sendingResub, setSendingResub] = useState(false);
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
 
   // Apple Sign In client secret expiry
   const appleSecretDaysLeft = (() => {
@@ -319,7 +319,7 @@ export default function PlatformAnalyticsPage() {
   };
 
   // Fetch session data - ALL TIME for total sessions, 30d for avg duration
-  const { data: sessionStats, refetch: refetchSessions } = useQuery({
+  const { data: sessionStats, refetch: refetchSessions, error: sessionStatsError } = useQuery({
     queryKey: ['platform-session-stats'],
     queryFn: async (): Promise<SessionStatsResponse> => {
       // Fetch ALL TIME sessions for total count

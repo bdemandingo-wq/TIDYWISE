@@ -24,6 +24,7 @@ import { useOrgId } from '@/hooks/useOrgId';
 import { supabase } from '@/lib/supabase';
 import { saveBlob } from '@/lib/fileActions';
 import { fmt } from '@/lib/activeCurrency';
+import { QueryError } from '@/components/QueryError';
 import { orgDateKey, orgEndOfDay, orgStartOfDay } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 
@@ -46,7 +47,7 @@ interface BookingProfit {
 
 export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
   const { organizationId } = useOrgId();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const { isTestMode, maskName, maskAmount } = useTestMode();
 
@@ -56,7 +57,7 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
       .map((b) => b.id);
   }, [bookings]);
 
-  const { data: teamPaysByBooking = new Map<string, number>() } = useQuery({
+  const { data: teamPaysByBooking = new Map<string, number>(), error: teamPayError } = useQuery({
     queryKey: ['profit-margin-team-pay', organizationId, completedBookingIds.join(',')],
     queryFn: async () => {
       if (!organizationId || completedBookingIds.length === 0) return new Map<string, number>();
@@ -220,6 +221,10 @@ export function ProfitMarginReport({ bookings }: ProfitMarginReportProps) {
     /* eslint-disable-next-line local/no-device-local-dates -- names an export file with the downloader's own day; no org context here and nothing downstream reads it */
     void saveBlob(blob, `profit-margin-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
   };
+
+  if (teamPayError) {
+    return <QueryError subject="profit margin data" />;
+  }
 
   return (
     <div className="space-y-6">

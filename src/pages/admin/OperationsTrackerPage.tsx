@@ -55,7 +55,7 @@ interface OperationsEntry {
 export default function OperationsTrackerPage() {
   // Operations are logged against the BUSINESS's calendar day, and the weekly
   // and monthly rollups are its week and month.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<OperationsEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -535,7 +535,7 @@ function OperationsDialog({
   defaultDate?: Date;
   onSave: (data: Partial<OperationsEntry>) => void;
 }) {
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [formData, setFormData] = useState({
     track_date: '',
     incoming_calls: '0',

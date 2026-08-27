@@ -37,7 +37,7 @@ interface AdminNotification {
 export function AdminNotificationBell() {
   // The weekly reminder is about the BUSINESS's week and is dismissed per
   // business day, so both come from the org's clock.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { organizationId } = useOrgId();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);

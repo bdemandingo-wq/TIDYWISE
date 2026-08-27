@@ -110,7 +110,7 @@ const SOURCE_OPTIONS = [
 
 export default function LeadsPage() {
   // Leads are grouped and exported by the BUSINESS's month and day.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

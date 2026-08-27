@@ -173,7 +173,7 @@ export default function BookingsPage() {
   const [bulkDraftDeleteOpen, setBulkDraftDeleteOpen] = useState(false);
   const [bulkDraftDeleting, setBulkDraftDeleting] = useState(false);
   const isMobile = useIsMobile();
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

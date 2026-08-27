@@ -54,7 +54,7 @@ interface SeasonalFactor {
 
 export function RevenueForecasting({ bookings, recurringBookings = [] }: RevenueForecastingProps) {
   const { isTestMode } = useTestMode();
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [forecastMonths, setForecastMonths] = useState(6);
 
   // Calculate historical monthly data

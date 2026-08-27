@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { QueryError } from '@/components/QueryError';
 import {
   Brain, TrendingUp, Flame, Target,
   Send, Sparkles, Calendar, Users, ArrowUpRight,
@@ -41,7 +42,7 @@ async function invokeAi(fn: string, body: Record<string, unknown>) {
 // ─── Call Stats Sub-Component ───
 function CallStatsContent({ orgId }: { orgId: string | undefined }) {
   // The busiest-hour histogram is business advice; the hour is the org's.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const { data: callStats } = useRQ({
     queryKey: ['call-stats', orgId],
     queryFn: async () => {
@@ -183,7 +184,7 @@ interface ChurnCustomer {
 
 export function AIAnalysisCenter() {
   // Month and week windows below are query bounds against real timestamps.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const isMobile = useIsMobile();
   const { organization } = useOrganization();
   const orgId = organization?.id;
@@ -205,7 +206,7 @@ export function AIAnalysisCenter() {
   const prevMonthStart = orgStartOfMonth(subMonths(now, 1), orgTimezone).toISOString();
   const prevMonthEnd = orgEndOfMonth(subMonths(now, 1), orgTimezone).toISOString();
 
-  const { data: revenueData } = useQuery({
+  const { data: revenueData, error: revenueError } = useQuery({
     queryKey: ['ai-revenue', orgId],
     queryFn: async () => {
       if (!orgId) return { current: 0, previous: 0 };
@@ -221,7 +222,7 @@ export function AIAnalysisCenter() {
   });
 
   const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
-  const { data: hotLeads = [] } = useQuery({
+  const { data: hotLeads = [], error: hotLeadsError } = useQuery({
     queryKey: ['ai-hot-leads', orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -231,7 +232,7 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  const { data: churnCustomers = [] } = useQuery({
+  const { data: churnCustomers = [], error: churnError } = useQuery({
     queryKey: ['ai-churn', orgId],
     queryFn: async () => {
       if (!orgId) return [];
@@ -298,7 +299,7 @@ export function AIAnalysisCenter() {
     enabled: !!orgId,
   });
 
-  const { data: conversionData } = useQuery({
+  const { data: conversionData, error: conversionError } = useQuery({
     queryKey: ['ai-conversion', orgId],
     queryFn: async () => {
       if (!orgId) return { rate: 0, total: 0, converted: 0 };
@@ -313,7 +314,7 @@ export function AIAnalysisCenter() {
   const weekStart = orgStartOfWeek(now, orgTimezone, 1).toISOString();
   const weekEnd = orgEndOfWeek(now, orgTimezone, 1).toISOString();
 
-  const { data: weeklyData = {} as Record<string, number> } = useQuery({
+  const { data: weeklyData = {} as Record<string, number>, error: weeklyError } = useQuery({
     queryKey: ['ai-weekly', orgId, weekStart],
     queryFn: async () => {
       if (!orgId) return {};
@@ -693,6 +694,11 @@ export function AIAnalysisCenter() {
   }, []);
 
   const maxBookings = Math.max(...Object.values(weeklyData), 1);
+
+  const analysisQueryError = revenueError || hotLeadsError || churnError || conversionError || weeklyError;
+  if (analysisQueryError) {
+    return <QueryError subject="AI analysis data" />;
+  }
 
   return (
     <div className="portal-v2 bg-background text-foreground min-h-[100dvh] -mx-3 -mt-3 px-3 pt-5 pb-4 overflow-x-hidden md:-mx-4 md:-mt-4 md:px-6 md:pt-6">

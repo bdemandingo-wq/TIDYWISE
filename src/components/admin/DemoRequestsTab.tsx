@@ -13,6 +13,7 @@ import { format, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { orgStartOfMonth } from '@/lib/orgDateRange';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
+import { QueryError } from '@/components/QueryError';
 
 interface DemoRequest {
   id: string;
@@ -39,12 +40,12 @@ const statusColors: Record<string, string> = {
 
 export function DemoRequestsTab() {
   // Demo counts are per BUSINESS month.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const queryClient = useQueryClient();
   const [editingNotes, setEditingNotes] = useState<string | null>(null);
   const [notesValue, setNotesValue] = useState('');
 
-  const { data: demos = [], isLoading } = useQuery({
+  const { data: demos = [], isLoading, error: demosError } = useQuery({
     queryKey: ['demo-requests'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -75,6 +76,14 @@ export function DemoRequestsTab() {
   const pending = demos.filter(d => d.status === 'pending');
   const converted = demos.filter(d => d.status === 'converted');
   const conversionRate = demos.length > 0 ? Math.round((converted.length / demos.length) * 100) : 0;
+
+  if (demosError) {
+    return (
+      <TabsContent value="demos">
+        <QueryError subject="demo requests" />
+      </TabsContent>
+    );
+  }
 
   return (
     <TabsContent value="demos">

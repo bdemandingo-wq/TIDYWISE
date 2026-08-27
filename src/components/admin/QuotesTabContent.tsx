@@ -71,7 +71,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
 
 export function QuotesTabContent() {
   // A quote's validity is a calendar date the CUSTOMER is held to.
-  const orgTimezone = useOrgTimezone();
+  const { timezone: orgTimezone } = useOrgTimezone();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [sendingReminder, setSendingReminder] = useState<string | null>(null);

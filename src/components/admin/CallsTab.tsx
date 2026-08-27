@@ -97,7 +97,7 @@ const getInitials = (name: string | null, phone: string | null) => {
 };
 
 export default function CallsTab({ organizationId }: CallsTabProps) {
-  const orgTz = useOrgTimezone();
+  const { timezone: orgTz } = useOrgTimezone();
   const [calls, setCalls] = useState<OpenPhoneCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
