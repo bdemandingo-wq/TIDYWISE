@@ -568,51 +568,8 @@ export default function PayrollPage() {
     },
   });
 
-  /**
-   * Jobs that fell through the cracks, in two flavours.
-   *
-   *   orphaned — completed, never inside a paid week, and their payroll_date is
-   *              now BEHIND the period on screen. Nobody is going to open that
-   *              period again, so without this list the cleaner just never gets
-   *              paid and no screen ever says so.
-   *   review   — the backfill could not date them confidently, or they sit in a
-   *              week that was already paid out. Deliberately NOT re-attributed;
-   *              an admin decides.
-   */
-  const { rows: payrollExceptions, error: payrollExceptionsError } = useOrgQuery({
-    key: ['payroll-exceptions', dateRange],
-    query: async (organizationId) => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('id, booking_number, scheduled_at, completed_at, completed_at_source, payroll_date, payroll_locked_week, payroll_needs_review, cleaner_pay_expected, cleaner_actual_payment, staff_id')
-        .eq('organization_id', organizationId)
-        .eq('status', 'completed')
-        .or(`payroll_needs_review.eq.true,and(payroll_locked_week.is.null,payroll_date.lt.${dateRange.from.toISOString()})`)
-        .order('payroll_date', { ascending: false })
-        .order('id')
-        .limit(200);
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
-  const exceptionRows = payrollExceptions as PayrollExceptionRow[];
-  const orphanedJobs = useMemo(
-    () => exceptionRows.filter(
-      (b) => !b.payroll_locked_week && new Date(b.payroll_date ?? b.scheduled_at) < dateRange.from,
-    ),
-    [exceptionRows, dateRange.from],
-  );
-  const reviewJobs = useMemo(
-    () => exceptionRows.filter((b) => b.payroll_needs_review),
-    [exceptionRows],
-  );
-  const exceptionPay = (b: PayrollExceptionRow) =>
-    Number(b.cleaner_actual_payment ?? b.cleaner_pay_expected ?? 0);
-  const orphanedTotal = useMemo(
-    () => orphanedJobs.reduce((s, b) => s + exceptionPay(b), 0),
-    [orphanedJobs],
-  );
+
 
 
 
