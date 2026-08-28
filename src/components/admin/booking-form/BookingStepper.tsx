@@ -1216,6 +1216,8 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 }
               }
 
+              teamPayTotal += Number(payShare) || 0;
+
               // Note: unlike the update path above, we don't throw on
               // failure here — the booking row itself was already
               // created, and retrying the whole submit would create a
@@ -1234,7 +1236,15 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 toast.error(`Booking saved, but pay assignment failed for one staff member — please set it manually.`);
               }
             }
+            // Booking-level snapshot must equal the TEAM total (see update path).
+            if (teamPayTotal > 0) {
+              await supabase
+                .from('bookings')
+                .update({ cleaner_pay_expected: teamPayTotal })
+                .eq('id', newBooking.id);
+            }
           } else if (bookingData.staff_id) {
+
             // Single staff → one primary assignment only.
             // pay_share must be the computed dollar total — reuse the value
             // already computed for cleaner_pay_expected, not the raw wage
