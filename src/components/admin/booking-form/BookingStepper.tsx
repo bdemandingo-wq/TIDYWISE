@@ -1186,7 +1186,9 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         if (newBooking?.id) {
           if (isTeamMode && selectedTeamMembers.length > 1) {
             // Multiple staff → full team mode
+            let teamPayTotal = 0;
             for (let i = 0; i < selectedTeamMembers.length; i++) {
+
               const staffId = selectedTeamMembers[i];
               
               let payShare = teamMemberPay[staffId];
