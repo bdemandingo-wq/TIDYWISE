@@ -71,21 +71,8 @@ interface StaffWithPayroll {
   isInactive: boolean;
 }
 
-/** A completed job payroll can't place on its own — orphaned or needing review. */
-interface PayrollExceptionRow {
-  id: string;
-  booking_number: number;
-  scheduled_at: string;
-  completed_at: string | null;
-  /** How completed_at was established: 'checkout' is measured, everything else inferred. */
-  completed_at_source: string | null;
-  payroll_date: string | null;
-  payroll_locked_week: string | null;
-  payroll_needs_review: boolean;
-  cleaner_pay_expected: number | null;
-  cleaner_actual_payment: number | null;
-  staff_id: string | null;
-}
+
+
 
 interface BookingPayrollDetail {
 
@@ -568,51 +555,8 @@ export default function PayrollPage() {
     },
   });
 
-  /**
-   * Jobs that fell through the cracks, in two flavours.
-   *
-   *   orphaned — completed, never inside a paid week, and their payroll_date is
-   *              now BEHIND the period on screen. Nobody is going to open that
-   *              period again, so without this list the cleaner just never gets
-   *              paid and no screen ever says so.
-   *   review   — the backfill could not date them confidently, or they sit in a
-   *              week that was already paid out. Deliberately NOT re-attributed;
-   *              an admin decides.
-   */
-  const { rows: payrollExceptions, error: payrollExceptionsError } = useOrgQuery({
-    key: ['payroll-exceptions', dateRange],
-    query: async (organizationId) => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('id, booking_number, scheduled_at, completed_at, completed_at_source, payroll_date, payroll_locked_week, payroll_needs_review, cleaner_pay_expected, cleaner_actual_payment, staff_id')
-        .eq('organization_id', organizationId)
-        .eq('status', 'completed')
-        .or(`payroll_needs_review.eq.true,and(payroll_locked_week.is.null,payroll_date.lt.${dateRange.from.toISOString()})`)
-        .order('payroll_date', { ascending: false })
-        .order('id')
-        .limit(200);
-      if (error) throw error;
-      return data || [];
-    },
-  });
 
-  const exceptionRows = payrollExceptions as PayrollExceptionRow[];
-  const orphanedJobs = useMemo(
-    () => exceptionRows.filter(
-      (b) => !b.payroll_locked_week && new Date(b.payroll_date ?? b.scheduled_at) < dateRange.from,
-    ),
-    [exceptionRows, dateRange.from],
-  );
-  const reviewJobs = useMemo(
-    () => exceptionRows.filter((b) => b.payroll_needs_review),
-    [exceptionRows],
-  );
-  const exceptionPay = (b: PayrollExceptionRow) =>
-    Number(b.cleaner_actual_payment ?? b.cleaner_pay_expected ?? 0);
-  const orphanedTotal = useMemo(
-    () => orphanedJobs.reduce((s, b) => s + exceptionPay(b), 0),
-    [orphanedJobs],
-  );
+
 
 
 
@@ -744,7 +688,7 @@ export default function PayrollPage() {
     ['Staff', allStaffError],
     ['Bookings', bookingsError],
     ['Team assignments', teamAssignmentsError],
-    ['Payroll exceptions', payrollExceptionsError],
+    
     ['Forecast bookings', forecastBookingsError],
     ['Forecast assignments', forecastTeamAssignmentsError],
     ['Year-to-date bookings', ytdBookingsError],
@@ -1414,97 +1358,8 @@ export default function PayrollPage() {
 
       {/* Alert Banners */}
 
-      {/*
-        Jobs no pay run will ever pick up on its own. Loud on purpose: the whole
-        reason this page changed is that a job completed outside its scheduled
-        week used to vanish from payroll in silence.
-      */}
-      {orphanedJobs.length > 0 && (
-        <Card className="mb-4 border-destructive/50 bg-destructive/5">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <h3 className="font-semibold text-destructive">
-                  {orphanedJobs.length} completed job(s) never made it into a pay run
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Worth {fmt(orphanedTotal)}. They completed before this period and no
-                  payout has ever been recorded for their week. Move the date range back
-                  to the week shown and pay them there.
-                </p>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {orphanedJobs.slice(0, 8).map((b) => (
-                    <li key={b.id} className="flex flex-wrap items-center gap-x-2">
-                      <span className="font-medium">#{b.booking_number}</span>
-                      <span className="text-muted-foreground">
-                        scheduled {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
-                        {' → completed '}
-                        {formatInTimezone(b.payroll_date ?? b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {b.completed_at_source === 'checkout' ? 'measured' : 'inferred'}
-                      </Badge>
-                      <span className="font-medium">{fmt(exceptionPay(b))}</span>
-                    </li>
-                  ))}
-                </ul>
-                {orphanedJobs.length > 8 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    +{orphanedJobs.length - 8} more.
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/*
-        The historical rows the backfill refused to move. Nothing was
-        re-attributed: a week with a recorded payout is sealed, and a job whose
-        completion date could not be established keeps its scheduled date. Both
-        land here for a human instead.
-      */}
-      {reviewJobs.length > 0 && (
-        <Card className="mb-4 border-warning/30 bg-warning/5">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <h3 className="font-semibold text-warning">
-                  {reviewJobs.length} job(s) need a completion date confirmed
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  These were paid on their scheduled date and left that way on purpose —
-                  either their week already has a recorded payout (locked, so no money
-                  moved), or no trustworthy completion time exists. Correct one only if
-                  you know the real date.
-                </p>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {reviewJobs.slice(0, 8).map((b) => (
-                    <li key={b.id} className="flex flex-wrap items-center gap-x-2">
-                      <span className="font-medium">#{b.booking_number}</span>
-                      <span className="text-muted-foreground">
-                        {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {b.payroll_locked_week ? `locked to week of ${b.payroll_locked_week}` : 'date not confident'}
-                      </Badge>
-                      <span className="font-medium">{fmt(exceptionPay(b))}</span>
-                    </li>
-                  ))}
-                </ul>
-                {reviewJobs.length > 8 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    +{reviewJobs.length - 8} more.
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {negativeMarginCount > 0 && (
         <Card className="mb-4 border-destructive/50 bg-destructive/5">
