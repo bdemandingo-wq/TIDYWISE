@@ -1021,9 +1021,11 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         // Re-insert based on current form state
         if (isTeamMode && selectedTeamMembers.length > 1) {
           // Multiple staff → team mode assignments
+          let teamPayTotal = 0;
           for (let i = 0; i < selectedTeamMembers.length; i++) {
             const staffId = selectedTeamMembers[i];
             let payShare = teamMemberPay[staffId] ?? 0;
+            teamPayTotal += Number(payShare) || 0;
             const { error: teamAssignmentInsertError } = await supabase.from('booking_team_assignments').insert({
               booking_id: booking.id,
               staff_id: staffId,
@@ -1038,7 +1040,18 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               );
             }
           }
+          // The booking-level snapshot must equal the TEAM total, not the
+          // single-cleaner wage figure — otherwise every surface that falls
+          // back to cleaner_pay_expected shows one cleaner's pay for the
+          // whole job (e.g. a $350 two-person job reading as $250).
+          if (teamPayTotal > 0) {
+            await supabase
+              .from('bookings')
+              .update({ cleaner_pay_expected: teamPayTotal })
+              .eq('id', booking.id);
+          }
         } else if (bookingData.staff_id) {
+
           // Single staff → one primary assignment.
           // pay_share must be the computed dollar total — reuse the value
           // already computed for cleaner_pay_expected, not the raw wage
