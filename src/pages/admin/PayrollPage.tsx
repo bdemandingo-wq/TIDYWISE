@@ -814,6 +814,7 @@ export default function PayrollPage() {
           booking_number: b.booking_number,
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
           scheduled_at: b.scheduled_at,
+          payroll_date: (b as any).payroll_date || b.scheduled_at,
           duration: b.duration,
           hours_worked: wageInfo.hoursWorked,
           wage_type: wageInfo.wageType,
