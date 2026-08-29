@@ -211,6 +211,9 @@ export default function PayrollPage() {
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
+  // First click of a two-click range selection; null means the next click starts a new range.
+  const [pendingFrom, setPendingFrom] = useState<Date | null>(null);
+
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
@@ -1221,7 +1224,7 @@ export default function PayrollPage() {
       <PlanFeatureGate feature="payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
-        <Popover>
+        <Popover onOpenChange={(o) => { if (!o) setPendingFrom(null); }}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
               <CalendarIcon className="w-4 h-4" />
@@ -1232,18 +1235,33 @@ export default function PayrollPage() {
             <Calendar
               mode="range"
               selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={(range) => {
-                if (range?.from) {
-                  rangeTouchedRef.current = true;
-                  setDateRange({ from: range.from, to: range.to || range.from });
-                  setPayPeriodSelected(true);
+              // react-day-picker's built-in range logic EXTENDS the existing
+              // selection when you click inside or near it, so clicking "21"
+              // while Aug 1–31 was selected produced a range that started
+              // somewhere else (reported live 2026-08-28: picked 21–28, got
+              // 22–28). Driving it from raw day clicks makes the first click
+              // always begin a fresh range and the second always close it.
+              onDayClick={(day) => {
+                rangeTouchedRef.current = true;
+                setPayPeriodSelected(true);
+                if (!pendingFrom) {
+                  setPendingFrom(day);
+                  setDateRange({ from: day, to: day });
+                  return;
                 }
+                const isBefore = day.getTime() < pendingFrom.getTime();
+                setDateRange({
+                  from: isBefore ? day : pendingFrom,
+                  to: isBefore ? pendingFrom : day,
+                });
+                setPendingFrom(null);
               }}
               numberOfMonths={2}
               className="pointer-events-auto"
             />
           </PopoverContent>
         </Popover>
+
         <Button
           variant="secondary"
           className="gap-2"
