@@ -83,6 +83,11 @@ interface BookingPayrollDetail {
   booking_number: number;
   customer_name: string;
   scheduled_at: string;
+  /** The date this row is PAID on — COALESCE(completed_at, scheduled_at). This
+   *  is what the period filter uses, so it is what the Date column shows.
+   *  Displaying scheduled_at instead made jobs look like they were outside the
+   *  selected pay period (Aug 19 job in an Aug 22–28 run). */
+  payroll_date: string;
   duration: number;
   hours_worked: number;
   wage_type: string;
