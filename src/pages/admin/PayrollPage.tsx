@@ -211,6 +211,9 @@ export default function PayrollPage() {
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
+  // First click of a two-click range selection; null means the next click starts a new range.
+  const [pendingFrom, setPendingFrom] = useState<Date | null>(null);
+
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
   const { isTestMode, maskName, maskEmail } = useTestMode();
