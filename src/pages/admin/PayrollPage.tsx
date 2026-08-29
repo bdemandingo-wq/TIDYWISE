@@ -83,11 +83,6 @@ interface BookingPayrollDetail {
   booking_number: number;
   customer_name: string;
   scheduled_at: string;
-  /** The date this row is PAID on — COALESCE(completed_at, scheduled_at). This
-   *  is what the period filter uses, so it is what the Date column shows.
-   *  Displaying scheduled_at instead made jobs look like they were outside the
-   *  selected pay period (Aug 19 job in an Aug 22–28 run). */
-  payroll_date: string;
   duration: number;
   hours_worked: number;
   wage_type: string;
@@ -216,8 +211,6 @@ export default function PayrollPage() {
     to: endOfMonth(new Date()),
   });
   const [payPeriodSelected, setPayPeriodSelected] = useState(false);
-  // First click of a two-click range selection; null means the next click starts a new range.
-  const [pendingFrom, setPendingFrom] = useState<Date | null>(null);
 
   const [staffFilterId, setStaffFilterId] = useState<string>('all');
   const [profitFilter, setProfitFilter] = useState<string>('all');
@@ -517,18 +510,13 @@ export default function PayrollPage() {
       // the org pushes the bound hours PAST the period and pulls the next
       // period's bookings into this payroll run.
       const toEndOfDay = orgEndOfDay(dateRange.to, orgTimezone);
-      // payroll_date, NOT scheduled_at. A job scheduled last week and marked
-      // complete this week used to fall outside BOTH pay runs — the cleaner was
-      // never paid and nothing said so. payroll_date is a generated column,
-      // COALESCE(completed_at, scheduled_at), so an unfinished job still pays
-      // on its scheduled date and no caller can forget the fallback.
       const { data, error } = await supabase
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
         .eq('organization_id', organizationId)
-        .gte('payroll_date', dateRange.from.toISOString())
-        .lte('payroll_date', toEndOfDay.toISOString())
-        .order('payroll_date', { ascending: false })
+        .gte('scheduled_at', dateRange.from.toISOString())
+        .lte('scheduled_at', toEndOfDay.toISOString())
+        .order('scheduled_at', { ascending: false })
         .order('id');           // unique tiebreaker — see rule 3
       if (error) throw error;
       return data;
@@ -549,8 +537,8 @@ export default function PayrollPage() {
         .select('id')
         .eq('organization_id', organizationId)
         .neq('status', 'cancelled')
-        .gte('payroll_date', dateRange.from.toISOString())
-        .lte('payroll_date', toEndOfDay.toISOString());
+        .gte('scheduled_at', dateRange.from.toISOString())
+        .lte('scheduled_at', toEndOfDay.toISOString());
       if (!bookingIds?.length) return [];
       const ids = bookingIds.map((b: any) => b.id);
       const { data, error } = await supabase
@@ -814,7 +802,6 @@ export default function PayrollPage() {
           booking_number: b.booking_number,
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
           scheduled_at: b.scheduled_at,
-          payroll_date: (b as any).payroll_date || b.scheduled_at,
           duration: b.duration,
           hours_worked: wageInfo.hoursWorked,
           wage_type: wageInfo.wageType,
@@ -1113,7 +1100,7 @@ export default function PayrollPage() {
     // when the figure is a split rather than an invoiced amount.
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Revenue Basis', 'Labor %', 'Profit', 'Margin %'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      getDateInTimezone(b.payroll_date, orgTimezone),
+      getDateInTimezone(b.scheduled_at, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2), b.wage_type,
       b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate}`,
@@ -1129,7 +1116,7 @@ export default function PayrollPage() {
   const exportCleanerCSV = async () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Pay'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      getDateInTimezone(b.payroll_date, orgTimezone),
+      getDateInTimezone(b.scheduled_at, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2),
       `${fmt(b.calculated_pay)}`,
@@ -1230,7 +1217,7 @@ export default function PayrollPage() {
       <PlanFeatureGate feature="payroll">
       {/* Date Range Selector */}
       <div className="flex items-center gap-4 mb-6">
-        <Popover onOpenChange={(o) => { if (!o) setPendingFrom(null); }}>
+        <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
               <CalendarIcon className="w-4 h-4" />
@@ -1241,26 +1228,12 @@ export default function PayrollPage() {
             <Calendar
               mode="range"
               selected={{ from: dateRange.from, to: dateRange.to }}
-              // react-day-picker's built-in range logic EXTENDS the existing
-              // selection when you click inside or near it, so clicking "21"
-              // while Aug 1–31 was selected produced a range that started
-              // somewhere else (reported live 2026-08-28: picked 21–28, got
-              // 22–28). Driving it from raw day clicks makes the first click
-              // always begin a fresh range and the second always close it.
-              onDayClick={(day) => {
-                rangeTouchedRef.current = true;
-                setPayPeriodSelected(true);
-                if (!pendingFrom) {
-                  setPendingFrom(day);
-                  setDateRange({ from: day, to: day });
-                  return;
+              onSelect={(range) => {
+                if (range?.from) {
+                  rangeTouchedRef.current = true;
+                  setDateRange({ from: range.from, to: range.to || range.from });
+                  setPayPeriodSelected(true);
                 }
-                const isBefore = day.getTime() < pendingFrom.getTime();
-                setDateRange({
-                  from: isBefore ? day : pendingFrom,
-                  to: isBefore ? pendingFrom : day,
-                });
-                setPendingFrom(null);
               }}
               numberOfMonths={2}
               className="pointer-events-auto"
@@ -1709,12 +1682,7 @@ export default function PayrollPage() {
                   {filteredBookingPayrollDetails.map((b) => (
                     <TableRow key={b.id} className={getRowHighlight(b)}>
                       <TableCell className="whitespace-nowrap">
-                        {formatInTimezone(b.payroll_date, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {getDateInTimezone(b.payroll_date, orgTimezone) !== getDateInTimezone(b.scheduled_at, orgTimezone) && (
-                          <span className="ml-1 block text-[11px] text-muted-foreground">
-                            scheduled {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
+                        {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </TableCell>
                       <TableCell>#{b.booking_number}</TableCell>
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>
