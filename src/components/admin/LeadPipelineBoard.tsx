@@ -206,8 +206,8 @@ export function LeadPipelineBoard({
             {/* Column header card. Fixed height so every column — built-in or
                 custom (which carries an extra options button) — matches. */}
             <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] h-[46px] flex items-center`}>
+              <div className="flex items-center justify-between w-full min-w-0">
 
-              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-extrabold">{column.label}</span>
                   <Badge variant="secondary" className="text-xs h-5 px-1.5">
