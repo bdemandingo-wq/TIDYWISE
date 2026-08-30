@@ -694,7 +694,7 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
     if (rawCustomerData) {
       const customerData: CustomerInfo = {
         ...rawCustomerData,
-        property_type: (propData as any)?.property_type || 'residential',
+        property_type: customer?.property_type || 'residential',
       };
       setCustomer(customerData);
       saveSession(user, customerData, loyaltyData);
