@@ -202,14 +202,48 @@ export function LeadPipelineBoard({
                     {columnLeads.length}
                   </Badge>
                 </div>
-                {(() => {
-                  const total = columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-                  return total > 0 ? (
-                    <span className="text-[12px] font-extrabold text-success">
-                      ${total.toLocaleString()}
-                    </span>
-                  ) : null;
-                })()}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const total = columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
+                    return total > 0 ? (
+                      <span className="text-[12px] font-extrabold text-success">
+                        ${total.toLocaleString()}
+                      </span>
+                    ) : null;
+                  })()}
+                  {'custom' in column && column.custom && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`${column.label} section options`}>
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSectionName(column.label);
+                            setSectionDialog({ mode: 'rename', id: column.custom!.id, label: column.label });
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" /> Rename section
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={async () => {
+                            try {
+                              await deleteStage.mutateAsync(column.custom!);
+                              toast.success('Section removed — its leads moved back to New');
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : 'Could not remove section');
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete section
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             </div>
 
