@@ -10,10 +10,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock } from 'lucide-react';
+import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
+import { useLeadPipelineStages } from '@/hooks/useLeadPipelineStages';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface Lead {
   id: string;
