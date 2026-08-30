@@ -580,8 +580,35 @@ const handler = async (req: Request): Promise<Response> => {
 
         if (insertError) {
           console.error("[stripe-invoice-webhook] Failed to record lifetime purchase:", insertError);
+          // Never let a bookkeeping failure block access provisioning.
+          // Retry once with a plain insert (skips ON CONFLICT entirely),
+          // then continue granting lifetime access regardless.
+          const { error: retryError } = await supabase
+            .from("lifetime_access_purchases")
+            .insert({
+              email,
+              user_id: userId || null,
+              stripe_session_id: session.id,
+              stripe_payment_intent_id: session.payment_intent as string | null,
+              amount_cents: session.amount_total ?? 30000,
+            });
+          if (retryError) {
+            console.error("[stripe-invoice-webhook] Lifetime purchase retry failed:", retryError);
+            try {
+              await sendAdminNotification(supabaseUrl, supabaseServiceKey, {
+                organizationName: "LIFETIME PURCHASE NOT RECORDED",
+                ownerEmail: email,
+                subscriptionType: `Paid lifetime session ${session.id} could not be saved: ${retryError.message}. Record it manually.`,
+              });
+            } catch (notifyErr) {
+              console.error("[stripe-invoice-webhook] Lifetime failure alert failed:", notifyErr);
+            }
+          }
         } else {
           console.log("[stripe-invoice-webhook] Lifetime purchase recorded");
+        }
+        {
+
 
           // Update the organization's plan_type to 'lifetime'
           if (userId) {
