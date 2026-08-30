@@ -184,7 +184,7 @@ export function LeadPipelineBoard({
   const totalValue = leads.length;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
+    <div className="flex items-start gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
       {columns.map((column) => {
         const columnLeads = getColumnLeads(column.id);
         const isDragOver = dragOverColumn === column.id;
@@ -192,7 +192,7 @@ export function LeadPipelineBoard({
         return (
           <div
             key={column.id}
-            className="flex-shrink-0 w-[250px] min-h-[400px] sm:min-h-[500px] snap-start"
+            className="flex-shrink-0 w-[250px] snap-start"
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
@@ -257,12 +257,12 @@ export function LeadPipelineBoard({
 
             {/* Column Body */}
             <div 
-              className={`mt-2.5 space-y-2.5 min-h-[450px] rounded-[14px] transition-colors ${
+              className={`mt-2.5 space-y-2.5 min-h-[120px] rounded-[14px] transition-colors ${
                 isDragOver ? 'bg-primary/5 ring-1 ring-primary/30' : ''
               }`}
             >
               {columnLeads.length === 0 && (
-                <div className="flex items-center justify-center h-24 text-sm text-muted-foreground italic">
+                <div className="flex items-center justify-center h-[88px] text-sm text-muted-foreground/70 italic">
                   {isDragOver ? 'Drop here' : 'No leads'}
                 </div>
               )}
