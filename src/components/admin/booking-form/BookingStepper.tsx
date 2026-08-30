@@ -38,6 +38,7 @@ import { Sentry } from '@/lib/sentry';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { formatFullAddress } from '@/lib/formatAddress';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
