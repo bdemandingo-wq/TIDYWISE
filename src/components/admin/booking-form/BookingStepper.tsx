@@ -1358,7 +1358,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 const formattedDate = format(scheduledDate, 'MMMM d, yyyy');
                 const formattedTime = format(scheduledDate, 'h:mm a');
                 const serviceName = selectedService?.name || 'cleaning';
-                const fullAddress = `${address}${city ? `, ${city}` : ''}`;
+                const fullAddress = formatFullAddress({ address, apt_suite: aptSuite, city });
 
                 const confirmationMessage =
                   `Hi ${customerName}! Your ${serviceName} appointment is confirmed for ${formattedDate} at ${formattedTime}.` +
