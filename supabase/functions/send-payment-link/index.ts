@@ -26,15 +26,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // SECURITY: Verify authenticated user with admin privileges
-    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
-    
-    if (!authResult.success) {
-      console.error("Auth failed:", authResult.error);
-      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
+    const body: PaymentLinkRequest = await req.json();
+    const { phone, customerName, amount, serviceName, bookingId, organizationId } = body;
+
+    // SECURITY: Organization context required before auth so membership is
+    // verified against THIS org (multi-org users pick their active org).
+    if (!organizationId) {
+      console.error("Missing organizationId - cannot send payment link without organization context");
+      return new Response(JSON.stringify({
+        error: "Missing organizationId - organization context is required"
+      }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    const { phone, customerName, amount, serviceName, bookingId, organizationId }: PaymentLinkRequest = await req.json();
+    // SECURITY: Verify authenticated user has admin privileges IN THE REQUESTED ORG
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
+      requireAdmin: true,
+      requireOrganizationId: organizationId,
+    });
+
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
+      return createForbiddenResponse(authResult.error || "Unauthorized", corsHeaders);
+    }
 
     console.log("Received payment link request:", { phone, customerName, amount, serviceName, bookingId, organizationId, userId: authResult.userId });
 
@@ -43,28 +59,6 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ error: "Missing required fields (phone, customerName, amount)" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
-    }
-
-    // SECURITY: Verify organization context matches authenticated user
-    if (!organizationId) {
-      console.error("Missing organizationId - cannot send payment link without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Missing organizationId - organization context is required" 
-      }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    if (organizationId !== authResult.organizationId) {
-      console.error("Organization mismatch in send-payment-link");
-      await logAudit({
-        action: AuditActions.PAYMENT_FAILED,
-        userId: authResult.userId!,
-        organizationId: authResult.organizationId!,
-        details: { reason: "Organization mismatch", requestedOrg: organizationId },
-      });
-      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
     }
 
     // STRICT ISOLATION: Get organization-specific Stripe credentials via shared helper
