@@ -108,17 +108,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // SECURITY: Verify authenticated user with admin privileges
-    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
-    
-    if (!authResult.success) {
-      console.error("Auth failed:", authResult.error);
-      return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
-    }
-
     const { email, amount, description, organizationId, bookingId, idempotencyKey: providedIdempotencyKey }: ChargeRequest = await req.json();
 
-    // SECURITY: Verify organization context matches authenticated user
+    // SECURITY: Organization context is required before auth so the caller's
+    // membership can be verified against THIS org — not an arbitrary first
+    // membership (breaks for users who belong to multiple organizations).
     if (!organizationId) {
       return new Response(
         JSON.stringify({ success: false, error: "Organization ID is required" }),
@@ -126,22 +120,22 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (organizationId !== authResult.organizationId) {
-      console.error("Organization mismatch in charge-card-directly");
-      await logAudit({
-        action: AuditActions.PAYMENT_FAILED,
-        userId: authResult.userId!,
-        organizationId: authResult.organizationId!,
-        details: { reason: "Organization mismatch", requestedOrg: organizationId },
-      });
+    // SECURITY: Verify authenticated user has admin privileges IN THE REQUESTED ORG
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
+      requireAdmin: true,
+      requireOrganizationId: organizationId,
+    });
+
+    if (!authResult.success) {
+      console.error("Auth failed:", authResult.error);
       await logChargeAudit({
         organizationId,
         bookingId,
         customerEmail: email,
         matchStatus: 'fail',
-        failureReason: 'Organization mismatch between auth and request',
+        failureReason: authResult.error || 'Unauthorized',
       });
-      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+      return createForbiddenResponse(authResult.error || "Unauthorized", corsHeaders);
     }
 
     if (!email || !amount) {

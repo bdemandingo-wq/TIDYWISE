@@ -13,20 +13,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // SECURITY: Verify authenticated user with admin privileges
-  const authResult = await verifyAdminAuth(req.headers.get("Authorization"), { requireAdmin: true });
+  const { campaignId, targetAudience } = await req.json();
 
-  if (!authResult.success) {
-    return createUnauthorizedResponse(authResult.error || "Unauthorized", corsHeaders);
-  }
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { campaignId, targetAudience } = await req.json();
-
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabase
       .from("automated_campaigns")
@@ -41,17 +34,23 @@ serve(async (req) => {
     // CRITICAL: Campaign must have organization_id for multi-tenant isolation
     if (!campaign.organization_id) {
       console.error("[send-followup-campaign] Campaign has no organization_id - cannot send emails without organization context");
-      return new Response(JSON.stringify({ 
-        error: "Campaign is not associated with an organization. Please update the campaign." 
+      return new Response(JSON.stringify({
+        error: "Campaign is not associated with an organization. Please update the campaign."
       }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // SECURITY: Verify campaign belongs to the authenticated user's organization
-    if (campaign.organization_id !== authResult.organizationId) {
-      return createForbiddenResponse("Access denied: organization mismatch", corsHeaders);
+    // SECURITY: Verify authenticated user has admin privileges IN THE
+    // CAMPAIGN'S org — not an arbitrary first membership (multi-org users).
+    const authResult = await verifyAdminAuth(req.headers.get("Authorization"), {
+      requireAdmin: true,
+      requireOrganizationId: campaign.organization_id,
+    });
+
+    if (!authResult.success) {
+      return createForbiddenResponse(authResult.error || "Unauthorized", corsHeaders);
     }
 
     console.log("[send-followup-campaign] Running campaign for organization:", campaign.organization_id);

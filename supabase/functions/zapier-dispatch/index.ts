@@ -141,12 +141,14 @@ Deno.serve(async (req) => {
     const isInternalCall = !!INTERNAL_SECRET && internalSecretHeader === INTERNAL_SECRET;
 
     if (!isInternalCall) {
-      const authResult = await verifyAdminAuth(authHeader, { requireAdmin: true });
+      // Verify admin membership IN THE REQUESTED org — an arbitrary first
+      // membership breaks users who belong to multiple organizations.
+      const authResult = await verifyAdminAuth(authHeader, {
+        requireAdmin: true,
+        requireOrganizationId: organization_id,
+      });
       if (!authResult.success) {
-        return createUnauthorizedResponse(authResult.error || 'Unauthorized', corsHeaders);
-      }
-      if (organization_id !== authResult.organizationId) {
-        return createForbiddenResponse('Access denied: organization mismatch', corsHeaders);
+        return createForbiddenResponse(authResult.error || 'Unauthorized', corsHeaders);
       }
     }
 
