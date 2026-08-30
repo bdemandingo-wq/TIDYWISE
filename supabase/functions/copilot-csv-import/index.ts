@@ -1,5 +1,6 @@
-// copilot-csv-import { isValidEmail } from "../_shared/email-address.ts";
-import — bulk customer import from a CSV.
+import { isValidEmail } from "../_shared/email-address.ts";
+
+// copilot-csv-import — bulk customer import from a CSV.
 //
 // Accepts either:
 //   - { organization_id, csv_text, column_mappings? }   (recommended)

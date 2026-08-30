@@ -83,6 +83,8 @@ interface BookingPayrollDetail {
   booking_number: number;
   customer_name: string;
   scheduled_at: string;
+  /** Date payroll attributes this job to (COALESCE(completed_at, scheduled_at)). */
+  payroll_date: string;
   duration: number;
   hours_worked: number;
   wage_type: string;
@@ -514,9 +516,11 @@ export default function PayrollPage() {
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
         .eq('organization_id', organizationId)
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString())
-        .order('scheduled_at', { ascending: false })
+        // payroll_date (= COALESCE(completed_at, scheduled_at)) is what the
+        // server-side lock/attribution uses, so the UI must select the same way.
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString())
+        .order('payroll_date', { ascending: false })
         .order('id');           // unique tiebreaker — see rule 3
       if (error) throw error;
       return data;
@@ -537,8 +541,8 @@ export default function PayrollPage() {
         .select('id')
         .eq('organization_id', organizationId)
         .neq('status', 'cancelled')
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString());
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString());
       if (!bookingIds?.length) return [];
       const ids = bookingIds.map((b: any) => b.id);
       const { data, error } = await supabase
@@ -802,6 +806,7 @@ export default function PayrollPage() {
           booking_number: b.booking_number,
           customer_name: b.customer ? `${b.customer.first_name} ${b.customer.last_name}` : 'Unknown',
           scheduled_at: b.scheduled_at,
+          payroll_date: (b as any).payroll_date || b.scheduled_at,
           duration: b.duration,
           hours_worked: wageInfo.hoursWorked,
           wage_type: wageInfo.wageType,
@@ -1100,7 +1105,7 @@ export default function PayrollPage() {
     // when the figure is a split rather than an invoiced amount.
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Wage Type', 'Rate', 'Payment', 'Revenue (Net)', 'Revenue Basis', 'Labor %', 'Profit', 'Margin %'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      getDateInTimezone(b.scheduled_at, orgTimezone),
+      getDateInTimezone(b.payroll_date, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2), b.wage_type,
       b.wage_type === 'percentage' ? `${b.wage_rate}%` : `$${b.wage_rate}`,
@@ -1116,7 +1121,7 @@ export default function PayrollPage() {
   const exportCleanerCSV = async () => {
     const headers = ['Date', 'Booking #', 'Staff', 'Customer', 'Hours', 'Pay'];
     const rows = filteredBookingPayrollDetails.map((b) => [
-      getDateInTimezone(b.scheduled_at, orgTimezone),
+      getDateInTimezone(b.payroll_date, orgTimezone),
       `#${b.booking_number}`, b.staff_name, b.customer_name,
       b.hours_worked.toFixed(2),
       `${fmt(b.calculated_pay)}`,
@@ -1682,7 +1687,7 @@ export default function PayrollPage() {
                   {filteredBookingPayrollDetails.map((b) => (
                     <TableRow key={b.id} className={getRowHighlight(b)}>
                       <TableCell className="whitespace-nowrap">
-                        {formatInTimezone(b.scheduled_at, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatInTimezone(b.payroll_date, orgTimezone, { month: 'short', day: 'numeric', year: 'numeric' })}
                       </TableCell>
                       <TableCell>#{b.booking_number}</TableCell>
                       <TableCell className="font-medium">{maskName(b.staff_name)}</TableCell>

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +27,7 @@ import { CopilotMount } from "@/components/copilot/CopilotMount";
 import { ProductTour } from "@/components/copilot/ProductTour";
 import { Capacitor } from "@capacitor/core";
 import { useAppStateHandler } from '@/hooks/useAppStateHandler';
+import { captureReferralFromUrl } from '@/lib/referralAttribution';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
@@ -213,6 +214,12 @@ const offlinePersister = createSyncStoragePersister({
 
 const AppStateHandler = (): null => {
   useAppStateHandler();
+  // Capture ?ref= on first load so referral signups are credited later in
+  // onboarding (readCapturedReferral -> claim-referral).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    captureReferralFromUrl(window.location.search);
+  }, []);
   return null;
 };
 
