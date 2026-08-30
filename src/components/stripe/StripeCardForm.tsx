@@ -249,6 +249,23 @@ export function StripeCardForm(props: CardFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
+  // Debounce the identity fields. Without this, every keystroke in the email
+  // field fired create-setup-intent, and each partial address ("a@b.c",
+  // "a@b.co", "a@b.com") created its own Stripe customer.
+  const [debouncedEmail, setDebouncedEmail] = useState(email);
+  const [debouncedName, setDebouncedName] = useState(customerName);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedEmail(email);
+      setDebouncedName(customerName);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [email, customerName]);
+
+  // Only initialise for a plausibly-complete email address.
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(debouncedEmail.trim());
+
+
   // Step 1: Load @stripe/react-stripe-js module
   useEffect(() => {
     if (stripeReact) return;
@@ -268,13 +285,18 @@ export function StripeCardForm(props: CardFormProps) {
   // We do this BEFORE rendering <Elements> so that the Stripe instance used to create
   // Elements is the SAME instance used later for confirmCardSetup.
   useEffect(() => {
-    if (!organizationId || !email || !customerName) return;
+    if (!organizationId || !emailLooksValid || !debouncedName.trim()) return;
     let cancelled = false;
 
     async function prefetch() {
       try {
         const { data: setupData, error: setupError } = await supabase.functions.invoke('create-setup-intent', {
-          body: { email, customerName, organizationId, publicBooking },
+          body: {
+            email: debouncedEmail.trim(),
+            customerName: debouncedName.trim(),
+            organizationId,
+            publicBooking,
+          },
           headers: portalSessionToken ? { 'x-portal-session': portalSessionToken } : undefined,
         });
 
@@ -293,6 +315,7 @@ export function StripeCardForm(props: CardFormProps) {
         const resolvedKey = setupData.publishableKey || undefined;
         const promise = getStripePromise(resolvedKey);
 
+        setInitError(null);
         setStripePromise(promise);
         setClientSecret(setupData.clientSecret);
       } catch (err: any) {
@@ -302,7 +325,8 @@ export function StripeCardForm(props: CardFormProps) {
 
     prefetch();
     return () => { cancelled = true; };
-  }, [organizationId, email, customerName, publicBooking, portalSessionToken]);
+  }, [organizationId, debouncedEmail, debouncedName, emailLooksValid, publicBooking, portalSessionToken]);
+
 
   // Loading states
   if (!stripeReact || !stripePromise || !clientSecret) {
