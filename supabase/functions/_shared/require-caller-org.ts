@@ -40,14 +40,17 @@ export interface CallerOrgContext {
 
 /**
  * Resolves the organization the CALLER belongs to, from their own JWT —
- * never from the request body. Checks org_memberships first (owner role
- * preferred, otherwise first membership); if the caller has no
- * org_memberships row at all (staff-portal accounts don't), falls back to
- * their `staff` record.
+ * never blindly from the request body. If `requestedOrgId` is supplied (the
+ * app's ACTIVE organization), it is honoured ONLY when the caller actually
+ * has a membership/staff record in it — this is what keeps multi-org owners
+ * from sending another org's branded email. Otherwise falls back to
+ * org_memberships (owner role preferred) and then the `staff` record.
  */
 export async function resolveCallerOrg(
   req: Request,
+  requestedOrgId?: string | null,
 ): Promise<{ ok: true; ctx: CallerOrgContext } | { ok: false; status: number; error: string }> {
+
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { ok: false, status: 401, error: "Unauthorized" };
