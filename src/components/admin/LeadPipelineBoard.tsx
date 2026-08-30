@@ -103,7 +103,15 @@ export function LeadPipelineBoard({
   >(null);
   const [sectionName, setSectionName] = useState('');
 
-  const columns = [
+  type BoardColumn = {
+    id: string;
+    label: string;
+    color: string;
+    borderColor: string;
+    custom?: LeadPipelineStage;
+  };
+
+  const columns: BoardColumn[] = [
     ...PIPELINE_COLUMNS,
     ...stages.map((s) => ({
       id: s.key,
