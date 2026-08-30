@@ -25,22 +25,22 @@
     --bg-pattern: radial-gradient(circle at 1px 1px, hsl(0 0% 6% / 0.08) 1px, transparent 0);
     --bg-pattern-size: 16px 16px;
 
-    --background: 0 0% 100%;
-    --foreground: 0 0% 6%;
+    --background: 45 17% 95%;
+    --foreground: 215 91% 21%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 6%;
+    --card-foreground: 215 91% 21%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6%;
+    --popover-foreground: 215 91% 21%;
 
     /* Klein blue */
-    --primary: 230 100% 50%;
+    --primary: 204 98% 34%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 230 100% 60%;
+    --primary-glow: 201 70% 44%;
 
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 6%;
+    --secondary-foreground: 215 91% 21%;
 
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 35%;
@@ -49,9 +49,9 @@
        the same way here — a darker red is easier to read on white AND easier to
        put white on — so lightness alone fixes it and no foreground flips.
        .dark sets its own --accent and is unaffected. */
-    --accent: 5 90% 45%;
+    --accent: 112 63% 28%;
     --accent-foreground: 0 0% 100%;
-    --accent-glow: 5 90% 65%;
+    --accent-glow: 105 72% 45%;
 
     /* 45%, not 55%: at 55% this was 3.90:1 both as text on the page and under
        its own white foreground. Darkening fixes both at once — white-on-red and
@@ -63,21 +63,21 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Thick black borders are a feature */
-    --border: 0 0% 6%;
-    --input: 0 0% 6%;
-    --ring: 230 100% 50%;
+    --border: 215 91% 21%;
+    --input: 215 91% 21%;
+    --ring: 204 98% 34%;
 
     /* Hard, square corners */
     --radius: 0rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 6%;
-    --sidebar-primary: 230 100% 50%;
+    --sidebar-foreground: 215 91% 21%;
+    --sidebar-primary: 204 98% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 6%;
+    --sidebar-accent-foreground: 215 91% 21%;
     --sidebar-border: 0 0% 6%;
-    --sidebar-ring: 230 100% 50%;
+    --sidebar-ring: 204 98% 34%;
 
     /*
       --success had the same shape of fault as --warning: one value, 140 80% 35%,
@@ -97,7 +97,7 @@
       Foreground stays white: it was already correct here and the darker green
       only improves it, 3.40 -> 5.65.
     */
-    --success: 140 80% 26%;
+    --success: 112 63% 28%;
     --success-foreground: 0 0% 100%;
     /*
       --warning was 45 100% 50% — a bright gold — in BOTH themes, because .dark
@@ -119,16 +119,16 @@
     */
     --warning: 32 90% 33%;
     --warning-foreground: 0 0% 100%;
-    --info: 230 100% 50%;
+    --info: 204 98% 34%;
     --info-foreground: 0 0% 100%;
 
     /* Gradients (mostly unused in Print Shop but kept for legacy callers) */
-    --gradient-primary: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(260 100% 55%) 100%);
-    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(230 100% 50% / 0.1) 0%, transparent 60%);
+    --gradient-primary: linear-gradient(135deg, hsl(204 98% 34%) 0%, hsl(208 97% 29%) 100%);
+    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(204 98% 34% / 0.1) 0%, transparent 60%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95) 0%, hsl(0 0% 98% / 0.85) 100%);
     --gradient-sidebar: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
-    --gradient-cta: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(230 100% 42%) 100%);
+    --gradient-cta: linear-gradient(135deg, hsl(204 98% 34%) 0%, hsl(208 97% 29%) 100%);
     --gradient-shine: linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.4) 50%, transparent 100%);
 
     /* Hard offset shadows — no softness, no blur */
@@ -137,8 +137,8 @@
     --shadow-lg: 6px 6px 0 0 hsl(0 0% 6%);
     --shadow-xl: 8px 8px 0 0 hsl(0 0% 6%);
     --shadow-2xl: 12px 12px 0 0 hsl(0 0% 6%);
-    --shadow-glow: 4px 4px 0 0 hsl(230 100% 50%);
-    --shadow-glow-accent: 4px 4px 0 0 hsl(5 90% 55%);
+    --shadow-glow: 4px 4px 0 0 hsl(204 98% 34%);
+    --shadow-glow-accent: 4px 4px 0 0 hsl(105 72% 45%);
     --shadow-inner-glow: none;
   }
 
