@@ -25,22 +25,22 @@
     --bg-pattern: radial-gradient(circle at 1px 1px, hsl(0 0% 6% / 0.08) 1px, transparent 0);
     --bg-pattern-size: 16px 16px;
 
-    --background: 0 0% 100%;
-    --foreground: 0 0% 6%;
+    --background: 45 17% 95%;
+    --foreground: 215 91% 21%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 6%;
+    --card-foreground: 215 91% 21%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6%;
+    --popover-foreground: 215 91% 21%;
 
     /* Klein blue */
-    --primary: 230 100% 50%;
+    --primary: 204 98% 34%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 230 100% 60%;
+    --primary-glow: 201 70% 44%;
 
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 6%;
+    --secondary-foreground: 215 91% 21%;
 
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 35%;
@@ -49,9 +49,9 @@
        the same way here — a darker red is easier to read on white AND easier to
        put white on — so lightness alone fixes it and no foreground flips.
        .dark sets its own --accent and is unaffected. */
-    --accent: 5 90% 45%;
+    --accent: 112 63% 28%;
     --accent-foreground: 0 0% 100%;
-    --accent-glow: 5 90% 65%;
+    --accent-glow: 105 72% 45%;
 
     /* 45%, not 55%: at 55% this was 3.90:1 both as text on the page and under
        its own white foreground. Darkening fixes both at once — white-on-red and
@@ -63,21 +63,21 @@
     --destructive-foreground: 0 0% 100%;
 
     /* Thick black borders are a feature */
-    --border: 0 0% 6%;
-    --input: 0 0% 6%;
-    --ring: 230 100% 50%;
+    --border: 215 91% 21%;
+    --input: 215 91% 21%;
+    --ring: 204 98% 34%;
 
     /* Hard, square corners */
     --radius: 0rem;
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 6%;
-    --sidebar-primary: 230 100% 50%;
+    --sidebar-foreground: 215 91% 21%;
+    --sidebar-primary: 204 98% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 6%;
+    --sidebar-accent-foreground: 215 91% 21%;
     --sidebar-border: 0 0% 6%;
-    --sidebar-ring: 230 100% 50%;
+    --sidebar-ring: 204 98% 34%;
 
     /*
       --success had the same shape of fault as --warning: one value, 140 80% 35%,
@@ -97,7 +97,7 @@
       Foreground stays white: it was already correct here and the darker green
       only improves it, 3.40 -> 5.65.
     */
-    --success: 140 80% 26%;
+    --success: 112 63% 28%;
     --success-foreground: 0 0% 100%;
     /*
       --warning was 45 100% 50% — a bright gold — in BOTH themes, because .dark
@@ -119,16 +119,16 @@
     */
     --warning: 32 90% 33%;
     --warning-foreground: 0 0% 100%;
-    --info: 230 100% 50%;
+    --info: 204 98% 34%;
     --info-foreground: 0 0% 100%;
 
     /* Gradients (mostly unused in Print Shop but kept for legacy callers) */
-    --gradient-primary: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(260 100% 55%) 100%);
-    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(230 100% 50% / 0.1) 0%, transparent 60%);
+    --gradient-primary: linear-gradient(135deg, hsl(204 98% 34%) 0%, hsl(208 97% 29%) 100%);
+    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(204 98% 34% / 0.1) 0%, transparent 60%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
     --gradient-glass: linear-gradient(135deg, hsl(0 0% 100% / 0.95) 0%, hsl(0 0% 98% / 0.85) 100%);
     --gradient-sidebar: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 99%) 100%);
-    --gradient-cta: linear-gradient(135deg, hsl(230 100% 50%) 0%, hsl(230 100% 42%) 100%);
+    --gradient-cta: linear-gradient(135deg, hsl(204 98% 34%) 0%, hsl(208 97% 29%) 100%);
     --gradient-shine: linear-gradient(90deg, transparent 0%, hsl(0 0% 100% / 0.4) 50%, transparent 100%);
 
     /* Hard offset shadows — no softness, no blur */
@@ -137,8 +137,8 @@
     --shadow-lg: 6px 6px 0 0 hsl(0 0% 6%);
     --shadow-xl: 8px 8px 0 0 hsl(0 0% 6%);
     --shadow-2xl: 12px 12px 0 0 hsl(0 0% 6%);
-    --shadow-glow: 4px 4px 0 0 hsl(230 100% 50%);
-    --shadow-glow-accent: 4px 4px 0 0 hsl(5 90% 55%);
+    --shadow-glow: 4px 4px 0 0 hsl(204 98% 34%);
+    --shadow-glow-accent: 4px 4px 0 0 hsl(105 72% 45%);
     --shadow-inner-glow: none;
   }
 
@@ -165,7 +165,7 @@
       would repaint every button. They are different semantic tokens and only
       coincidentally equal, so they get to move independently.
     */
-    --info: 230 90% 68%;
+    --info: 201 75% 62%;
     --info-foreground: 0 0% 6%;
 
     /*
@@ -175,7 +175,7 @@
       then some, and flips the foreground to near-black — white on a green this
       light is 2.2:1. Hue held at 140 so the two themes stay the same green.
     */
-    --success: 140 70% 55%;
+    --success: 105 65% 52%;
     --success-foreground: 0 0% 6%;
 
     /* Linear dark: near-black with cool tint */
@@ -188,9 +188,9 @@
     --popover: 240 8% 8%;
     --popover-foreground: 240 6% 95%;
 
-    --primary: 234 60% 65%;
+    --primary: 201 70% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 234 70% 75%;
+    --primary-glow: 105 72% 55%;
 
     --secondary: 240 6% 12%;
     --secondary-foreground: 240 6% 80%;
@@ -198,9 +198,9 @@
     --muted: 240 6% 12%;
     --muted-foreground: 240 5% 60%;
 
-    --accent: 234 30% 18%;
-    --accent-foreground: 234 60% 80%;
-    --accent-glow: 234 60% 65%;
+    --accent: 112 40% 18%;
+    --accent-foreground: 91 71% 70%;
+    --accent-glow: 105 72% 50%;
 
     /*
       LIGHTENED, not darkened — the two failures pulled in opposite directions
@@ -225,16 +225,16 @@
 
     --border: 240 6% 16%;
     --input: 240 6% 16%;
-    --ring: 234 60% 65%;
+    --ring: 201 70% 55%;
 
     --sidebar-background: 240 10% 6%;
     --sidebar-foreground: 240 6% 70%;
-    --sidebar-primary: 234 60% 65%;
+    --sidebar-primary: 201 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 12%;
     --sidebar-accent-foreground: 240 6% 95%;
     --sidebar-border: 240 6% 14%;
-    --sidebar-ring: 234 60% 65%;
+    --sidebar-ring: 201 70% 55%;
 
     --gradient-hero: radial-gradient(ellipse at top, hsl(234 60% 65% / 0.12) 0%, transparent 60%);
     --gradient-glass: linear-gradient(135deg, hsl(240 8% 10% / 0.95) 0%, hsl(240 8% 8% / 0.85) 100%);
@@ -1117,7 +1117,7 @@ body {
   --pv-font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
 
   /* Neutral surface stack (warm off-white, near-imperceptible tint) */
-  --pv-bg:         210 20% 98.5%;      /* page */
+  --pv-bg:         45 17% 95%;      /* page */
   --pv-surface:    0 0% 100%;          /* cards */
   --pv-sunken:     220 16% 96%;        /* inset chips, progress track */
   --pv-raised:     0 0% 100%;
@@ -1167,7 +1167,7 @@ body {
   --pv-orange-alert:         31 92% 64%;
 
   /* Pressed state for primary. White label holds at 8.00:1. */
-  --pv-brand-hover:    224 72% 42%;
+  --pv-brand-hover:    208 97% 29%;
 
   /* Disabled control surface + its text. Deliberately legible: cleaners read
      these screens in sunlight, so this clears 4.5:1 rather than taking WCAG's
@@ -1188,9 +1188,9 @@ body {
   --pv-border-strong:  220 14% 82%;
 
   /* Brand — carry forward Klein blue, quieter usage */
-  --pv-brand:         230 84% 56%;
+  --pv-brand:         204 98% 34%;
   --pv-brand-ink:     0 0% 100%;
-  --pv-brand-soft:    230 90% 96%;
+  --pv-brand-soft:    204 70% 94%;
 
   /* Semantic status (soft pairs) */
   /*
@@ -1208,8 +1208,8 @@ body {
     Now 5.52:1 and 5.34:1 on a card, and still clear the soft chips at 5.03:1
     and 4.86:1. Hues untouched.
   */
-  --pv-success:       152 55% 30%;
-  --pv-success-soft:  152 55% 94%;
+  --pv-success:       112 63% 26%;
+  --pv-success-soft:  105 60% 92%;
   --pv-warn:          32 90% 33%;
   --pv-warn-soft:     36 100% 94%;
   /* 48%, not 50%. At 50% (#DB243C) this fails 4.25:1 against --pv-danger-soft,
@@ -1566,13 +1566,13 @@ body {
   --pv-border-strong:  220 15% 100% / 0.14;
 
   /* Brand — lifted for dark contrast */
-  --pv-brand:         222 96% 72%;
-  --pv-brand-ink:     222 30% 10%;
-  --pv-brand-soft:    222 55% 22%;
+  --pv-brand:         201 80% 66%;
+  --pv-brand-ink:     215 91% 12%;
+  --pv-brand-soft:    208 60% 20%;
 
   /* Status — soft pairs remain legible on charcoal */
-  --pv-success:       152 60% 62%;
-  --pv-success-soft:  152 40% 18%;
+  --pv-success:       105 60% 58%;
+  --pv-success-soft:  112 40% 16%;
   --pv-warn:          38 95% 66%;
   --pv-warn-soft:     36 55% 18%;
 
@@ -1597,7 +1597,7 @@ body {
   --pv-on-inverse-disabled:  218 10% 70%;
 
   /* Same pairing checked in dark: 62% on the dark button bg is 4.72. */
-  --pv-brand-hover:    224 72% 42%;
+  --pv-brand-hover:    208 97% 29%;
   --pv-disabled-btn:   222 14% 20%;
   --pv-ink-disabled:   220 10% 62%;
   --pv-danger:        352 85% 68%;
@@ -1639,11 +1639,11 @@ body {
     --pv-ink-4:      220 10% 54%;   /* 54%: 52% measured 4.42:1 on --pv-surface */
     --pv-border:         220 15% 100% / 0.08;
     --pv-border-strong:  220 15% 100% / 0.14;
-    --pv-brand:         222 96% 72%;
-    --pv-brand-ink:     222 30% 10%;
-    --pv-brand-soft:    222 55% 22%;
-    --pv-success:       152 60% 62%;
-    --pv-success-soft:  152 40% 18%;
+    --pv-brand:         201 80% 66%;
+    --pv-brand-ink:     215 91% 12%;
+    --pv-brand-soft:    208 60% 20%;
+    --pv-success:       105 60% 58%;
+    --pv-success-soft:  112 40% 16%;
     --pv-warn:          38 95% 66%;
     --pv-warn-soft:     36 55% 18%;
     --pv-danger:        352 85% 68%;

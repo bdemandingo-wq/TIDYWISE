@@ -109,7 +109,7 @@ export default defineConfig(({ mode }) => ({
       // and a worker caching inside that WebView would strand the app in the
       // one environment where a reload cannot clear it.
       injectRegister: null,
-      includeAssets: ["favicon.ico", "favicon.png", "apple-touch-icon.png"],
+      includeAssets: ["favicon.png", "apple-touch-icon.png"],
       manifest: {
         name: "TidyWise",
         short_name: "TidyWise",
@@ -117,8 +117,8 @@ export default defineConfig(({ mode }) => ({
           "Scheduling, CRM, payroll and invoicing for cleaning businesses.",
         // Derived from --primary: 230 100% 50% in src/index.css. There is no
         // canonical brand hex in the repo; if one exists in a brand doc it wins.
-        theme_color: "#002aff",
-        background_color: "#ffffff",
+        theme_color: "#0269AC",
+        background_color: "#F5F4F1",
         display: "standalone",
         // An installed app opens to the product, not the marketing homepage.
         // AdminRoute bounces to login when there is no session.
@@ -145,7 +145,7 @@ export default defineConfig(({ mode }) => ({
           with content search engines and visitors expect to come from the
           server.
         */
-        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.ico"],
+        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.png"],
         globIgnores: ["**/images/**", "**/blog/**", "**/locations/**"],
         navigateFallback: "/index.html",
         /*
