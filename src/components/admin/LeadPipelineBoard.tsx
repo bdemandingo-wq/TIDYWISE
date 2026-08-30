@@ -95,6 +95,43 @@ export function LeadPipelineBoard({
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
+  // Custom, org-scoped sections the user creates ("+ Add section"). They sit
+  // after the five built-in stages and store their key in leads.status.
+  const { stages, addStage, renameStage, deleteStage } = useLeadPipelineStages();
+  const [sectionDialog, setSectionDialog] = useState<
+    { mode: 'create' } | { mode: 'rename'; id: string; label: string } | null
+  >(null);
+  const [sectionName, setSectionName] = useState('');
+
+  const columns = [
+    ...PIPELINE_COLUMNS,
+    ...stages.map((s) => ({
+      id: s.key,
+      label: s.label,
+      color: 'bg-primary',
+      borderColor: 'border-t-primary',
+      custom: s,
+    })),
+  ];
+
+  const submitSection = async () => {
+    const label = sectionName.trim();
+    if (!label) return;
+    try {
+      if (sectionDialog?.mode === 'rename') {
+        await renameStage.mutateAsync({ id: sectionDialog.id, label });
+        toast.success('Section renamed');
+      } else {
+        await addStage.mutateAsync(label);
+        toast.success('Section added');
+      }
+      setSectionDialog(null);
+      setSectionName('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save section');
+    }
+  };
+
   const getColumnLeads = useCallback(
     (status: string) => {
       return leads.filter((l) => l.status === status);
