@@ -10,10 +10,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock } from 'lucide-react';
+import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Clock, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
+import { useLeadPipelineStages, type LeadPipelineStage } from '@/hooks/useLeadPipelineStages';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface Lead {
   id: string;
@@ -83,6 +95,51 @@ export function LeadPipelineBoard({
   const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
+  // Custom, org-scoped sections the user creates ("+ Add section"). They sit
+  // after the five built-in stages and store their key in leads.status.
+  const { stages, addStage, renameStage, deleteStage } = useLeadPipelineStages();
+  const [sectionDialog, setSectionDialog] = useState<
+    { mode: 'create' } | { mode: 'rename'; id: string; label: string } | null
+  >(null);
+  const [sectionName, setSectionName] = useState('');
+
+  type BoardColumn = {
+    id: string;
+    label: string;
+    color: string;
+    borderColor: string;
+    custom?: LeadPipelineStage;
+  };
+
+  const columns: BoardColumn[] = [
+    ...PIPELINE_COLUMNS,
+    ...stages.map((s) => ({
+      id: s.key,
+      label: s.label,
+      color: 'bg-primary',
+      borderColor: 'border-t-primary',
+      custom: s,
+    })),
+  ];
+
+  const submitSection = async () => {
+    const label = sectionName.trim();
+    if (!label) return;
+    try {
+      if (sectionDialog?.mode === 'rename') {
+        await renameStage.mutateAsync({ id: sectionDialog.id, label });
+        toast.success('Section renamed');
+      } else {
+        await addStage.mutateAsync(label);
+        toast.success('Section added');
+      }
+      setSectionDialog(null);
+      setSectionName('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save section');
+    }
+  };
+
   const getColumnLeads = useCallback(
     (status: string) => {
       return leads.filter((l) => l.status === status);
@@ -128,7 +185,7 @@ export function LeadPipelineBoard({
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
-      {PIPELINE_COLUMNS.map((column) => {
+      {columns.map((column) => {
         const columnLeads = getColumnLeads(column.id);
         const isDragOver = dragOverColumn === column.id;
 
@@ -153,14 +210,48 @@ export function LeadPipelineBoard({
                     {columnLeads.length}
                   </Badge>
                 </div>
-                {(() => {
-                  const total = columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-                  return total > 0 ? (
-                    <span className="text-[12px] font-extrabold text-success">
-                      ${total.toLocaleString()}
-                    </span>
-                  ) : null;
-                })()}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const total = columnLeads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
+                    return total > 0 ? (
+                      <span className="text-[12px] font-extrabold text-success">
+                        ${total.toLocaleString()}
+                      </span>
+                    ) : null;
+                  })()}
+                  {column.custom && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`${column.label} section options`}>
+                          <MoreHorizontal className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSectionName(column.label);
+                            setSectionDialog({ mode: 'rename', id: column.custom!.id, label: column.label });
+                          }}
+                        >
+                          <Edit className="h-4 w-4 mr-2" /> Rename section
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={async () => {
+                            try {
+                              await deleteStage.mutateAsync(column.custom!);
+                              toast.success('Section removed — its leads moved back to New');
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : 'Could not remove section');
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" /> Delete section
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -197,6 +288,68 @@ export function LeadPipelineBoard({
           </div>
         );
       })}
+
+      {/* Add a custom section */}
+      <div className="flex-shrink-0 w-[250px] snap-start">
+        <Button
+          variant="outline"
+          className="w-full justify-center rounded-[14px] border-dashed h-[52px] text-[13px] font-semibold"
+          onClick={() => {
+            setSectionName('');
+            setSectionDialog({ mode: 'create' });
+          }}
+        >
+          <Plus className="h-4 w-4 mr-2" /> Add section
+        </Button>
+      </div>
+
+      <Dialog
+        open={!!sectionDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSectionDialog(null);
+            setSectionName('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {sectionDialog?.mode === 'rename' ? 'Rename section' : 'New pipeline section'}
+            </DialogTitle>
+            <DialogDescription>
+              Name it whatever you like — you can drag leads straight into it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="pipeline-section-name">Section name</Label>
+            <Input
+              id="pipeline-section-name"
+              value={sectionName}
+              onChange={(e) => setSectionName(e.target.value)}
+              placeholder="e.g. Commercial, Waiting on Quote, VIP"
+              maxLength={40}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  submitSection();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSectionDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitSection}
+              disabled={!sectionName.trim() || addStage.isPending || renameStage.isPending}
+            >
+              {sectionDialog?.mode === 'rename' ? 'Save' : 'Add section'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
