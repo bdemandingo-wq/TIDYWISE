@@ -75,21 +75,32 @@ export async function resolveCallerOrg(
     .eq("user_id", userId);
 
   if (memberships && memberships.length > 0) {
+    if (requestedOrgId) {
+      const match = memberships.find(
+        (m: { organization_id: string }) => m.organization_id === requestedOrgId,
+      );
+      if (match) {
+        return { ok: true, ctx: { userId, organizationId: requestedOrgId } };
+      }
+    }
     const owner = memberships.find((m: { role: string }) => m.role === "owner");
     const organizationId = (owner ?? memberships[0]).organization_id as string;
     return { ok: true, ctx: { userId, organizationId } };
   }
 
   // No admin-dashboard membership — check for a staff-portal record.
-  const { data: staffRow } = await supabaseAdmin
+  const { data: staffRows } = await supabaseAdmin
     .from("staff")
     .select("organization_id")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
 
-  if (staffRow?.organization_id) {
-    return { ok: true, ctx: { userId, organizationId: staffRow.organization_id as string } };
+  if (staffRows && staffRows.length > 0) {
+    if (requestedOrgId && staffRows.some((s: { organization_id: string }) => s.organization_id === requestedOrgId)) {
+      return { ok: true, ctx: { userId, organizationId: requestedOrgId } };
+    }
+    return { ok: true, ctx: { userId, organizationId: staffRows[0].organization_id as string } };
   }
 
   return { ok: false, status: 403, error: "No organization membership found for this account" };
 }
+
