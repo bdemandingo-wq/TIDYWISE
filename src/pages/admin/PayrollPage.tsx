@@ -514,9 +514,11 @@ export default function PayrollPage() {
         .from('bookings')
         .select(`*, customer:customers(*), staff:staff(*)`)
         .eq('organization_id', organizationId)
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString())
-        .order('scheduled_at', { ascending: false })
+        // payroll_date (= COALESCE(completed_at, scheduled_at)) is what the
+        // server-side lock/attribution uses, so the UI must select the same way.
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString())
+        .order('payroll_date', { ascending: false })
         .order('id');           // unique tiebreaker — see rule 3
       if (error) throw error;
       return data;
