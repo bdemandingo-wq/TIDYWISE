@@ -184,7 +184,7 @@ export function LeadPipelineBoard({
   const totalValue = leads.length;
 
   return (
-    <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
+    <div className="flex items-start gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
       {columns.map((column) => {
         const columnLeads = getColumnLeads(column.id);
         const isDragOver = dragOverColumn === column.id;
@@ -192,7 +192,7 @@ export function LeadPipelineBoard({
         return (
           <div
             key={column.id}
-            className="flex-shrink-0 w-[250px] min-h-[400px] sm:min-h-[500px] snap-start"
+            className="flex-shrink-0 w-[250px] snap-start"
             onDragOver={(e) => handleDragOver(e, column.id)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
