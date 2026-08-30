@@ -38,6 +38,7 @@ import { Sentry } from '@/lib/sentry';
 import { toast } from 'sonner';
 import { format, addWeeks, addMonths, isAfter } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+import { formatFullAddress } from '@/lib/formatAddress';
 import { useOrgId } from '@/hooks/useOrgId';
 import { useOrgTimezone } from '@/hooks/useOrgTimezone';
 import { selectedDateTimeToUTCISO, getTimeInTimezone, formatInTimezone } from '@/lib/timezoneUtils';
@@ -378,7 +379,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       // (InvoicesPage.tsx sendInvoiceEmail, InvoiceViewDialog.tsx
       // handleSendEmail): invoke, bail on error, then write the status.
       const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
-        `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
+        `📍 Address: ${formatFullAddress({ address, apt_suite: aptSuite, city })}\n` +
         `💰 Total: ${fmt(quoteAmount)}\n\n` +
         `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
 
@@ -1331,7 +1332,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               serviceName: selectedService?.name,
               scheduledAt: bookingData.scheduled_at,
               totalAmount: totalAmount > 0 ? totalAmount : calculatedPrice,
-              address,
+              address: formatFullAddress({ address, apt_suite: aptSuite, city, state, zip_code: zipCode }) || address,
               organizationId: organizationId ?? undefined,
             }
           }).then(({ error }) => {
@@ -1357,7 +1358,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
                 const formattedDate = format(scheduledDate, 'MMMM d, yyyy');
                 const formattedTime = format(scheduledDate, 'h:mm a');
                 const serviceName = selectedService?.name || 'cleaning';
-                const fullAddress = `${address}${city ? `, ${city}` : ''}`;
+                const fullAddress = formatFullAddress({ address, apt_suite: aptSuite, city });
 
                 const confirmationMessage =
                   `Hi ${customerName}! Your ${serviceName} appointment is confirmed for ${formattedDate} at ${formattedTime}.` +
