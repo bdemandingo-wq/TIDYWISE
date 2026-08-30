@@ -159,9 +159,15 @@ export function LeadPipelineBoard({
     setDragOverColumn(columnId);
   };
 
-  const handleDragLeave = () => {
+  // Only clear the highlight when the pointer actually leaves the column.
+  // Without the containment check, moving across a child card fires dragleave
+  // and the drop zone flickers off mid-drag.
+  const handleDragLeave = (e: React.DragEvent) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && e.currentTarget.contains(next)) return;
     setDragOverColumn(null);
   };
+
 
   const handleDrop = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
@@ -197,15 +203,13 @@ export function LeadPipelineBoard({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
-            {/* Column Header */}
-            {/* Mockup 8h: the header is its OWN card — radius 14px all round,
-                3px accent top border, padding 12/14 — with the lead cards
-                floating beneath it. It was a joined header+body with a tinted
-                well; the comp has no well. */}
-            <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] py-3`}>
-              <div className="flex items-center justify-between">
+            {/* Column header card. Fixed height so every column — built-in or
+                custom (which carries an extra options button) — matches. */}
+            <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] h-[46px] flex items-center`}>
+              <div className="flex items-center justify-between w-full min-w-0">
+
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] font-extrabold">{column.label}</span>
+                  <span className="text-[13px] font-extrabold truncate">{column.label}</span>
                   <Badge variant="secondary" className="text-xs h-5 px-1.5">
                     {columnLeads.length}
                   </Badge>
@@ -222,7 +226,7 @@ export function LeadPipelineBoard({
                   {column.custom && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`${column.label} section options`}>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 -mr-1.5" aria-label={`${column.label} section options`}>
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -257,7 +261,7 @@ export function LeadPipelineBoard({
 
             {/* Column Body */}
             <div 
-              className={`mt-2.5 space-y-2.5 min-h-[120px] rounded-[14px] transition-colors ${
+              className={`mt-2.5 space-y-2.5 min-h-[160px] rounded-[14px] transition-colors ${
                 isDragOver ? 'bg-primary/5 ring-1 ring-primary/30' : ''
               }`}
             >
@@ -293,7 +297,7 @@ export function LeadPipelineBoard({
       <div className="flex-shrink-0 w-[250px] snap-start">
         <Button
           variant="outline"
-          className="w-full justify-center rounded-[14px] border-dashed h-[52px] text-[13px] font-semibold"
+          className="w-full justify-center rounded-[14px] border-dashed h-[46px] text-[13px] font-semibold"
           onClick={() => {
             setSectionName('');
             setSectionDialog({ mode: 'create' });
