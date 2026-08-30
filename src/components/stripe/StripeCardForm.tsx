@@ -249,6 +249,23 @@ export function StripeCardForm(props: CardFormProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
 
+  // Debounce the identity fields. Without this, every keystroke in the email
+  // field fired create-setup-intent, and each partial address ("a@b.c",
+  // "a@b.co", "a@b.com") created its own Stripe customer.
+  const [debouncedEmail, setDebouncedEmail] = useState(email);
+  const [debouncedName, setDebouncedName] = useState(customerName);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedEmail(email);
+      setDebouncedName(customerName);
+    }, 800);
+    return () => clearTimeout(t);
+  }, [email, customerName]);
+
+  // Only initialise for a plausibly-complete email address.
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(debouncedEmail.trim());
+
+
   // Step 1: Load @stripe/react-stripe-js module
   useEffect(() => {
     if (stripeReact) return;
