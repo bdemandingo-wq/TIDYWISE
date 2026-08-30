@@ -134,7 +134,9 @@ export default function AcceptInvitePage() {
 
     await refetch();
     switchOrganization(response.organization_id);
+    try { sessionStorage.removeItem('tidywise_invite_pending'); } catch { /* ignore */ }
     window.location.replace(dashboardDestination(response.role));
+
   };
 
   // Flag the invite as in-flight so the auth provisioning effect does not
