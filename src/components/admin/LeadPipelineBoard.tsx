@@ -159,9 +159,15 @@ export function LeadPipelineBoard({
     setDragOverColumn(columnId);
   };
 
-  const handleDragLeave = () => {
+  // Only clear the highlight when the pointer actually leaves the column.
+  // Without the containment check, moving across a child card fires dragleave
+  // and the drop zone flickers off mid-drag.
+  const handleDragLeave = (e: React.DragEvent) => {
+    const next = e.relatedTarget as Node | null;
+    if (next && e.currentTarget.contains(next)) return;
     setDragOverColumn(null);
   };
+
 
   const handleDrop = (e: React.DragEvent, columnId: string) => {
     e.preventDefault();
