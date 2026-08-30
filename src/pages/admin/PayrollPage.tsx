@@ -539,8 +539,8 @@ export default function PayrollPage() {
         .select('id')
         .eq('organization_id', organizationId)
         .neq('status', 'cancelled')
-        .gte('scheduled_at', dateRange.from.toISOString())
-        .lte('scheduled_at', toEndOfDay.toISOString());
+        .gte('payroll_date', dateRange.from.toISOString())
+        .lte('payroll_date', toEndOfDay.toISOString());
       if (!bookingIds?.length) return [];
       const ids = bookingIds.map((b: any) => b.id);
       const { data, error } = await supabase
