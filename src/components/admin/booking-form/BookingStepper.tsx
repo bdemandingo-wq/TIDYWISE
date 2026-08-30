@@ -379,7 +379,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
       // (InvoicesPage.tsx sendInvoiceEmail, InvoiceViewDialog.tsx
       // handleSendEmail): invoke, bail on error, then write the status.
       const message = `Hi ${customerName}! Here's your quote for ${selectedService?.name || 'cleaning services'}:\n\n` +
-        `📍 Address: ${address}${city ? `, ${city}` : ''}\n` +
+        `📍 Address: ${formatFullAddress({ address, apt_suite: aptSuite, city })}\n` +
         `💰 Total: ${fmt(quoteAmount)}\n\n` +
         `This quote is valid for 7 days. Reply YES to confirm or call us with any questions!`;
 
