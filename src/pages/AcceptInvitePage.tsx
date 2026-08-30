@@ -134,8 +134,18 @@ export default function AcceptInvitePage() {
 
     await refetch();
     switchOrganization(response.organization_id);
+    try { sessionStorage.removeItem('tidywise_invite_pending'); } catch { /* ignore */ }
     window.location.replace(dashboardDestination(response.role));
+
   };
+
+  // Flag the invite as in-flight so the auth provisioning effect does not
+  // create a brand-new trial org for this user mid-acceptance.
+  useEffect(() => {
+    if (!token) return;
+    try { sessionStorage.setItem('tidywise_invite_pending', 'true'); } catch { /* ignore */ }
+    return () => { try { sessionStorage.removeItem('tidywise_invite_pending'); } catch { /* ignore */ } };
+  }, [token]);
 
   useEffect(() => {
     if (!token) { setLoadErr('Missing invite token'); return; }
@@ -150,6 +160,7 @@ export default function AcceptInvitePage() {
       setPreview(data as Preview);
     })();
   }, [token]);
+
 
   const acceptExisting = async () => {
     setBusy(true);
