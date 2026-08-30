@@ -177,7 +177,7 @@ export function LeadPipelineBoard({
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory md:snap-none" data-no-swipe>
-      {PIPELINE_COLUMNS.map((column) => {
+      {columns.map((column) => {
         const columnLeads = getColumnLeads(column.id);
         const isDragOver = dragOverColumn === column.id;
 
