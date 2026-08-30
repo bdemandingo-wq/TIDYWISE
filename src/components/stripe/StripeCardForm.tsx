@@ -285,13 +285,18 @@ export function StripeCardForm(props: CardFormProps) {
   // We do this BEFORE rendering <Elements> so that the Stripe instance used to create
   // Elements is the SAME instance used later for confirmCardSetup.
   useEffect(() => {
-    if (!organizationId || !email || !customerName) return;
+    if (!organizationId || !emailLooksValid || !debouncedName.trim()) return;
     let cancelled = false;
 
     async function prefetch() {
       try {
         const { data: setupData, error: setupError } = await supabase.functions.invoke('create-setup-intent', {
-          body: { email, customerName, organizationId, publicBooking },
+          body: {
+            email: debouncedEmail.trim(),
+            customerName: debouncedName.trim(),
+            organizationId,
+            publicBooking,
+          },
           headers: portalSessionToken ? { 'x-portal-session': portalSessionToken } : undefined,
         });
 
@@ -310,6 +315,7 @@ export function StripeCardForm(props: CardFormProps) {
         const resolvedKey = setupData.publishableKey || undefined;
         const promise = getStripePromise(resolvedKey);
 
+        setInitError(null);
         setStripePromise(promise);
         setClientSecret(setupData.clientSecret);
       } catch (err: any) {
@@ -319,7 +325,8 @@ export function StripeCardForm(props: CardFormProps) {
 
     prefetch();
     return () => { cancelled = true; };
-  }, [organizationId, email, customerName, publicBooking, portalSessionToken]);
+  }, [organizationId, debouncedEmail, debouncedName, emailLooksValid, publicBooking, portalSessionToken]);
+
 
   // Loading states
   if (!stripeReact || !stripePromise || !clientSecret) {
