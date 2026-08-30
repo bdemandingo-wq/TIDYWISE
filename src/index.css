@@ -1117,7 +1117,7 @@ body {
   --pv-font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
 
   /* Neutral surface stack (warm off-white, near-imperceptible tint) */
-  --pv-bg:         210 20% 98.5%;      /* page */
+  --pv-bg:         45 17% 95%;      /* page */
   --pv-surface:    0 0% 100%;          /* cards */
   --pv-sunken:     220 16% 96%;        /* inset chips, progress track */
   --pv-raised:     0 0% 100%;
@@ -1167,7 +1167,7 @@ body {
   --pv-orange-alert:         31 92% 64%;
 
   /* Pressed state for primary. White label holds at 8.00:1. */
-  --pv-brand-hover:    224 72% 42%;
+  --pv-brand-hover:    208 97% 29%;
 
   /* Disabled control surface + its text. Deliberately legible: cleaners read
      these screens in sunlight, so this clears 4.5:1 rather than taking WCAG's
@@ -1188,9 +1188,9 @@ body {
   --pv-border-strong:  220 14% 82%;
 
   /* Brand — carry forward Klein blue, quieter usage */
-  --pv-brand:         230 84% 56%;
+  --pv-brand:         204 98% 34%;
   --pv-brand-ink:     0 0% 100%;
-  --pv-brand-soft:    230 90% 96%;
+  --pv-brand-soft:    204 70% 94%;
 
   /* Semantic status (soft pairs) */
   /*
@@ -1208,8 +1208,8 @@ body {
     Now 5.52:1 and 5.34:1 on a card, and still clear the soft chips at 5.03:1
     and 4.86:1. Hues untouched.
   */
-  --pv-success:       152 55% 30%;
-  --pv-success-soft:  152 55% 94%;
+  --pv-success:       112 63% 26%;
+  --pv-success-soft:  105 60% 92%;
   --pv-warn:          32 90% 33%;
   --pv-warn-soft:     36 100% 94%;
   /* 48%, not 50%. At 50% (#DB243C) this fails 4.25:1 against --pv-danger-soft,
@@ -1566,13 +1566,13 @@ body {
   --pv-border-strong:  220 15% 100% / 0.14;
 
   /* Brand — lifted for dark contrast */
-  --pv-brand:         222 96% 72%;
-  --pv-brand-ink:     222 30% 10%;
-  --pv-brand-soft:    222 55% 22%;
+  --pv-brand:         201 80% 66%;
+  --pv-brand-ink:     215 91% 12%;
+  --pv-brand-soft:    208 60% 20%;
 
   /* Status — soft pairs remain legible on charcoal */
-  --pv-success:       152 60% 62%;
-  --pv-success-soft:  152 40% 18%;
+  --pv-success:       105 60% 58%;
+  --pv-success-soft:  112 40% 16%;
   --pv-warn:          38 95% 66%;
   --pv-warn-soft:     36 55% 18%;
 
@@ -1597,7 +1597,7 @@ body {
   --pv-on-inverse-disabled:  218 10% 70%;
 
   /* Same pairing checked in dark: 62% on the dark button bg is 4.72. */
-  --pv-brand-hover:    224 72% 42%;
+  --pv-brand-hover:    208 97% 29%;
   --pv-disabled-btn:   222 14% 20%;
   --pv-ink-disabled:   220 10% 62%;
   --pv-danger:        352 85% 68%;
@@ -1639,11 +1639,11 @@ body {
     --pv-ink-4:      220 10% 54%;   /* 54%: 52% measured 4.42:1 on --pv-surface */
     --pv-border:         220 15% 100% / 0.08;
     --pv-border-strong:  220 15% 100% / 0.14;
-    --pv-brand:         222 96% 72%;
-    --pv-brand-ink:     222 30% 10%;
-    --pv-brand-soft:    222 55% 22%;
-    --pv-success:       152 60% 62%;
-    --pv-success-soft:  152 40% 18%;
+    --pv-brand:         201 80% 66%;
+    --pv-brand-ink:     215 91% 12%;
+    --pv-brand-soft:    208 60% 20%;
+    --pv-success:       105 60% 58%;
+    --pv-success-soft:  112 40% 16%;
     --pv-warn:          38 95% 66%;
     --pv-warn-soft:     36 55% 18%;
     --pv-danger:        352 85% 68%;
