@@ -213,6 +213,12 @@ const offlinePersister = createSyncStoragePersister({
 
 const AppStateHandler = (): null => {
   useAppStateHandler();
+  // Capture ?ref= on first load so referral signups are credited later in
+  // onboarding (readCapturedReferral -> claim-referral).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    captureReferralFromUrl(window.location.search);
+  }, []);
   return null;
 };
 
