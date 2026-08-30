@@ -637,12 +637,11 @@ export function ClientPortalProvider({ children }: { children: ReactNode }) {
       .eq('id', user.customer_id)
       .single();
 
-    // Fetch property_type separately to avoid type issues with generated types
-    const { data: propData } = await supabase
-      .from('customers')
-      .select('property_type' as any)
-      .eq('id', user.customer_id)
-      .single();
+    // customers.property_type no longer exists in the database (it errored with
+    // 42703 on every refresh). No table exposes it today and
+    // get_client_portal_user_data returns NULL::text, so keep whatever the
+    // session already resolved and fall back to 'residential'.
+
 
     // Refresh loyalty info through the session-validated proxy, NOT a direct
     // customer_loyalty read.
