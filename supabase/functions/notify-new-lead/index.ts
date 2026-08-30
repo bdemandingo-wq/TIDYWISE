@@ -34,6 +34,7 @@ type Outcome =
   | "sent"
   | "already_handled"
   | "skipped_backfilled"
+  | "skipped_internal_source"
   | "skipped_automation_off"
   | "skipped_no_phone"
   | "skipped_unusable_phone"
