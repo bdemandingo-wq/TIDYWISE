@@ -155,11 +155,27 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
       setProvisioning('idle');
       return;
     }
+    // Never auto-provision a brand-new trial org while a team invite is being
+    // accepted. The existing-user invite path signs in BEFORE the membership
+    // row is written, so this effect used to see zero memberships, create a
+    // fresh org, and drop the invitee into the onboarding wizard ("create a
+    // whole new account") instead of the workspace they were invited to.
+    let invitePending = false;
+    try {
+      invitePending =
+        window.location.pathname.startsWith('/accept-invite') ||
+        sessionStorage.getItem('tidywise_invite_pending') === 'true';
+    } catch { /* storage unavailable — fall back to the pathname check above */ }
+    if (invitePending) {
+      setProvisioning('idle');
+      return;
+    }
     if (provisionedUserRef.current === userId) return;
     provisionedUserRef.current = userId;
 
     let cancelled = false;
     setProvisioning('pending');
+
 
     (async () => {
       try {
