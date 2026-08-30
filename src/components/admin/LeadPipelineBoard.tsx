@@ -14,7 +14,7 @@ import { Mail, Phone, MoreHorizontal, UserPlus, Edit, Trash2, GripVertical, Cloc
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { LeadTagChip, normalizeTags } from '@/components/admin/LeadTagsEditor';
-import { useLeadPipelineStages } from '@/hooks/useLeadPipelineStages';
+import { useLeadPipelineStages, type LeadPipelineStage } from '@/hooks/useLeadPipelineStages';
 import {
   Dialog,
   DialogContent,
@@ -219,7 +219,7 @@ export function LeadPipelineBoard({
                       </span>
                     ) : null;
                   })()}
-                  {'custom' in column && column.custom && (
+                  {column.custom && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`${column.label} section options`}>
