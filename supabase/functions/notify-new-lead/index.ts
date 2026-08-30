@@ -34,6 +34,7 @@ type Outcome =
   | "sent"
   | "already_handled"
   | "skipped_backfilled"
+  | "skipped_internal_source"
   | "skipped_automation_off"
   | "skipped_no_phone"
   | "skipped_unusable_phone"
@@ -91,6 +92,20 @@ serve(async (req: Request) => {
     console.log(`[notify-new-lead] lead ${leadId} is backfilled, no outbound action`);
     return json({ outcome: "skipped_backfilled" satisfies Outcome, lead_id: leadId });
   }
+
+  // ── 3b. Only INBOUND enquiries get the speed-to-lead text ──
+  // Creating a customer (e.g. from the New Booking form) auto-creates a lead
+  // row with source 'customer_import'. That is a record-keeping row, not a new
+  // enquiry, and texting "I saw your request come in" to someone who just got
+  // a booking confirmation is wrong. Same for leads staff type in by hand.
+  const INTERNAL_SOURCES = new Set(["customer_import", "manual", "admin", "import"]);
+  const leadSource = typeof lead.source === "string" ? lead.source.trim().toLowerCase() : "";
+  if (INTERNAL_SOURCES.has(leadSource)) {
+    console.log(`[notify-new-lead] lead ${leadId} source '${leadSource}' is internal, no SMS`);
+    return json({ outcome: "skipped_internal_source" satisfies Outcome, lead_id: leadId });
+  }
+
+
 
   // ── 4. Dispatch lead.created, regardless of the SMS automation ──
   // Deliberately before the SMS and deliberately non-fatal: an integration
