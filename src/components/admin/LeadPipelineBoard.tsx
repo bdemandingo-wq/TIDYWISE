@@ -203,8 +203,7 @@ export function LeadPipelineBoard({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
-            {/* Column Header */}
-            {/* Mockup 8h: the header is its OWN card — radius 14px all round,
+
                 3px accent top border, padding 12/14 — with the lead cards
                 floating beneath it. It was a joined header+body with a tinted
                 well; the comp has no well. */}
