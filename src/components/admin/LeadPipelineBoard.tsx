@@ -203,11 +203,10 @@ export function LeadPipelineBoard({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
+            {/* Column header card. Fixed height so every column — built-in or
+                custom (which carries an extra options button) — matches. */}
+            <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] h-[46px] flex items-center`}>
 
-                3px accent top border, padding 12/14 — with the lead cards
-                floating beneath it. It was a joined header+body with a tinted
-                well; the comp has no well. */}
-            <div className={`rounded-[14px] border border-t-[3px] ${column.borderColor} bg-card px-[14px] py-3`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-extrabold">{column.label}</span>
