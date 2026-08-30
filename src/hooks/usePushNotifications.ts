@@ -62,8 +62,8 @@ export const showBrowserNotification = ({ title, body, tag, onClick }: Notificat
     const notification = new Notification(title, {
       body,
       tag,
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/favicon.png',
+      badge: '/favicon.png',
     });
 
     notification.onclick = () => {

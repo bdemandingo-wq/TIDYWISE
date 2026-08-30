@@ -109,7 +109,7 @@ export default defineConfig(({ mode }) => ({
       // and a worker caching inside that WebView would strand the app in the
       // one environment where a reload cannot clear it.
       injectRegister: null,
-      includeAssets: ["favicon.ico", "favicon.png", "apple-touch-icon.png"],
+      includeAssets: ["favicon.png", "apple-touch-icon.png"],
       manifest: {
         name: "TidyWise",
         short_name: "TidyWise",
@@ -145,7 +145,7 @@ export default defineConfig(({ mode }) => ({
           with content search engines and visitors expect to come from the
           server.
         */
-        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.ico"],
+        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.png"],
         globIgnores: ["**/images/**", "**/blog/**", "**/locations/**"],
         navigateFallback: "/index.html",
         /*
