@@ -27,6 +27,7 @@ import { CopilotMount } from "@/components/copilot/CopilotMount";
 import { ProductTour } from "@/components/copilot/ProductTour";
 import { Capacitor } from "@capacitor/core";
 import { useAppStateHandler } from '@/hooks/useAppStateHandler';
+import { captureReferralFromUrl } from '@/lib/referralAttribution';
 
 // Critical path: keep the shell light; lazy-load even the public entry pages
 const LandingPage = lazy(() => import("./pages/LandingPage"));
