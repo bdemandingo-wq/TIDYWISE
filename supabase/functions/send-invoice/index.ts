@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
     // service-role path may trust the body's organizationId; everyone else
     // gets it overwritten with their own verified org.
     if (!isServiceRoleRequest(req)) {
-      const callerOrg = await resolveCallerOrg(req);
+      const callerOrg = await resolveCallerOrg(req, data.organizationId ?? null);
       if (!callerOrg.ok) {
         return new Response(JSON.stringify({ error: callerOrg.error }), {
           status: callerOrg.status,

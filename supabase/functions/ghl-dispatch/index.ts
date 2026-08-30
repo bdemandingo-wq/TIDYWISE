@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
     // SECURITY: never trust organization_id from the request body — resolve
     // it from the caller's own JWT + org_memberships instead.
-    const callerOrg = await resolveCallerOrg(req);
+    const callerOrg = await resolveCallerOrg(req, body?.organization_id ?? null);
     if (!callerOrg.ok) {
       return new Response(JSON.stringify({ error: callerOrg.error }), {
         status: callerOrg.status,

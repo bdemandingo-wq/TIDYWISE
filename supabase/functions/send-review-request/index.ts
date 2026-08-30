@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
     // from the caller's own JWT + org_memberships/staff record instead
     // (this function is called from both the admin dashboard and the staff
     // portal's "request a review" action).
-    const callerOrg = await resolveCallerOrg(req);
+    const callerOrg = await resolveCallerOrg(req, payload.organizationId ?? null);
     if (!callerOrg.ok) {
       return new Response(JSON.stringify({ error: callerOrg.error }), {
         status: callerOrg.status,
