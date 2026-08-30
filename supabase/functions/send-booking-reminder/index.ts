@@ -42,7 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
       const cronGate = requireCronSecret(req);
       if (cronGate) return cronGate;
     } else {
-      const callerOrg = await resolveCallerOrg(req);
+      const callerOrg = await resolveCallerOrg(req, organizationId ?? null);
       if (!callerOrg.ok) {
         return new Response(JSON.stringify({ error: callerOrg.error }), {
           status: callerOrg.status, headers: { "Content-Type": "application/json", ...corsHeaders },

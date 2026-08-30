@@ -35,11 +35,11 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    const { jobDetails, companyName: providedCompanyName, staffIds }: NotifyCleanersRequest = await req.json();
+    const { jobDetails, companyName: providedCompanyName, staffIds, organizationId: requestedOrgId }: NotifyCleanersRequest = await req.json();
 
     // SECURITY: never trust organizationId from the request body — resolve it
     // from the caller's own JWT + org_memberships instead.
-    const callerOrg = await resolveCallerOrg(req);
+    const callerOrg = await resolveCallerOrg(req, requestedOrgId ?? null);
     if (!callerOrg.ok) {
       return new Response(
         JSON.stringify({ error: callerOrg.error }),

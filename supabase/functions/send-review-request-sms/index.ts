@@ -42,7 +42,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // SECURITY: never trust organizationId from the request body — resolve it
     // from the caller's own JWT + org_memberships instead.
-    const callerOrg = await resolveCallerOrg(req);
+    const callerOrg = await resolveCallerOrg(req, payload.organizationId ?? null);
     if (!callerOrg.ok) {
       return new Response(JSON.stringify({ error: callerOrg.error }), {
         status: callerOrg.status,

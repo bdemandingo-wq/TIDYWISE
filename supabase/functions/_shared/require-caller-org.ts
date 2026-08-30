@@ -40,14 +40,17 @@ export interface CallerOrgContext {
 
 /**
  * Resolves the organization the CALLER belongs to, from their own JWT —
- * never from the request body. Checks org_memberships first (owner role
- * preferred, otherwise first membership); if the caller has no
- * org_memberships row at all (staff-portal accounts don't), falls back to
- * their `staff` record.
+ * never blindly from the request body. If `requestedOrgId` is supplied (the
+ * app's ACTIVE organization), it is honoured ONLY when the caller actually
+ * has a membership/staff record in it — this is what keeps multi-org owners
+ * from sending another org's branded email. Otherwise falls back to
+ * org_memberships (owner role preferred) and then the `staff` record.
  */
 export async function resolveCallerOrg(
   req: Request,
+  requestedOrgId?: string | null,
 ): Promise<{ ok: true; ctx: CallerOrgContext } | { ok: false; status: number; error: string }> {
+
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return { ok: false, status: 401, error: "Unauthorized" };
@@ -72,21 +75,32 @@ export async function resolveCallerOrg(
     .eq("user_id", userId);
 
   if (memberships && memberships.length > 0) {
+    if (requestedOrgId) {
+      const match = memberships.find(
+        (m: { organization_id: string }) => m.organization_id === requestedOrgId,
+      );
+      if (match) {
+        return { ok: true, ctx: { userId, organizationId: requestedOrgId } };
+      }
+    }
     const owner = memberships.find((m: { role: string }) => m.role === "owner");
     const organizationId = (owner ?? memberships[0]).organization_id as string;
     return { ok: true, ctx: { userId, organizationId } };
   }
 
   // No admin-dashboard membership — check for a staff-portal record.
-  const { data: staffRow } = await supabaseAdmin
+  const { data: staffRows } = await supabaseAdmin
     .from("staff")
     .select("organization_id")
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
 
-  if (staffRow?.organization_id) {
-    return { ok: true, ctx: { userId, organizationId: staffRow.organization_id as string } };
+  if (staffRows && staffRows.length > 0) {
+    if (requestedOrgId && staffRows.some((s: { organization_id: string }) => s.organization_id === requestedOrgId)) {
+      return { ok: true, ctx: { userId, organizationId: requestedOrgId } };
+    }
+    return { ok: true, ctx: { userId, organizationId: staffRows[0].organization_id as string } };
   }
 
   return { ok: false, status: 403, error: "No organization membership found for this account" };
 }
+
