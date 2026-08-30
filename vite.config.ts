@@ -117,8 +117,8 @@ export default defineConfig(({ mode }) => ({
           "Scheduling, CRM, payroll and invoicing for cleaning businesses.",
         // Derived from --primary: 230 100% 50% in src/index.css. There is no
         // canonical brand hex in the repo; if one exists in a brand doc it wins.
-        theme_color: "#002aff",
-        background_color: "#ffffff",
+        theme_color: "#0269AC",
+        background_color: "#F5F4F1",
         display: "standalone",
         // An installed app opens to the product, not the marketing homepage.
         // AdminRoute bounces to login when there is no session.
