@@ -257,12 +257,12 @@ export function LeadPipelineBoard({
 
             {/* Column Body */}
             <div 
-              className={`mt-2.5 space-y-2.5 min-h-[450px] rounded-[14px] transition-colors ${
+              className={`mt-2.5 space-y-2.5 min-h-[120px] rounded-[14px] transition-colors ${
                 isDragOver ? 'bg-primary/5 ring-1 ring-primary/30' : ''
               }`}
             >
               {columnLeads.length === 0 && (
-                <div className="flex items-center justify-center h-24 text-sm text-muted-foreground italic">
+                <div className="flex items-center justify-center h-[88px] text-sm text-muted-foreground/70 italic">
                   {isDragOver ? 'Drop here' : 'No leads'}
                 </div>
               )}
