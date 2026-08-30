@@ -1332,7 +1332,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               serviceName: selectedService?.name,
               scheduledAt: bookingData.scheduled_at,
               totalAmount: totalAmount > 0 ? totalAmount : calculatedPrice,
-              address,
+              address: formatFullAddress({ address, apt_suite: aptSuite, city, state, zip_code: zipCode }) || address,
               organizationId: organizationId ?? undefined,
             }
           }).then(({ error }) => {
