@@ -165,7 +165,7 @@
       would repaint every button. They are different semantic tokens and only
       coincidentally equal, so they get to move independently.
     */
-    --info: 230 90% 68%;
+    --info: 201 75% 62%;
     --info-foreground: 0 0% 6%;
 
     /*
@@ -175,7 +175,7 @@
       then some, and flips the foreground to near-black — white on a green this
       light is 2.2:1. Hue held at 140 so the two themes stay the same green.
     */
-    --success: 140 70% 55%;
+    --success: 105 65% 52%;
     --success-foreground: 0 0% 6%;
 
     /* Linear dark: near-black with cool tint */
@@ -188,9 +188,9 @@
     --popover: 240 8% 8%;
     --popover-foreground: 240 6% 95%;
 
-    --primary: 234 60% 65%;
+    --primary: 201 70% 55%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 234 70% 75%;
+    --primary-glow: 105 72% 55%;
 
     --secondary: 240 6% 12%;
     --secondary-foreground: 240 6% 80%;
@@ -198,9 +198,9 @@
     --muted: 240 6% 12%;
     --muted-foreground: 240 5% 60%;
 
-    --accent: 234 30% 18%;
-    --accent-foreground: 234 60% 80%;
-    --accent-glow: 234 60% 65%;
+    --accent: 112 40% 18%;
+    --accent-foreground: 91 71% 70%;
+    --accent-glow: 105 72% 50%;
 
     /*
       LIGHTENED, not darkened — the two failures pulled in opposite directions
@@ -225,16 +225,16 @@
 
     --border: 240 6% 16%;
     --input: 240 6% 16%;
-    --ring: 234 60% 65%;
+    --ring: 201 70% 55%;
 
     --sidebar-background: 240 10% 6%;
     --sidebar-foreground: 240 6% 70%;
-    --sidebar-primary: 234 60% 65%;
+    --sidebar-primary: 201 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 12%;
     --sidebar-accent-foreground: 240 6% 95%;
     --sidebar-border: 240 6% 14%;
-    --sidebar-ring: 234 60% 65%;
+    --sidebar-ring: 201 70% 55%;
 
     --gradient-hero: radial-gradient(ellipse at top, hsl(234 60% 65% / 0.12) 0%, transparent 60%);
     --gradient-glass: linear-gradient(135deg, hsl(240 8% 10% / 0.95) 0%, hsl(240 8% 8% / 0.85) 100%);
