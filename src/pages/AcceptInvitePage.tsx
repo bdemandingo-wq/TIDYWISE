@@ -297,7 +297,7 @@ export default function AcceptInvitePage() {
               <p className="text-xs text-destructive">{signInErr}</p>
               {!user && preview.existing_user && (
                 <Button type="button" variant="outline" size="sm" className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
-                  {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reset password for this account'}
+                  {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a password setup code'}
                 </Button>
               )}
             </div>
