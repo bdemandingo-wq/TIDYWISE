@@ -299,6 +299,15 @@ export default function AcceptInvitePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {preview.existing_user && !passwordCreatedForInvite && (
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">
+                This email already has a TidyWise account. We’ll email you a one-time code so you can
+                verify it’s you and create a password before joining {preview.organization_name}.
+              </p>
+            </div>
+          )}
+
           {signInErr && (
             <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <p className="text-xs text-destructive">{signInErr}</p>
