@@ -1,0 +1,164 @@
+=== SCOPE: STOP INVITED TEAMMATES FROM BEING OFFERED A NEW BUSINESS ===
+
+An account that accepts a team invitation must land in the inviting workspace and must never be prompted to create a separate business, either in the UI or on the backend. Apply the frontend and backend guards described below, then verify end-to-end with a fresh invited account.
+
+Do NOT:
+  - delete any existing organizations or memberships.
+  - change the role/permission model beyond what is specified.
+  - add new onboarding steps for invited users.
+  - "improve" unrelated onboarding, invite, or billing flows. Report anything else you notice and leave it.
+  - publish without confirming the backend function is deployed, not just committed.
+
+
+=== FRONTEND: ALREADY IMPLEMENTED IN THIS REPO ===
+
+The following changes are already in `src/`. Preserve them; do not regress them.
+
+1. `src/pages/OnboardingPage.tsx`
+   - Onboarding form renders ONLY when the active organization exists, `needs_onboarding = true`, AND `organization.owner_id === user.id`.
+   - Visiting `/onboarding` while already a member of a completed workspace redirects to that workspace's dashboard.
+   - Visiting `/onboarding?new=true` is allowed only for the actual creator of the active organization.
+   - Loading and error states fail closed: no form is shown until membership is confirmed empty.
+
+2. `src/components/AdminSidebar.tsx`
+   - The workspace switcher shows ALL organizations only to users whose `user.id === organization.owner_id`.
+   - Invited teammates (non-creator members) see ONLY the organization they are currently active in.
+   - "Add New Business" is visible only to organization creators.
+
+3. `src/contexts/OrganizationContext.tsx`
+   - Organization resolution tracks `loading | ready | empty | error` explicitly.
+   - On sign-in, prefer an existing completed workspace over an unfinished trial organization.
+   - A stale saved organization ID is discarded if it no longer matches a valid membership.
+
+4. `src/components/AdminRoute.tsx` and `src/components/ProtectedOrgRoute.tsx`
+   - Only a confirmed `resolution === 'empty'` result routes to `/onboarding`.
+   - Loading and error states show a retryable workspace-loading screen, never the onboarding form.
+
+5. `src/pages/AcceptInvitePage.tsx`
+   - Existing-user invitees receive an emailed code to create a password.
+   - New-user invitees create their password in the page.
+   - The invited `organization_id` is persisted as the active workspace after acceptance.
+   - The user's `profiles.full_name` is updated from the name entered during invite acceptance.
+
+
+=== BACKEND: `provision-trial-org` MUST FAIL CLOSED FOR INVITED EMAILS ===
+
+File: `supabase/functions/provision-trial-org/index.ts`
+
+This function is called during sign-up and sign-in flows. It must NOT create a trial organization when the email has a pending or previously accepted team invitation.
+
+Required behavior:
+
+1. After authenticating the bearer token, check `public.org_memberships` for any existing membership for `user.id`. If one exists, return:
+   ```json
+   { "already_provisioned": true, "organization_id": "<id>" }
+   ```
+
+2. If no membership exists, check `public.organization_invites` for rows matching `user.email` (case-insensitive). Look at both:
+   - pending, unexpired invites (`accepted_at IS NULL` and `expires_at > now()`), and
+   - already accepted invites that were accepted by this user (`accepted_at IS NOT NULL` and `accepted_by = user.id`).
+
+3. If either is found, return:
+   ```json
+   { "skipped": true, "reason": "pending_team_invite" | "accepted_team_invite", "invite_organization_id": "<id>" }
+   ```
+   Do NOT create an organization.
+
+4. Only if there is no membership AND no blocking invite, create the trial organization with `needs_onboarding = true` and an owner membership.
+
+Deploy this function and confirm deployed, not just committed.
+
+
+=== DATABASE: PREVENT STRAY `organizations` INSERTS AT THE POLICY LEVEL ===
+
+Create or replace a helper function and update the INSERT policy on `public.organizations` so that even a direct API call cannot create a business for an invited account.
+
+Migration SQL:
+
+```sql
+-- Helper: is this user allowed to create a brand-new organization right now?
+CREATE OR REPLACE FUNCTION public.current_user_may_create_organization()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    -- already a member somewhere -> no new business
+    NOT EXISTS (
+      SELECT 1 FROM public.org_memberships
+      WHERE user_id = auth.uid()
+    )
+    AND
+    -- has a pending valid invite or accepted invite -> no new business
+    NOT EXISTS (
+      SELECT 1 FROM public.organization_invites
+      WHERE email = (SELECT email FROM auth.users WHERE id = auth.uid())
+        AND (
+          (accepted_at IS NULL AND expires_at > now())
+          OR (accepted_at IS NOT NULL AND accepted_by = auth.uid())
+        )
+    );
+$$;
+
+-- Only the owner of the row being inserted, who also passes the helper, may insert.
+-- service_role remains unrestricted for legitimate backend/admin provisioning.
+DROP POLICY IF EXISTS "Users can create organizations" ON public.organizations;
+CREATE POLICY "Users can create organizations"
+ON public.organizations FOR INSERT
+TO authenticated
+WITH CHECK (
+  auth.uid() = owner_id
+  AND public.current_user_may_create_organization()
+);
+
+GRANT EXECUTE ON FUNCTION public.current_user_may_create_organization() TO authenticated;
+```
+
+Note: `public.current_user_may_create_organization()` is SECURITY DEFINER and reads `auth.users.email`. It must be granted only to `authenticated`; do NOT grant it to `anon`.
+
+
+=== VERIFY ===
+
+A. Backend function deployed
+   - Call `provision-trial-org` with a bearer token for an invited account that has not yet accepted.
+   - Expect `skipped: true, reason: "pending_team_invite"` and NO new organization created.
+
+B. Database policy
+   ```sql
+   SELECT policyname, cmd, with_check
+   FROM pg_policies
+   WHERE schemaname = 'public' AND tablename = 'organizations';
+   ```
+   Confirm the INSERT policy includes `current_user_may_create_organization()`.
+
+C. End-to-end invite flow (do this in a browser, not just code)
+   1. Owner invites a fresh email to Clean Collective as Owner or Manager.
+   2. Open the invite link in an incognito window.
+   3. Create the password / use the emailed code.
+   4. Accept the invite.
+   5. Confirm the dashboard opens inside Clean Collective.
+   6. Sign out.
+   7. Sign back in with the invited email and the password just created.
+   8. Confirm it returns to Clean Collective dashboard, NOT `/onboarding`.
+   9. Open `/onboarding` and `/onboarding?new=true` directly while signed in.
+   10. Confirm both redirect back to Clean Collective dashboard.
+
+D. Sidebar scoping
+   - While signed in as the invited teammate, confirm the bottom-left switcher shows ONLY Clean Collective.
+   - Confirm "Add New Business" is not visible.
+
+E. Original creator unchanged
+   - Sign in as the organization creator.
+   - Confirm "Add New Business" still appears and works.
+   - Confirm the workspace switcher still shows all creator-owned businesses.
+
+
+=== REPORT BACK ===
+
+In one reply, report:
+1. Whether `provision-trial-org` deployed successfully.
+2. Whether the `organizations` INSERT policy now references `current_user_may_create_organization()`.
+3. The result of the end-to-end invite flow (steps C.1–C.10 above).
+4. Any unrelated issues noticed and left untouched.
