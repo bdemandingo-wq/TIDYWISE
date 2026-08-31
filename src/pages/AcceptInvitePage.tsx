@@ -301,7 +301,7 @@ export default function AcceptInvitePage() {
               <p className="text-xs text-destructive">{signInErr}</p>
               {!user && preview.existing_user && (
                 <Button type="button" variant="outline" size="sm" className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
-                  {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a password setup code'}
+                  {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create a password'}
                 </Button>
               )}
             </div>
@@ -324,10 +324,10 @@ export default function AcceptInvitePage() {
                 <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" placeholder="First and last name" />
               </div>
               <p className="text-sm text-muted-foreground">
-                Create your own password before joining this workspace. We’ll email a one-time verification code to {preview.email}.
+                We’ll email a one-time verification code to {preview.email} so you can create your own password.
               </p>
               <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
-                {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my password'}
+                {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create a password'}
               </Button>
             </div>
           )}
@@ -348,10 +348,10 @@ export default function AcceptInvitePage() {
               {preview.existing_user ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Verify your email and create your own password before joining this workspace.
+                    We’ll email a one-time verification code to {preview.email} so you can create your own password.
                   </p>
                   <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
-                    {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my password'}
+                    {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create a password'}
                   </Button>
                 </>
               ) : (
