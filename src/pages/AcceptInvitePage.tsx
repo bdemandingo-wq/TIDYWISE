@@ -27,6 +27,9 @@ type InviteResponse = {
 
 const ACTIVE_ORG_KEY = 'tidywise_active_org';
 const INVITE_JOIN_KEY = 'tidywise_invite_joined_workspace';
+/** Survives the emailed-code roundtrip so the name typed here isn't lost. */
+const INVITE_NAME_KEY = 'tidywise_invite_full_name';
+
 
 function dashboardDestination(role?: string) {
   return role === 'manager' || role === 'admin' ? '/dashboard/scheduler' : '/dashboard';
