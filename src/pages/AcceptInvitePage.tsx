@@ -301,9 +301,15 @@ export default function AcceptInvitePage() {
             </div>
           )}
           {user && emailMatches && (
-            <Button className="w-full" onClick={acceptExisting} disabled={busy}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept invitation'}
-            </Button>
+            <div className="space-y-3">
+              <div>
+                <Label>Your name</Label>
+                <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" placeholder="First and last name" />
+              </div>
+              <Button className="w-full" onClick={acceptExisting} disabled={busy || !fullName.trim()}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept invitation'}
+              </Button>
+            </div>
           )}
           {user && !emailMatches && (
             <div className="space-y-3">
@@ -315,31 +321,21 @@ export default function AcceptInvitePage() {
           )}
           {!user && (
             <div className="space-y-3">
+              <div>
+                <Label>Your name</Label>
+                <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" placeholder="First and last name" />
+              </div>
               {preview.existing_user ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    This email already has a TidyWise login. Verify the email to create a new password, then return here to join this workspace.
+                    This email already has a TidyWise login. Verify the email to create your password, then return here to join this workspace.
                   </p>
-                  <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
+                  <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
                     {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create my password'}
                   </Button>
-                  {!showExistingPassword ? (
-                    <Button type="button" variant="outline" className="w-full" onClick={() => setShowExistingPassword(true)}>
-                      I already have a TidyWise password
-                    </Button>
-                  ) : (
-                    <div className="space-y-3">
-                      <div>
-                        <Label>Your TidyWise password</Label>
-                        <Input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
-                      </div>
-                      <Button className="w-full" onClick={signInExistingThenAccept} disabled={busy || !password}>
-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in & join'}
-                      </Button>
-                    </div>
-                  )}
                 </>
               ) : (
+
                 <>
                   <div>
                     <Label>Your name</Label>
