@@ -29,6 +29,8 @@ const ACTIVE_ORG_KEY = 'tidywise_active_org';
 const INVITE_JOIN_KEY = 'tidywise_invite_joined_workspace';
 /** Survives the emailed-code roundtrip so the name typed here isn't lost. */
 const INVITE_NAME_KEY = 'tidywise_invite_full_name';
+/** Tied to one invite so an existing account cannot join before creating its password. */
+const INVITE_PASSWORD_CREATED_KEY = 'tidywise_invite_password_created';
 
 
 function dashboardDestination(role?: string) {
@@ -101,6 +103,9 @@ export default function AcceptInvitePage() {
   const [busy, setBusy] = useState(false);
   const [signInErr, setSignInErr] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
+  const passwordCreatedForInvite = (() => {
+    try { return sessionStorage.getItem(INVITE_PASSWORD_CREATED_KEY) === token; } catch { return false; }
+  })();
 
 
   const completeInviteJoin = async (response: InviteResponse, expectedEmail?: string) => {
@@ -150,6 +155,7 @@ export default function AcceptInvitePage() {
     }
 
     try { sessionStorage.removeItem(INVITE_NAME_KEY); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(INVITE_PASSWORD_CREATED_KEY); } catch { /* ignore */ }
     await refetch();
     switchOrganization(response.organization_id);
     try { sessionStorage.removeItem('tidywise_invite_pending'); } catch { /* ignore */ }
@@ -300,7 +306,7 @@ export default function AcceptInvitePage() {
               )}
             </div>
           )}
-          {user && emailMatches && (
+          {user && emailMatches && (!preview.existing_user || passwordCreatedForInvite) && (
             <div className="space-y-3">
               <div>
                 <Label>Your name</Label>
@@ -308,6 +314,20 @@ export default function AcceptInvitePage() {
               </div>
               <Button className="w-full" onClick={acceptExisting} disabled={busy || !fullName.trim()}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept invitation'}
+              </Button>
+            </div>
+          )}
+          {user && emailMatches && preview.existing_user && !passwordCreatedForInvite && (
+            <div className="space-y-3">
+              <div>
+                <Label>Your name</Label>
+                <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" placeholder="First and last name" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Create your own password before joining this workspace. We’ll email a one-time verification code to {preview.email}.
+              </p>
+              <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
+                {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my password'}
               </Button>
             </div>
           )}
@@ -328,10 +348,10 @@ export default function AcceptInvitePage() {
               {preview.existing_user ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    This email already has a TidyWise login. Verify the email to create your password, then return here to join this workspace.
+                    Verify your email and create your own password before joining this workspace.
                   </p>
                   <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
-                    {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create my password'}
+                    {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my password'}
                   </Button>
                 </>
               ) : (
@@ -346,9 +366,6 @@ export default function AcceptInvitePage() {
                   </Button>
                 </>
               )}
-              <p className="text-xs text-center text-muted-foreground">
-                Already have an account? <a className="underline" href={`/login?next=/accept-invite?token=${token}`}>Sign in</a>
-              </p>
             </div>
           )}
         </CardContent>
