@@ -335,16 +335,12 @@ export default function AcceptInvitePage() {
                   </Button>
                 </>
               ) : (
-
                 <>
-                  <div>
-                    <Label>Your name</Label>
-                    <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" />
-                  </div>
                   <div>
                     <Label>Create your password</Label>
                     <Input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" />
                   </div>
+
                   <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my account & join'}
                   </Button>
