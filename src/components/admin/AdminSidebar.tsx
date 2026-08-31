@@ -667,18 +667,22 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
               }}
             />
 
-            {/* Add New Business */}
-            <button
-              onClick={() => {
-                setIsProfileOpen(false);
-                navigate('/onboarding?new=true');
-                handleNavClick();
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors min-h-[44px] pointer-events-auto touch-manipulation"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="text-sm">Add New Business</span>
-            </button>
+            {/* Only the account that created this business may create another.
+                An invited "owner" has owner permissions inside the workspace,
+                but is not the organization's creator. */}
+            {organization?.owner_id === user?.id && (
+              <button
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  navigate('/onboarding?new=true');
+                  handleNavClick();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors min-h-[44px] pointer-events-auto touch-manipulation"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">Add New Business</span>
+              </button>
+            )}
 
             {/* Sign in to another account */}
             <button

@@ -44,28 +44,35 @@ serve(async (req) => {
       return json({ already_provisioned: true, organization_id: existing.organization_id });
     }
 
-    // Never create a business for someone who is in the middle of joining an
-    // existing workspace. The invite acceptance flow signs the user in BEFORE
-    // the membership row is written, and the client-side invite flag lives in
-    // sessionStorage (per-tab), so an emailed password link opened in a new
-    // tab used to slip through and provision a brand-new trial org.
+    // Never create a business for an invited account. The invite acceptance
+    // flow signs the user in BEFORE the membership row is written, and the
+    // client-side invite flag lives in sessionStorage (per-tab), so an emailed
+    // password link opened in a new tab can otherwise provision a stray org.
+    // Accepted invite history remains a durable server-side marker even after
+    // the membership is later revoked.
     const email = (user.email || "").toLowerCase();
     if (email) {
-      const { data: pendingInvite } = await supabase
+      const { data: invites, error: inviteError } = await supabase
         .from("organization_invites")
-        .select("id, organization_id")
+        .select("id, organization_id, expires_at, accepted_at, accepted_by")
         .ilike("email", email)
-        .is("accepted_at", null)
-        .gt("expires_at", new Date().toISOString())
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false });
+      if (inviteError) throw inviteError;
 
-      if (pendingInvite?.id) {
-        log("skipped — pending team invite", { invite_id: pendingInvite.id });
+      const now = Date.now();
+      const blockingInvite = invites?.find((invite) => {
+        const pendingAndValid = !invite.accepted_at && new Date(invite.expires_at).getTime() > now;
+        const acceptedByUser = invite.accepted_at && invite.accepted_by === user.id;
+        return pendingAndValid || acceptedByUser;
+      });
+
+      if (blockingInvite?.id) {
+        const reason = blockingInvite.accepted_at ? "accepted_team_invite" : "pending_team_invite";
+        log(`skipped — ${reason}`, { invite_id: blockingInvite.id });
         return json({
           skipped: true,
-          reason: "pending_team_invite",
-          invite_organization_id: pendingInvite.organization_id,
+          reason,
+          invite_organization_id: blockingInvite.organization_id,
         });
       }
     }
