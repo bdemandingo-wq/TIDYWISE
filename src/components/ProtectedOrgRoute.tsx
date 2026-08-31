@@ -11,7 +11,7 @@ interface ProtectedOrgRouteProps {
 
 export function ProtectedOrgRoute({ children, requireAdmin = false }: ProtectedOrgRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { organization, loading: orgLoading, isAdmin } = useOrganization();
+  const { organization, loading: orgLoading, resolution, isAdmin, refetch } = useOrganization();
 
   if (authLoading || orgLoading) {
     return (
@@ -28,7 +28,15 @@ export function ProtectedOrgRoute({ children, requireAdmin = false }: ProtectedO
 
   // Logged in but no organization - redirect to onboarding
   if (!organization) {
-    return <Navigate to="/onboarding" replace />;
+    if (resolution === 'empty') return <Navigate to="/onboarding" replace />;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background p-6 text-center">
+        <p className="text-sm text-muted-foreground">Workspace access could not be verified.</p>
+        <button type="button" className="text-sm font-medium text-primary underline" onClick={() => void refetch()}>
+          Retry
+        </button>
+      </div>
+    );
   }
 
   // Check admin requirement

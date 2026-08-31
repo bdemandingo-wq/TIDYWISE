@@ -48,7 +48,7 @@ function getRecentInviteJoinAttempt(): { attempt_id?: string } | null {
  */
 export function AdminRoute({ children }: AdminRouteProps) {
   const { user, loading: authLoading, subscription } = useAuth();
-  const { organization, membership, loading: orgLoading, switching, isAdmin, allOrganizations, switchOrganization } = useOrganization();
+  const { organization, membership, loading: orgLoading, resolution: orgResolution, switching, isAdmin, allOrganizations, switchOrganization, refetch } = useOrganization();
   const { hasFullAccess, isLoading: subLoading } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
@@ -180,7 +180,26 @@ export function AdminRoute({ children }: AdminRouteProps) {
         </div>
       );
     }
-    return <Navigate to="/onboarding" replace />;
+    if (orgResolution === 'empty') {
+      return <Navigate to="/onboarding" replace />;
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="max-w-md space-y-3 rounded-lg border bg-card p-6 shadow-sm">
+          <h1 className="text-lg font-semibold text-card-foreground">We couldn't load your workspace</h1>
+          <p className="text-sm text-muted-foreground">
+            Your account is signed in, but workspace access could not be verified. Retry instead of creating another business.
+          </p>
+          <button
+            type="button"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            onClick={() => void refetch()}
+          >
+            Retry workspace
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Org exists but onboarding not completed — send to the wizard.

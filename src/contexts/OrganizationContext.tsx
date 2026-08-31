@@ -16,6 +16,7 @@ interface Organization {
 }
 
 export type OrgRole = 'owner' | 'admin' | 'manager' | 'member';
+export type OrganizationResolution = 'loading' | 'ready' | 'empty' | 'error';
 
 interface OrganizationMembership {
   organization_id: string;
@@ -31,6 +32,8 @@ interface OrganizationContextType {
   organization: Organization | null;
   membership: OrganizationMembership | null;
   loading: boolean;
+  /** Distinguishes a confirmed new account from a failed/in-flight lookup. */
+  resolution: OrganizationResolution;
   /** True for ~500ms after switchOrganization while queries refetch */
   switching: boolean;
   isOwner: boolean;
@@ -60,6 +63,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const [membership, setMembership] = useState<OrganizationMembership | null>(null);
   const [allOrganizations, setAllOrganizations] = useState<OrgWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolution, setResolution] = useState<OrganizationResolution>('loading');
   // Tracks which user we last RESOLVED orgs for. Fixes the sign-in flash:
   // after logging out (or on the login page) state settles at
   // { organization: null, loading: false }. The instant a user signs in,
@@ -78,6 +82,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const fetchOrgForUser = useCallback(async (userId: string) => {
     if (resolvedUserIdRef.current !== userId) {
       setLoading(true);
+      setResolution('loading');
     }
 
     try {
@@ -86,11 +91,20 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         .select('organization_id, role')
         .eq('user_id', userId);
 
-      if (membershipError || !memberships || memberships.length === 0) {
+      if (membershipError) {
+        console.error('Error fetching organization memberships:', membershipError);
         setOrganization(null);
         setMembership(null);
         setAllOrganizations([]);
-        setLoading(false);
+        setResolution('error');
+        return;
+      }
+
+      if (!memberships || memberships.length === 0) {
+        setOrganization(null);
+        setMembership(null);
+        setAllOrganizations([]);
+        setResolution('empty');
         return;
       }
 
@@ -101,10 +115,11 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         .in('id', orgIds);
 
       if (orgError || !orgs) {
+        console.error('Error fetching organizations:', orgError);
         setOrganization(null);
         setMembership(null);
         setAllOrganizations([]);
-        setLoading(false);
+        setResolution('error');
         return;
       }
 
@@ -145,9 +160,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         // flag and fall back to the default.
         localStorage.removeItem(ORG_CHOSEN_KEY);
         activeOrg = bestAdminOrg ?? sortedByRole[0];
-      } else if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
-        // Saved but not explicitly chosen — keep it unless it's a member
-        // role and a better admin org exists.
+      } else if (
+        savedOrg &&
+        !savedOrg.organization.needs_onboarding &&
+        (savedOrg.role !== 'member' || !bestAdminOrg)
+      ) {
+        // Saved but not explicitly chosen — keep it unless it's an unfinished
+        // auto-provisioned org or a member role with a better admin org. An
+        // unfinished owner org can be a stale invite-flow artifact and must
+        // never outrank an existing completed workspace.
         activeOrg = savedOrg;
       } else {
         activeOrg = bestAdminOrg ?? sortedByRole[0];
@@ -160,12 +181,20 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
           role: activeOrg.role,
         });
         localStorage.setItem(ACTIVE_ORG_KEY, activeOrg.organization.id);
+        setResolution('ready');
+      } else {
+        // Membership rows existed but none of their organizations could be
+        // resolved. This is not a new account and must never open onboarding.
+        setOrganization(null);
+        setMembership(null);
+        setResolution('error');
       }
     } catch (error) {
       console.error('Error fetching organization:', error);
       setOrganization(null);
       setMembership(null);
       setAllOrganizations([]);
+      setResolution('error');
     } finally {
       resolvedUserIdRef.current = userId;
       setLoading(false);
@@ -179,6 +208,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       setOrganization(null);
       setMembership(null);
       setAllOrganizations([]);
+      setResolution('empty');
       setLoading(false);
       return;
     }
@@ -213,6 +243,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(ORG_CHOSEN_KEY, 'true');
     setOrganization(target.organization);
     setMembership({ organization_id: orgId, role: target.role });
+    setResolution('ready');
     clearSidebarHiddenItemsCache();
     // resetQueries instead of clear: clears all data (no cross-org flash)
     // but keeps observers attached so hooks refetch immediately. clear()
@@ -232,6 +263,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
   const setOrganizationDirect = useCallback((org: Organization, role: OrgRole) => {
     setOrganization(org);
     setMembership({ organization_id: org.id, role });
+    setResolution('ready');
     localStorage.setItem(ACTIVE_ORG_KEY, org.id);
     resolvedUserIdRef.current = org.owner_id;
     setLoading(false);
@@ -251,6 +283,7 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         organization,
         membership,
         loading: authLoading || loading,
+        resolution,
         switching,
         isOwner,
         isAdmin,

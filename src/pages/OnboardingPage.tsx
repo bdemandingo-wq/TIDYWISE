@@ -150,7 +150,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const isNative = Capacitor.isNativePlatform();
   const { user, signOut } = useAuth();
-  const { organization, loading: orgLoading, refetch, setOrganizationDirect } = useOrganization();
+  const { organization, loading: orgLoading, resolution: orgResolution, refetch, setOrganizationDirect } = useOrganization();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   // Qualifying answers (steps 2-5). Persisted to sessionStorage on
@@ -171,6 +171,11 @@ export default function OnboardingPage() {
   const [newServiceDescription, setNewServiceDescription] = useState('');
   const [currency, setCurrency] = useState<string>(() => detectBrowserCurrency());
   const [timezone, setTimezone] = useState<string>(() => detectBrowserTimezone());
+  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
+  const requestedNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
+  const mayCreateAdditionalBusiness = Boolean(
+    requestedNewBusiness && organization && user && organization.owner_id === user.id,
+  );
 
   const handleLogout = async () => {
     await signOut();
@@ -200,21 +205,21 @@ export default function OnboardingPage() {
     checkPhoneNeeded();
   }, [user]);
 
-  // If the user already has a business and isn't creating a new one, redirect.
-  const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
+  // If the user already belongs to a completed business, redirect. Business
+  // onboarding is only for a confirmed membership-free account or the actual
+  // creator finishing their provisioned organization.
   useEffect(() => {
     // `building` guard: right after creation, refetch() sets `organization`
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
     const ownsOrg = !!organization && !!user && organization.owner_id === user.id;
-    if (!orgLoading && organization && !isNewBusiness && !building && (!organization.needs_onboarding || !ownsOrg)) {
+    if (!orgLoading && organization && !mayCreateAdditionalBusiness && !building && (!organization.needs_onboarding || !ownsOrg)) {
 
       // Native: land on Help tab (tutorial videos) after onboarding.
       // Web: land on dashboard (web goes through /choose-plan first anyway).
       navigate(isNative ? '/dashboard/help' : '/dashboard', { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
-  }, [orgLoading, organization, navigate, building]);
+  }, [orgLoading, organization, navigate, building, isNative, mayCreateAdditionalBusiness, user]);
 
   // If not logged in, send to login.
   useEffect(() => {
@@ -223,7 +228,43 @@ export default function OnboardingPage() {
     }
   }, [orgLoading, user, navigate]);
 
-  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
+  // Fail closed while workspace access is unresolved. An invited teammate may
+  // briefly have `organization === null` while memberships load; rendering the
+  // form in that window makes an existing workspace member look like a new
+  // business signup. Only a confirmed zero-membership account may proceed.
+  if (!user || orgLoading || orgResolution === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (organization && !mayCreateAdditionalBusiness && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!organization && orgResolution === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>We couldn't load your workspace</CardTitle>
+            <CardDescription>
+              We won't create another business while your workspace access is uncertain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => void refetch()}>Retry workspace</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const toggleService = (serviceName: string) => {
     const newSelected = new Set(selectedServices);
