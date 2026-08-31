@@ -184,11 +184,15 @@ export function AdminRoute({ children }: AdminRouteProps) {
   }
 
   // Org exists but onboarding not completed — send to the wizard.
+  // ONLY the account that created the workspace ever sees onboarding. Invited
+  // teammates join an existing business; making them run the setup wizard would
+  // overwrite the owner's settings.
   // IMPORTANT: /onboarding must stay OUTSIDE AdminRoute in the route tree.
   // If it were inside, this redirect would loop infinitely.
-  if (organization.needs_onboarding) {
+  if (organization.needs_onboarding && organization.owner_id === user.id) {
     return <Navigate to="/onboarding" replace />;
   }
+
 
   // Wait for the auto-switch above to take effect before deciding to bounce.
   if (membership && !isAdmin && adminOrgElsewhere) {
