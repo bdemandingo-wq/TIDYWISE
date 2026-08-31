@@ -209,35 +209,12 @@ export default function AcceptInvitePage() {
     throw lastError || new Error('Sign in failed');
   };
 
-  const signInExistingThenAccept = async () => {
-    if (!preview) return;
-    if (!password) { toast.error('Enter the existing account password'); return; }
-    setBusy(true);
-    setSignInErr(null);
-    try {
-      await signInWithInvitePassword(preview.email, password);
-
-      const { data, error } = await supabase.functions.invoke('accept-team-invite', {
-        body: { token, mode: 'accept' },
-      });
-      if (error || (data as InviteResponse)?.error) throw new Error(await getExactFunctionError(data, error));
-
-      toast.success('You joined the workspace');
-      await completeInviteJoin(data as InviteResponse, preview.email);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      const friendly = /invalid login credentials/i.test(message)
-        ? 'That password does not match the existing account for this invite.'
-        : message;
-      setSignInErr(friendly);
-      toast.error(friendly);
-    } finally { setBusy(false); }
-  };
-
   const sendPasswordReset = async () => {
     if (!preview) return;
+    if (!fullName.trim()) { toast.error('Enter your name first'); return; }
     setResetBusy(true);
     try {
+      try { sessionStorage.setItem(INVITE_NAME_KEY, fullName.trim()); } catch { /* ignore */ }
       const { error } = await supabase.auth.signInWithOtp({
         email: preview.email,
         options: { shouldCreateUser: false },
@@ -250,6 +227,7 @@ export default function AcceptInvitePage() {
       toast.error(e instanceof Error ? e.message : 'Failed to send password setup code');
     } finally { setResetBusy(false); }
   };
+
 
   const signUpAndAccept = async () => {
     if (!preview) return;
