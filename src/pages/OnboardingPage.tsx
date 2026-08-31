@@ -206,7 +206,9 @@ export default function OnboardingPage() {
     // `building` guard: right after creation, refetch() sets `organization`
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
-    if (!orgLoading && organization && !isNewBusiness && !building && !organization.needs_onboarding) {
+    const ownsOrg = !!organization && !!user && organization.owner_id === user.id;
+    if (!orgLoading && organization && !isNewBusiness && !building && (!organization.needs_onboarding || !ownsOrg)) {
+
       // Native: land on Help tab (tutorial videos) after onboarding.
       // Web: land on dashboard (web goes through /choose-plan first anyway).
       navigate(isNative ? '/dashboard/help' : '/dashboard', { replace: true });
