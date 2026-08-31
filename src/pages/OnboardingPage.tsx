@@ -172,6 +172,10 @@ export default function OnboardingPage() {
   const [currency, setCurrency] = useState<string>(() => detectBrowserCurrency());
   const [timezone, setTimezone] = useState<string>(() => detectBrowserTimezone());
   const baseSlug = useMemo(() => slugify(businessName), [businessName]);
+  const requestedNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
+  const mayCreateAdditionalBusiness = Boolean(
+    requestedNewBusiness && organization && user && organization.owner_id === user.id,
+  );
 
   const handleLogout = async () => {
     await signOut();
@@ -209,13 +213,13 @@ export default function OnboardingPage() {
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
     const ownsOrg = !!organization && !!user && organization.owner_id === user.id;
-    if (!orgLoading && organization && !building && (!organization.needs_onboarding || !ownsOrg)) {
+    if (!orgLoading && organization && !mayCreateAdditionalBusiness && !building && (!organization.needs_onboarding || !ownsOrg)) {
 
       // Native: land on Help tab (tutorial videos) after onboarding.
       // Web: land on dashboard (web goes through /choose-plan first anyway).
       navigate(isNative ? '/dashboard/help' : '/dashboard', { replace: true });
     }
-  }, [orgLoading, organization, navigate, building]);
+  }, [orgLoading, organization, navigate, building, isNative, mayCreateAdditionalBusiness, user]);
 
   // If not logged in, send to login.
   useEffect(() => {
@@ -228,7 +232,7 @@ export default function OnboardingPage() {
   // briefly have `organization === null` while memberships load; rendering the
   // form in that window makes an existing workspace member look like a new
   // business signup. Only a confirmed zero-membership account may proceed.
-  if (orgLoading || orgResolution === 'loading') {
+  if (!user || orgLoading || orgResolution === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -236,7 +240,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (user && organization && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
+  if (organization && !mayCreateAdditionalBusiness && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -244,7 +248,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (user && !organization && orgResolution === 'error') {
+  if (!organization && orgResolution === 'error') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="w-full max-w-md">
