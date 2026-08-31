@@ -131,22 +131,20 @@ serve(async (req) => {
       });
     }
 
-    // Signup mode: for existing users, accept the invite and ask the client to sign in.
-    // For new users, create a confirmed auth user, attach membership, then client signs in.
+    // Signup mode is only allowed to create a new account. Existing accounts
+    // must authenticate first and then use accept mode; an invite token alone
+    // must never be enough to grant organization membership.
     if (mode === 'signup') {
       const found = await findAuthUserByEmail(admin, normalizedEmail);
       if (found) {
-        const acceptedRole = await attachMembershipAndAccept(admin, invite as InviteRow, found.id, attemptId);
         return json({
-          success: true,
+          success: false,
           existing_user: true,
           requires_sign_in: true,
           email: invite.email,
-          organization_id: invite.organization_id,
-          role: acceptedRole,
-          message: "Existing account found. Sign in with the existing password to continue.",
+          message: "Existing account found. Verify the email or sign in to continue.",
           attempt_id: attemptId,
-        });
+        }, 409);
       }
 
       if (!password || password.length < 8) {

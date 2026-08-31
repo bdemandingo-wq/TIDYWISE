@@ -96,6 +96,7 @@ export default function AcceptInvitePage() {
   const [busy, setBusy] = useState(false);
   const [signInErr, setSignInErr] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
+  const [showExistingPassword, setShowExistingPassword] = useState(false);
 
   const completeInviteJoin = async (response: InviteResponse, expectedEmail?: string) => {
     if (!response.organization_id) {
@@ -219,13 +220,16 @@ export default function AcceptInvitePage() {
     if (!preview) return;
     setResetBusy(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(preview.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { error } = await supabase.auth.signInWithOtp({
+        email: preview.email,
+        options: { shouldCreateUser: false },
       });
       if (error) throw error;
-      toast.success('Password reset link sent');
+      const next = `/accept-invite?token=${encodeURIComponent(token)}`;
+      toast.success('Password setup code sent');
+      navigate(`/reset-password?email=${encodeURIComponent(preview.email)}&next=${encodeURIComponent(next)}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to send reset link');
+      toast.error(e instanceof Error ? e.message : 'Failed to send password setup code');
     } finally { setResetBusy(false); }
   };
 
@@ -313,22 +317,45 @@ export default function AcceptInvitePage() {
           )}
           {!user && (
             <div className="space-y-3">
-              <div>
-                <Label>Your name</Label>
-                <Input value={fullName} onChange={e => setFullName(e.target.value)} />
-              </div>
-              <div>
-                <Label>{preview.existing_user ? 'Password' : 'Create a password'}</Label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-              </div>
-              {preview.existing_user && (
-                <p className="text-xs text-muted-foreground">
-                  This email already has an account. Use that account password to join this workspace.
-                </p>
+              {preview.existing_user ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    This email already has a TidyWise login. Verify the email to create a new password, then return here to join this workspace.
+                  </p>
+                  <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy}>
+                    {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create my password'}
+                  </Button>
+                  {!showExistingPassword ? (
+                    <Button type="button" variant="outline" className="w-full" onClick={() => setShowExistingPassword(true)}>
+                      I already have a TidyWise password
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Your TidyWise password</Label>
+                        <Input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="current-password" />
+                      </div>
+                      <Button className="w-full" onClick={signInExistingThenAccept} disabled={busy || !password}>
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign in & join'}
+                      </Button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div>
+                    <Label>Your name</Label>
+                    <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" />
+                  </div>
+                  <div>
+                    <Label>Create your password</Label>
+                    <Input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" />
+                  </div>
+                  <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create my account & join'}
+                  </Button>
+                </>
               )}
-              <Button className="w-full" onClick={signUpAndAccept} disabled={busy}>
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : preview.existing_user ? 'Sign in & join' : 'Create account & join'}
-              </Button>
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account? <a className="underline" href={`/login?next=/accept-invite?token=${token}`}>Sign in</a>
               </p>

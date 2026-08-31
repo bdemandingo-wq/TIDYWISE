@@ -48,6 +48,8 @@ export default function ResetPasswordPage() {
   const emailFromState = (location.state as { email?: string } | null)?.email;
   const emailFromQuery = searchParams.get('email') ?? undefined;
   const email = (emailFromState || emailFromQuery || '').trim();
+  const requestedNext = searchParams.get('next');
+  const nextPath = requestedNext?.startsWith('/accept-invite?token=') ? requestedNext : null;
 
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -153,7 +155,11 @@ export default function ResetPasswordPage() {
         console.error('notify-password-changed lookup failed:', e);
       }
 
-      toast.success('Password updated. Please sign in with your new password.');
+      toast.success(nextPath ? 'Password created. You can now accept the invitation.' : 'Password updated. Please sign in with your new password.');
+      if (nextPath) {
+        navigate(nextPath, { replace: true });
+        return;
+      }
       // Force a clean session on THIS device — don't leave the user logged
       // in via the OTP session. scope: 'local' matches what this page's
       // own FAQ copy (ForgotPasswordPage.tsx) promises: "All other active
