@@ -291,6 +291,13 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Invited teammates are scoped to the workspace they are currently using.
+  // Do not expose unrelated historical/test memberships in their sidebar. The
+  // organization creator keeps the normal multi-business switcher.
+  const visibleOrganizations = organization?.owner_id === user?.id
+    ? allOrganizations
+    : allOrganizations.filter((orgItem) => orgItem.organization.id === organization?.id);
+
   const handleDeleteOrg = async () => {
     if (!orgToDelete) return;
     setIsDeletingOrg(true);
@@ -631,7 +638,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                 markup exactly; the delete button stays here because it is
                 owner-only and admin-only. */}
             <OrgSwitcherList
-              items={allOrganizations.map((orgItem) => {
+              items={visibleOrganizations.map((orgItem) => {
                 // Show "Staff" instead of "Member" when the user has an active
                 // staff row in this org — that's the portal they'll land in.
                 const isStaffInOrg = staffOrgs.some(s => s.organizationId === orgItem.organization.id);
@@ -650,7 +657,7 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
               activeId={organization?.id ?? null}
               onSelect={switchOrganization}
               itemAction={(item) => {
-                const orgItem = allOrganizations.find((o) => o.organization.id === item.id);
+                const orgItem = visibleOrganizations.find((o) => o.organization.id === item.id);
                 if (!orgItem || orgItem.role !== 'owner' || item.id === organization?.id) return null;
                 return (
                   <button
