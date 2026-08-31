@@ -150,7 +150,7 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const isNative = Capacitor.isNativePlatform();
   const { user, signOut } = useAuth();
-  const { organization, loading: orgLoading, refetch, setOrganizationDirect } = useOrganization();
+  const { organization, loading: orgLoading, resolution: orgResolution, refetch, setOrganizationDirect } = useOrganization();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   // Qualifying answers (steps 2-5). Persisted to sessionStorage on
@@ -222,6 +222,44 @@ export default function OnboardingPage() {
       navigate('/login', { replace: true });
     }
   }, [orgLoading, user, navigate]);
+
+  // Fail closed while workspace access is unresolved. An invited teammate may
+  // briefly have `organization === null` while memberships load; rendering the
+  // form in that window makes an existing workspace member look like a new
+  // business signup. Only a confirmed zero-membership account may proceed.
+  if (orgLoading || orgResolution === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (user && !isNewBusiness && organization && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (user && !isNewBusiness && !organization && orgResolution === 'error') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>We couldn't load your workspace</CardTitle>
+            <CardDescription>
+              We won't create another business while your workspace access is uncertain.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => void refetch()}>Retry workspace</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
