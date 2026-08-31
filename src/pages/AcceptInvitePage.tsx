@@ -106,6 +106,17 @@ export default function AcceptInvitePage() {
     rememberJoinedOrganization(response.organization_id);
     const joinedUser = await waitForInviteSession(expectedEmail || response.email);
 
+    // Name the teammate typed on this screen wins over whatever stale name the
+    // account already carried (a leftover "Test Client" profile, for example).
+    const typedName = fullName.trim();
+    if (typedName) {
+      const { error: nameError } = await supabase
+        .from('profiles')
+        .update({ full_name: typedName })
+        .eq('id', joinedUser.id);
+      if (nameError) console.warn('[AcceptInvite] could not save name:', nameError.message);
+    }
+
     const { data: membership, error: membershipError } = await supabase
       .from('org_memberships')
       .select('organization_id, role')
@@ -133,12 +144,14 @@ export default function AcceptInvitePage() {
       // Session storage is only a safety net for route guards.
     }
 
+    try { sessionStorage.removeItem(INVITE_NAME_KEY); } catch { /* ignore */ }
     await refetch();
     switchOrganization(response.organization_id);
     try { sessionStorage.removeItem('tidywise_invite_pending'); } catch { /* ignore */ }
     window.location.replace(dashboardDestination(response.role));
 
   };
+
 
   // Flag the invite as in-flight so the auth provisioning effect does not
   // create a brand-new trial org for this user mid-acceptance.
