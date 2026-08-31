@@ -291,12 +291,10 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Invited teammates are scoped to the workspace they are currently using.
-  // Do not expose unrelated historical/test memberships in their sidebar. The
-  // organization creator keeps the normal multi-business switcher.
-  const visibleOrganizations = organization?.owner_id === user?.id
-    ? allOrganizations
-    : allOrganizations.filter((orgItem) => orgItem.organization.id === organization?.id);
+  // Every org the user belongs to. The list is already membership-scoped by
+  // OrganizationContext — no additional filter needed. The "Add New Business"
+  // button has its own separate owner_id guard below.
+  const visibleOrganizations = allOrganizations;
 
   const handleDeleteOrg = async () => {
     if (!orgToDelete) return;
