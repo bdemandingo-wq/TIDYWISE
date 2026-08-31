@@ -119,13 +119,16 @@ export default function AcceptInvitePage() {
     // Name the teammate typed on this screen wins over whatever stale name the
     // account already carried (a leftover "Test Client" profile, for example).
     const typedName = fullName.trim();
-    if (typedName) {
-      const { error: nameError } = await supabase
-        .from('profiles')
-        .update({ full_name: typedName })
-        .eq('id', joinedUser.id);
-      if (nameError) console.warn('[AcceptInvite] could not save name:', nameError.message);
-    }
+    const profileUpdate: { full_name?: string; organization_id: string } = {
+      organization_id: response.organization_id,
+    };
+    if (typedName) profileUpdate.full_name = typedName;
+    const { error: nameError } = await supabase
+      .from('profiles')
+      .update(profileUpdate)
+      .eq('id', joinedUser.id);
+    if (nameError) console.warn('[AcceptInvite] could not save profile:', nameError.message);
+
 
     const { data: membership, error: membershipError } = await supabase
       .from('org_memberships')
