@@ -11738,6 +11738,7 @@ export type Database = {
           new_balance: number
         }[]
       }
+      current_user_may_create_organization: { Args: never; Returns: boolean }
       delete_client_booking_request: {
         Args: { p_client_user_id: string; p_request_id: string }
         Returns: boolean
