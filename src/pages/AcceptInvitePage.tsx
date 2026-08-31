@@ -26,6 +26,7 @@ type InviteResponse = {
 };
 
 const ACTIVE_ORG_KEY = 'tidywise_active_org';
+const ORG_CHOSEN_KEY = 'tidywise_org_chosen';
 const INVITE_JOIN_KEY = 'tidywise_invite_joined_workspace';
 /** Survives the emailed-code roundtrip so the name typed here isn't lost. */
 const INVITE_NAME_KEY = 'tidywise_invite_full_name';
@@ -41,6 +42,10 @@ function rememberJoinedOrganization(organizationId?: string) {
   if (!organizationId) return;
   try {
     localStorage.setItem(ACTIVE_ORG_KEY, organizationId);
+    // An accepted invitation is an explicit workspace choice. Persist that
+    // choice so a later sign-in cannot fall back to another owner membership
+    // (including an old or accidentally provisioned empty business).
+    localStorage.setItem(ORG_CHOSEN_KEY, 'true');
   } catch {
     // Ignore storage failures; the organization context will still refetch.
   }
@@ -119,15 +124,13 @@ export default function AcceptInvitePage() {
     // Name the teammate typed on this screen wins over whatever stale name the
     // account already carried (a leftover "Test Client" profile, for example).
     const typedName = fullName.trim();
-    const profileUpdate: { full_name?: string; organization_id: string } = {
-      organization_id: response.organization_id,
-    };
-    if (typedName) profileUpdate.full_name = typedName;
-    const { error: nameError } = await supabase
-      .from('profiles')
-      .update(profileUpdate)
-      .eq('id', joinedUser.id);
-    if (nameError) console.warn('[AcceptInvite] could not save profile:', nameError.message);
+    if (typedName) {
+      const { error: nameError } = await supabase
+        .from('profiles')
+        .update({ full_name: typedName })
+        .eq('id', joinedUser.id);
+      if (nameError) console.warn('[AcceptInvite] could not save profile:', nameError.message);
+    }
 
 
     const { data: membership, error: membershipError } = await supabase

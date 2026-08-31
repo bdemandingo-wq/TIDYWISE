@@ -126,7 +126,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       const savedOrgId = localStorage.getItem(ACTIVE_ORG_KEY);
       const savedOrg = allOrgs.find(o => o.organization.id === savedOrgId);
       const wasChosen = localStorage.getItem(ORG_CHOSEN_KEY) === 'true';
-      const bestAdminOrg = sortedByRole.find(o => o.role === 'owner' || o.role === 'admin' || o.role === 'manager');
+      const isAdminOrg = (entry: OrgWithRole) =>
+        entry.role === 'owner' || entry.role === 'admin' || entry.role === 'manager';
+      // On a new device there is no saved workspace choice. Prefer an existing,
+      // completed workspace over an unfinished trial business, even when the
+      // unfinished one gives the user a numerically higher role. This prevents
+      // invited teammates from being sent to business onboarding after login.
+      const bestAdminOrg =
+        sortedByRole.find(o => isAdminOrg(o) && !o.organization.needs_onboarding) ??
+        sortedByRole.find(isAdminOrg);
 
       let activeOrg: OrgWithRole | undefined;
       if (wasChosen && savedOrg) {
