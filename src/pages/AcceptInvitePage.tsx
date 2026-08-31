@@ -95,11 +95,13 @@ export default function AcceptInvitePage() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState(() => {
+    try { return sessionStorage.getItem(INVITE_NAME_KEY) || ''; } catch { return ''; }
+  });
   const [busy, setBusy] = useState(false);
   const [signInErr, setSignInErr] = useState<string | null>(null);
   const [resetBusy, setResetBusy] = useState(false);
-  const [showExistingPassword, setShowExistingPassword] = useState(false);
+
 
   const completeInviteJoin = async (response: InviteResponse, expectedEmail?: string) => {
     if (!response.organization_id) {
