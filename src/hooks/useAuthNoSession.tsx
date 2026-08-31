@@ -187,6 +187,10 @@ export function AuthProviderNoSession({ children }: { children: ReactNode }) {
 
         if (cancelled) return;
 
+        // Fail closed. A temporary membership lookup failure must never be
+        // interpreted as "this user has no workspace" and create a business.
+        if (memErr) throw memErr;
+
         if (!memberships || memberships.length === 0) {
           const { data, error: provErr } = await supabaseNoSession.functions.invoke('provision-trial-org');
 
