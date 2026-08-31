@@ -171,6 +171,7 @@ export default function OnboardingPage() {
   const [newServiceDescription, setNewServiceDescription] = useState('');
   const [currency, setCurrency] = useState<string>(() => detectBrowserCurrency());
   const [timezone, setTimezone] = useState<string>(() => detectBrowserTimezone());
+  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
   const handleLogout = async () => {
     await signOut();
@@ -200,20 +201,20 @@ export default function OnboardingPage() {
     checkPhoneNeeded();
   }, [user]);
 
-  // If the user already has a business and isn't creating a new one, redirect.
-  const isNewBusiness = new URLSearchParams(window.location.search).get('new') === 'true';
+  // If the user already belongs to a completed business, redirect. Business
+  // onboarding is only for a confirmed membership-free account or the actual
+  // creator finishing their provisioned organization.
   useEffect(() => {
     // `building` guard: right after creation, refetch() sets `organization`
     // and this effect would yank the user to /dashboard mid-overlay (and
     // AdminRoute would bounce them again). Let the overlay own navigation.
     const ownsOrg = !!organization && !!user && organization.owner_id === user.id;
-    if (!orgLoading && organization && !isNewBusiness && !building && (!organization.needs_onboarding || !ownsOrg)) {
+    if (!orgLoading && organization && !building && (!organization.needs_onboarding || !ownsOrg)) {
 
       // Native: land on Help tab (tutorial videos) after onboarding.
       // Web: land on dashboard (web goes through /choose-plan first anyway).
       navigate(isNative ? '/dashboard/help' : '/dashboard', { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- isNewBusiness is checked inside the guard; adding it would cause a redirect before the overlay finishes
   }, [orgLoading, organization, navigate, building]);
 
   // If not logged in, send to login.
@@ -235,7 +236,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (user && !isNewBusiness && organization && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
+  if (user && organization && (!organization.needs_onboarding || organization.owner_id !== user.id)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -243,7 +244,7 @@ export default function OnboardingPage() {
     );
   }
 
-  if (user && !isNewBusiness && !organization && orgResolution === 'error') {
+  if (user && !organization && orgResolution === 'error') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="w-full max-w-md">
@@ -260,8 +261,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
-  const baseSlug = useMemo(() => slugify(businessName), [businessName]);
 
   const toggleService = (serviceName: string) => {
     const newSelected = new Set(selectedServices);
