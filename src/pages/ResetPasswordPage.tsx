@@ -36,6 +36,7 @@ const passwordSchema = z
   });
 
 const RESEND_COOLDOWN_SECONDS = 30;
+const INVITE_PASSWORD_CREATED_KEY = 'tidywise_invite_password_created';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -157,6 +158,10 @@ export default function ResetPasswordPage() {
 
       toast.success(nextPath ? 'Password created. You can now accept the invitation.' : 'Password updated. Please sign in with your new password.');
       if (nextPath) {
+        const inviteToken = new URLSearchParams(nextPath.split('?')[1] || '').get('token');
+        if (inviteToken) {
+          try { sessionStorage.setItem(INVITE_PASSWORD_CREATED_KEY, inviteToken); } catch { /* ignore */ }
+        }
         navigate(nextPath, { replace: true });
         return;
       }

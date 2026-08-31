@@ -6,6 +6,7 @@ import { Check, ChevronRight } from 'lucide-react';
 import { useOnboardingChecklist } from '@/hooks/useOnboardingChecklist';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 const HIDE_CHECKLIST_EMAILS = ['support@tidywisecleaning.com', 'applereview@tidywise.com'];
 
@@ -13,8 +14,14 @@ export function OnboardingChecklist() {
   const { data: items = [], isLoading } = useOnboardingChecklist();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { organization } = useOrganization();
 
-  // Hide for owner/free accounts
+  // This checklist belongs only to the person who created the business.
+  // An invited teammate can hold an owner-level membership without being the
+  // organization's actual owner and must never be asked to onboard it.
+  if (!user || !organization || organization.owner_id !== user.id) return null;
+
+  // Hide for internal/free accounts
   if (user?.email && HIDE_CHECKLIST_EMAILS.includes(user.email.toLowerCase())) return null;
 
   if (isLoading || items.length === 0) return null;
