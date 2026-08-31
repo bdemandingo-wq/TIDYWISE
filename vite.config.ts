@@ -145,7 +145,11 @@ export default defineConfig(({ mode }) => ({
           with content search engines and visitors expect to come from the
           server.
         */
-        globPatterns: ["**/*.{js,css}", "index.html", "pwa-*.png", "favicon.ico"],
+        // Icons (pwa-*.png) and favicon.ico are NOT listed here — they are
+        // already injected by manifest.icons and includeAssets respectively.
+        // Listing them here too produces duplicate precache entries with
+        // conflicting revision hashes, which crashes the service worker.
+        globPatterns: ["**/*.{js,css}", "index.html"],
         globIgnores: ["**/images/**", "**/blog/**", "**/locations/**"],
         navigateFallback: "/index.html",
         /*
