@@ -231,7 +231,9 @@ export default function AcceptInvitePage() {
 
   const signUpAndAccept = async () => {
     if (!preview) return;
-    if (preview.existing_user) { await signInExistingThenAccept(); return; }
+    if (preview.existing_user) { await sendPasswordReset(); return; }
+    if (!fullName.trim()) { toast.error('Enter your name'); return; }
+
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
     setBusy(true);
     setSignInErr(null);
