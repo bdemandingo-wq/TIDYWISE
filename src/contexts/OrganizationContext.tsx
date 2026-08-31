@@ -160,9 +160,15 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
         // flag and fall back to the default.
         localStorage.removeItem(ORG_CHOSEN_KEY);
         activeOrg = bestAdminOrg ?? sortedByRole[0];
-      } else if (savedOrg && (savedOrg.role !== 'member' || !bestAdminOrg)) {
-        // Saved but not explicitly chosen — keep it unless it's a member
-        // role and a better admin org exists.
+      } else if (
+        savedOrg &&
+        !savedOrg.organization.needs_onboarding &&
+        (savedOrg.role !== 'member' || !bestAdminOrg)
+      ) {
+        // Saved but not explicitly chosen — keep it unless it's an unfinished
+        // auto-provisioned org or a member role with a better admin org. An
+        // unfinished owner org can be a stale invite-flow artifact and must
+        // never outrank an existing completed workspace.
         activeOrg = savedOrg;
       } else {
         activeOrg = bestAdminOrg ?? sortedByRole[0];
