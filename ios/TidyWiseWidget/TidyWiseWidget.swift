@@ -68,8 +68,8 @@ struct TidyWiseWidgetEntryView: View {
     var entry: BookingEntry
 
     // TidyWise brand blue: HSL 230 100% 50%
-    private let brandBlue = Color(red: 0.0, green: 0.0, blue: 1.0)
-    private let brandBlueDark = Color(red: 0.1, green: 0.1, blue: 0.85)
+    private let brandBlue = Color(hue: 230.0 / 360.0, saturation: 1.0, brightness: 1.0)
+    private let brandBlueDark = Color(hue: 234.0 / 360.0, saturation: 0.6, brightness: 0.65)
 
     var body: some View {
         if entry.booking.isEmpty {
