@@ -78,6 +78,14 @@
 				<string>com.TidyWiseApp.app</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Widget Deep Link</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tidywise</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
