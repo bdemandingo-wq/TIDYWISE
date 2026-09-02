@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { sendPushBestEffort } from '@/lib/pushNotify';
 import { supabase } from '@/lib/supabase';
+import { syncWidgetData } from '@/lib/syncWidgetData';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import type { Json } from '@/integrations/supabase/types';
@@ -377,6 +378,7 @@ export function useCreateBooking() {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['booking-team-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['all-team-assignments'] });
+      syncWidgetData(); // Update widget with latest booking
       toast.success('Booking created successfully');
     },
     onError: (error: Error) => {
@@ -460,6 +462,7 @@ export function useUpdateBooking() {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['booking-team-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['all-team-assignments'] });
+      syncWidgetData(); // Update widget with latest booking
       toast.success('Booking updated successfully');
     },
     onError: (error: Error) => {
@@ -485,6 +488,7 @@ export function useDeleteBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      syncWidgetData(); // Update widget with latest booking
       toast.success('Booking deleted successfully');
     },
     onError: (error: Error) => {

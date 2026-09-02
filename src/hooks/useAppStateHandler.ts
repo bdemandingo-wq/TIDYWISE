@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
+import { syncWidgetData } from '@/lib/syncWidgetData';
 
 // Routes that are considered "root" tabs — back button should not navigate away from these
 const ROOT_ROUTES = [
@@ -205,6 +206,7 @@ export function useAppStateHandler() {
       const resumeListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (isActive) {
           queryClient.invalidateQueries();
+          syncWidgetData(); // fire-and-forget, non-blocking
           try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
