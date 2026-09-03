@@ -11,6 +11,7 @@
 
 import { parseRecipients } from "./email-address.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isEmailOptedOut } from "./marketing-guard.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import {
   getOrgEmailSettings,
@@ -46,7 +47,19 @@ export interface SendOrgEmailOptions {
    * those would lock a real user out of their own account.
    */
   ignoreSuppression?: boolean;
+  /**
+   * TRUE for promotional mail only (winback, campaigns, referral invites,
+   * loyalty progress, review requests). Marketing sends are gated on the
+   * recipient's per-org customers.marketing_status — the SAME field SMS
+   * already honours, so one opt-out covers both channels.
+   *
+   * Never set this on invoices, receipts, booking confirmations, reminders,
+   * payroll, team invites or auth mail: an opt-out must not stop mail the
+   * customer needs.
+   */
+  marketing?: boolean;
 }
+
 
 export interface SendOrgEmailResult {
   success: boolean;
@@ -357,7 +370,32 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
     }
   }
 
+  // Marketing opt-out. Only promotional mail passes marketing: true, so
+  // invoices, confirmations, reminders and auth mail are unaffected.
+  //
+  // FAIL CLOSED — deliberately the OPPOSITE of the bounce-suppression block
+  // above, which fails open. That asymmetry is intentional, not an oversight:
+  // a database hiccup must never stop an invoice, but sending marketing to
+  // someone who may have opted out is statutory (TCPA/CAN-SPAM) exposure per
+  // message. Do not "fix" one to match the other.
+  if (opts.marketing) {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const optedOut = await isEmailOptedOut(
+      createClient(url, key),
+      opts.organizationId,
+      primaryRecipient,
+    );
+    if (optedOut) {
+      const error = `Marketing email skipped: recipient opted out of marketing for this organization (${primaryRecipient})`;
+      await logSend(opts, { status: "failed", method: "none", recipient: primaryRecipient, error });
+      return { success: false, method: "none", error };
+    }
+  }
+
   const wantsGmail =
+
+
 
     settings.email_send_method === "gmail_smtp" &&
     !!settings.smtp_email &&
