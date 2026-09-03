@@ -203,6 +203,9 @@ export function useAppStateHandler() {
     const init = async () => {
       const { App } = await import('@capacitor/app');
 
+      // Sync widget data on initial app launch (not just resume)
+      syncWidgetData();
+
       const resumeListener = await App.addListener('appStateChange', async ({ isActive }) => {
         if (isActive) {
           queryClient.invalidateQueries();

@@ -151,7 +151,7 @@ struct NextBookingProvider: TimelineProvider {
     }
     func getSnapshot(in _: Context, completion: @escaping (NextBookingEntry) -> Void) { completion(load()) }
     func getTimeline(in _: Context, completion: @escaping (Timeline<NextBookingEntry>) -> Void) {
-        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(900))))
+        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(300))))
     }
     private func load() -> NextBookingEntry {
         let b: NextBookingData = decode("widgetNextBooking") ?? .init(
@@ -297,7 +297,7 @@ struct UpcomingScheduleProvider: TimelineProvider {
     }
     func getSnapshot(in _: Context, completion: @escaping (UpcomingScheduleEntry) -> Void) { completion(load()) }
     func getTimeline(in _: Context, completion: @escaping (Timeline<UpcomingScheduleEntry>) -> Void) {
-        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(900))))
+        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(300))))
     }
     private func load() -> UpcomingScheduleEntry {
         UpcomingScheduleEntry(date: .now, schedule: decode("widgetUpcomingSchedule") ?? .init(
@@ -429,7 +429,7 @@ struct DailyStatsProvider: TimelineProvider {
     }
     func getSnapshot(in _: Context, completion: @escaping (DailyStatsEntry) -> Void) { completion(load()) }
     func getTimeline(in _: Context, completion: @escaping (Timeline<DailyStatsEntry>) -> Void) {
-        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(900))))
+        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(300))))
     }
     private func load() -> DailyStatsEntry {
         DailyStatsEntry(date: .now, stats: decode("widgetDailyStats") ?? .init(
