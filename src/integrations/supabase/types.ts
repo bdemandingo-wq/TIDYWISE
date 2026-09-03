@@ -4888,6 +4888,32 @@ export type Database = {
         }
         Relationships: []
       }
+      email_bounce_cursor: {
+        Row: {
+          last_uid: number
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          last_uid?: number
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          last_uid?: number
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_bounce_cursor_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_send_failures: {
         Row: {
           attempted_at: string
@@ -4928,6 +4954,9 @@ export type Database = {
       }
       email_send_log: {
         Row: {
+          bounce_detail: string | null
+          bounce_type: string | null
+          bounced_at: string | null
           created_at: string
           error_message: string | null
           id: string
@@ -4939,6 +4968,9 @@ export type Database = {
           template_name: string
         }
         Insert: {
+          bounce_detail?: string | null
+          bounce_type?: string | null
+          bounced_at?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
@@ -4950,6 +4982,9 @@ export type Database = {
           template_name: string
         }
         Update: {
+          bounce_detail?: string | null
+          bounce_type?: string | null
+          bounced_at?: string | null
           created_at?: string
           error_message?: string | null
           id?: string
