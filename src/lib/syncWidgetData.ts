@@ -51,12 +51,15 @@ interface DailyStatsData {
 }
 
 export async function syncWidgetData(): Promise<void> {
+  console.log('[WidgetSync] called, isNative:', Capacitor.isNativePlatform(), 'platform:', Capacitor.getPlatform());
   if (!Capacitor.isNativePlatform()) {
+    console.log('[WidgetSync] skipped — not native');
     return;
   }
 
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('[WidgetSync] session:', session ? `user=${session.user.email}` : 'null');
     if (!session) {
       return;
     }
@@ -66,8 +69,9 @@ export async function syncWidgetData(): Promise<void> {
       syncTodaySchedule(),
       syncDailyStats(),
     ]);
+    console.log('[WidgetSync] all three syncs complete');
   } catch (err) {
-    console.error('[WidgetSync] failed:', err);
+    console.error('[WidgetSync] top-level error:', err);
   }
 }
 
@@ -87,6 +91,8 @@ async function syncNextBooking(): Promise<void> {
     .order('scheduled_at', { ascending: true })
     .limit(1)
     .maybeSingle();
+
+  console.log('[WidgetSync:nextBooking] query result:', JSON.stringify({ booking, error: error?.message }));
 
   if (error) {
     console.error('[WidgetSync:nextBooking] query error:', error.message);
@@ -115,7 +121,14 @@ async function syncNextBooking(): Promise<void> {
     data = { isEmpty: true };
   }
 
-  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetNextBooking' });
+  const json = JSON.stringify(data);
+  console.log('[WidgetSync:nextBooking] writing:', json);
+  try {
+    await WidgetBridge.syncBookingData({ json, key: 'widgetNextBooking' });
+    console.log('[WidgetSync:nextBooking] bridge call succeeded');
+  } catch (bridgeErr) {
+    console.error('[WidgetSync:nextBooking] bridge call FAILED:', bridgeErr);
+  }
 }
 
 async function syncTodaySchedule(): Promise<void> {
