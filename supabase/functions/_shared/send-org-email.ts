@@ -46,7 +46,19 @@ export interface SendOrgEmailOptions {
    * those would lock a real user out of their own account.
    */
   ignoreSuppression?: boolean;
+  /**
+   * TRUE for promotional mail only (winback, campaigns, referral invites,
+   * loyalty progress, review requests). Marketing sends are gated on the
+   * recipient's per-org customers.marketing_status — the SAME field SMS
+   * already honours, so one opt-out covers both channels.
+   *
+   * Never set this on invoices, receipts, booking confirmations, reminders,
+   * payroll, team invites or auth mail: an opt-out must not stop mail the
+   * customer needs.
+   */
+  marketing?: boolean;
 }
+
 
 export interface SendOrgEmailResult {
   success: boolean;
