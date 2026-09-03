@@ -302,12 +302,7 @@ struct TidyWiseWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: BookingTimelineProvider()) { entry in
-            if #available(iOSApplicationExtension 17.0, *) {
-                WidgetEntryView(entry: entry)
-                    .containerBackground(for: .widget) { brandGradient }
-            } else {
-                WidgetEntryView(entry: entry)
-            }
+            WidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Next Booking")
         .description("See your next upcoming booking at a glance.")
