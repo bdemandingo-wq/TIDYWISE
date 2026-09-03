@@ -11,6 +11,7 @@
 
 import { parseRecipients } from "./email-address.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isEmailOptedOut } from "./marketing-guard.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import {
   getOrgEmailSettings,
