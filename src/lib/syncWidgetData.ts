@@ -2,79 +2,213 @@ import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import WidgetBridge from '@/lib/widgetBridge';
 
-interface WidgetBookingData {
+// --- Next Booking ---
+
+interface NextBookingData {
   bookingId: string;
   customerName: string;
   serviceType: string;
   address: string;
   scheduledAt: string;
+  cleanerName: string;
   isEmpty: false;
 }
 
-interface WidgetEmptyData {
+interface NextBookingEmpty {
   isEmpty: true;
 }
 
-type WidgetData = WidgetBookingData | WidgetEmptyData;
+// --- Today's Schedule ---
+
+interface ScheduleBooking {
+  bookingId: string;
+  customerName: string;
+  serviceType: string;
+  scheduledAt: string;
+}
+
+interface TodayScheduleData {
+  totalJobs: number;
+  bookings: ScheduleBooking[];
+  isEmpty: false;
+}
+
+interface TodayScheduleEmpty {
+  totalJobs: 0;
+  bookings: [];
+  isEmpty: true;
+}
+
+// --- Daily Stats ---
+
+interface DailyStatsData {
+  revenue: number;
+  jobsCompleted: number;
+  jobsRemaining: number;
+  nextCustomerName: string | null;
+  nextScheduledAt: string | null;
+  nextBookingId: string | null;
+}
 
 export async function syncWidgetData(): Promise<void> {
-  // Only runs on native iOS — widgets don't exist on web
   if (!Capacitor.isNativePlatform()) {
     return;
   }
 
   try {
-    // Ensure we have an active session before querying — on app resume the
-    // auth token may not be refreshed yet.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return;
     }
 
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .select(`
-        id,
-        scheduled_at,
-        address,
-        customer:customers(first_name, last_name),
-        service:services(name)
-      `)
-      .neq('status', 'cancelled')
-      .gt('scheduled_at', new Date().toISOString())
-      .order('scheduled_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      console.error('[WidgetSync] query error:', error.message);
-      return;
-    }
-
-    let widgetData: WidgetData;
-
-    if (booking) {
-      const customer = booking.customer as { first_name: string; last_name: string } | null;
-      const service = booking.service as { name: string } | null;
-
-      widgetData = {
-        bookingId: booking.id,
-        customerName: customer
-          ? `${customer.first_name} ${customer.last_name}`.trim()
-          : 'Customer',
-        serviceType: service?.name ?? 'Cleaning',
-        address: booking.address ?? '',
-        scheduledAt: booking.scheduled_at,
-        isEmpty: false,
-      };
-    } else {
-      widgetData = { isEmpty: true };
-    }
-
-    console.log('[WidgetSync] writing:', JSON.stringify(widgetData));
-    await WidgetBridge.syncBookingData({ json: JSON.stringify(widgetData) });
-    console.log('[WidgetSync] success');
+    await Promise.all([
+      syncNextBooking(),
+      syncTodaySchedule(),
+      syncDailyStats(),
+    ]);
   } catch (err) {
     console.error('[WidgetSync] failed:', err);
   }
+}
+
+async function syncNextBooking(): Promise<void> {
+  const { data: booking, error } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      scheduled_at,
+      address,
+      customer:customers(first_name, last_name),
+      service:services(name),
+      staff:staff(name)
+    `)
+    .neq('status', 'cancelled')
+    .gt('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[WidgetSync:nextBooking] query error:', error.message);
+    return;
+  }
+
+  let data: NextBookingData | NextBookingEmpty;
+
+  if (booking) {
+    const customer = booking.customer as { first_name: string; last_name: string } | null;
+    const service = booking.service as { name: string } | null;
+    const staff = booking.staff as { name: string } | null;
+
+    data = {
+      bookingId: booking.id,
+      customerName: customer
+        ? `${customer.first_name} ${customer.last_name}`.trim()
+        : 'Customer',
+      serviceType: service?.name ?? 'Cleaning',
+      address: booking.address ?? '',
+      scheduledAt: booking.scheduled_at,
+      cleanerName: staff?.name ?? '',
+      isEmpty: false,
+    };
+  } else {
+    data = { isEmpty: true };
+  }
+
+  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetNextBooking' });
+}
+
+async function syncTodaySchedule(): Promise<void> {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      scheduled_at,
+      customer:customers(first_name, last_name),
+      service:services(name)
+    `)
+    .neq('status', 'cancelled')
+    .gte('scheduled_at', startOfDay)
+    .lt('scheduled_at', endOfDay)
+    .order('scheduled_at', { ascending: true })
+    .limit(10);
+
+  if (error) {
+    console.error('[WidgetSync:todaySchedule] query error:', error.message);
+    return;
+  }
+
+  let data: TodayScheduleData | TodayScheduleEmpty;
+
+  if (bookings && bookings.length > 0) {
+    data = {
+      totalJobs: bookings.length,
+      bookings: bookings.map((b) => {
+        const customer = b.customer as { first_name: string; last_name: string } | null;
+        const service = b.service as { name: string } | null;
+        return {
+          bookingId: b.id,
+          customerName: customer
+            ? `${customer.first_name} ${customer.last_name}`.trim()
+            : 'Customer',
+          serviceType: service?.name ?? 'Cleaning',
+          scheduledAt: b.scheduled_at,
+        };
+      }),
+      isEmpty: false,
+    };
+  } else {
+    data = { totalJobs: 0, bookings: [], isEmpty: true };
+  }
+
+  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetTodaySchedule' });
+}
+
+async function syncDailyStats(): Promise<void> {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select(`
+      id,
+      scheduled_at,
+      total_amount,
+      status,
+      customer:customers(first_name, last_name)
+    `)
+    .neq('status', 'cancelled')
+    .gte('scheduled_at', startOfDay)
+    .lt('scheduled_at', endOfDay)
+    .order('scheduled_at', { ascending: true });
+
+  if (error) {
+    console.error('[WidgetSync:dailyStats] query error:', error.message);
+    return;
+  }
+
+  const completed = (bookings ?? []).filter((b) => b.status === 'completed');
+  const remaining = (bookings ?? []).filter((b) => b.status !== 'completed');
+  const revenue = completed.reduce((sum, b) => sum + (b.total_amount ?? 0), 0);
+
+  const nextRemaining = remaining[0];
+  const nextCustomer = nextRemaining?.customer as { first_name: string; last_name: string } | null;
+
+  const data: DailyStatsData = {
+    revenue,
+    jobsCompleted: completed.length,
+    jobsRemaining: remaining.length,
+    nextCustomerName: nextCustomer
+      ? `${nextCustomer.first_name} ${nextCustomer.last_name}`.trim()
+      : null,
+    nextScheduledAt: nextRemaining?.scheduled_at ?? null,
+    nextBookingId: nextRemaining?.id ?? null,
+  };
+
+  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetDailyStats' });
 }

@@ -15,12 +15,15 @@ public class WidgetBridgePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        let key = call.getString("key") ?? "widgetNextBooking"
+
         guard let defaults = UserDefaults(suiteName: "group.com.TidyWiseApp.app") else {
             call.reject("Could not access App Group UserDefaults")
             return
         }
 
-        defaults.set(json, forKey: "widgetNextBooking")
+        defaults.set(json, forKey: key)
+        defaults.synchronize()
 
         if #available(iOS 14.0, *) {
             WidgetCenter.shared.reloadAllTimelines()

@@ -62,17 +62,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		0D7857AA3048D896009275CC /* Exceptions for "TidyWiseWidget" folder in "TidyWiseWidgetExtension" target */ = {
+		0D7857AA3048D896009275CC /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				TidyWiseWidget.entitlements,
 			);
 			target = 0D78575E3048D893009275CC /* TidyWiseWidgetExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0D7857653048D893009275CC /* TidyWiseWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (0D7857AA3048D896009275CC /* Exceptions for "TidyWiseWidget" folder in "TidyWiseWidgetExtension" target */, ); explicitFileTypes = {}; explicitFolders = (); path = TidyWiseWidget; sourceTree = "<group>"; };
+		0D7857653048D893009275CC /* TidyWiseWidget */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (0D7857AA3048D896009275CC /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = TidyWiseWidget; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -311,6 +312,7 @@
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_ENTITLEMENTS = TidyWiseWidget/TidyWiseWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JV99ZGTGR3;
@@ -356,6 +358,7 @@
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_ENTITLEMENTS = TidyWiseWidget/TidyWiseWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = JV99ZGTGR3;

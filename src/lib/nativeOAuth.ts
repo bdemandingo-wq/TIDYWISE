@@ -58,6 +58,10 @@ export function setupDeepLinkListener(): (() => void) | undefined {
           window.location.hash = '#/dashboard/bookings';
         } else if (path === 'new-booking') {
           window.location.hash = '#/dashboard/bookings?newBooking=true';
+        } else if (path === 'today') {
+          window.location.hash = '#/dashboard/bookings';
+        } else if (path === 'dashboard') {
+          window.location.hash = '#/dashboard';
         }
         return;
       }
