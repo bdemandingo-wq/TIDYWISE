@@ -62,26 +62,39 @@ struct BookingTimelineProvider: TimelineProvider {
     }
 }
 
-// MARK: - Widget Views
+// MARK: - Brand Colors
 
-struct TidyWiseWidgetEntryView: View {
+private let brandBlue = Color(hue: 230.0 / 360.0, saturation: 1.0, brightness: 1.0)
+private let brandBlueDark = Color(hue: 234.0 / 360.0, saturation: 0.6, brightness: 0.65)
+
+private var brandGradient: LinearGradient {
+    LinearGradient(
+        gradient: Gradient(colors: [brandBlue, brandBlueDark]),
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+}
+
+// MARK: - Small Widget View
+
+struct SmallBookingView: View {
     var entry: BookingEntry
-
-    // TidyWise brand blue: HSL 230 100% 50%
-    private let brandBlue = Color(hue: 230.0 / 360.0, saturation: 1.0, brightness: 1.0)
-    private let brandBlueDark = Color(hue: 234.0 / 360.0, saturation: 0.6, brightness: 0.65)
 
     var body: some View {
         if entry.booking.isEmpty {
-            emptyStateView
+            SmallEmptyStateView()
         } else {
-            bookingView
+            SmallFilledView(entry: entry)
         }
     }
+}
 
-    private var bookingView: some View {
+struct SmallFilledView: View {
+    var entry: BookingEntry
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(formattedDate)
+            Text(formatDate(entry.booking.scheduledAt))
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundColor(.white.opacity(0.9))
@@ -106,56 +119,178 @@ struct TidyWiseWidgetEntryView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [brandBlue, brandBlueDark]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(brandGradient)
         .widgetURL(URL(string: "tidywise://booking/\(entry.booking.bookingId ?? "")"))
     }
+}
 
-    private var emptyStateView: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "calendar.badge.plus")
-                .font(.title)
-                .foregroundColor(.white.opacity(0.8))
+struct SmallEmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Spacer()
+
+            Text("TidyWise")
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+
+            Image(systemName: "sparkles")
+                .font(.title2)
+                .foregroundColor(.white.opacity(0.9))
 
             Text("Tap to schedule")
-                .font(.subheadline)
+                .font(.caption)
                 .fontWeight(.medium)
-                .foregroundColor(.white)
+                .foregroundColor(.white.opacity(0.8))
+
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [brandBlue, brandBlueDark]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(brandGradient)
         .widgetURL(URL(string: "tidywise://new-booking"))
     }
+}
 
-    private var formattedDate: String {
-        guard let isoString = entry.booking.scheduledAt,
-              let date = ISO8601DateFormatter().date(from: isoString) else {
-            return ""
-        }
+// MARK: - Medium Widget View
 
-        let calendar = Calendar.current
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
+struct MediumBookingView: View {
+    var entry: BookingEntry
 
-        if calendar.isDateInToday(date) {
-            return "Today, \(formatter.string(from: date))"
-        } else if calendar.isDateInTomorrow(date) {
-            return "Tomorrow, \(formatter.string(from: date))"
+    var body: some View {
+        if entry.booking.isEmpty {
+            MediumEmptyStateView()
         } else {
-            formatter.dateStyle = .short
-            return formatter.string(from: date)
+            MediumFilledView(entry: entry)
         }
+    }
+}
+
+struct MediumFilledView: View {
+    var entry: BookingEntry
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left: time + customer
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: "clock.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.8))
+                    Text(formatDate(entry.booking.scheduledAt))
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+
+                Text(entry.booking.customerName ?? "Unknown")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Text("Next Booking")
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Right: service + address
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: "house.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.8))
+                    Text(entry.booking.serviceType ?? "Cleaning")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white.opacity(0.9))
+                        .lineLimit(1)
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.8))
+                    Text(entry.booking.address ?? "")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.8))
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Text("TidyWise")
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.08))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(brandGradient)
+        .widgetURL(URL(string: "tidywise://booking/\(entry.booking.bookingId ?? "")"))
+    }
+}
+
+struct MediumEmptyStateView: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("TidyWise")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+
+                Text("No upcoming bookings")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Spacer()
+
+            VStack(spacing: 4) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundColor(.white.opacity(0.9))
+
+                Text("Tap to schedule")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white.opacity(0.8))
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(brandGradient)
+        .widgetURL(URL(string: "tidywise://new-booking"))
+    }
+}
+
+// MARK: - Date Formatting
+
+private func formatDate(_ isoString: String?) -> String {
+    guard let isoString = isoString,
+          let date = ISO8601DateFormatter().date(from: isoString) else {
+        return ""
+    }
+
+    let calendar = Calendar.current
+    let formatter = DateFormatter()
+    formatter.timeStyle = .short
+
+    if calendar.isDateInToday(date) {
+        return "Today, \(formatter.string(from: date))"
+    } else if calendar.isDateInTomorrow(date) {
+        return "Tomorrow, \(formatter.string(from: date))"
+    } else {
+        formatter.dateStyle = .short
+        return formatter.string(from: date)
     }
 }
 
@@ -167,10 +302,29 @@ struct TidyWiseWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: BookingTimelineProvider()) { entry in
-            TidyWiseWidgetEntryView(entry: entry)
+            if #available(iOSApplicationExtension 17.0, *) {
+                WidgetEntryView(entry: entry)
+                    .containerBackground(for: .widget) { brandGradient }
+            } else {
+                WidgetEntryView(entry: entry)
+            }
         }
         .configurationDisplayName("Next Booking")
         .description("See your next upcoming booking at a glance.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+struct WidgetEntryView: View {
+    @Environment(\.widgetFamily) var family
+    var entry: BookingEntry
+
+    var body: some View {
+        switch family {
+        case .systemMedium:
+            MediumBookingView(entry: entry)
+        default:
+            SmallBookingView(entry: entry)
+        }
     }
 }

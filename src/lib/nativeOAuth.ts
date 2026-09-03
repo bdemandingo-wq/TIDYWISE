@@ -50,15 +50,14 @@ export function setupDeepLinkListener(): (() => void) | undefined {
     const { Browser } = await import('@capacitor/browser');
 
     return App.addListener('appUrlOpen', async ({ url }) => {
-      // Handle widget deep links
+      // Handle widget deep links — native uses HashRouter so navigate via hash
       if (url.startsWith('tidywise://')) {
         const path = url.replace('tidywise://', '');
 
         if (path.startsWith('booking/')) {
-          // Open the bookings page — no per-booking detail deep link exists yet
-          window.location.href = '/dashboard/bookings';
+          window.location.hash = '#/dashboard/bookings';
         } else if (path === 'new-booking') {
-          window.location.href = '/dashboard/bookings?newBooking=true';
+          window.location.hash = '#/dashboard/bookings?newBooking=true';
         }
         return;
       }
