@@ -369,7 +369,32 @@ export async function sendOrgEmail(opts: SendOrgEmailOptions): Promise<SendOrgEm
     }
   }
 
+  // Marketing opt-out. Only promotional mail passes marketing: true, so
+  // invoices, confirmations, reminders and auth mail are unaffected.
+  //
+  // FAIL CLOSED — deliberately the OPPOSITE of the bounce-suppression block
+  // above, which fails open. That asymmetry is intentional, not an oversight:
+  // a database hiccup must never stop an invoice, but sending marketing to
+  // someone who may have opted out is statutory (TCPA/CAN-SPAM) exposure per
+  // message. Do not "fix" one to match the other.
+  if (opts.marketing) {
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const optedOut = await isEmailOptedOut(
+      createClient(url, key),
+      opts.organizationId,
+      primaryRecipient,
+    );
+    if (optedOut) {
+      const error = `Marketing email skipped: recipient opted out of marketing for this organization (${primaryRecipient})`;
+      await logSend(opts, { status: "failed", method: "none", recipient: primaryRecipient, error });
+      return { success: false, method: "none", error };
+    }
+  }
+
   const wantsGmail =
+
+
 
     settings.email_send_method === "gmail_smtp" &&
     !!settings.smtp_email &&
