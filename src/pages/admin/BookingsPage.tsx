@@ -178,8 +178,10 @@ export default function BookingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Handle deep-links like /dashboard/bookings?newBooking=true&customerId=<id>
-  // (e.g. the "Book" button on a customer profile) by opening the New Booking
-  // dialog with the customer already selected.
+  // (e.g. the "Book" button on a customer profile, or widget tap) by opening
+  // the New Booking dialog with the customer already selected.
+  // Depends on searchParams so it fires when the widget deep link changes the
+  // hash while BookingsPage is already mounted.
   useEffect(() => {
     if (searchParams.get('newBooking') === 'true') {
       const cid = searchParams.get('customerId');
@@ -193,7 +195,7 @@ export default function BookingsPage() {
       setSearchParams(next, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
