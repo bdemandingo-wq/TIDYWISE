@@ -126,7 +126,7 @@ export function HealthMonitorTab() {
       status: openphoneStatus?.connected ? 'ok' : 'error',
       message: openphoneStatus?.connected
         ? `Active${openphoneStatus.lastMessage ? ` • Last message ${format(new Date(openphoneStatus.lastMessage), 'MMM d, h:mm a')}` : ''}`
-        : 'Not configured — SMS automations will not work',
+        : 'Not configured. SMS automations will not work.',
       lastChecked: new Date().toISOString(),
       fixAction: !openphoneStatus?.connected ? { label: 'Configure SMS', href: '/dashboard/settings?tab=sms' } : undefined,
     },
@@ -136,7 +136,7 @@ export function HealthMonitorTab() {
       status: stripeStatus?.connected ? 'ok' : 'error',
       message: stripeStatus?.connected
         ? `Connected${stripeStatus.lastSync ? ` since ${format(new Date(stripeStatus.lastSync), 'MMM d, yyyy')}` : ''}`
-        : 'Not connected — payment features unavailable',
+        : 'Not connected. Payment features unavailable.',
       lastChecked: stripeStatus?.lastSync || null,
       fixAction: !stripeStatus?.connected ? { label: 'Connect Stripe', href: '/dashboard/payment-integration' } : undefined,
     },
@@ -165,7 +165,7 @@ export function HealthMonitorTab() {
           ? 'No campaigns sent yet'
           : campaignStatus.failed > 0
             ? `${campaignStatus.failed}/${campaignStatus.total} recent sends failed`
-            : `${campaignStatus.total} recent sends — all delivered`
+            : `${campaignStatus.total} recent sends, all delivered`
         : 'Checking...',
       lastChecked: new Date().toISOString(),
       fixAction: campaignStatus && campaignStatus.failed > 0

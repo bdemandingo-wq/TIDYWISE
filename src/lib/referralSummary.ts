@@ -28,7 +28,7 @@
  */
 export const REFERRAL_TERMS: readonly string[] = [
   'They get 50% off their first month, straight away.',
-  'You get one free month once they have made their second payment — not their first.',
+  'You get one free month once they have made their second payment, not their first.',
   'Refer three businesses that are still active and you get two extra months on top.',
 ];
 
@@ -84,7 +84,7 @@ export function referralStatusLabel(row: ReferralRow): string {
   switch (row.status) {
     case 'pending':
       return row.referred_paid_invoice_count >= 1
-        ? 'Signed up and paid once — one more payment and your free month is earned'
+        ? 'Signed up and paid once. One more payment and your free month is earned.'
         : 'Signed up, not yet paid';
     case 'qualified':
       return 'Free month earned, applying to your next invoice';

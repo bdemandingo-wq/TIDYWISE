@@ -124,7 +124,7 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
     setIsMarkingArrived(true);
     try {
       await markArrived();
-      toast.success('Arrival sent — client and admin notified!');
+      toast.success('Arrival sent. Client and admin notified.');
     } catch {
       toast.error('Could not send arrival notification. Please try again.');
     } finally {
@@ -177,7 +177,7 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
           organization_id: booking.organization_id,
           type: 'staff_activity',
           title: '📍 No ETA sent to customer',
-          message: `Couldn't work out a travel time for booking #${booking.booking_number ?? booking.id.slice(0, 8)} — the address has no saved coordinates and couldn't be looked up. The customer got an on-the-way text with no ETA. Adding the address via the map picker fixes it for future jobs.`,
+          message: `Couldn't work out a travel time for booking #${booking.booking_number ?? booking.id.slice(0, 8)}. The address has no saved coordinates and couldn't be looked up. The customer got an on-the-way text with no ETA. Adding the address via the map picker fixes it for future jobs.`,
           link: `/dashboard/bookings`,
           metadata: { booking_id: booking.id, staff_id: staffInfo.id, reason: 'geocode_failed' },
         }).then(({ error: notifyErr }) => {
@@ -303,7 +303,7 @@ export function MyJobCard({ booking, staffInfo, organizationId, orgExtras, photo
    * message is what makes that route discoverable rather than folklore.
    */
   const START_NEEDS_ARRIVAL =
-    'Tap “On The Way” then “I’ve Arrived” first. If you can’t, ask your admin to start this job for you.';
+    "Tap \"On The Way\" then \"I've Arrived\" first. If you can't, ask your admin to start this job for you.";
 
   const handleDirectionsClick = () => {
     openDirections({

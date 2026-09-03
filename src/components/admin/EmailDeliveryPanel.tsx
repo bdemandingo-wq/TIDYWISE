@@ -42,7 +42,7 @@ export function EmailDeliveryPanel() {
                   {f.fell_back_to && (
                     <Badge variant="outline" className="text-[10px]">
                       {isHardFailure(f)
-                        ? `fell back to ${f.fell_back_to} — also failed`
+                        ? `fell back to ${f.fell_back_to}, also failed`
                         : `fell back to ${f.fell_back_to} (likely delivered)`}
                     </Badge>
                   )}

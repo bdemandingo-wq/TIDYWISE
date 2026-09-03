@@ -460,7 +460,7 @@ export function GHLSettingsCard() {
                         }
                       />
                       <span className="text-sm text-muted-foreground">
-                        {mapping.enabled ? 'This event sends to GHL' : 'Skipped — will not send'}
+                        {mapping.enabled ? 'This event sends to GHL' : 'Skipped. Will not send.'}
                       </span>
                     </div>
 

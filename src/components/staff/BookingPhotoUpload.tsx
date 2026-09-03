@@ -306,8 +306,8 @@ export function BookingPhotoUpload({ bookingId, staffId, organizationId, onPhoto
             <p className="mt-1 text-center text-xs text-muted-foreground">
               {typeInferred
                 ? photoType === 'before'
-                  ? 'Job not finished yet — filing as Before. Tap After to change.'
-                  : 'Job is checked out — filing as After. Tap Before to change.'
+                  ? 'Job not finished yet. Filing as Before. Tap After to change.'
+                  : 'Job is checked out. Filing as After. Tap Before to change.'
                 : `Filing as ${photoType} for the rest of this upload.`}
             </p>
           </div>

@@ -311,7 +311,7 @@ const activeAutomationsMeta: Record<string, {
   review_request: {
     icon: Star,
     emoji: '⭐',
-    description: 'Fires 30 min after booking marked complete — sends review request SMS',
+    description: 'Fires 30 min after booking marked complete. Sends review request SMS.',
     color: 'text-amber-500',
   },
   rebooking_reminder: {
@@ -323,7 +323,7 @@ const activeAutomationsMeta: Record<string, {
   winback_60day: {
     icon: UserX,
     emoji: '💸',
-    description: 'Enable win-back for clients with no booking in 60+ days — you send it from the Campaigns page (not automatic)',
+    description: 'Enable win-back for clients with no booking in 60+ days. You send it from the Campaigns page (not automatic).',
     color: 'text-orange-500',
   },
   recurring_upsell: {
@@ -347,7 +347,7 @@ const activeAutomationsMeta: Record<string, {
   payroll_period_report: {
     icon: Wallet,
     emoji: '💰',
-    description: 'Emails you a payroll report when each pay period closes — timing follows your payroll week in Settings',
+    description: 'Emails you a payroll report when each pay period closes. Timing follows your payroll week in Settings.',
     color: 'text-emerald-500',
   },
   quote_stale_reengage: {
@@ -359,7 +359,7 @@ const activeAutomationsMeta: Record<string, {
   abandoned_booking_recovery: {
     icon: RotateCcw,
     emoji: '🔄',
-    description: 'Texts people who started booking and didn’t finish — only those who ticked the opt-in box. One message, never a second.',
+    description: "Texts people who started booking and didn't finish. Only those who ticked the opt-in box. One message, never a second.",
     color: 'text-orange-500',
   },
 };
@@ -384,7 +384,7 @@ const availableAutomations = [
     emoji: '🏆',
     icon: Trophy,
     name: 'Loyalty Milestone',
-    description: 'Triggers when client hits 5/10/20 bookings — sends reward message',
+    description: 'Triggers when client hits 5/10/20 bookings. Sends reward message.',
   },
 ];
 

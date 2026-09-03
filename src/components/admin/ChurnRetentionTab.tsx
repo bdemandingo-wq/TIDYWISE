@@ -22,7 +22,7 @@ const REASON_LABELS: Record<string, string> = {
   booking_didnt_work: "Booking / scheduling issues",
   payments_didnt_work: "Payments / payouts issues",
   just_testing: "Just testing it out",
-  pausing_slow_season: "Pausing — slow season",
+  pausing_slow_season: "Pausing (slow season)",
   other: "Other",
 };
 

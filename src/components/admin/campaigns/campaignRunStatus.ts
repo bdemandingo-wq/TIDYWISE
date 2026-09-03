@@ -132,7 +132,7 @@ export function presentRun(
     case "paused":
       if (pauseReason === "sms_not_configured") {
         return {
-          label: "Paused — SMS not set up",
+          label: "Paused: SMS not set up",
           tone: "warning",
           detail: "Add your OpenPhone credentials in Settings, then resume.",
           actions: ["resume", "cancel"],

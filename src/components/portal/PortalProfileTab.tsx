@@ -148,7 +148,7 @@ export function PortalProfileTab() {
       toast.error(
         contactsError
           ? `${contactsError} Tap "Try again" above, or contact us if it persists.`
-          : "Still loading your details — one moment.",
+          : "Still loading your details. One moment.",
       );
       return;
     }
@@ -166,7 +166,7 @@ export function PortalProfileTab() {
       if (data && (data as { success?: boolean }).success === false) {
         throw new Error("Request was not accepted");
       }
-      toast.success("Request sent — we'll be in touch to confirm the change.");
+      toast.success("Request sent. We'll be in touch to confirm the change.");
       setShowEmailRequest(false);
       setRequestedEmail("");
     } catch (err) {
@@ -202,7 +202,7 @@ export function PortalProfileTab() {
       toast.error(
         contactsError
           ? `${contactsError} Tap "Try again" above, or contact us if it persists.`
-          : "Still loading your details — one moment.",
+          : "Still loading your details. One moment.",
       );
       return;
     }

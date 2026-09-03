@@ -38,7 +38,7 @@ import { deriveOrgQueryState, type OrgQueryState } from '@/hooks/orgQueryState';
  *   });
  *
  *   {isLoading && <Spinner />}
- *   {error    && <p className="text-destructive">Couldn’t load. {error.message}</p>}
+ *   {error    && <p className="text-destructive">Couldn't load. {error.message}</p>}
  *   {isEmpty  && <p>No members yet.</p>}
  *   {rows.map(...)}
  *

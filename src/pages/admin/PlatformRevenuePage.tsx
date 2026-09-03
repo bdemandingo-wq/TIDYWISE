@@ -192,7 +192,7 @@ function StalenessBanner({ freshness }: { freshness: Freshness | undefined }) {
   const message =
     freshness.state === 'stale'
       ? `These figures are ${freshness.ageDays} days old. Stripe activity since then is not shown.`
-      : `Could not determine when this data was last loaded — treat these figures as potentially out of date. (${freshness.reason})`;
+      : `Could not determine when this data was last loaded. Treat these figures as potentially out of date. (${freshness.reason})`;
 
   return (
     <div className="mb-6 rounded-lg border border-warning/40 bg-warning/10 p-4">

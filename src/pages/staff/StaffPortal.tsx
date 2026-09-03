@@ -872,7 +872,7 @@ export default function StaffPortal() {
           .from('bookings')
           .update(updateData)
           .eq('id', bookingId),
-        'Job status could not be saved. Pull to refresh and try again — do not assume the job was marked complete.',
+        'Job status could not be saved. Pull to refresh and try again. Do not assume the job was marked complete.',
         { table: 'bookings' },
       );
 
@@ -1103,7 +1103,7 @@ export default function StaffPortal() {
                   />
                   {isWriting && (
                     <p className="px-3 pt-1 pb-0.5 text-[11px] text-muted-foreground">
-                      Finishing up — try again in a moment.
+                      Finishing up. Try again in a moment.
                     </p>
                   )}
                 </PopoverContent>
@@ -1484,8 +1484,8 @@ export default function StaffPortal() {
                 <div className="text-center py-10 space-y-2">
                   <p className="font-medium">No payout setup needed</p>
                   <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    Your employer pays you directly (cash, Zelle, Venmo, or check) —
-                    there's nothing to set up here.
+                    Your employer pays you directly (cash, Zelle, Venmo, or check).
+                    There's nothing to set up here.
                   </p>
                 </div>
               ) : staffInfo?.id && staffInfo?.organization_id ? (

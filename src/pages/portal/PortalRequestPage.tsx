@@ -243,7 +243,7 @@ export default function PortalRequestPage() {
     const requestedDateISO = selectedDateTimeToUTCISO(selectedDate, selectedTime, orgTimezone);
 
     try {
-      const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN — Time-sensitive, must be cleaned at scheduled time" : null;
+      const turnoverLine = isAirbnb && isTurnover ? "⚡ TURNOVER CLEAN: Time-sensitive, must be cleaned at scheduled time" : null;
       // Rides in on the existing notes field rather than widening
       // submit_client_booking_request, which would have meant a migration and a
       // new overload for what is ultimately a line of text for a human to read.
@@ -604,7 +604,7 @@ export default function PortalRequestPage() {
                   <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription className="text-xs">
-                      Please ensure the selected time is accurate — turnover cleans are time-sensitive and must be completed before the next guest arrives.
+                      Please ensure the selected time is accurate. Turnover cleans are time-sensitive and must be completed before the next guest arrives.
                     </AlertDescription>
                   </Alert>
                 )}

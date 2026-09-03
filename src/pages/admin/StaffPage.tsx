@@ -226,7 +226,7 @@ export default function StaffPage() {
         .eq('id', member.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success(`${member.name} ${checked ? 'activated — now available for bookings' : 'deactivated — removed from booking assignments'}`);
+      toast.success(`${member.name} ${checked ? 'activated. Now available for bookings.' : 'deactivated. Removed from booking assignments.'}`);
     } catch (error) {
       console.error('Error updating staff status:', error);
       toast.error('Failed to update staff status');
@@ -313,7 +313,7 @@ export default function StaffPage() {
 
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success('Staff member deactivated — they remain in your records');
+      toast.success('Staff member deactivated. They remain in your records.');
       setDeleteDialogOpen(false);
       setStaffToDelete(null);
     } catch (error) {

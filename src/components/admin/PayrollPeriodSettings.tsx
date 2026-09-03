@@ -211,7 +211,7 @@ export function PayrollPeriodSettings() {
         const explanations: Record<string, string> = {
           email_disabled: 'Toggle "Email reports" on to send.',
           not_period_end_day:
-            'Today isn\'t the closing day of the period — wait for period end or use force send.',
+            'Today isn\'t the closing day of the period. Wait for period end or use force send.',
           no_owner_email:
             'No valid owner email found. Check the org owner\'s profile.',
           no_email_settings:

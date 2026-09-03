@@ -433,7 +433,7 @@ export default function PayrollPage() {
           .eq('organization_id', organizationId)
           .eq('staff_id', staffId)
           .eq('week_start', weekStart),
-        'Payment not undone — no payroll payment row was removed.',
+        'Payment not undone. No payroll payment row was removed.',
         { table: 'payroll_payments' },
       );
       return { staffName };
@@ -1214,7 +1214,7 @@ export default function PayrollPage() {
           <p className="text-xs text-muted-foreground mt-1">
             Do not pay from these totals until they load. Failed: {loadFailures.map(([label]) => label).join(', ')}.
             {(weekStartRecord.error || payrollSettingsRecord.error) &&
-              ' Settings could not be read, so defaults are in use — the pay period may be wrong.'}
+              ' Settings could not be read, so defaults are in use. The pay period may be wrong.'}
           </p>
           <p className="text-xs text-muted-foreground mt-1">{loadFailures[0][1].message}</p>
         </div>
@@ -1399,7 +1399,7 @@ export default function PayrollPage() {
                     <p>
                       <strong>{deactivatedPayCount} clean(s):</strong> cleaner deactivated, wage not applied
                       {deactivatedPayNames.length > 0 && (
-                        <span className="text-muted-foreground"> — {deactivatedPayNames.join(', ')}</span>
+                        <span className="text-muted-foreground"> ({deactivatedPayNames.join(', ')})</span>
                       )}
                       .
                     </p>
@@ -1561,7 +1561,7 @@ export default function PayrollPage() {
                              // Say why a deactivated cleaner is on the list at
                              // all: they have work in this period and still need
                              // paying, but they aren't on the current roster.
-                             <Badge variant="outline" className="text-muted-foreground" title="Deactivated cleaner — shown because they have work in this period">
+                             <Badge variant="outline" className="text-muted-foreground" title="Deactivated cleaner: shown because they have work in this period">
                                Inactive
                              </Badge>
                            )}
@@ -1786,7 +1786,7 @@ export default function PayrollPage() {
 
           <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
             <p className="font-medium">💡 How payouts work:</p>
-            <p><span className="font-medium">Pay via Stripe</span> — Transfers funds from your Stripe balance to the cleaner's bank account. Your Stripe account needs funds (from customer card payments) for this to work.</p>
+            <p><span className="font-medium">Pay via Stripe</span>: Transfers funds from your Stripe balance to the cleaner's bank account. Your Stripe account needs funds (from customer card payments) for this to work.</p>
             <p><span className="font-medium">Mark as Paid Externally</span> — Use this if you paid via cash, Zelle, Venmo, or check. This records the payment for your bookkeeping only.</p>
           </div>
 

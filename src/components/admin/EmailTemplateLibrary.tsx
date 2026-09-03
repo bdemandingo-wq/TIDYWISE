@@ -38,7 +38,7 @@ const prebuiltTemplates: EmailTemplate[] = [
     category: 'Marketing',
     icon: Gift,
     subject: '🎉 Special Offer from {{company_name}}!',
-    body: 'Hi {{customer_name}},\n\nWe have exciting news! For a limited time, we\'re offering exclusive discounts on our cleaning services.\n\nBook your next {{service_name}} this month and save!\n\nDon\'t miss out — spots fill up fast during this season.\n\nReply to this email or call us to book your appointment today!\n\nCheers,\n{{company_name}} Team',
+    body: 'Hi {{customer_name}},\n\nWe have exciting news! For a limited time, we\'re offering exclusive discounts on our cleaning services.\n\nBook your next {{service_name}} this month and save!\n\nSpots fill up fast during this season, so reply to this email or call us to book your appointment today!\n\nCheers,\n{{company_name}} Team',
   },
   {
     id: 'rebooking',

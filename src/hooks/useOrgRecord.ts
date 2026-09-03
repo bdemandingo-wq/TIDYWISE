@@ -30,7 +30,7 @@ import { deriveOrgRecordState, type OrgRecordState } from '@/hooks/orgRecordStat
  *   });
  *
  *   const settings = isMissing ? DEFAULTS : row;   // only on a genuine miss
- *   {error && <p>Couldn’t load settings. {error.message}</p>}
+ *   {error && <p>Couldn't load settings. {error.message}</p>}
  *
  * Note the `if (error) throw error` in the queryFn. Returning null there is the
  * exact bug this hook exists to prevent: it collapses "failed to read" into

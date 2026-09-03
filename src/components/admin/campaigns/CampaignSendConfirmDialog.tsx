@@ -84,7 +84,7 @@ export function CampaignSendConfirmDialog({
               {isPending && (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin motion-reduce:animate-none" />
-                  Counting recipients for “{campaign?.name}”.
+                  Counting recipients for "{campaign?.name}".
                 </span>
               )}
 
@@ -96,13 +96,13 @@ export function CampaignSendConfirmDialog({
               )}
 
               {!isPending && !isError && count === 0 && (
-                <span>No customers match this campaign’s audience right now, so there is nothing to send.</span>
+                <span>No customers match this campaign's audience right now, so there is nothing to send.</span>
               )}
 
               {canSend && (
                 <>
                   <span className="block">
-                    This sends a real SMS to {count} customer{count === 1 ? "" : "s"} from “{campaign?.name}”.
+                    This sends a real SMS to {count} customer{count === 1 ? "" : "s"} from "{campaign?.name}".
                     {duration && ` Sending takes ${duration}.`}
                   </span>
                   <span className="block text-muted-foreground">
@@ -114,7 +114,7 @@ export function CampaignSendConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{canSend ? "Don’t send" : "Close"}</AlertDialogCancel>
+          <AlertDialogCancel>{canSend ? "Don't send" : "Close"}</AlertDialogCancel>
           {canSend && (
             <AlertDialogAction onClick={() => onConfirm(campaign!.id)}>
               Send to {count}

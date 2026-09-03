@@ -164,7 +164,7 @@ export function buildPlatformRevenueCsv(input: PlatformRevenueExportInput): stri
   out.push('');
 
   // ── 1. The authoritative totals ────────────────────────────────────────────
-  out.push(row(['SECTION 1 OF 3 — REVENUE BY MONTH, STREAM AND CONFIDENCE']));
+  out.push(row(['SECTION 1 OF 3: REVENUE BY MONTH, STREAM AND CONFIDENCE']));
   out.push(row(['This is the reporting surface. Section 3 is evidence, not a second total.']));
   out.push(row([
     'Month', 'Revenue stream', 'Confidence',
@@ -181,8 +181,8 @@ export function buildPlatformRevenueCsv(input: PlatformRevenueExportInput): stri
   out.push('');
 
   // ── 2. Who is paying ───────────────────────────────────────────────────────
-  out.push(row(['SECTION 2 OF 3 — SUBSCRIPTION PAYERS']));
-  out.push(row(['One row per paying business. Confidence is the WORST tier among that business’s payments.']));
+  out.push(row(['SECTION 2 OF 3: SUBSCRIPTION PAYERS']));
+  out.push(row(["One row per paying business. Confidence is the WORST tier among that business's payments."]));
   out.push(row([
     'Business', 'Billing email', 'Confidence (worst)',
     'Payments', 'Refunds and disputes',
@@ -202,10 +202,10 @@ export function buildPlatformRevenueCsv(input: PlatformRevenueExportInput): stri
   out.push('');
 
   // ── 3. The evidence ────────────────────────────────────────────────────────
-  out.push(row(['SECTION 3 OF 3 — SOURCE RECORDS (one row per Stripe event)']));
+  out.push(row(['SECTION 3 OF 3: SOURCE RECORDS (one row per Stripe event)']));
   out.push(row([
-    'Included so this file stands alone. Do NOT total this section to check Section 1 — ' +
-    'it contains events that do not count as cash, and the two are not the same population. ' +
+    'Included so this file stands alone. Do NOT total this section to check Section 1. ' +
+    'It contains events that do not count as cash, and the two are not the same population. ' +
     'Section 1 is the figure.',
   ]));
   out.push(row([

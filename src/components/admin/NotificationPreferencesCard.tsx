@@ -92,7 +92,7 @@ type Preset = 'action' | 'balanced' | 'everything' | 'custom';
 
 const PRESETS: { key: Preset; label: string; description: string }[] = [
   { key: 'action', label: 'Action required only', description: 'Only alerts that need a response.' },
-  { key: 'balanced', label: 'Balanced', description: 'Recommended — key events across sensible channels.' },
+  { key: 'balanced', label: 'Balanced', description: 'Recommended: key events across sensible channels.' },
   { key: 'everything', label: 'Everything', description: 'Notify me on every event, on every channel.' },
   { key: 'custom', label: 'Custom', description: 'Your own per-event configuration.' },
 ];

@@ -579,7 +579,7 @@ export function ErrorsIncidentsPanel() {
         <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-6 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-semibold text-destructive">Couldn’t load incidents</p>
+            <p className="font-semibold text-destructive">Couldn't load incidents</p>
             <p className="text-destructive mt-1">
               {error instanceof Error ? error.message : 'Unknown error'}
             </p>

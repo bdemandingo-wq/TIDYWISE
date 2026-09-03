@@ -58,7 +58,7 @@ export default function SignInPreviewPage() {
     phase === 'invalid'
       ? 'Invalid email or password.'
       : phase === 'offline'
-        ? 'You’re offline. Sign-in needs a connection.'
+        ? "You're offline. Sign-in needs a connection."
         : null;
 
   return (

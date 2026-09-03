@@ -99,7 +99,7 @@ export function DomainVerificationCard() {
       if (result.status === 'verified') {
         toast.success('Domain verified successfully!');
       } else {
-        toast.info('Verification initiated — DNS changes can take up to 72 hours to propagate.');
+        toast.info('Verification initiated. DNS changes can take up to 72 hours to propagate.');
       }
     } catch (err: any) {
       toast.error(err.message || 'Verification failed');

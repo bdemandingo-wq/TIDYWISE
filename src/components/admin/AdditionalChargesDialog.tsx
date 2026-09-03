@@ -239,7 +239,7 @@ export function AdditionalChargesDialog({
           .from('additional_charges')
           .delete()
           .eq('id', charge.id),
-        'Charge could not be removed — you may not have access to it in this business.',
+        'Charge could not be removed. You may not have access to it in this business.',
         { table: 'additional_charges' },
       );
 

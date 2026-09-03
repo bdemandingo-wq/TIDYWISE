@@ -54,7 +54,7 @@ export function StaffEventNotifications() {
       title: r.status === 'pending'
         ? 'Time-off requested'
         : `Time off ${r.status}`,
-      message: `${r.staff?.name ?? 'Staff'} — ${r.start_date}${r.end_date && r.end_date !== r.start_date ? ` → ${r.end_date}` : ''}${r.reason ? ` · ${r.reason}` : ''}`,
+      message: `${r.staff?.name ?? 'Staff'}, ${r.start_date}${r.end_date && r.end_date !== r.start_date ? ` → ${r.end_date}` : ''}${r.reason ? ` · ${r.reason}` : ''}`,
       event_type: 'time_off',
       staff: r.staff,
       status: r.status,

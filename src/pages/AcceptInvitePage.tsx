@@ -305,8 +305,8 @@ export default function AcceptInvitePage() {
           {preview.existing_user && !passwordCreatedForInvite && (
             <div className="rounded-md border border-border bg-muted/40 p-3">
               <p className="text-xs text-muted-foreground">
-                This email already has a TidyWise account. We’ll email you a one-time code so you can
-                verify it’s you and create a password before joining {preview.organization_name}.
+                This email already has a TidyWise account. We'll email you a one-time code so you can
+                verify it's you and create a password before joining {preview.organization_name}.
               </p>
             </div>
           )}
@@ -339,7 +339,7 @@ export default function AcceptInvitePage() {
                 <Input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" placeholder="First and last name" />
               </div>
               <p className="text-sm text-muted-foreground">
-                We’ll email a one-time verification code to {preview.email} so you can create your own password.
+                We'll email a one-time verification code to {preview.email} so you can create your own password.
               </p>
               <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
                 {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create a password'}
@@ -363,7 +363,7 @@ export default function AcceptInvitePage() {
               {preview.existing_user ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    We’ll email a one-time verification code to {preview.email} so you can create your own password.
+                    We'll email a one-time verification code to {preview.email} so you can create your own password.
                   </p>
                   <Button className="w-full" onClick={sendPasswordReset} disabled={resetBusy || !fullName.trim()}>
                     {resetBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Email me a code to create a password'}

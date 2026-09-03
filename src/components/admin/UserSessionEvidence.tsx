@@ -156,7 +156,7 @@ export function UserSessionEvidence() {
     doc.text('TidyWise Usage Report', 14, 20);
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generated ${now} — For dispute reference`, 14, 28);
+    doc.text(`Generated ${now}. For dispute reference.`, 14, 28);
     doc.text(`User: ${report.email}`, 14, 34);
 
     // Summary
@@ -237,7 +237,7 @@ export function UserSessionEvidence() {
       doc.setFontSize(8);
       doc.setTextColor(150);
       doc.text(
-        `TidyWise Usage Report — ${report.email} — Page ${i} of ${pageCount}`,
+        `TidyWise Usage Report, ${report.email}, Page ${i} of ${pageCount}`,
         14,
         doc.internal.pageSize.height - 10
       );
@@ -370,7 +370,7 @@ export function UserSessionEvidence() {
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {format(new Date(s.session_start), 'h:mm a')}
-                            {s.session_end && ` — ${format(new Date(s.session_end), 'h:mm a')}`}
+                            {s.session_end && ` to ${format(new Date(s.session_end), 'h:mm a')}`}
                           </p>
                         </div>
                       </div>

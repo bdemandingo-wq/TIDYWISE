@@ -75,7 +75,7 @@ function buildGoogleCalendarUrl(demo: DemoBooking): string {
   /* eslint-enable local/no-device-local-dates */
 
   const details = [
-    `TidyWise demo with ${demo.full_name}${demo.business_name ? ` — ${demo.business_name}` : ''}.`,
+    `TidyWise demo with ${demo.full_name}${demo.business_name ? `, ${demo.business_name}` : ''}.`,
     '',
     `Email: ${demo.email}`,
     demo.phone ? `Phone: ${demo.phone}` : '',
@@ -83,12 +83,12 @@ function buildGoogleCalendarUrl(demo: DemoBooking): string {
     demo.biggest_challenge ? `Biggest challenge: ${demo.biggest_challenge}` : '',
     demo.timezone ? `Their timezone: ${demo.timezone}` : '',
     '',
-    'Click "Add Google Meet video conferencing", then Save — Google emails the guest the link.',
+    'Click "Add Google Meet video conferencing", then Save. Google emails the guest the link.',
   ].filter(Boolean).join('\n');
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
-    text: `TidyWise Demo — ${demo.full_name}${demo.business_name ? ` (${demo.business_name})` : ''}`,
+    text: `TidyWise Demo: ${demo.full_name}${demo.business_name ? ` (${demo.business_name})` : ''}`,
     dates: `${stamp(start)}/${stamp(end)}`,
     ctz: DEMO_TZ,
     details,

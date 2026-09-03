@@ -337,7 +337,7 @@ export default function CustomersPage() {
     }
     toast.success(
       `Added ${toEnroll.length} customer${toEnroll.length === 1 ? '' : 's'} to "${campaign.name}"` +
-      (skipped > 0 ? ` (${skipped} skipped — no phone)` : '') +
+      (skipped > 0 ? ` (${skipped} skipped, no phone)` : '') +
       (alreadyQueuedIds.size > 0 ? ` (${alreadyQueuedIds.size} already queued)` : '')
     );
     setSelectedIds(new Set());

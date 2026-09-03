@@ -55,7 +55,7 @@ export const TOS_SECTIONS: Section[] = [
     title: '2. The Service',
     body: [
       'TidyWise is business-management software for cleaning companies: scheduling, customer management, invoicing, payroll tools, client and staff portals, automations, and AI-assisted features. The Service is provided on a subscription basis as described at checkout.',
-      'We continuously improve the Service and may add, change, or remove features. Material reductions to a paid plan’s core functionality will be communicated in advance where practical.',
+      "We continuously improve the Service and may add, change, or remove features. Material reductions to a paid plan's core functionality will be communicated in advance where practical.",
     ],
   },
   {
@@ -103,7 +103,7 @@ export const TOS_SECTIONS: Section[] = [
     title: '9. Your Data',
     body: [
       'You retain ownership of the customer, booking, and business data you enter into the Service. You grant us the rights needed to host, process, back up, and display that data in order to operate the Service. Our handling of personal data is described in the Privacy Policy.',
-      'You are responsible for the lawfulness of the data you upload, including obtaining any consents required to store your customers’ and staff members’ information and to send them communications through the Service.',
+      "You are responsible for the lawfulness of the data you upload, including obtaining any consents required to store your customers' and staff members' information and to send them communications through the Service.",
       'For 30 days following account closure you may request an export of your data, after which we may delete it.',
     ],
   },
@@ -116,13 +116,13 @@ export const TOS_SECTIONS: Section[] = [
   {
     title: '11. Acceptable Use',
     body: [
-      'You agree not to: misuse, probe, or disrupt the Service; access another tenant’s data; resell the Service without authorization; use the Service for unlawful activity; upload malicious code; or use automated means to extract data at scale. We may suspend or terminate accounts engaged in prohibited conduct.',
+      "You agree not to: misuse, probe, or disrupt the Service; access another tenant's data; resell the Service without authorization; use the Service for unlawful activity; upload malicious code; or use automated means to extract data at scale. We may suspend or terminate accounts engaged in prohibited conduct.",
     ],
   },
   {
     title: '12. AI Features',
     body: [
-      'AI-assisted features consume plan credits and may produce inaccurate output. You are responsible for reviewing AI-generated content (messages, prices, analyses) before relying on it or sending it to customers. AI features are provided as-is within your plan’s credit limits.',
+      "AI-assisted features consume plan credits and may produce inaccurate output. You are responsible for reviewing AI-generated content (messages, prices, analyses) before relying on it or sending it to customers. AI features are provided as-is within your plan's credit limits.",
     ],
   },
   {

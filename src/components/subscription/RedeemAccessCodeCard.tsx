@@ -26,7 +26,7 @@ export function RedeemAccessCodeCard() {
       const days = payload?.duration_days;
       toast.success(
         days
-          ? `Code redeemed — ${days} days of full access activated.`
+          ? `Code redeemed. ${days} days of full access activated.`
           : "Code redeemed successfully.",
       );
       setCode("");

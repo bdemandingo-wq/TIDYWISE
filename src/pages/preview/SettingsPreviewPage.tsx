@@ -458,7 +458,7 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
           <>
             <SettingsGroup
               title="Always shown"
-              description="These two can’t be hidden — Dashboard is where every redirect lands, and Help Videos is how you get unstuck."
+              description="These two can't be hidden — Dashboard is where every redirect lands, and Help Videos is how you get unstuck."
               state="ready"
             >
               <SettingsRow kind="value" label="Dashboard" value="Always on" />
@@ -466,7 +466,7 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
             </SettingsGroup>
             <SettingsGroup
               title="Show in the sidebar"
-              description="Hiding a link doesn’t switch the feature off — the page still works if you have its address."
+              description="Hiding a link doesn't switch the feature off — the page still works if you have its address."
               state="ready"
             >
               {SIDEBAR_ITEMS.map(n => (
@@ -495,10 +495,10 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
         {id === 'mobile-nav' && (
           <>
             <Card>
-              <CardTitle>What’s in the bottom bar</CardTitle>
+              <CardTitle>What's in the bottom bar</CardTitle>
               <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
                 Four slots, two either side of the + button. Picking a page for
-                a slot replaces what was there — it doesn’t add a fifth.
+                a slot replaces what was there — it doesn't add a fifth.
               </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {(['Left 1', 'Left 2', 'Right 1', 'Right 2'] as const).map((slot, i) => (
@@ -597,7 +597,7 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
             <Card>
               <CardTitle>Change password</CardTitle>
               <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
-                You’ll need your current password — it proves the session is
+                You'll need your current password — it proves the session is
                 yours before the change goes through.
               </p>
               <div className="mt-2.5 flex flex-col gap-2.5">
@@ -637,12 +637,12 @@ function SectionBody({ id, onBack }: { id: string; onBack: () => void }) {
           <Card>
             <CardTitle>Send feedback</CardTitle>
             <p className="mt-0.5 text-[11.5px] leading-[1.5] text-[hsl(var(--pv-ink-3))]">
-              Suggestions, problems, and anything you like or don’t. It goes
+              Suggestions, problems, and anything you like or don't. It goes
               straight to the person building TidyWise — every one gets read.
             </p>
             <div className="mt-2.5 flex flex-col gap-2.5">
-              <Field label="What’s on your mind?" placeholder="Type as much as you like" />
-              <Field label="Email for a reply (optional)" placeholder="Leave blank and you won’t hear back" />
+              <Field label="What's on your mind?" placeholder="Type as much as you like" />
+              <Field label="Email for a reply (optional)" placeholder="Leave blank and you won't hear back" />
             </div>
             <div className="mt-2.5">
               <Button variant="primary" className="rounded-[10px]">Send feedback</Button>

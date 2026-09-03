@@ -16,7 +16,7 @@ interface Props extends Omit<ButtonProps, "onClick"> {
  * Charges the PLATFORM Stripe account.
  */
 export function BuyAiCreditsButton({
-  label = "Buy 500 credits — $10",
+  label = "Buy 500 credits ($10)",
   size = "default",
   variant = "default",
   ...rest

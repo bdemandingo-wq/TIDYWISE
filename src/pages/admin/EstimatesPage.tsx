@@ -61,7 +61,7 @@ export default function EstimatesPage() {
     mutationFn: async (id: string) => {
       await mustAffectRows(
         supabase.from('estimates').delete().eq('id', id),
-        'Estimate not deleted — it may belong to a different business.',
+        'Estimate not deleted. It may belong to a different business.',
         { table: 'estimates' },
       );
     },

@@ -38,5 +38,5 @@ export function formatRetryAfter(seconds: unknown): string | null {
  */
 export function rateLimitMessage(retryAfterSeconds?: unknown): string {
   const wait = formatRetryAfter(retryAfterSeconds) ?? 'a few minutes';
-  return `Too many sign-in attempts. This is a temporary security limit, not a problem with your password — please wait ${wait} and try again.`;
+  return `Too many sign-in attempts. This is a temporary security limit, not a problem with your password. Please wait ${wait} and try again.`;
 }

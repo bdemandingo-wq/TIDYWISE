@@ -87,7 +87,7 @@ export function PayoutResetSection({ staffId, organizationId, currentStatus, cha
               disabled={isInProgress}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
-              {isInProgress ? 'Setup in progress — cannot reset' : 'Reset Payout Setup'}
+              {isInProgress ? 'Setup in progress. Cannot reset.' : 'Reset Payout Setup'}
             </Button>
             {isInProgress && (
               <p className="text-xs text-yellow-500">

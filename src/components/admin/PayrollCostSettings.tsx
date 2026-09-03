@@ -123,7 +123,7 @@ export function PayrollCostSettings() {
     if (!orgId) return;
 
     if (form.hours_overage_cap_ratio < 1) {
-      toast.error('The overage multiplier can’t be below 1 — that would pay less than the clock for every job.');
+      toast.error("The overage multiplier can't be below 1. That would pay less than the clock for every job.");
       return;
     }
     if (form.hours_absolute_ceiling <= 0) {
@@ -225,16 +225,16 @@ export function PayrollCostSettings() {
             <p className="text-sm">
               A cleaner scheduled <strong>4h</strong> who clocks <strong>6h</strong> is paid{' '}
               <strong>{hrs(shortJob)}</strong>
-              {shortJob < 6 ? ` — capped by the ${ratio}× multiplier.` : ' — not capped.'}
+              {shortJob < 6 ? ` (capped by the ${ratio}× multiplier)` : ' (not capped)'}
             </p>
             <p className="text-sm">
               A cleaner scheduled <strong>10h</strong> who clocks <strong>14h</strong> is paid{' '}
               <strong>{hrs(longJob)}</strong>
               {longJob === ceiling && ceiling < 10 * ratio
-                ? ` — capped by the ${ceiling}h ceiling.`
+                ? ` (capped by the ${ceiling}h ceiling)`
                 : longJob < 14
-                  ? ` — capped by the ${ratio}× multiplier.`
-                  : ' — not capped.'}
+                  ? ` (capped by the ${ratio}× multiplier)`
+                  : ' (not capped)'}
             </p>
           </div>
 
@@ -244,7 +244,7 @@ export function PayrollCostSettings() {
               <div className="space-y-1.5 text-sm">
                 <p>
                   <strong>Applies to future check-outs only.</strong> Pay already recorded on
-                  finished jobs doesn’t change, and past payroll stays exactly as it was.
+                  finished jobs doesn't change, and past payroll stays exactly as it was.
                 </p>
                 {/*
                   Verified 2026-07-31 and worth saying out loud: the caps are applied in
@@ -255,7 +255,7 @@ export function PayrollCostSettings() {
                 */}
                 <p className="text-muted-foreground">
                   These limits are applied when a <strong>cleaner checks out in the staff app</strong>.
-                  A job you mark complete yourself doesn’t go through them — if the clock is
+                  A job you mark complete yourself doesn't go through them — if the clock is
                   wrong on one of those, correct the pay on the job itself.
                 </p>
               </div>
@@ -307,7 +307,7 @@ export function PayrollCostSettings() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="percent">Percentage of each job</SelectItem>
-                  <SelectItem value="none">Don’t count it</SelectItem>
+                  <SelectItem value="none">Don't count it</SelectItem>
                 </SelectContent>
               </Select>
               {form.processing_fee_mode === 'percent' && (
@@ -342,7 +342,7 @@ export function PayrollCostSettings() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Don’t count them</SelectItem>
+                  <SelectItem value="none">Don't count them</SelectItem>
                   <SelectItem value="flat">A fixed amount per job</SelectItem>
                   <SelectItem value="percent">A percentage of each job</SelectItem>
                 </SelectContent>
@@ -369,7 +369,7 @@ export function PayrollCostSettings() {
         <section className="space-y-3">
           <h3 className="text-sm font-semibold">When to flag a job</h3>
           <p className="text-sm text-muted-foreground">
-            Colour only. Changing these highlights different jobs on the reports; it doesn’t
+            Colour only. Changing these highlights different jobs on the reports; it doesn't
             change any money.
           </p>
 

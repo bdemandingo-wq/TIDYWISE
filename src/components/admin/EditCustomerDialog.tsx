@@ -304,7 +304,7 @@ export function EditCustomerDialog({ open, onOpenChange, customer }: EditCustome
       // Set new default
       await mustAffectRows(
         supabase.from('locations').update({ is_primary: true }).eq('id', id),
-        'Default address was not updated — this customer may now have no primary address. Please retry.',
+        'Default address was not updated. This customer may now have no primary address. Please retry.',
         { table: 'locations' },
       );
       toast.success('Default address updated');

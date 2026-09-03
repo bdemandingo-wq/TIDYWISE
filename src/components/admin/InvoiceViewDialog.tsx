@@ -155,7 +155,7 @@ export function InvoiceViewDialog({ open, onOpenChange, invoice }: InvoiceViewDi
                         await navigator.share({ title: 'Invoice payment link', url });
                       } else {
                         await navigator.clipboard.writeText(url);
-                        toast.success('Payment link copied — share it with your customer.');
+                        toast.success('Payment link copied. Share it with your customer.');
                       }
                     } catch {
                       /* user cancelled share sheet */

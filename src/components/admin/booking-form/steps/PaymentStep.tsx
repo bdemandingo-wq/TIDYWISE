@@ -148,7 +148,7 @@ export function PaymentStep() {
             pay_last_saved_by: user?.id || null,
           })
           .eq('id', editingBookingId),
-        'Cleaner pay not saved — this booking was not writable.',
+        'Cleaner pay not saved. This booking was not writable.',
         { table: 'bookings' },
       );
 

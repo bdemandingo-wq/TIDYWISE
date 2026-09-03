@@ -160,7 +160,7 @@ export default function ExpensesPage() {
           })
           .eq('id', id)
           .eq('organization_id', organization.id),
-        'Expense not saved — it may belong to a different business.',
+        'Expense not saved. It may belong to a different business.',
         { table: 'expenses' },
       );
     },
@@ -182,7 +182,7 @@ export default function ExpensesPage() {
       if (!organization?.id) throw new Error('No organization found');
       await mustAffectRows(
         supabase.from('expenses').delete().eq('id', id).eq('organization_id', organization.id),
-        'Expense not deleted — it may belong to a different business.',
+        'Expense not deleted. It may belong to a different business.',
         { table: 'expenses' },
       );
     },

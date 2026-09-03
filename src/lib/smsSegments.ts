@@ -86,10 +86,10 @@ export function analyzeSms(body: string): SegmentInfo {
 /** Human-readable name for the character that forced UCS-2. */
 export function describeCulprit(ch: string): string {
   const named: Record<string, string> = {
-    '\u2019': 'a curly apostrophe (’)',
-    '\u2018': 'a curly quote (‘)',
-    '\u201C': 'a curly quote (“)',
-    '\u201D': 'a curly quote (”)',
+    '\u2019': "a curly apostrophe (\u2019)",
+    '\u2018': "a curly quote (\u2018)",
+    '\u201C': 'a curly quote (")',
+    '\u201D': 'a curly quote (")',
     '\u2013': 'an en dash (–)',
     '\u2014': 'an em dash (—)',
     '\u2026': 'an ellipsis (…)',
@@ -97,5 +97,5 @@ export function describeCulprit(ch: string): string {
   };
   if (named[ch]) return named[ch];
   if (/\p{Extended_Pictographic}/u.test(ch)) return `an emoji (${ch})`;
-  return `“${ch}”`;
+  return `"${ch}"`;
 }

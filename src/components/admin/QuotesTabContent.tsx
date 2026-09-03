@@ -123,7 +123,7 @@ export function QuotesTabContent() {
     mutationFn: async ({ id, ...data }: Partial<Quote> & { id: string }) => {
       await mustAffectRows(
         supabase.from('quotes').update(data).eq('id', id),
-        'Quote not saved — it may belong to a different business.',
+        'Quote not saved. It may belong to a different business.',
         { table: 'quotes' },
       );
     },
@@ -140,7 +140,7 @@ export function QuotesTabContent() {
     mutationFn: async (id: string) => {
       await mustAffectRows(
         supabase.from('quotes').delete().eq('id', id),
-        'Quote not deleted — it may belong to a different business.',
+        'Quote not deleted. It may belong to a different business.',
         { table: 'quotes' },
       );
     },
@@ -161,7 +161,7 @@ export function QuotesTabContent() {
           .from('quotes')
           .update({ status: 'accepted', accepted_at: new Date().toISOString() })
           .eq('id', quote.id),
-        'Quote not accepted — nothing was written, so no booking was created.',
+        'Quote not accepted. Nothing was written, so no booking was created.',
         { table: 'quotes' },
       );
 

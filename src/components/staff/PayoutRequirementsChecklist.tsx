@@ -72,7 +72,7 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
   // Show one-time success toast when payouts become active
   useEffect(() => {
     if (payoutAccount?.payouts_enabled && !payoutAccount?.payout_resolved_toast_shown) {
-      toast.success('🎉 You\'re all set — payouts are now active!', { duration: 6000 });
+      toast.success('🎉 You\'re all set. Payouts are now active!', { duration: 6000 });
       // Mark toast as shown
       supabase
         .from('staff_payout_accounts')
@@ -233,7 +233,7 @@ export function PayoutRequirementsChecklist({ staffId, organizationId }: PayoutR
             ) : (
               <AlertCircle className="w-4 h-4 text-yellow-500" />
             )}
-            {hasPastDue ? 'Action Required — Payouts Paused' : 'Finish Your Payout Setup'}
+            {hasPastDue ? 'Action Required: Payouts Paused' : 'Finish Your Payout Setup'}
           </CardTitle>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRefresh}>
             <RefreshCw className="w-4 h-4" />

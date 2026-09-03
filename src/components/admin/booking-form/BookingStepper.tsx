@@ -436,7 +436,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           extra: { organizationId, customerId, quoteAmount },
         });
         toast.error(
-          `Quote texted to ${customerName}, but saving it failed — it won't appear in Quotes. ` +
+          `Quote texted to ${customerName}, but saving it failed. It won't appear in Quotes. ` +
             `Don't resend; create it manually. (${quoteError.message})`,
           { duration: 12000 },
         );
@@ -1015,7 +1015,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
         if (teamAssignmentsDeleteError) {
           throw new Error(
             `Could not update pay assignments for this booking (${teamAssignmentsDeleteError.message}). ` +
-            `Booking details were saved, but pay-share was NOT changed — please retry to avoid double-paying staff.`
+            `Booking details were saved, but pay-share was NOT changed. Please retry to avoid double-paying staff.`
           );
         }
 
@@ -1037,7 +1037,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             if (teamAssignmentInsertError) {
               throw new Error(
                 `Pay assignment failed to save for one staff member (${teamAssignmentInsertError.message}). ` +
-                `Please retry — old assignments were already cleared.`
+                `Please retry. Old assignments were already cleared.`
               );
             }
           }
@@ -1068,7 +1068,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
           if (singleAssignmentInsertError) {
             throw new Error(
               `Pay assignment failed to save (${singleAssignmentInsertError.message}). ` +
-              `Please retry — old assignments were already cleared.`
+              `Please retry. Old assignments were already cleared.`
             );
           }
         }
@@ -1234,7 +1234,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
               });
               if (newTeamAssignmentError) {
                 console.error('Failed to save pay assignment for staff', staffId, newTeamAssignmentError);
-                toast.error(`Booking saved, but pay assignment failed for one staff member — please set it manually.`);
+                toast.error(`Booking saved, but pay assignment failed for one staff member. Please set it manually.`);
               }
             }
             // Booking-level snapshot must equal the TEAM total (see update path).
@@ -1260,7 +1260,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             });
             if (newSingleAssignmentError) {
               console.error('Failed to save pay assignment', newSingleAssignmentError);
-              toast.error('Booking saved, but the pay assignment failed to save — please set it manually.');
+              toast.error('Booking saved, but the pay assignment failed to save. Please set it manually.');
             }
           }
         }

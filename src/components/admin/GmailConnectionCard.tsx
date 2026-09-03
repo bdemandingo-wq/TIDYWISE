@@ -161,7 +161,7 @@ export function GmailConnectionCard() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast.success('Test email sent — check your inbox');
+      toast.success('Test email sent. Check your inbox.');
       fetchConnection();
     } catch (e: any) {
       console.error('[GmailConnectionCard] test email failed', e);

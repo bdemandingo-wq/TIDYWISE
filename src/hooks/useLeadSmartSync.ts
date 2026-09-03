@@ -186,7 +186,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
             .filter(b => ['cancelled', 'no_show'].includes(b.status))
             .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())[0];
 
-          const autoNote = `[Auto-Sync ${now}] Booking #${latestCancelled.booking_number} was ${latestCancelled.status === 'no_show' ? 'a no-show' : 'cancelled'} on ${format(new Date(latestCancelled.scheduled_at), 'MMM d, yyyy')} — needs follow up`;
+          const autoNote = `[Auto-Sync ${now}] Booking #${latestCancelled.booking_number} was ${latestCancelled.status === 'no_show' ? 'a no-show' : 'cancelled'} on ${format(new Date(latestCancelled.scheduled_at), 'MMM d, yyyy')}. Needs follow up.`;
           const updatedNotes = lead.notes
             ? `${lead.notes}\n${autoNote}`
             : autoNote;
@@ -216,7 +216,7 @@ export function useLeadSmartSync(organizationId: string | undefined) {
       if (!silent && (result.reverted > 0 || result.flagged.length > 0)) {
         const parts = [];
         if (result.reverted > 0) parts.push(`${result.reverted} lead(s) reverted to Follow Up`);
-        if (result.flagged.length > 0) parts.push(`${result.flagged.length} lead(s) flagged — no booking found`);
+        if (result.flagged.length > 0) parts.push(`${result.flagged.length} lead(s) flagged: no booking found`);
         toast.info(`Smart Sync: ${parts.join(', ')}`);
       } else if (!silent) {
         toast.success('Smart Sync: All lead statuses are accurate');

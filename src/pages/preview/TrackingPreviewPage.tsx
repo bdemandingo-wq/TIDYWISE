@@ -205,7 +205,7 @@ export default function TrackingPreviewPage() {
           <Card>
             <CardTitle>Today&rsquo;s completed routes</CardTitle>
             <p className="mt-2 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-3))]">
-              {errored ? 'Couldn’t load' : 'None yet'}
+              {errored ? "Couldn't load" : 'None yet'}
             </p>
           </Card>
         </div>

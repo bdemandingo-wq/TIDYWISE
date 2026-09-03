@@ -36,7 +36,7 @@ const FEATURE_COPY: Partial<Record<FeatureKey, { label: string; description: str
   },
   ai_intelligence: {
     label: 'AI Intelligence',
-    description: 'Smart insights about your business — pricing, churn, busy days, and what to do about them.',
+    description: 'Smart insights about your business: pricing, churn, busy days, and what to do about them.',
   },
   campaigns: {
     label: 'Email Campaigns',

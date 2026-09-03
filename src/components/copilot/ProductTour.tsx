@@ -32,7 +32,7 @@ const STEPS: TourStep[] = [
     target: '[data-tour-id="help-videos"]',
     title: 'Watch quick tutorials',
     content:
-      "Two-minute videos walking you through every feature. Bookmark this page — it'll save you time later.",
+      "Two-minute videos walking you through every feature. Bookmark this page. It'll save you time later.",
     disableBeacon: true,
     placement: 'auto',
   },
@@ -427,7 +427,7 @@ export function ProductTour() {
         last: 'Finish ✓',
         next: 'Next →',
         open: 'Open',
-        skip: "Skip — I'll explore on my own",
+        skip: "Skip. I'll explore on my own",
       }}
     />
   );

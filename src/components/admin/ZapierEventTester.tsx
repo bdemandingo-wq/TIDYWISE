@@ -51,11 +51,11 @@ export function ZapierEventTester() {
       const result = data as RunResult;
       setResults((prev) => ({ ...prev, [event]: result }));
       if (result.dispatched === 0) {
-        toast.info('No active webhooks for this event — add one below first.');
+        toast.info('No active webhooks for this event. Add one below first.');
       } else if (result.results.every((r) => r.success)) {
         toast.success(`Test fired to ${result.dispatched} webhook(s)`);
       } else {
-        toast.error('Some webhooks returned errors — see details');
+        toast.error('Some webhooks returned errors. See details.');
       }
     } catch (e) {
       toast.error('Failed to send test');

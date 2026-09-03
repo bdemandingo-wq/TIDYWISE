@@ -70,15 +70,15 @@ export function FeedbackTab() {
       return;
     }
     if (!message.trim()) {
-      toast.error('Tell us what happened — the message can’t be empty.');
+      toast.error("Tell us what happened. The message can't be empty.");
       return;
     }
     if (replyEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyEmail.trim())) {
-      toast.error('That email doesn’t look right. Leave it blank if you’d rather not hear back.');
+      toast.error("That email doesn't look right. Leave it blank if you'd rather not hear back.");
       return;
     }
     if (!user?.id) {
-      toast.error('Your session expired. Sign in again and resend — nothing was lost.');
+      toast.error('Your session expired. Sign in again and resend. Nothing was lost.');
       return;
     }
 
@@ -112,7 +112,7 @@ export function FeedbackTab() {
       setSent(true);
     } catch (err) {
       console.error('[feedback] submit failed:', err);
-      toast.error('Couldn’t send that. Try again in a moment — your text is still here.');
+      toast.error("Couldn't send that. Try again in a moment. Your text is still here.");
     } finally {
       setSubmitting(false);
     }

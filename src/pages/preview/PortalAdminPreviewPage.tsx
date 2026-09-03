@@ -192,7 +192,7 @@ export default function PortalAdminPreviewPage() {
               <CardTitle>Open requests</CardTitle>
               <p className="mt-1.5 text-[12.5px] font-semibold text-[hsl(var(--pv-ink-2))]">
                 {errored
-                  ? 'Couldn’t load requests.'
+                  ? "Couldn't load requests."
                   : 'Two booking requests from portal customers are waiting on a reply.'}
               </p>
             </Card>

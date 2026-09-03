@@ -236,7 +236,7 @@ function ActiveJobCard({ tracking }: { tracking: ActiveTracking }) {
         </div>
         {isStale ? (
           <p className="text-xs text-amber-700 dark:text-amber-400">
-            Last seen {timeAgo < 1 ? 'less than a min' : `${timeAgo} min`} ago — cleaner's app may be in the background
+            Last seen {timeAgo < 1 ? 'less than a min' : `${timeAgo} min`} ago. Cleaner's app may be in the background.
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">

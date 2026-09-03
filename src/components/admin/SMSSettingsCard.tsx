@@ -258,7 +258,7 @@ export function SMSSettingsCard() {
                   type={showApiKey ? 'text' : 'password'}
                   value={settings.openphone_api_key}
                   onChange={(e) => setSettings(prev => ({ ...prev, openphone_api_key: e.target.value }))}
-                  placeholder={hasExistingApiKey ? '•••••••• (key on file — leave blank to keep)' : 'Enter your OpenPhone API key'}
+                  placeholder={hasExistingApiKey ? '•••••••• (key on file, leave blank to keep)' : 'Enter your OpenPhone API key'}
                   className="pr-10"
                 />
                 <button

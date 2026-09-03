@@ -535,7 +535,7 @@ export default function PortalDashboardPage() {
       const result = (data && typeof data === 'object' ? data : null) as {
         success?: boolean; error?: string; within_48_hours?: boolean;
       } | null;
-      if (!result) { toast.error("Couldn't complete the cancellation — please contact us directly."); return; }
+      if (!result) { toast.error("Couldn't complete the cancellation. Please contact us directly."); return; }
       if (!result.success) {
         if (result.within_48_hours) {
           toast.error(result.error || "Same day or next day cancellations may incur a fee. Please contact us directly.", { duration: 6000 });

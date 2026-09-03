@@ -116,7 +116,7 @@ export default function DashboardPolishPreviewPage() {
         <p className="w-full text-[11px] text-[hsl(var(--pv-ink-3))]">
           {phase === 'error'
             ? 'The comp shows "0 payments" and "0 customers" next to money. A quiet day and a broken read must not look the same.'
-            : 'Seven period chips, not the comp’s five — it drops MTD and QTD. Dropping a control is not recoverable the way dropping a displayed fact is.'}
+            : "Seven period chips, not the comp's five — it drops MTD and QTD. Dropping a control is not recoverable the way dropping a displayed fact is."}
         </p>
       </div>
 

@@ -830,7 +830,7 @@ export function AdjustPaymentDialog({
               .eq('booking_id', booking.id)
               .eq('staff_id', member.id)
               .eq('organization_id', organizationId),
-            `Pay for ${member.name ?? 'a team member'} could not be saved. No payment changes were applied — please retry.`,
+            `Pay for ${member.name ?? 'a team member'} could not be saved. No payment changes were applied. Please retry.`,
             { table: 'booking_team_assignments' },
           );
         }
@@ -948,7 +948,7 @@ export function AdjustPaymentDialog({
             // SINGLE CLEANER
             <div className="space-y-2">
               <Label className="font-semibold">
-                Actual Amount Paid{booking.staff?.name ? ` — ${booking.staff.name}` : ''}
+                Actual Amount Paid{booking.staff?.name ? ` (${booking.staff.name})` : ''}
               </Label>
               <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

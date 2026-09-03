@@ -233,7 +233,7 @@ export default function GetTheAppPage() {
           <p className="text-sm text-muted-foreground">
             {standalone
               ? "You're using the installed app right now."
-              : 'Nothing to do — you’re already using it.'}
+              : "Nothing to do — you're already using it."}
           </p>
         </PlatformCard>
       ),

@@ -154,7 +154,7 @@ export default function CallsTab({ organizationId }: CallsTabProps) {
       await fetchCalls();
     } catch (err: any) {
       if (err?.name === 'AbortError') {
-        toast.error('Sync timed out — try again');
+        toast.error('Sync timed out. Try again.');
       } else {
         toast.error(err.message || 'Failed to sync calls');
       }

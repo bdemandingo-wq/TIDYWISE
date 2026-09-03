@@ -49,7 +49,7 @@ export function describeCampaignDispatch(
     if (total === 0) {
       return {
         title: "No recipients matched",
-        description: "Nothing was queued — no customers matched this audience.",
+        description: "Nothing was queued. No customers matched this audience.",
       };
     }
     // A scheduled run must name its send time. Saying "starts now" for a run

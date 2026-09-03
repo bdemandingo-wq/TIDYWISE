@@ -114,7 +114,7 @@ export function CustomerStep() {
     if (lastBooking.square_footage) setSquareFootage(lastBooking.square_footage);
     if (lastBooking.service_id) setSelectedServiceId(lastBooking.service_id);
     if (lastBooking.total_amount) setTotalAmount(lastBooking.total_amount);
-    toast.success('Auto-filled from last booking — check Property & Service steps');
+      toast.success('Auto-filled from last booking. Check Property & Service steps.');
   };
 
   return (

@@ -208,7 +208,7 @@ export default function PlatformAnalyticsPreviewPage() {
               <p className="px-1 text-[11px] font-medium text-[hsl(var(--pv-ink-3))]">
                 {fetchedAt
                   ? `Last updated ${fetchedAt}`
-                  : 'Not updated — last read didn’t complete'}
+                  : "Not updated — last read didn't complete"}
               </p>
             </div>
           </>

@@ -329,7 +329,7 @@ export function CampaignWizard({
     setCampaignForm({
       name: "", channel: "sms", audience: "active_clients", schedule: "now",
       scheduledDate: undefined, scheduledTime: "09:00",
-      smsBody: 'Hi {first_name}! This is {company_name}. We wanted to reach out — we\'d love to have you back! Reply STOP to opt out.',
+      smsBody: 'Hi {first_name}! This is {company_name}. We wanted to reach out. We\'d love to have you back! Reply STOP to opt out.',
       emailSubject: "", emailBody: "", days_inactive: 30, throttleSeconds: 60,
       excludeAlreadyReceived: false, excludeRecentDays: 0, onlyAfterDate: undefined,
     });
@@ -582,7 +582,7 @@ export function CampaignWizard({
                       : scheduleIsIncomplete
                         ? "That time could not be read. Use HH:MM."
                         : scheduleIsPast
-                          ? `${describeScheduledInstant(scheduledAtIso!, orgTimezone)} is in the past — it would send immediately.`
+                          ? `${describeScheduledInstant(scheduledAtIso!, orgTimezone)} is in the past. It would send immediately.`
                           : `Sends ${describeScheduledInstant(scheduledAtIso!, orgTimezone)}.`}
                   </p>
                 )}

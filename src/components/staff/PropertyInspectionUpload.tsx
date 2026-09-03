@@ -149,7 +149,7 @@ export function PropertyInspectionUpload({ bookingId, staffId, organizationId, o
       }
       if (failed.length > 0) {
         toast.warning(
-          `${uploadedCount} of ${items.length} photos uploaded. Photo${failed.length > 1 ? 's' : ''} ${failed.join(', ')} failed — you can add ${failed.length > 1 ? 'those' : 'that one'} again.`,
+          `${uploadedCount} of ${items.length} photos uploaded. Photo${failed.length > 1 ? 's' : ''} ${failed.join(', ')} failed. You can add ${failed.length > 1 ? 'those' : 'that one'} again.`,
           { duration: 8000 },
         );
       }

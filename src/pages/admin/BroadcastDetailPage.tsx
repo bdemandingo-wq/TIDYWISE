@@ -190,8 +190,8 @@ export default function BroadcastDetailPage() {
     !broadcast || isDraft
       ? null
       : counts.remaining === 0
-        ? `Complete — ${counts.sent} of ${counts.total} sent`
-        : `In progress — ${counts.sent} sent, ${counts.remaining} remaining`;
+        ? `Complete: ${counts.sent} of ${counts.total} sent`
+        : `In progress: ${counts.sent} sent, ${counts.remaining} remaining`;
 
   // Item 7's safety net: a 'sending' row whose worker died is unreachable by
   // both the dispatcher (only claims 'queued') and Retry failed (only claims
@@ -216,7 +216,7 @@ export default function BroadcastDetailPage() {
           title: 'Retry started',
           description:
             requeued !== null
-              ? `${requeued} recipient(s) requeued — the 1-minute cron will pick them up.`
+              ? `${requeued} recipient(s) requeued. The 1-minute cron will pick them up.`
               : 'Failed recipients requeued.',
         });
         // useRetryFailed only invalidates the ['broadcasts'] list query (Task
@@ -276,7 +276,7 @@ export default function BroadcastDetailPage() {
                     {broadcast.message_class}
                   </Badge>
                   <Badge variant={statusBadgeVariant(broadcast.status)} className="capitalize">
-                    {isDraft ? 'Draft — never sent' : broadcast.status}
+                    {isDraft ? 'Draft: never sent' : broadcast.status}
                   </Badge>
                 </div>
                 <CardDescription>

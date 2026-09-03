@@ -333,7 +333,7 @@ export function InvoiceFormDialog({
       if (isEditing) {
         await mustAffectRows(
           supabase.from('invoices').update(invoiceData).eq('id', invoice.id),
-          'Invoice not saved — it may belong to a different business.',
+          'Invoice not saved. It may belong to a different business.',
           { table: 'invoices' },
         );
         invoiceId = invoice.id;

@@ -270,7 +270,7 @@ export default function ClientFeedbackPage() {
               onClick={() => {
                 const ids = filteredEntries.filter(e => !e.is_resolved).map(e => e.id);
                 if (ids.length === 0) return;
-                if (confirm(`Mark ${ids.length} unresolved item${ids.length === 1 ? '' : 's'} as resolved? Only do this if you have actually addressed them — this is not a "dismiss reminder" action.`)) {
+                if (confirm(`Mark ${ids.length} unresolved item${ids.length === 1 ? '' : 's'} as resolved? Only do this if you have actually addressed them. This is not a "dismiss reminder" action.`)) {
                   bulkResolveMutation.mutate(ids);
                 }
               }}

@@ -19,7 +19,7 @@ type Role = 'owner' | 'manager';
 
 const roleDesc: Record<Role, string> = {
   owner: 'Full access, including billing and financial data',
-  manager: 'Operations only — no financial data (payroll, expenses, finance, reports)',
+  manager: 'Operations only. No financial data (payroll, expenses, finance, reports).',
 };
 
 
@@ -123,7 +123,7 @@ export function TeamMembersCard() {
         // link so it can be sent by any other means.
         setFailedEmailLink({ email, url: data.acceptUrl, reason: data.reason });
         setEmail('');
-        toast.warning('Invite created, but the email could not be sent — copy the link below.', {
+        toast.warning('Invite created, but the email could not be sent. Copy the link below.', {
           duration: 8000,
         });
         return;

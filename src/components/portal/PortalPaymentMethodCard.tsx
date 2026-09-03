@@ -121,7 +121,7 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
               <CreditCard className="w-4 h-4 text-muted-foreground shrink-0" />
             )}
             <p className="text-sm font-medium">
-              {justSaved ? 'Saved — ' : ''}
+              {justSaved ? 'Saved: ' : ''}
               {current.brand} ending {current.last4}
             </p>
           </div>
@@ -138,7 +138,7 @@ export function PortalPaymentMethodCard({ email, customerName, organizationId }:
               const brand = titleCaseBrand(cardInfo.brand);
               setJustSaved({ brand, last4: cardInfo.last4 });
               setShowForm(false);
-              toast.success(`Saved — ${brand} ending ${cardInfo.last4}`);
+              toast.success(`Saved: ${brand} ending ${cardInfo.last4}`);
               // Re-read so later renders reflect Stripe, not local state.
               void refetch();
             }}

@@ -633,7 +633,7 @@ export default function PaymentIntegrationPage() {
                     Only the workspace owner can connect this organization's Stripe
                     account. Ask an owner to open Payment Integration and finish setup.
                     Once connected, you'll be able to charge saved cards using the
-                    workspace's Stripe account — you don't need your own.
+                    workspace's Stripe account. You don't need your own.
                   </p>
                 </div>
               </div>
@@ -785,7 +785,7 @@ export default function PaymentIntegrationPage() {
                   { step: "1", title: "Click Connect", desc: "You'll be redirected to Stripe's secure login page" },
                   { step: "2", title: "Log in or sign up", desc: "Use your existing Stripe account or create a new one for free" },
                   { step: "3", title: "Authorize TidyWise", desc: "Grant permission to process payments on your behalf" },
-                  { step: "4", title: "Start accepting payments", desc: "Payments go directly to your Stripe account — TidyWise takes no cut" },
+                  { step: "4", title: "Start accepting payments", desc: "Payments go directly to your Stripe account. TidyWise takes no cut." },
                 ].map((item) => (
                   <div key={item.step} className="flex gap-4 p-3 rounded-lg bg-secondary/30 border border-border/50">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">

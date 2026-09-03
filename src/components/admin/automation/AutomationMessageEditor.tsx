@@ -205,7 +205,7 @@ function MessageCard({
           )}
           {preview.usedDefault && draft.trim() && (
             <p className="mt-2 text-xs text-amber-600">
-              This message can’t be used as written, so we’d send the default instead.
+              This message can't be used as written, so we'd send the default instead.
             </p>
           )}
         </div>
@@ -264,7 +264,7 @@ export function AutomationMessageEditor() {
   if (error) {
     return (
       <p className="text-sm text-destructive py-8">
-        We couldn’t load your messages ({error.message}). Nothing has changed — reload and try again.
+        We couldn't load your messages ({error.message}). Nothing has changed — reload and try again.
       </p>
     );
   }
@@ -286,9 +286,9 @@ export function AutomationMessageEditor() {
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
         Reword anything your customers receive. Leave one alone and it sends exactly as it does
-        today. If a message can’t be used — a placeholder we don’t recognise, or a missing
+        today. If a message can't be used — a placeholder we don't recognise, or a missing
         link — we send the original wording rather than something broken. You can edit a message
-        for an automation that’s switched off; editing it here never turns it on.
+        for an automation that's switched off; editing it here never turns it on.
       </p>
 
       {GROUP_ORDER.map((group) => {
@@ -317,9 +317,9 @@ export function AutomationMessageEditor() {
       })}
 
       <p className="text-xs text-muted-foreground">
-        Two things aren’t here on purpose. Texts to your techs stay fixed, because a mistyped
+        Two things aren't here on purpose. Texts to your techs stay fixed, because a mistyped
         instruction strands someone on a doorstep. And the AI SMS reply writes each answer
-        fresh, so there’s no set wording to edit.
+        fresh, so there's no set wording to edit.
       </p>
     </div>
   );

@@ -50,7 +50,7 @@ export async function previewFile(bucket: string, path: string): Promise<void> {
     }
 
     const win = window.open(url, '_blank', 'noopener');
-    if (!win) toast.error('Popup blocked — allow popups for this site to preview');
+    if (!win) toast.error('Popup blocked. Allow popups for this site to preview.');
   } catch (err) {
     console.error('[fileActions] preview failed:', err);
     toast.error('Failed to preview file');

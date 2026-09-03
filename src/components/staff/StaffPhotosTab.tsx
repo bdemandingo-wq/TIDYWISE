@@ -316,7 +316,7 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             <SelectContent>
               {bookings.map((booking) => (
                 <SelectItem key={booking.id} value={booking.id}>
-                  #{booking.booking_number} — {booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Unknown'} — {format(new Date(booking.scheduled_at), 'MMM d')}
+                  #{booking.booking_number}, {booking.customer ? `${booking.customer.first_name} ${booking.customer.last_name}` : 'Unknown'}, {format(new Date(booking.scheduled_at), 'MMM d')}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -344,8 +344,8 @@ export function StaffPhotosTab({ staffId, organizationId }: StaffPhotosTabProps)
             <p className="mt-1 text-center text-xs text-muted-foreground">
               {typeInferred
                 ? photoType === 'before'
-                  ? 'Job not finished yet — filing as Before.'
-                  : 'Job is checked out — filing as After.'
+                  ? 'Job not finished yet. Filing as Before.'
+                  : 'Job is checked out. Filing as After.'
                 : `Filing as ${photoType}.`}
             </p>
           </div>

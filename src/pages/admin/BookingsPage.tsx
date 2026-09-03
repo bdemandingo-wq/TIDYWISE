@@ -671,8 +671,8 @@ export default function BookingsPage() {
         toast({
           title: "Refund Recorded (Manual)",
           description: refundType === 'full'
-            ? `Full refund of ${fmt(booking.total_amount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`
-            : `Partial refund of ${fmt(parsedRefundAmount)} recorded. No Stripe refund was processed — refund the customer manually if needed.`,
+            ? `Full refund of ${fmt(booking.total_amount)} recorded. No Stripe refund was processed. Refund the customer manually if needed.`
+            : `Partial refund of ${fmt(parsedRefundAmount)} recorded. No Stripe refund was processed. Refund the customer manually if needed.`,
         });
         setRefundDialogBooking(null);
         setRefundType('full');
@@ -1626,7 +1626,7 @@ export default function BookingsPage() {
         const doc = new jsPDF({ orientation: 'landscape' });
         doc.setFontSize(18);
         doc.setTextColor(40, 40, 40);
-        doc.text('TidyWise — Bookings Report', 14, 18);
+        doc.text('TidyWise: Bookings Report', 14, 18);
         doc.setFontSize(10);
         doc.setTextColor(120, 120, 120);
         doc.text(`Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')}  •  ${filteredBookings.length} bookings`, 14, 26);
@@ -1645,10 +1645,10 @@ export default function BookingsPage() {
         await exportFile(`${filename}.pdf`, pdfBlob, 'application/pdf');
       } else if (type === 'print') {
         const printWin = window.open('', '_blank');
-        if (!printWin) { toast({ title: "Error", description: "Popup blocked — please allow popups", variant: "destructive" }); return; }
+        if (!printWin) { toast({ title: "Error", description: "Popup blocked. Please allow popups.", variant: "destructive" }); return; }
         const escHtml = (s: unknown) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         const tableRows = rows.map(r => `<tr>${r.map(c => `<td style="padding:6px 10px;border:1px solid #ddd;font-size:13px">${escHtml(c)}</td>`).join('')}</tr>`).join('');
-        printWin.document.write(`<!DOCTYPE html><html><head><title>Bookings</title><style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%}th{background:#2563eb;color:#fff;padding:8px 10px;font-size:13px;text-align:left}h1{font-size:20px;margin-bottom:4px}p{color:#888;font-size:13px;margin-bottom:16px}@media print{body{margin:0}}</style></head><body><h1>TidyWise — Bookings Report</h1><p>Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')} • ${filteredBookings.length} bookings</p><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
+        printWin.document.write(`<!DOCTYPE html><html><head><title>Bookings</title><style>body{font-family:Arial,sans-serif;margin:24px}table{border-collapse:collapse;width:100%}th{background:#2563eb;color:#fff;padding:8px 10px;font-size:13px;text-align:left}h1{font-size:20px;margin-bottom:4px}p{color:#888;font-size:13px;margin-bottom:16px}@media print{body{margin:0}}</style></head><body><h1>TidyWise: Bookings Report</h1><p>Generated ${format(new Date(), 'MMMM d, yyyy h:mm a')} • ${filteredBookings.length} bookings</p><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
         printWin.document.close();
         printWin.focus();
         printWin.print();
@@ -2748,7 +2748,7 @@ export default function BookingsPage() {
                     if (noLongerDraft.length > 0) {
                       toast({
                         title: stillDraft.length > 0 ? "Partially deleted" : "Nothing deleted",
-                        description: `${stillDraft.length} deleted. ${noLongerDraft.length} skipped — they're no longer drafts.`,
+                        description: `${stillDraft.length} deleted. ${noLongerDraft.length} skipped. They're no longer drafts.`,
                         variant: noLongerDraft.length > stillDraft.length ? "destructive" : "default",
                       });
                     } else {
@@ -2902,7 +2902,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Process Refund</AlertDialogTitle>
             <AlertDialogDescription>
-              Refund payment for Booking #{refundDialogBooking?.booking_number} —{' '}
+              Refund payment for Booking #{refundDialogBooking?.booking_number},{' '}
               <strong>{refundDialogBooking?.customer?.first_name} {refundDialogBooking?.customer?.last_name}</strong>
               <br />
               Original amount: <strong>{fmt(refundDialogBooking?.total_amount)}</strong>
@@ -2911,7 +2911,7 @@ export default function BookingsPage() {
           <div className="py-4 space-y-4">
             {!(refundDialogBooking as any)?.payment_intent_id && (
               <div className="rounded-md bg-warning/10 border border-warning/20 p-3 text-sm text-warning">
-                ⚠️ No Stripe payment found for this booking. This will be a <strong>manual record-only</strong> update — no money will be returned via Stripe. To process an actual Stripe refund, the booking must have been charged through the app first.
+                ⚠️ No Stripe payment found for this booking. This will be a <strong>manual record-only</strong> update. No money will be returned via Stripe. To process an actual Stripe refund, the booking must have been charged through the app first.
               </div>
             )}
             <RadioGroup value={refundType} onValueChange={(v) => setRefundType(v as 'full' | 'partial')}>
@@ -3083,7 +3083,7 @@ export default function BookingsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Assign Cleaner or Team</AlertDialogTitle>
             <AlertDialogDescription>
-              Select one or more cleaners for Booking #{assignCleanerBooking?.booking_number} — {assignCleanerBooking?.customer?.first_name} {assignCleanerBooking?.customer?.last_name}. Pick multiple to assign as a team.
+              Select one or more cleaners for Booking #{assignCleanerBooking?.booking_number}, {assignCleanerBooking?.customer?.first_name} {assignCleanerBooking?.customer?.last_name}. Pick multiple to assign as a team.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2 max-h-[50vh] overflow-y-auto space-y-1">
@@ -3117,7 +3117,7 @@ export default function BookingsPage() {
           </div>
           {assignTeamIds.size > 1 && (
             <p className="text-xs text-muted-foreground">
-              {assignTeamIds.size} cleaners selected — assigned as a team. The first selection is the primary cleaner.
+              {assignTeamIds.size} cleaners selected. Assigned as a team. The first selection is the primary cleaner.
             </p>
           )}
           <AlertDialogFooter>

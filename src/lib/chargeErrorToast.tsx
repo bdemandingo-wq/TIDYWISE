@@ -109,11 +109,11 @@ function classify(ctx: ChargeFailureContext): Classification {
 async function sendCardLinkSms(ctx: ChargeFailureContext): Promise<void> {
   const phone = ctx.customer?.phone?.trim();
   if (!phone) {
-    sonnerToast.error("No phone number on file for this client — cannot send card link.");
+    sonnerToast.error("No phone number on file for this client. Cannot send card link.");
     return;
   }
   if (!ctx.organizationId) {
-    sonnerToast.error("Organization context missing — refresh and try again.");
+    sonnerToast.error("Organization context missing. Refresh and try again.");
     return;
   }
 

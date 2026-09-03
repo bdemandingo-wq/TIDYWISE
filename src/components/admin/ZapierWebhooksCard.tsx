@@ -148,7 +148,7 @@ export function ZapierWebhooksCard() {
       });
       if (error) throw error;
       const ok = (data as any)?.results?.[0]?.success;
-      if (ok) toast.success('Test sent — check your Zap run history');
+      if (ok) toast.success('Test sent. Check your Zap run history.');
       else toast.error('Test sent but Zapier returned an error');
     } catch (e) {
       toast.error('Failed to send test');

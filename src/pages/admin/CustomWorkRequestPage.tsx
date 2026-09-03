@@ -43,7 +43,7 @@ const MENU = [
     id: 'email_marketing_setup',
     label: 'Set up email marketing',
     description:
-      'Welcome sequence, follow-ups, and a seasonal promo — written and scheduled for you.',
+      'Welcome sequence, follow-ups, and a seasonal promo, written and scheduled for you.',
     icon: Mail,
   },
   {
@@ -57,7 +57,7 @@ const MENU = [
     id: 'scripts_documents_pack',
     label: 'Scripts & documents pack',
     description:
-      'Hiring scripts, contractor agreement, client service agreement, employee handbook, onboarding checklist, complaint resolution — full bundle.',
+      'Hiring scripts, contractor agreement, client service agreement, employee handbook, onboarding checklist, complaint resolution, full bundle.',
     icon: FileText,
   },
   {
@@ -163,7 +163,7 @@ export default function CustomWorkRequestPage() {
       );
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      toast.success("Got it — we'll be in touch within 24 hours.");
+      toast.success("Got it. We'll be in touch within 24 hours.");
       setSelectedType(null);
       setDetails('');
       await loadRequests();

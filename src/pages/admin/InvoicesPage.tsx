@@ -149,9 +149,9 @@ function StatFilterCard({ icon, label, value, active, onClick }: {
 }
 
 function editBlockedReason(status: Invoice['status']): string {
-  if (status === 'cancelled') return "Cancelled invoices can't be edited — duplicate it instead.";
-  if (status === 'paid') return "Paid invoices can't be edited — duplicate it instead.";
-  return "Sent invoices can't be edited — duplicate it instead.";
+  if (status === 'cancelled') return "Cancelled invoices can't be edited. Duplicate it instead.";
+  if (status === 'paid') return "Paid invoices can't be edited. Duplicate it instead.";
+  return "Sent invoices can't be edited. Duplicate it instead.";
 }
 
 export default function InvoicesPage() {
@@ -259,7 +259,7 @@ export default function InvoicesPage() {
     mutationFn: async (id: string) => {
       await mustAffectRows(
         supabase.from('invoices').delete().eq('id', id),
-        'Invoice not deleted — it may belong to a different business.',
+        'Invoice not deleted. It may belong to a different business.',
         { table: 'invoices' },
       );
     },
@@ -274,7 +274,7 @@ export default function InvoicesPage() {
     mutationFn: async (id: string) => {
       await mustAffectRows(
         supabase.from('invoices').update({ status: 'cancelled' }).eq('id', id),
-        'Invoice not cancelled — it may belong to a different business.',
+        'Invoice not cancelled. It may belong to a different business.',
         { table: 'invoices' },
       );
     },
@@ -295,7 +295,7 @@ export default function InvoicesPage() {
     mutationFn: async ({ id, previousStatus }: { id: string; previousStatus: Invoice['status'] }) => {
       await mustAffectRows(
         supabase.from('invoices').update({ status: previousStatus, paid_at: null }).eq('id', id),
-        'Payment not undone — the invoice was not writable.',
+        'Payment not undone. The invoice was not writable.',
         { table: 'invoices' },
       );
     },
@@ -315,7 +315,7 @@ export default function InvoicesPage() {
           .from('invoices')
           .update({ status: 'paid', paid_at: new Date().toISOString() })
           .eq('id', id),
-        'Invoice not marked as paid — nothing was written.',
+        'Invoice not marked as paid. Nothing was written.',
         { table: 'invoices' },
       );
     },

@@ -202,7 +202,7 @@ export default function CampaignsPreviewPage() {
                 Referral program
               </p>
               <p className="mt-1 text-[11.5px] font-semibold leading-[1.5] text-[hsl(var(--pv-ink-2))]">
-                {errored ? 'Couldn’t load referrals.' : '3 referrals so far. Customers who refer a friend get a credit on their next clean.'}
+                {errored ? "Couldn't load referrals." : '3 referrals so far. Customers who refer a friend get a credit on their next clean.'}
               </p>
             </Card>
           )}

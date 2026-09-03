@@ -439,7 +439,7 @@ export function EmailSettingsCard() {
                   {!hasSmtpPassword
                     ? 'Save your Gmail address and app password first, then send a test.'
                     : settings.smtp_app_password.trim()
-                      ? 'You have unsaved changes — save first, then send a test.'
+                      ? 'You have unsaved changes. Save first, then send a test.'
                       : 'Test sends go through Gmail directly (no fallback), so errors reflect Gmail\'s real response.'}
                 </p>
 

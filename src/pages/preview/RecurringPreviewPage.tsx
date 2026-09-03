@@ -238,7 +238,7 @@ const TABS: { id: Tab; label: string; count?: number }[] = [
 ];
 
 const STATES: { id: ListState; label: string; why: string }[] = [
-  { id: 'ready', label: 'Ready', why: 'Six schedules. Sarah Mahoney’s custom frequency does not resolve — the live table would print its UUID here.' },
+  { id: 'ready', label: 'Ready', why: "Six schedules. Sarah Mahoney's custom frequency does not resolve — the live table would print its UUID here." },
   { id: 'loading', label: 'Loading', why: 'Skeleton rows rather than an empty list.' },
   { id: 'empty', label: 'Empty', why: 'Distinguishes no schedules from a filter that matched nothing.' },
   { id: 'error', label: 'Error', why: 'The state RecurringBookingsPage does not have — today a failed read renders "No recurring bookings yet".' },

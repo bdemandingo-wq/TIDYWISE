@@ -52,12 +52,12 @@ const REASONS: { value: Reason; label: string }[] = [
   { value: "going_manual", label: "Going back to managing manually (pen & paper / spreadsheets)" },
   { value: "switching_crm", label: "Switching to another cleaning CRM (Jobber, Housecall Pro, ZenMaid, etc.)" },
   { value: "too_expensive", label: "Too expensive for my current number of clients/cleaners" },
-  { value: "too_complicated", label: "Too complicated — my team or cleaners couldn’t get the hang of it" },
+  { value: "too_complicated", label: "Too complicated. My team or cleaners couldn't get the hang of it." },
   { value: "missing_feature", label: "Missing a feature I need to run my cleaning business" },
-  { value: "booking_didnt_work", label: "Booking / scheduling didn’t work the way I needed" },
-  { value: "payments_didnt_work", label: "Payments or cleaner payouts didn’t work for me" },
+  { value: "booking_didnt_work", label: "Booking / scheduling didn't work the way I needed" },
+  { value: "payments_didnt_work", label: "Payments or cleaner payouts didn't work for me" },
   { value: "just_testing", label: "Just testing it out / not ready to commit yet" },
-  { value: "pausing_slow_season", label: "Pausing — slow season, plan to come back" },
+  { value: "pausing_slow_season", label: "Pausing (slow season, plan to come back)" },
   { value: "other", label: "Other" },
 ];
 
@@ -141,7 +141,7 @@ export default function CancellationFlowDialog({
         }
         setWinbackEligible(false);
       } catch (err: any) {
-        // If the offer call fails, don’t block cancellation
+        // If the offer call fails, don't block cancellation
         console.error(err);
       } finally {
         setSubmitting(false);
@@ -281,7 +281,7 @@ export default function CancellationFlowDialog({
                 <Textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Be honest — what wasn't working, what frustrated you, what pushed you to cancel…"
+                  placeholder="Be honest: what wasn't working, what frustrated you, what pushed you to cancel…"
                   rows={3}
                 />
                 <p className={`text-xs ${feedbackOk ? "text-muted-foreground" : "text-destructive"}`}>
@@ -299,7 +299,7 @@ export default function CancellationFlowDialog({
                 <Textarea
                   value={keptText}
                   onChange={(e) => setKeptText(e.target.value)}
-                  placeholder="A feature, a price, better support — what would've changed your mind?"
+                  placeholder="A feature, a price, better support: what would've changed your mind?"
                   rows={2}
                 />
                 <p className={`text-xs ${keptOk ? "text-muted-foreground" : "text-destructive"}`}>

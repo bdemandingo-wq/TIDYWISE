@@ -418,7 +418,7 @@ export default function ScoreCompanyPage() {
                               <ul className="space-y-3">
                                 {evidence.map((e, i) => (
                                   <li key={i} className="text-sm text-foreground">
-                                    <span className="italic">“{e.snippet}”</span>
+                                    <span className="italic">"{e.snippet}"</span>
                                     <div className="text-xs text-muted-foreground mt-1">
                                       — {e.author}{e.date ? `, ${e.date}` : ""}
                                     </div>

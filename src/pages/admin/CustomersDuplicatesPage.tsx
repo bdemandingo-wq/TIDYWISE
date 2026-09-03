@@ -309,10 +309,10 @@ export default function CustomersDuplicatesPage() {
       setSelectedIds(new Set());
       if (deleted === 0 && requested > 0) {
         toast.error(
-          'Delete was blocked — no rows were removed. The customers table is likely missing a DELETE policy for org admins.',
+          'Delete was blocked. No rows were removed. The customers table is likely missing a DELETE policy for org admins.',
         );
       } else if (deleted < requested) {
-        toast.warning(`${deleted} of ${requested} deleted — the rest have bookings/invoices or were blocked.`);
+        toast.warning(`${deleted} of ${requested} deleted. The rest have bookings/invoices or were blocked.`);
       } else {
         toast.success(`${deleted} ${deleted === 1 ? 'record' : 'records'} deleted`);
       }
@@ -320,7 +320,7 @@ export default function CustomersDuplicatesPage() {
     onError: (err: Error) => {
       toast.error(
         err.message?.includes('violates foreign key')
-          ? 'Some records have bookings or invoices — merge those instead of deleting.'
+          ? 'Some records have bookings or invoices. Merge those instead of deleting.'
           : err.message || 'Delete failed',
       );
     },
@@ -337,7 +337,7 @@ export default function CustomersDuplicatesPage() {
         .select('id');
       if (error) throw error;
       if ((data || []).length === 0) {
-        throw new Error('Delete was blocked — the customers table needs a DELETE policy for org admins.');
+        throw new Error('Delete was blocked. The customers table needs a DELETE policy for org admins.');
       }
       return customer;
     },
@@ -349,7 +349,7 @@ export default function CustomersDuplicatesPage() {
     onError: (err: Error) => {
       toast.error(
         err.message?.includes('violates foreign key')
-          ? 'This customer has bookings or invoices — merge instead of deleting.'
+          ? 'This customer has bookings or invoices. Merge instead of deleting.'
           : err.message || 'Failed to delete customer',
       );
     },
@@ -386,7 +386,7 @@ export default function CustomersDuplicatesPage() {
                 .eq('customer_b_id', pair.b.id);
               if (error) throw error;
               queryClient.invalidateQueries({ queryKey: ['customer-duplicate-ignored', orgId] });
-              toast.success('Restored — pair will show again');
+              toast.success('Restored. Pair will show again.');
             } catch (err) {
               toast.error('Failed to undo');
               console.error(err);
@@ -482,7 +482,7 @@ export default function CustomersDuplicatesPage() {
 
       if (snapshotIncomplete) {
         console.error(
-          '[merge] Portal login was changed but no id was captured — Undo will not restore it.',
+          '[merge] Portal login was changed but no id was captured. Undo will not restore it.',
           { rpcMoved, rpcDeactivated, predictedMovedId, predictedDeactivatedId },
         );
       }
@@ -508,13 +508,13 @@ export default function CustomersDuplicatesPage() {
       if (snapshotIncomplete) {
         toast.warning(
           "Merged, but this account could not record the customer's portal login. " +
-          'Undo will restore everything except that login — ask an owner to re-check it.',
+          'Undo will restore everything except that login. Ask an owner to re-check it.',
           { duration: 12000 },
         );
       }
 
       toast.success(
-        `Merged 2 customers — ${moved} booking${moved === 1 ? '' : 's'} transferred`,
+        `Merged 2 customers. ${moved} booking${moved === 1 ? '' : 's'} transferred.`,
         {
           duration: 5000,
           action: {
@@ -530,7 +530,7 @@ export default function CustomersDuplicatesPage() {
                 });
                 if (error) throw error;
                 invalidate();
-                toast.success('Merge undone — customer restored');
+                toast.success('Merge undone. Customer restored.');
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : 'Failed to undo merge';
                 toast.error(msg);

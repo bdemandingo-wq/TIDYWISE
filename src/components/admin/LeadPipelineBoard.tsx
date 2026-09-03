@@ -244,7 +244,7 @@ export function LeadPipelineBoard({
                           onClick={async () => {
                             try {
                               await deleteStage.mutateAsync(column.custom!);
-                              toast.success('Section removed — its leads moved back to New');
+                              toast.success('Section removed. Its leads moved back to New.');
                             } catch (e) {
                               toast.error(e instanceof Error ? e.message : 'Could not remove section');
                             }

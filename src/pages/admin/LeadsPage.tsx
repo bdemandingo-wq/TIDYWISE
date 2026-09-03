@@ -218,7 +218,7 @@ export default function LeadsPage() {
       if (error) throw error;
       if (!rows || rows.length === 0) {
         throw new Error(
-          "Lead not saved — you may not have access to it in the business you're currently in. Try switching business and retry.",
+          "Lead not saved. You may not have access to it in the business you're currently in. Try switching business and retry.",
         );
       }
     },
@@ -243,7 +243,7 @@ export default function LeadsPage() {
       if (error) throw error;
       if (!rows || rows.length === 0) {
         throw new Error(
-          "Lead not deleted — you may not have access to it in the business you're currently in.",
+          "Lead not deleted. You may not have access to it in the business you're currently in.",
         );
       }
     },
@@ -363,7 +363,7 @@ export default function LeadsPage() {
     queryClient.invalidateQueries({ queryKey: ['customers'] });
     toast.success(
       estimatedValue 
-        ? `Lead converted to customer — estimated value: ${fmt(estimatedValue)}`
+        ? `Lead converted to customer. Estimated value: ${fmt(estimatedValue)}`
         : 'Lead converted to customer'
     );
   };
@@ -1099,13 +1099,13 @@ function LeadDialog({
     // frequently have an empty name, so this was reachable in normal use.
     if (!formData.name.trim()) {
       setNameError(true);
-      toast.error('Name is required — the lead was not saved.');
+      toast.error('Name is required. The lead was not saved.');
       return;
     }
     setNameError(false);
     const { estimated_value, email, ...rest } = formData;
     if (estimated_value.trim() && Number.isNaN(parseFloat(estimated_value))) {
-      toast.error('Estimated value must be a number — the lead was not saved.');
+      toast.error('Estimated value must be a number. The lead was not saved.');
       return;
     }
     onSave({

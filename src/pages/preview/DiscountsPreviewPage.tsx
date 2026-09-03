@@ -57,7 +57,7 @@ const SUGGESTIONS = [
   {
     title: 'Win-Back Campaign',
     off: '20% off',
-    reason: "181 clients haven't booked in 60+ days — a “We miss you” 20% off code brings them back.",
+    reason: "181 clients haven't booked in 60+ days — a \u201cWe miss you\u201d 20% off code brings them back.",
     eligible: 181,
   },
   {

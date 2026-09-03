@@ -574,7 +574,7 @@ export default function RecurringBookingsPage() {
 
       // Check if this booking would be past the end date
       if (recurring.ends_at && new Date(scheduledAt) > new Date(recurring.ends_at)) {
-        toast.error('Series has ended — no more bookings to generate');
+        toast.error('Series has ended. No more bookings to generate.');
         return;
       }
 

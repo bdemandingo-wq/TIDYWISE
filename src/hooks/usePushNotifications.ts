@@ -35,7 +35,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   let timeoutId: number;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = window.setTimeout(
-      () => reject(new Error(`${label} timed out after ${ms / 1000}s — the native layer never responded`)),
+      () => reject(new Error(`${label} timed out after ${ms / 1000}s. The native layer never responded.`)),
       ms,
     );
   });

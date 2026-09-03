@@ -55,24 +55,24 @@ export function EmailIdentityBanner() {
   const plural = n === 1 ? 'email' : 'emails';
 
   const title = mode === 'not_configured'
-    ? 'Your customers aren’t receiving emails'
+    ? "Your customers aren't receiving emails"
     : cause === 'invalid_key'
       ? 'Your saved email API key is no longer valid'
       : cause === 'unverified_domain'
-        ? 'Your sending domain isn’t verified'
+        ? "Your sending domain isn't verified"
         : cause === 'gmail_auth'
           ? 'Your Gmail connection has stopped working'
           : `${n} recent email ${n === 1 ? 'failure' : 'failures'}`;
 
   const body = mode === 'not_configured'
-    ? 'You haven’t set up a sender email yet, so booking confirmations, invoices, and receipts aren’t being delivered.'
+    ? "You haven't set up a sender email yet, so booking confirmations, invoices, and receipts aren't being delivered."
     : cause === 'invalid_key'
       ? `The Resend API key saved in your email settings is being rejected, so ${n} customer ${plural} did not send. Replace the key to start sending again.`
       : cause === 'unverified_domain'
         ? `Your sending domain has not been verified with your email provider, so ${n} customer ${plural} did not send. Verify the domain, or switch to a sender address on a domain you have already verified.`
         : cause === 'gmail_auth'
           ? `Gmail is rejecting the saved app password, so ${n} customer ${plural} did not send. Reconnect Gmail, or switch to sending through Resend.`
-          : 'Some customer emails failed to send recently — customers may not be receiving confirmations, invoices, or receipts.';
+          : 'Some customer emails failed to send recently. Customers may not be receiving confirmations, invoices, or receipts.';
 
   const cta = mode === 'not_configured'
     ? 'Set up email'

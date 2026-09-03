@@ -277,7 +277,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       result.push({
         icon: holiday.icon,
         label: `${holiday.name} Promo`,
-        description: `${holiday.name} is in ${daysUntil} days — offer 15% off to boost bookings before the holiday`,
+        description: `${holiday.name} is in ${daysUntil} days. Offer 15% off to boost bookings before the holiday.`,
         recommendedCode: code,
         discountType: 'percentage',
         discountValue: 15,
@@ -293,7 +293,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       result.push({
         icon: '👋',
         label: 'Win-Back Campaign',
-        description: `${businessData.inactiveCount} clients haven't booked in 60+ days — a "We miss you" 20% off code could recover them`,
+        description: `${businessData.inactiveCount} clients haven't booked in 60+ days. A "We miss you" 20% off code could recover them.`,
         recommendedCode: 'WELCOMEBACK20',
         discountType: 'percentage',
         discountValue: 20,
@@ -309,7 +309,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       result.push({
         icon: '📅',
         label: `${businessData.slowDay}-Only Discount`,
-        description: `Your ${businessData.slowDay}s are ${businessData.slowDayPct}% less booked than ${businessData.busiestDay}s — a ${businessData.slowDay}-only discount could fill those slots`,
+        description: `Your ${businessData.slowDay}s are ${businessData.slowDayPct}% less booked than ${businessData.busiestDay}s. A ${businessData.slowDay}-only discount could fill those slots.`,
         recommendedCode: `${businessData.slowDay.toUpperCase().slice(0, 3)}DEAL`,
         discountType: 'percentage',
         discountValue: 10,
@@ -325,7 +325,7 @@ export function AIDiscountSuggestions({ onCreateDiscount }: AIDiscountSuggestion
       result.push({
         icon: '🔄',
         label: 'Rebook Incentive',
-        description: `${businessData.newClientCount} new clients from the last 30 days haven't rebooked — offer $15 off their next booking`,
+        description: `${businessData.newClientCount} new clients from the last 30 days haven't rebooked. Offer $15 off their next booking.`,
         recommendedCode: 'REBOOK15',
         discountType: 'flat',
         discountValue: 15,
