@@ -230,8 +230,9 @@ async function syncOrganization(
           continue;
         }
 
-        conversationId = newConversation.id;
-        if (normalizedPhone) conversationByPhone.set(normalizedPhone, conversationId);
+        const newConversationId = newConversation.id as string;
+        conversationId = newConversationId;
+        if (normalizedPhone) conversationByPhone.set(normalizedPhone, newConversationId);
       }
 
       const rows = openPhoneMessages.map((msg: any) => {
