@@ -158,15 +158,46 @@ serve(async (req) => {
             .update({ bounced_at: new Date().toISOString(), bounce_type: type, bounce_detail: detail })
             .eq("message_id", m[0])
             .eq("organization_id", orgId)
-            .select("id");
+            .select("id, recipient_email");
           if (upErr) throw upErr;
 
           if (updated && updated.length > 0) {
             stat.matched++;
             stat.by_type[type] = (stat.by_type[type] ?? 0) + 1;
+
+            // Only hard bounces suppress. Soft/unknown are transient or
+            // unclassifiable and must never block future sends.
+            if (type === "hard") {
+              for (const row of updated) {
+                const addr = String(row.recipient_email ?? "").trim().toLowerCase();
+                if (!addr || addr === "unknown") continue;
+                const { data: existing } = await supabase
+                  .from("email_suppressions")
+                  .select("bounce_count")
+                  .eq("organization_id", orgId)
+                  .eq("email", addr)
+                  .maybeSingle();
+                const { error: supErr } = await supabase
+                  .from("email_suppressions")
+                  .upsert(
+                    {
+                      organization_id: orgId,
+                      email: addr,
+                      reason: "hard_bounce",
+                      bounce_count: (Number(existing?.bounce_count) || 0) + 1,
+                      last_bounce_detail: detail,
+                    },
+                    { onConflict: "organization_id,email" },
+                  );
+                if (supErr) {
+                  console.error(`[ingest-email-bounces] suppression upsert failed org ${orgId}:`, supErr.message);
+                }
+              }
+            }
           } else {
             stat.unmatched++;
           }
+
         }
 
         await imap.cmd("LOGOUT").catch(() => {});
