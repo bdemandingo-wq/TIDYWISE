@@ -192,6 +192,12 @@ async function sendViaGmailSmtp(
   try {
     const html = opts.html + (settings.email_footer ? `<br/><br/><p style="color:#666;font-size:12px;">${settings.email_footer}</p>` : "");
     const text = opts.text ?? "This email requires an HTML-capable client.";
+    // Stamp a real Message-ID so bounces landing in the org's Gmail inbox can be
+    // matched back to this send via email_send_log.message_id.
+    const domain = settings.smtp_email.includes("@")
+      ? settings.smtp_email.split("@")[1]
+      : "tidywise.local";
+    const messageId = `<tw-${crypto.randomUUID()}@${domain}>`;
     // Bypass denomailer's buggy quoted-printable encoder — build MIME parts with base64 instead.
     await client.send({
       from,
@@ -200,6 +206,7 @@ async function sendViaGmailSmtp(
       bcc: toArr(opts.bcc),
       replyTo,
       subject: opts.subject,
+      headers: { "Message-ID": messageId },
       mimeContent: [
         { mimeType: 'text/plain; charset="utf-8"', content: b64(text), transferEncoding: "base64" },
         { mimeType: 'text/html; charset="utf-8"', content: b64(html), transferEncoding: "base64" },
@@ -212,7 +219,7 @@ async function sendViaGmailSmtp(
       })),
     });
     await client.close();
-    return { ok: true, id: `gmail-${crypto.randomUUID()}` };
+    return { ok: true, id: messageId };
   } catch (e: any) {
     try { await client.close(); } catch (_) { /* ignore */ }
     return { ok: false, error: e?.message ?? String(e) };
