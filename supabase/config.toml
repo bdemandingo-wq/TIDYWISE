@@ -264,3 +264,6 @@ verify_jwt = true
   # can be invoked with x-cron-secret like the other cron-only functions.
   [functions.imap-bounce-spike]
     verify_jwt = false
+
+  [functions.ingest-email-bounces]
+    verify_jwt = false
