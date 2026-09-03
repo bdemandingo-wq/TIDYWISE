@@ -25,6 +25,7 @@ interface ScheduleBooking {
   customerName: string;
   serviceType: string;
   scheduledAt: string;
+  price: number;
 }
 
 interface UpcomingScheduleData {
@@ -137,6 +138,7 @@ async function syncUpcomingSchedule(): Promise<void> {
     .select(`
       id,
       scheduled_at,
+      total_amount,
       customer:customers(first_name, last_name),
       service:services(name)
     `)
@@ -165,6 +167,7 @@ async function syncUpcomingSchedule(): Promise<void> {
             : 'Customer',
           serviceType: service?.name ?? 'Cleaning',
           scheduledAt: b.scheduled_at,
+          price: b.total_amount ?? 0,
         };
       }),
       isEmpty: false,

@@ -39,11 +39,14 @@ private let faintWhite = Color.white.opacity(0.35)
 private let iso = ISO8601DateFormatter()
 private func parseDate(_ s: String?) -> Date? { guard let s else { return nil }; return iso.date(from: s) }
 
-/// Compact time: "10:00a" or "2:30p"
+/// Compact time: "10a" or "2:30p" (drops :00)
 private func fmtCompact(_ s: String?) -> String {
     guard let d = parseDate(s) else { return "" }
-    let f = DateFormatter(); f.dateFormat = "h:mma"
+    let cal = Calendar.current
+    let min = cal.component(.minute, from: d)
+    let f = DateFormatter()
     f.amSymbol = "a"; f.pmSymbol = "p"
+    f.dateFormat = min == 0 ? "ha" : "h:mma"
     return f.string(from: d)
 }
 
@@ -99,15 +102,18 @@ private struct EmptyState: View {
 
 /// Single booking row — standardized across all list views
 private struct BookingRow: View {
-    let time: String; let name: String; let service: String
+    let time: String; let name: String; let service: String; var price: Double? = nil
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Text(time).font(timeFont).foregroundColor(dimWhite)
-                .frame(width: 48, alignment: .leading)
+                .frame(width: 38, alignment: .leading)
             Text(name).font(nameFont).foregroundColor(.white).lineLimit(1)
             Text("·").foregroundColor(faintWhite)
             Text(service).font(serviceFont).foregroundColor(dimWhite).lineLimit(1)
             Spacer(minLength: 0)
+            if let p = price, p > 0 {
+                Text(fmtCurrency(p)).font(.system(size: 12, weight: .medium)).foregroundColor(dimWhite)
+            }
         }
     }
 }
@@ -181,7 +187,7 @@ private struct NBMedium: View {
             VStack(alignment: .leading, spacing: 8) {
                 WidgetHeader(label: "Upcoming")
                 ForEach(Array(upcoming.prefix(3).enumerated()), id: \.offset) { _, b in
-                    BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType)
+                    BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType, price: b.price)
                 }
                 Spacer(minLength: 0)
             }.padding(14)
@@ -198,11 +204,13 @@ private struct NBLarge: View {
             VStack(alignment: .leading, spacing: 0) {
                 WidgetHeader(label: "Upcoming Bookings").padding(.bottom, 8)
                 ForEach(Array(groups.enumerated()), id: \.offset) { gi, group in
+                    if gi > 0 {
+                        Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.top, 10).padding(.bottom, 8)
+                    }
                     Text(group.day.uppercased()).font(headerFont).tracking(0.8)
-                        .foregroundColor(faintWhite)
-                        .padding(.top, gi > 0 ? 10 : 0).padding(.bottom, 6)
+                        .foregroundColor(faintWhite).padding(.bottom, 6)
                     ForEach(Array(group.items.enumerated()), id: \.offset) { _, b in
-                        BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType)
+                        BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType, price: b.price)
                             .padding(.bottom, 4)
                     }
                 }
@@ -231,7 +239,7 @@ private struct NextBookingView: View {
         } else {
             let up = entry.upcoming.isEmpty
                 ? [ScheduleBooking(bookingId: entry.booking.bookingId ?? "", customerName: entry.booking.customerName ?? "",
-                    serviceType: entry.booking.serviceType ?? "Cleaning", scheduledAt: entry.booking.scheduledAt ?? "")]
+                    serviceType: entry.booking.serviceType ?? "Cleaning", scheduledAt: entry.booking.scheduledAt ?? "", price: nil)]
                 : entry.upcoming
             switch family {
             case .systemMedium: NBMedium(upcoming: up)
@@ -247,7 +255,8 @@ private struct NextBookingView: View {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 struct ScheduleBooking: Codable {
-    let bookingId: String; let customerName: String; let serviceType: String; let scheduledAt: String
+    let bookingId: String; let customerName: String; let serviceType: String
+    let scheduledAt: String; let price: Double?
 }
 struct UpcomingScheduleData: Codable {
     let totalJobs: Int; let bookings: [ScheduleBooking]; let isEmpty: Bool
@@ -258,9 +267,9 @@ struct UpcomingScheduleProvider: TimelineProvider {
     func placeholder(in _: Context) -> UpcomingScheduleEntry {
         UpcomingScheduleEntry(date: .now, schedule: .init(totalJobs: 3, bookings: [
             .init(bookingId: "a", customerName: "Jane Smith", serviceType: "Deep Clean",
-                  scheduledAt: iso.string(from: .now.addingTimeInterval(3600))),
+                  scheduledAt: iso.string(from: .now.addingTimeInterval(3600)), price: 200),
             .init(bookingId: "b", customerName: "Bob Lee", serviceType: "Standard",
-                  scheduledAt: iso.string(from: .now.addingTimeInterval(7200))),
+                  scheduledAt: iso.string(from: .now.addingTimeInterval(7200)), price: 150),
         ], isEmpty: false))
     }
     func getSnapshot(in _: Context, completion: @escaping (UpcomingScheduleEntry) -> Void) { completion(load()) }
@@ -294,7 +303,7 @@ private struct SchedMedium: View {
             VStack(alignment: .leading, spacing: 8) {
                 WidgetHeader(label: "\(s.totalJobs) upcoming")
                 ForEach(Array(s.bookings.prefix(3).enumerated()), id: \.offset) { _, b in
-                    BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType)
+                    BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType, price: b.price)
                 }
                 Spacer(minLength: 0)
             }.padding(14)
@@ -310,11 +319,13 @@ private struct SchedLarge: View {
             VStack(alignment: .leading, spacing: 0) {
                 WidgetHeader(label: "\(s.totalJobs) upcoming").padding(.bottom, 8)
                 ForEach(Array(groups.enumerated()), id: \.offset) { gi, group in
+                    if gi > 0 {
+                        Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.top, 10).padding(.bottom, 8)
+                    }
                     Text(group.day.uppercased()).font(headerFont).tracking(0.8)
-                        .foregroundColor(faintWhite)
-                        .padding(.top, gi > 0 ? 10 : 0).padding(.bottom, 6)
+                        .foregroundColor(faintWhite).padding(.bottom, 6)
                     ForEach(Array(group.items.enumerated()), id: \.offset) { _, b in
-                        BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType)
+                        BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType, price: b.price)
                             .padding(.bottom, 4)
                     }
                 }
@@ -455,10 +466,10 @@ private struct DashLarge: View {
                             Text("left").font(.system(size: 9, weight: .medium)).foregroundColor(dimWhite)
                         }
                     }
-                }.padding(.bottom, 10)
+                }.padding(.bottom, 12)
 
-                // Divider
-                Rectangle().fill(.white.opacity(0.1)).frame(height: 1).padding(.bottom, 10)
+                // Stats / bookings divider
+                Rectangle().fill(.white.opacity(0.15)).frame(height: 1).padding(.bottom, 12)
 
                 // Upcoming bookings list
                 if upcoming.isEmpty {
@@ -470,7 +481,7 @@ private struct DashLarge: View {
                             .foregroundColor(faintWhite)
                             .padding(.top, gi > 0 ? 8 : 0).padding(.bottom, 4)
                         ForEach(Array(group.items.enumerated()), id: \.offset) { _, b in
-                            BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType)
+                            BookingRow(time: fmtCompact(b.scheduledAt), name: b.customerName, service: b.serviceType, price: b.price)
                                 .padding(.bottom, 3)
                         }
                     }
