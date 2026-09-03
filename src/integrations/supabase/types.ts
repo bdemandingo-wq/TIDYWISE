@@ -5035,6 +5035,41 @@ export type Database = {
         }
         Relationships: []
       }
+      email_suppressions: {
+        Row: {
+          bounce_count: number
+          email: string
+          first_bounced_at: string
+          last_bounce_detail: string | null
+          organization_id: string
+          reason: string
+        }
+        Insert: {
+          bounce_count?: number
+          email: string
+          first_bounced_at?: string
+          last_bounce_detail?: string | null
+          organization_id: string
+          reason: string
+        }
+        Update: {
+          bounce_count?: number
+          email?: string
+          first_bounced_at?: string
+          last_bounce_detail?: string | null
+          organization_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_suppressions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_unsubscribe_tokens: {
         Row: {
           created_at: string
