@@ -27,13 +27,13 @@ interface ScheduleBooking {
   scheduledAt: string;
 }
 
-interface TodayScheduleData {
+interface UpcomingScheduleData {
   totalJobs: number;
   bookings: ScheduleBooking[];
   isEmpty: false;
 }
 
-interface TodayScheduleEmpty {
+interface UpcomingScheduleEmpty {
   totalJobs: 0;
   bookings: [];
   isEmpty: true;
@@ -66,7 +66,7 @@ export async function syncWidgetData(): Promise<void> {
 
     await Promise.all([
       syncNextBooking(),
-      syncTodaySchedule(),
+      syncUpcomingSchedule(),
       syncDailyStats(),
     ]);
     console.log('[WidgetSync] all three syncs complete');
@@ -131,11 +131,7 @@ async function syncNextBooking(): Promise<void> {
   }
 }
 
-async function syncTodaySchedule(): Promise<void> {
-  const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
-
+async function syncUpcomingSchedule(): Promise<void> {
   const { data: bookings, error } = await supabase
     .from('bookings')
     .select(`
@@ -145,17 +141,16 @@ async function syncTodaySchedule(): Promise<void> {
       service:services(name)
     `)
     .neq('status', 'cancelled')
-    .gte('scheduled_at', startOfDay)
-    .lt('scheduled_at', endOfDay)
+    .gt('scheduled_at', new Date().toISOString())
     .order('scheduled_at', { ascending: true })
     .limit(10);
 
   if (error) {
-    console.error('[WidgetSync:todaySchedule] query error:', error.message);
+    console.error('[WidgetSync:upcoming] query error:', error.message);
     return;
   }
 
-  let data: TodayScheduleData | TodayScheduleEmpty;
+  let data: UpcomingScheduleData | UpcomingScheduleEmpty;
 
   if (bookings && bookings.length > 0) {
     data = {
@@ -178,7 +173,7 @@ async function syncTodaySchedule(): Promise<void> {
     data = { totalJobs: 0, bookings: [], isEmpty: true };
   }
 
-  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetTodaySchedule' });
+  await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetUpcomingSchedule' });
 }
 
 async function syncDailyStats(): Promise<void> {
