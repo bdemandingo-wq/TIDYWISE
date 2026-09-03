@@ -40,6 +40,12 @@ export interface SendOrgEmailOptions {
   messageId?: string;
   /** Extra context stored on the log row (invoice id, booking id, ...). */
   metadata?: Record<string, unknown>;
+  /**
+   * Bypass the hard-bounce suppression list. Set ONLY for auth mail
+   * (password reset, magic link, verification, workspace invites) — blocking
+   * those would lock a real user out of their own account.
+   */
+  ignoreSuppression?: boolean;
 }
 
 export interface SendOrgEmailResult {
