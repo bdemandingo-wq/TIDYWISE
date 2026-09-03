@@ -1,4 +1,5 @@
 import React, { Component, ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import { AlertTriangle, RefreshCcw, Home, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +44,13 @@ export class ErrorBoundary extends Component<Props, State> {
     // Log error to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
+    // Report to Sentry so in-session crashes are visible alongside the
+    // top-level Sentry.ErrorBoundary reports.
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: errorInfo.componentStack } },
+      tags: { feature: this.props.featureName || 'Unknown' },
+    });
+
     // Auto-recover from stale chunk errors after a deploy.
     // When index.html references new hashed chunks but the browser has an old
     // index.html cached, dynamic imports throw "Importing a module script failed"
@@ -53,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
     // the assets are bundled, so a missing chunk is a damaged build rather than
     // a deploy race and must reach the panel instead of being reloaded away.
     if (maybeReloadForStaleChunk(error)) return;
-    
+
     // Log to system_logs table
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -145,12 +153,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <CardDescription>
                 {isOffline
                   ? 'TidyWise will reconnect on its own. You may need to re-enter anything you were part-way through.'
-                  : /* "Logged", not "reported" — componentDidCatch writes to
-                       system_logs in Supabase. Sentry does NOT see errors caught
-                       here; its boundary sits above this one and only fires for
-                       what this does not catch. Claiming otherwise would be a
-                       promise the code does not keep. */
-                    `The problem has been logged.${
+                  : `The problem has been reported.${
                       this.props.featureName ? ` The rest of TidyWise is still fine.` : ''
                     }`}
               </CardDescription>
