@@ -84,7 +84,7 @@ interface BookingStats {
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tabFilter, setTabFilter] = useState<TabFilter>(
     searchParams.get('filter') === 'non_recurring' ? 'non_recurring' : 'all'
   );
@@ -94,6 +94,16 @@ export default function CustomersPage() {
   }, [searchParams]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  // Handle deep-link: ?newCustomer=true (e.g. from widget quick action)
+  useEffect(() => {
+    if (searchParams.get('newCustomer') === 'true') {
+      setAddDialogOpen(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('newCustomer');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);

@@ -69,8 +69,10 @@ export async function syncWidgetData(): Promise<void> {
       syncNextBooking(),
       syncUpcomingSchedule(),
       syncDailyStats(),
+      syncDailyPay(),
+      syncWeeklyRevenue(),
     ]);
-    console.log('[WidgetSync] all three syncs complete');
+    console.log('[WidgetSync] all syncs complete');
   } catch (err) {
     console.error('[WidgetSync] top-level error:', err);
   }
@@ -222,4 +224,109 @@ async function syncDailyStats(): Promise<void> {
   };
 
   await WidgetBridge.syncBookingData({ json: JSON.stringify(data), key: 'widgetDailyStats' });
+}
+
+async function syncDailyPay(): Promise<void> {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+  const { data: assignments, error } = await supabase
+    .from('booking_team_assignments')
+    .select(`
+      pay_share,
+      staff:staff(name),
+      booking:bookings!inner(scheduled_at, status)
+    `)
+    .gte('bookings.scheduled_at', startOfDay)
+    .lt('bookings.scheduled_at', endOfDay)
+    .neq('bookings.status', 'cancelled');
+
+  if (error) {
+    // Fallback: query bookings directly for cleaner_pay_expected
+    const { data: bookings, error: fbErr } = await supabase
+      .from('bookings')
+      .select('cleaner_pay_expected, status, staff:staff(name)')
+      .neq('status', 'cancelled')
+      .gte('scheduled_at', startOfDay)
+      .lt('scheduled_at', endOfDay);
+
+    if (fbErr) {
+      console.error('[WidgetSync:dailyPay] query error:', fbErr.message);
+      return;
+    }
+
+    const cleanerMap: Record<string, number> = {};
+    for (const b of bookings ?? []) {
+      const staff = b.staff as { name: string } | null;
+      const name = staff?.name ?? 'Unassigned';
+      cleanerMap[name] = (cleanerMap[name] ?? 0) + (b.cleaner_pay_expected ?? 0);
+    }
+
+    const cleaners = Object.entries(cleanerMap).map(([name, amount]) => ({ name, amount }));
+    const total = cleaners.reduce((s, c) => s + c.amount, 0);
+
+    await WidgetBridge.syncBookingData({
+      json: JSON.stringify({ total, cleaners }),
+      key: 'widgetDailyPay',
+    });
+    return;
+  }
+
+  const cleanerMap: Record<string, number> = {};
+  for (const a of assignments ?? []) {
+    const staff = a.staff as { name: string } | null;
+    const name = staff?.name ?? 'Unassigned';
+    cleanerMap[name] = (cleanerMap[name] ?? 0) + (a.pay_share ?? 0);
+  }
+
+  const cleaners = Object.entries(cleanerMap).map(([name, amount]) => ({ name, amount }));
+  const total = cleaners.reduce((s, c) => s + c.amount, 0);
+
+  await WidgetBridge.syncBookingData({
+    json: JSON.stringify({ total, cleaners }),
+    key: 'widgetDailyPay',
+  });
+}
+
+async function syncWeeklyRevenue(): Promise<void> {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+  const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+  const lastMonday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() - 7);
+  const nextMonday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + 7);
+
+  const { data: bookings, error } = await supabase
+    .from('bookings')
+    .select('total_amount, scheduled_at, status')
+    .eq('status', 'completed')
+    .gte('scheduled_at', lastMonday.toISOString())
+    .lt('scheduled_at', nextMonday.toISOString());
+
+  if (error) {
+    console.error('[WidgetSync:weeklyRevenue] query error:', error.message);
+    return;
+  }
+
+  let thisWeek = 0;
+  let lastWeek = 0;
+  const thisStart = thisMonday.getTime();
+
+  for (const b of bookings ?? []) {
+    const t = new Date(b.scheduled_at).getTime();
+    if (t >= thisStart) {
+      thisWeek += b.total_amount ?? 0;
+    } else {
+      lastWeek += b.total_amount ?? 0;
+    }
+  }
+
+  const pctChange = lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : 0;
+
+  await WidgetBridge.syncBookingData({
+    json: JSON.stringify({ thisWeek, lastWeek, pctChange }),
+    key: 'widgetWeeklyRevenue',
+  });
 }

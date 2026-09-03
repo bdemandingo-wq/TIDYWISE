@@ -514,6 +514,230 @@ private struct DashboardView: View {
     }
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MARK: - 4. Quick Actions Widget
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+struct QuickActionsEntry: TimelineEntry { let date: Date }
+struct QuickActionsProvider: TimelineProvider {
+    func placeholder(in _: Context) -> QuickActionsEntry { QuickActionsEntry(date: .now) }
+    func getSnapshot(in _: Context, completion: @escaping (QuickActionsEntry) -> Void) { completion(.init(date: .now)) }
+    func getTimeline(in _: Context, completion: @escaping (Timeline<QuickActionsEntry>) -> Void) {
+        completion(Timeline(entries: [.init(date: .now)], policy: .never))
+    }
+}
+
+private struct ActionButton: View {
+    let icon: String; let label: String; let url: String
+    var body: some View {
+        Link(destination: URL(string: url)!) {
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 18, weight: .medium)).foregroundColor(.white)
+                Text(label).font(.system(size: 10, weight: .medium)).foregroundColor(dimWhite).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
+struct QuickActionsWidget: Widget {
+    let kind = "QuickActionsWidget"
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: QuickActionsProvider()) { _ in
+            QuickActionsView()
+        }
+        .configurationDisplayName("Quick Actions")
+        .description("One-tap shortcuts to common tasks.")
+        .supportedFamilies([.systemSmall])
+    }
+}
+private struct QuickActionsView: View {
+    var body: some View {
+        BrandedWidget(url: nil) {
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    ActionButton(icon: "calendar.badge.plus", label: "Booking", url: "tidywise://new-booking")
+                    ActionButton(icon: "person.badge.plus", label: "Customer", url: "tidywise://new-customer")
+                }
+                HStack(spacing: 6) {
+                    ActionButton(icon: "dollarsign.circle", label: "Payroll", url: "tidywise://payroll")
+                    ActionButton(icon: "chart.bar", label: "Reports", url: "tidywise://reports")
+                }
+            }.padding(10)
+        }
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MARK: - 5. Daily Pay Widget
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+struct DailyPayData: Codable {
+    let total: Double
+    let cleaners: [CleanerPay]
+}
+struct CleanerPay: Codable { let name: String; let amount: Double }
+
+struct DailyPayEntry: TimelineEntry { let date: Date; let pay: DailyPayData }
+struct DailyPayProvider: TimelineProvider {
+    func placeholder(in _: Context) -> DailyPayEntry {
+        DailyPayEntry(date: .now, pay: .init(total: 320, cleaners: [
+            .init(name: "Maria", amount: 180), .init(name: "Bruce", amount: 140)]))
+    }
+    func getSnapshot(in _: Context, completion: @escaping (DailyPayEntry) -> Void) { completion(load()) }
+    func getTimeline(in _: Context, completion: @escaping (Timeline<DailyPayEntry>) -> Void) {
+        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(300))))
+    }
+    private func load() -> DailyPayEntry {
+        DailyPayEntry(date: .now, pay: decode("widgetDailyPay") ?? .init(total: 0, cleaners: []))
+    }
+}
+
+private struct PaySmall: View {
+    let p: DailyPayData
+    var body: some View {
+        BrandedWidget(url: URL(string: "tidywise://payroll")) {
+            VStack(spacing: 4) {
+                Spacer()
+                Text(fmtCurrency(p.total)).font(.system(size: 32, weight: .bold, design: .rounded)).foregroundColor(.white)
+                Text("owed today").font(.system(size: 13, weight: .medium)).foregroundColor(dimWhite)
+                Text("\(p.cleaners.count) cleaners").font(.system(size: 12)).foregroundColor(faintWhite)
+                Spacer()
+            }.frame(maxWidth: .infinity)
+        }
+    }
+}
+
+private struct PayMedium: View {
+    let p: DailyPayData
+    var body: some View {
+        BrandedWidget(url: URL(string: "tidywise://payroll")) {
+            VStack(alignment: .leading, spacing: 8) {
+                WidgetHeader(label: fmtCurrency(p.total) + " owed today")
+                ForEach(Array(p.cleaners.prefix(3).enumerated()), id: \.offset) { _, c in
+                    HStack {
+                        Text(c.name).font(nameFont).foregroundColor(.white).lineLimit(1)
+                        Spacer()
+                        Text(fmtCurrency(c.amount)).font(.system(size: 13, weight: .medium)).foregroundColor(dimWhite)
+                    }
+                }
+                Spacer(minLength: 0)
+            }.padding(14)
+        }
+    }
+}
+
+struct DailyPayWidget: Widget {
+    let kind = "DailyPayWidget"
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: DailyPayProvider()) { entry in
+            DailyPayView(entry: entry)
+        }
+        .configurationDisplayName("Daily Pay")
+        .description("Today's cleaner payouts.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+private struct DailyPayView: View {
+    @Environment(\.widgetFamily) var family; let entry: DailyPayEntry
+    var body: some View {
+        switch family {
+        case .systemMedium: PayMedium(p: entry.pay)
+        default:            PaySmall(p: entry.pay)
+        }
+    }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MARK: - 6. Weekly Revenue Widget
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+struct WeeklyRevenueData: Codable { let thisWeek: Double; let lastWeek: Double; let pctChange: Int }
+
+struct WeeklyRevenueEntry: TimelineEntry { let date: Date; let rev: WeeklyRevenueData }
+struct WeeklyRevenueProvider: TimelineProvider {
+    func placeholder(in _: Context) -> WeeklyRevenueEntry {
+        WeeklyRevenueEntry(date: .now, rev: .init(thisWeek: 2400, lastWeek: 2100, pctChange: 14))
+    }
+    func getSnapshot(in _: Context, completion: @escaping (WeeklyRevenueEntry) -> Void) { completion(load()) }
+    func getTimeline(in _: Context, completion: @escaping (Timeline<WeeklyRevenueEntry>) -> Void) {
+        completion(Timeline(entries: [load()], policy: .after(.now.addingTimeInterval(300))))
+    }
+    private func load() -> WeeklyRevenueEntry {
+        WeeklyRevenueEntry(date: .now, rev: decode("widgetWeeklyRevenue") ?? .init(thisWeek: 0, lastWeek: 0, pctChange: 0))
+    }
+}
+
+private struct RevSmall: View {
+    let r: WeeklyRevenueData
+    var body: some View {
+        BrandedWidget(url: URL(string: "tidywise://reports")) {
+            VStack(spacing: 4) {
+                Spacer()
+                Text(fmtCurrency(r.thisWeek)).font(.system(size: 28, weight: .bold, design: .rounded)).foregroundColor(.white)
+                Text("this week").font(.system(size: 12, weight: .medium)).foregroundColor(dimWhite)
+                if r.pctChange != 0 {
+                    Text(r.pctChange > 0 ? "+\(r.pctChange)%" : "\(r.pctChange)%")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(r.pctChange > 0 ? Color(hue: 145.0/360, saturation: 0.6, brightness: 0.8) : Color(hue: 0, saturation: 0.6, brightness: 0.9))
+                }
+                Spacer()
+            }.frame(maxWidth: .infinity)
+        }
+    }
+}
+
+private struct RevMedium: View {
+    let r: WeeklyRevenueData
+    var body: some View {
+        BrandedWidget(url: URL(string: "tidywise://reports")) {
+            HStack(spacing: 0) {
+                VStack(spacing: 4) {
+                    Spacer()
+                    Text(fmtCurrency(r.thisWeek)).font(.system(size: 28, weight: .bold, design: .rounded)).foregroundColor(.white)
+                    Text("this week").font(.system(size: 12, weight: .medium)).foregroundColor(dimWhite)
+                    if r.pctChange != 0 {
+                        Text(r.pctChange > 0 ? "+\(r.pctChange)% vs last week" : "\(r.pctChange)% vs last week")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(r.pctChange > 0 ? Color(hue: 145.0/360, saturation: 0.6, brightness: 0.8) : Color(hue: 0, saturation: 0.6, brightness: 0.9))
+                    }
+                    Spacer()
+                }.frame(maxWidth: .infinity)
+                Rectangle().fill(.white.opacity(0.1)).frame(width: 1).padding(.vertical, 16)
+                VStack(spacing: 4) {
+                    Spacer()
+                    Text(fmtCurrency(r.lastWeek)).font(.system(size: 22, weight: .bold, design: .rounded)).foregroundColor(.white.opacity(0.6))
+                    Text("last week").font(.system(size: 11, weight: .medium)).foregroundColor(faintWhite)
+                    Spacer()
+                }.frame(maxWidth: .infinity)
+            }.padding(14)
+        }
+    }
+}
+
+struct WeeklyRevenueWidget: Widget {
+    let kind = "WeeklyRevenueWidget"
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: WeeklyRevenueProvider()) { entry in
+            WeeklyRevenueView(entry: entry)
+        }
+        .configurationDisplayName("Weekly Revenue")
+        .description("This week's revenue vs last week.")
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+private struct WeeklyRevenueView: View {
+    @Environment(\.widgetFamily) var family; let entry: WeeklyRevenueEntry
+    var body: some View {
+        switch family {
+        case .systemMedium: RevMedium(r: entry.rev)
+        default:            RevSmall(r: entry.rev)
+        }
+    }
+}
+
 // MARK: - Helpers + Bundle
 
 private func decode<T: Decodable>(_ key: String) -> T? {
@@ -529,5 +753,8 @@ struct TidyWiseWidgets: WidgetBundle {
         NextBookingWidget()
         UpcomingScheduleWidget()
         DashboardWidget()
+        QuickActionsWidget()
+        DailyPayWidget()
+        WeeklyRevenueWidget()
     }
 }

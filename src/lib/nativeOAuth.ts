@@ -58,10 +58,16 @@ export function setupDeepLinkListener(): (() => void) | undefined {
           window.location.hash = '#/dashboard/bookings';
         } else if (path === 'new-booking') {
           window.location.hash = '#/dashboard/bookings?newBooking=true';
+        } else if (path === 'new-customer') {
+          window.location.hash = '#/dashboard/customers?newCustomer=true';
         } else if (path === 'today' || path === 'bookings') {
           window.location.hash = '#/dashboard/bookings';
         } else if (path === 'dashboard') {
           window.location.hash = '#/dashboard';
+        } else if (path === 'payroll') {
+          window.location.hash = '#/dashboard/payroll';
+        } else if (path === 'reports') {
+          window.location.hash = '#/dashboard/reports';
         }
         return;
       }
