@@ -875,7 +875,7 @@ export default function PublicBookingPage() {
                   href={safeWebsiteUrl}
                   target="_top"
                   rel="noopener"
-                  className="flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex items-center gap-3 rounded-xl transition-all hover:brightness-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={organizationName ? `Return to ${organizationName}` : 'Return to website'}
                 >
                   {brand}

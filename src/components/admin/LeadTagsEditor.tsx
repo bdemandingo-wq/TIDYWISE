@@ -212,7 +212,7 @@ export function LeadTagsEditor({ value, onChange, suggestions = [] }: LeadTagsEd
                       key={`${t.name}-${i}`}
                       type="button"
                       onClick={() => addTag(t)}
-                      className="hover:opacity-80"
+                      className="hover:brightness-90 transition-all"
                     >
                       <LeadTagChip tag={t} />
                     </button>

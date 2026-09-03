@@ -1068,7 +1068,7 @@ export function SchedulerCalendar({ searchTerm = '', onSearchChange, statusFilte
                         setDayBookingsPopup(null);
                         setSelectedBooking(booking);
                       }}
-                      className="w-full text-left px-4 py-3 rounded-lg border transition-colors hover:opacity-80"
+                      className="w-full text-left px-4 py-3 rounded-lg border transition-all hover:brightness-95"
                       style={{
                         backgroundColor: `${color}15`,
                         borderColor: `${color}40`,

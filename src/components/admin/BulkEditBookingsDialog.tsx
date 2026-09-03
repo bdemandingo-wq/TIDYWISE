@@ -565,7 +565,7 @@ export function BulkEditBookingsDialog({
               Cancel
             </Button>
             <Button
-              className="flex-1 h-11 rounded-xl bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              className="flex-1 h-11 rounded-xl bg-gradient-to-r from-primary to-accent hover:brightness-110 transition-all"
               onClick={handleApply}
               disabled={saving || !hasChanges || filteredBookings.length === 0}
             >

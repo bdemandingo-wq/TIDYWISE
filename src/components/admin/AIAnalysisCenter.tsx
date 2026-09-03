@@ -818,7 +818,7 @@ export function AIAnalysisCenter() {
                   <button
                     type="button"
                     onClick={() => openAskAI(ins.promptText || ins.action || '')}
-                    className={`mt-3 w-full inline-flex items-start justify-start gap-2 rounded-md px-3 py-2 text-xs font-medium hover:opacity-90 ${c.action}`}
+                    className={`mt-3 w-full inline-flex items-start justify-start gap-2 rounded-md px-3 py-2 text-xs font-medium hover:brightness-95 transition-all ${c.action}`}
                   >
                     <span className="break-words min-w-0 flex-1 text-left">{ins.action}</span>
                     <ArrowUpRight size={12} className="shrink-0 mt-0.5" />
@@ -859,7 +859,7 @@ export function AIAnalysisCenter() {
                         `Draft a follow-up message for ${lead.name}, a ${typeLabel} lead who hasn't been contacted in ${daysSince} days. Make it personal and include a scheduling CTA.`,
                         'sms',
                       )}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium pv-soft-brand hover:opacity-90"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium pv-soft-brand hover:brightness-95 transition-all"
                     >
                       Draft message <ArrowUpRight size={12} className="ml-1" />
                     </button>
@@ -900,7 +900,7 @@ export function AIAnalysisCenter() {
                             `Draft a re-engagement message for ${c.first_name} ${c.last_name}, who last booked ${c.daysSince} days ago for ${c.serviceName}. Make it warm and offer a small incentive to rebook.`,
                             'sms',
                           )}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium pv-soft-brand hover:opacity-90"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium pv-soft-brand hover:brightness-95 transition-all"
                         >
                           Draft re-engagement <ArrowUpRight size={12} className="ml-1" />
                         </button>

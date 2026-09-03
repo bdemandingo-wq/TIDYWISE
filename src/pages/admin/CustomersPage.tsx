@@ -581,7 +581,7 @@ export default function CustomersPage() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button type="button" className="inline-flex items-center hover:opacity-80 transition-opacity" aria-label="Change status">
+          <button type="button" className="inline-flex items-center hover:brightness-90 transition-all" aria-label="Change status">
             {getStatusBadge(effective)}
           </button>
         </DropdownMenuTrigger>

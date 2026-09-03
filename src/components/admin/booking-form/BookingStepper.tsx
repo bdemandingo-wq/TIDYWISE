@@ -1692,7 +1692,7 @@ export function BookingStepper({ booking, onClose, onDuplicate }: BookingStepper
             <Button
               onClick={() => handleSubmit(false)}
               disabled={submitting || savingDraft || !!pricingError}
-              className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-md"
+              className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:brightness-110 shadow-md transition-all"
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {booking ? 'Update Booking' : 'Save Booking'}

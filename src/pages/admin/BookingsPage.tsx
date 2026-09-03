@@ -1987,7 +1987,7 @@ export default function BookingsPage() {
             </p>
             <Button 
               onClick={() => setAddDialogOpen(true)}
-              className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              className="gap-2 bg-gradient-to-r from-primary to-accent hover:brightness-110 transition-all"
             >
               <Plus className="w-4 h-4" />
               Create Booking
